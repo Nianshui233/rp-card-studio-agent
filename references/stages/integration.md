@@ -111,7 +111,7 @@ media_manifest:
 
 1. 世界书装配：条目来源、激活、插入、条目级扫描深度、概率、递归、独立世界书角色过滤与失败策略。
 2. 媒体装配：实际来源、消费者、预加载、完整性与回退。
-3. 适配器生成：契约清单、入口、产物、挂载点、依赖和碰撞处置。
+3. 适配器生成：契约清单、入口、产物、角色正则、消息占位符、依赖和碰撞处置。
 4. 产物组合、命名、候选构建、覆盖策略与版本号。
 5. 阻断项、警告处置和真实 SillyTavern 验收范围。
 6. 最终交付确认。
@@ -139,10 +139,12 @@ media_manifest:
 
 ### 适配器
 
-- 角色卡 payload 按固定顺序处理：先应用 `assembly.yaml`，再生成 MVU CharacterBook 条目，再生成 EJS CharacterBook 条目，最后生成 Tavern Helper 脚本。后一步不得覆盖或重新解释前一步的语义。
+- 角色卡 payload 按固定顺序处理：先应用 `assembly.yaml`，再生成 MVU CharacterBook 条目，再生成 EJS CharacterBook 条目，再生成必要的 Tavern Helper 运行时脚本，最后合并 SillyTavern 角色正则。后一步不得覆盖或重新解释前一步的语义。
 - 从已锁定的 `runtime_contract.adapter`、开场呈现需求和 `status_ui.delivery` 生成实际 adapter 文件，不在整合阶段重设它们的功能语义或视觉设计。
-- 生成前建立 adapter ID、entrypoint、artifact、mount anchor 和宿主事件订阅表；任何 ID、路径或挂载点碰撞都先阻断并路由到责任契约。
-- EJS 依赖 `ST-Prompt-Template 1.17.6.8`，动态条目留在 `data.character_book.entries[]`；只有 MVU/UI 的宿主桥接脚本才进入 `data.extensions.tavern_helper.scripts`。
+- 生成前建立 adapter ID、entrypoint、artifact、角色正则 UUID、消息占位符和宿主依赖表；任何 ID、路径、正则或占位符碰撞都先阻断并路由到责任契约。
+- EJS 依赖 `ST-Prompt-Template 1.17.6.8`，动态条目留在 `data.character_book.entries[]`；MVU 运行时桥接脚本进入 `data.extensions.tavern_helper.scripts`，消息状态栏进入 `data.extensions.regex_scripts`。
+- 启用 MVU 时必须生成 Prompt 过滤及完整/流式显示规则；启用状态栏时必须生成 AI_OUTPUT 消息正则、为全部开场追加唯一占位符，并写入后续助手回复合同。
+- 状态栏交付只有角色正则和 Tavern Helper 消息级 JS/iframe。`embedded + sillytavern_regex` 必须是 `refresh: on_message`、只读、无命令、无 tabs；动态刷新、命令、tabs、条件缺失/错误状态或逐楼层快照必须使用 `tavern_helper_message + host_required`。没有已验证消息级实现时不得冒充 embedded 或 runtime pass。
 - 运行时代码必须随项目、角色卡或明确的宿主依赖交付并登记；禁止通过未登记的远程脚本 URL 临时补能力。
 - 生成成功、语法通过和静态预览只形成 `offline` 或 `artifact` 证据；只有目标宿主实际加载、更新、卸载和降级用例通过，才能形成 `runtime` 证据。
 
@@ -155,7 +157,7 @@ media_manifest:
 - JSON 与 PNG 的角色卡负载必须语义一致；PNG 操作不得改变原头像像素数据。
 - 同一源码和同一构建参数应得到语义一致的结果；时间戳等非语义元数据单独登记。
 - `assembly.yaml` 是世界书与媒体装配真源；生成后的世界书、资源表和 adapter 不能反向成为创作真源。
-- 构建前检查装配引用图闭环、媒体回退图、初始化 profile/opening binding、呈现默认/回退链和 UI 生命周期契约。
+- 构建前检查装配引用图闭环、媒体回退图、初始化 profile/opening binding、呈现默认/回退链、角色正则顺序、开场占位符和消息 UI 契约。
 
 ## 完成门槛
 
@@ -166,7 +168,7 @@ media_manifest:
 - 阻断项为零；警告都有处置记录。
 - 真实运行测试已执行，或明确列为 `not_run`/`blocked` 并说明原因。
 - `reports/handoff.md` 能区分已证实、未证实、需宿主设置和用户验收。
-- `assembly.yaml` 已登记到 `source_manifest.assembly`；世界书、媒体 consumer、adapter 入口和挂载点均无悬空引用或碰撞。
+- `assembly.yaml` 已登记到 `source_manifest.assembly`；世界书、媒体 consumer、adapter 入口、角色正则和消息占位符均无悬空引用或碰撞。
 - 所有适用的本地/远程媒体和运行时代码都已登记；远程媒体有回退，且没有未登记远程运行脚本。
 
 ## 阶段总汇

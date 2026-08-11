@@ -1,4 +1,4 @@
-schema_version: 1.1.0
+schema_version: 1.2.0
 status: draft
 
 status_ui:
@@ -9,11 +9,13 @@ status_ui:
   text_template: ""
   sections: []
   commands: []
+  # These four strings are design metadata until a Tavern Helper message
+  # runtime implements conditional state detection. Regex cannot switch them.
   states:
     loading: 正在读取状态
     empty: 暂无可显示状态
     error: 状态暂时不可用
-    degraded: 使用文字状态栏
+    degraded: 状态信息不可用
   responsive:
     narrow: single_column
     wide: grouped_columns
@@ -26,4 +28,7 @@ status_ui:
     live_updates: polite
     color_independent: true
   dependencies: []
+  # Embedded regex is always read-only, on_message, command-free, and non-tabbed.
+  # Dynamic refresh, commands, tabs, or per-message snapshots require
+  # adapter: tavern_helper_message with level: host_required.
   delivery: null

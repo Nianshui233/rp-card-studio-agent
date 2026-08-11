@@ -2,6 +2,7 @@ import {
   applyAssemblyManifest,
   applyEjsTemplates,
   applyMvuArtifacts,
+  applySillyTavernRegexAdapter,
   applyTavernHelperAdapter,
   createCharacterBookIdAllocator,
   generateRuntimeStateSchema,
@@ -348,6 +349,16 @@ export async function applyNsfwTemplates(project, characterSource) {
   const statusUi = await readYaml(await templateAssetUrl("status-ui.yaml"));
   const statusMixin = await readYaml(await templateAssetUrl("nsfw/status-ui.mixin.yaml"));
   characterSource.nsfw = structuredClone(characterMixin.nsfw);
+  statusUi.status_ui.enabled = true;
+  statusUi.status_ui.mode = "embedded";
+  statusUi.status_ui.delivery = {
+    level: "embedded",
+    adapter: "sillytavern_regex",
+    surface: "message",
+    entrypoint: "generated",
+    artifact: "inline",
+    placeholder: "<StatusPlaceHolderImpl/>"
+  };
   statusUi.status_ui.sections.push(...structuredClone(statusMixin.sections));
   project.features.status_ui = true;
   project.source_manifest.ui.push("src/ui/status-ui.yaml");
@@ -597,31 +608,38 @@ export async function loadProjectSource(loaded) {
     sources,
     target
   });
-  const adapted = applyTavernHelperAdapter(ejsTemplates.payload, {
+  const relativePreserved = projectPreservedPath(loaded.project);
+  const preservedPath = relativePreserved ? resolveWithin(loaded.projectRoot, relativePreserved) : null;
+  const preserved = preservedPath && await pathExists(preservedPath) ? await readJson(preservedPath) : null;
+  const restored = applyPreserved(ejsTemplates.payload, preserved);
+  const adapted = applyTavernHelperAdapter(restored.payload, {
     project: loaded.project,
     sources,
     target
   });
-  const relativePreserved = projectPreservedPath(loaded.project);
-  const preservedPath = relativePreserved ? resolveWithin(loaded.projectRoot, relativePreserved) : null;
-  const preserved = preservedPath && await pathExists(preservedPath) ? await readJson(preservedPath) : null;
-  const merged = applyPreserved(adapted.payload, preserved);
-  const format = target === "worldbook" ? Format.WORLDBOOK : detectJsonFormat(merged.payload);
+  const regexAdapted = applySillyTavernRegexAdapter(adapted.payload, {
+    project: loaded.project,
+    sources,
+    target
+  });
+  const format = target === "worldbook" ? Format.WORLDBOOK : detectJsonFormat(regexAdapted.payload);
   if (!format) throw validationError("装配后的角色卡版本无法识别", {
     issues: [issue("/spec", "unsupported", "仅支持 Character Card V2 或 V3")]
   });
-  const payloadValidation = validatePayload(merged.payload, format);
+  const payloadValidation = validatePayload(regexAdapted.payload, format);
   payloadValidation.issues.push(
     ...assembled.issues,
     ...mvuArtifacts.issues,
     ...ejsTemplates.issues,
     ...adapted.issues,
+    ...regexAdapted.issues,
   );
   payloadValidation.warnings.push(
     ...(assembled.warnings ?? []),
     ...(mvuArtifacts.warnings ?? []),
     ...(ejsTemplates.warnings ?? []),
     ...(adapted.warnings ?? []),
+    ...(regexAdapted.warnings ?? []),
   );
   return {
     sourcePath,
@@ -629,8 +647,8 @@ export async function loadProjectSource(loaded) {
     sources,
     consumedSources: Object.values(sources).flat().map((entry) => entry.relativePath),
     preservedPath,
-    payload: merged.payload,
-    restoredPaths: merged.restoredPaths,
+    payload: regexAdapted.payload,
+    restoredPaths: restored.restoredPaths,
     validation: payloadValidation,
     runtimeStateSchema: generateRuntimeStateSchema(sources),
     format

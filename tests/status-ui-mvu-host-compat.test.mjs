@@ -1,8 +1,19 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import vm from 'node:vm';
 
-import { applyTavernHelperAdapter } from '../scripts/rp-card-runtime.mjs';
+import {
+  applyMvuArtifacts,
+  applySillyTavernRegexAdapter,
+  applyTavernHelperAdapter,
+} from '../scripts/rp-card-runtime.mjs';
+
+const IDS = Object.freeze({
+  prompt: '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d01',
+  pending: '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d02',
+  complete: '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d03',
+  status: '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d04',
+});
+const PLACEHOLDER = '<StatusPlaceHolderImpl/>';
 
 function emptySources(overrides = {}) {
   return {
@@ -19,29 +30,21 @@ function emptySources(overrides = {}) {
   };
 }
 
-function runtimeSources({
-  scope = 'message',
-  namespace = 'stat_data',
-  snapshotSelector = 'latest_message',
-  readOnly = true,
-  commands = [],
-  refresh = 'on_state_change',
-} = {}) {
+function runtimeSources({ mvu = true, ejs = false, status = true, statusMode = 'embedded' } = {}) {
   return emptySources({
     mvu: [{
       relativePath: 'src/mvu/runtime.yaml',
       value: {
         mvu: {
-          enabled: true,
+          enabled: mvu,
           storage: {
-            scope,
-            namespace,
-            snapshot_selector: snapshotSelector,
-            merge_policy: 'scope_only',
+            scope: 'message',
+            namespace: 'stat_data',
+            snapshot_selector: 'current_message',
           },
           variables: [{
             source_path: 'relationship.trust',
-            runtime_path: `${namespace}.relationship.trust`,
+            runtime_path: 'stat_data.runtime.relationship_score',
             type: 'integer',
             default: 10,
             constraints: { minimum: 0, maximum: 100 },
@@ -53,7 +56,7 @@ function runtimeSources({
           update_rules: [],
           routing: { entries: [] },
         },
-        ejs: { enabled: false, entries: [] },
+        ejs: { enabled: ejs, entries: [] },
         runtime_contract: {
           adapter: {
             id: 'tavern_helper',
@@ -61,23 +64,21 @@ function runtimeSources({
             delivery: 'embedded',
             entrypoint: 'rp_card_studio_runtime_guard',
             readiness_probe: 'globalThis.Mvu',
-            timeout_ms: 50,
+            timeout_ms: 10000,
             fallback: 'Keep the last legal state.',
           },
           dependencies: [],
-          assumptions: [],
-          fallbacks: [],
         },
       },
     }],
-    ui: [{
+    ui: status ? [{
       relativePath: 'src/ui/status-ui.yaml',
       value: {
         status_ui: {
           enabled: true,
-          mode: 'embedded',
-          read_only: readOnly,
-          refresh,
+          mode: statusMode,
+          read_only: true,
+          refresh: 'on_message',
           text_template: 'Trust: {{relationship.trust}}',
           sections: [{
             id: 'relationship',
@@ -93,502 +94,505 @@ function runtimeSources({
               visibility: 'player',
             }],
           }],
-          commands,
-          states: {
-            loading: 'Loading',
-            empty: 'Empty',
-            error: 'Error',
-            degraded: 'Unavailable',
-          },
-          responsive: { narrow: 'single_column', wide: 'grouped_columns' },
-          visual: { density: 'compact', hierarchy: ['relationship'], motion: 'none' },
+          commands: [],
+          states: { degraded: 'Unavailable' },
+          responsive: { narrow: 'compact_list', wide: 'grouped_columns' },
+          visual: { hierarchy: ['relationship'] },
           accessibility: { keyboard: true, live_updates: 'polite', color_independent: true },
           delivery: {
             level: 'embedded',
-            adapter: 'tavern_helper',
+            adapter: 'sillytavern_regex',
+            surface: 'message',
             entrypoint: 'generated',
             artifact: 'inline',
-            mount_anchor: 'rp-card-status',
-            lifecycle: {
-              wait_for: [],
-              cleanup: ['events', 'observers', 'timers', 'dom'],
-              idempotent: true,
-            },
+            placeholder: PLACEHOLDER,
           },
         },
       },
-    }],
+    }] : [],
   });
 }
 
-function statusScript(options = {}) {
-  const result = applyTavernHelperAdapter({ data: { extensions: {} } }, {
+function cardPayload(regexScripts) {
+  return {
+    data: {
+      first_mes: `Opening.\n${PLACEHOLDER}\n${PLACEHOLDER}`,
+      alternate_greetings: [
+        `Alternate A. ${PLACEHOLDER}`,
+        'Alternate B.',
+      ],
+      post_history_instructions: 'Existing instructions.',
+      extensions: regexScripts === undefined ? {} : { regex_scripts: regexScripts },
+    },
+  };
+}
+
+function applyRegex({
+  payload = cardPayload(),
+  sources = runtimeSources(),
+  mvu = true,
+  status = true,
+  target = 'character',
+} = {}) {
+  return applySillyTavernRegexAdapter(payload, {
+    project: { features: { mvu, ejs: false, status_ui: status } },
+    sources,
+    target,
+  });
+}
+
+function regexFromLiteral(literal) {
+  const match = /^\/(.*)\/([a-z]*)$/s.exec(literal);
+  assert.ok(match, `invalid regex literal: ${literal}`);
+  return new RegExp(match[1], match[2]);
+}
+
+function simulateSillyTavernReplacement(script, rawString) {
+  const findRegex = regexFromLiteral(script.findRegex);
+  return rawString.replace(findRegex, function (match) {
+    const args = [...arguments];
+    const replaceString = script.replaceString.replace(/{{match}}/gi, '$0');
+    return replaceString.replaceAll(/\$(\d+)|\$<([^>]+)>/g, (_token, num, groupName) => {
+      const captured = num ? args[Number(num)] : args.at(-1)?.[groupName];
+      return captured || '';
+    });
+  });
+}
+
+test('MVU emits the exact SillyTavern prompt filter and two display folds in stable order', () => {
+  const result = applyRegex({ status: false, sources: runtimeSources({ status: false }) });
+
+  assert.deepEqual(result.issues, []);
+  const scripts = result.payload.data.extensions.regex_scripts;
+  assert.deepEqual(scripts.map(script => script.id), [IDS.prompt, IDS.pending, IDS.complete]);
+  assert.deepEqual(scripts[0], {
+    id: IDS.prompt,
+    scriptName: '[MVU] Filter variable updates from prompts',
+    findRegex: '/<update(?:variable)?>[\\s\\S]*?(?:<\\/update(?:variable)?>|$)/gi',
+    replaceString: '',
+    trimStrings: [],
+    placement: [1, 2],
+    disabled: false,
+    markdownOnly: false,
+    promptOnly: true,
+    runOnEdit: false,
+    substituteRegex: 0,
+    minDepth: null,
+    maxDepth: 3,
+  });
+  for (const script of scripts.slice(1)) {
+    assert.deepEqual(script.placement, [2]);
+    assert.equal(script.markdownOnly, true);
+    assert.equal(script.promptOnly, false);
+    assert.equal(script.substituteRegex, 0);
+  }
+});
+
+test('prompt filter removes multiple update blocks without swallowing prose between them', () => {
+  const result = applyRegex({ status: false, sources: runtimeSources({ status: false }) });
+  const filter = regexFromLiteral(result.payload.data.extensions.regex_scripts[0].findRegex);
+  const message = 'Before <UpdateVariable>one</UpdateVariable> middle <update>two</update> after';
+
+  assert.equal(message.replace(filter, ''), 'Before  middle  after');
+});
+
+test('pending update fold leaves the message status placeholder outside the folded block', () => {
+  const result = applyRegex({ status: false, sources: runtimeSources({ status: false }) });
+  const pending = result.payload.data.extensions.regex_scripts.find(script => script.id === IDS.pending);
+  const rendered = `<UpdateVariable>\n<JSONPatch>[]</JSONPatch>\n${PLACEHOLDER}`
+    .replace(regexFromLiteral(pending.findRegex), pending.replaceString);
+
+  assert.match(rendered, /^<details[\s\S]*<\/details>\s*<StatusPlaceHolderImpl\/>$/);
+  assert.equal((rendered.match(/<StatusPlaceHolderImpl\/>/g) ?? []).length, 1);
+});
+
+test('EJS-only and disabled runtime projects do not receive MVU regex scripts', () => {
+  const ejsOnly = applyRegex({
+    sources: runtimeSources({ mvu: false, ejs: true, status: false }),
+    mvu: false,
+    status: false,
+  });
+  const disabled = applyRegex({ sources: emptySources(), mvu: false, status: false });
+
+  assert.equal(ejsOnly.payload.data.extensions.regex_scripts, undefined);
+  assert.equal(disabled.payload.data.extensions.regex_scripts, undefined);
+});
+
+test('message status projection compiles full MVU paths and normalizes every opening placeholder', () => {
+  const result = applyRegex();
+
+  assert.deepEqual(result.issues, []);
+  const scripts = result.payload.data.extensions.regex_scripts;
+  assert.deepEqual(scripts.map(script => script.id), [IDS.prompt, IDS.pending, IDS.complete, IDS.status]);
+  const status = scripts.at(-1);
+  assert.deepEqual(status.placement, [2]);
+  assert.equal(status.markdownOnly, true);
+  assert.equal(status.promptOnly, false);
+  assert.match(status.replaceString, /\{\{get_message_variable::stat_data\.runtime\.relationship_score\}\}/);
+  assert.match(status.replaceString, /role="status" aria-live="polite" aria-atomic="true"/);
+  assert.match(status.replaceString, /grid-template-columns:repeat\(auto-fit,minmax\(min\(100%,220px\),1fr\)\)/);
+  assert.match(status.replaceString, /<details open[\s\S]*<dl[\s\S]*<dt[\s\S]*<dd/);
+  assert.doesNotMatch(status.replaceString, /https?:\/\//);
+  assert.doesNotMatch(status.replaceString, /<script|<iframe/i);
+  assert.equal(result.payload.data.first_mes.match(/<StatusPlaceHolderImpl\/>/g)?.length, 1);
+  assert.ok(result.payload.data.first_mes.endsWith(PLACEHOLDER));
+  for (const greeting of result.payload.data.alternate_greetings) {
+    assert.equal(greeting.match(/<StatusPlaceHolderImpl\/>/g)?.length, 1);
+    assert.ok(greeting.endsWith(PLACEHOLDER));
+  }
+  assert.equal(result.payload.data.post_history_instructions.match(/RP Card Studio status placeholder contract/g)?.length, 1);
+});
+
+test('text mode emits a message-local text projection instead of HTML markup', () => {
+  const result = applyRegex({ sources: runtimeSources({ statusMode: 'text' }) });
+  const status = result.payload.data.extensions.regex_scripts.find(script => script.id === IDS.status);
+
+  assert.equal(status.replaceString, 'Trust: {{get_message_variable::stat_data.runtime.relationship_score}}');
+  assert.doesNotMatch(status.replaceString, /<div|<style|<script/i);
+});
+
+test('status projection preserves dollar amounts through the SillyTavern callback replacement algorithm', () => {
+  const sources = runtimeSources({ statusMode: 'text' });
+  sources.ui[0].value.status_ui.text_template = 'Fee: $5; total: $12; currency: $';
+  const result = applyRegex({ sources });
+  const status = result.payload.data.extensions.regex_scripts.find(script => script.id === IDS.status);
+
+  const rendered = simulateSillyTavernReplacement(status, PLACEHOLDER);
+  assert.equal(rendered, 'Fee: &#36;5; total: &#36;12; currency: &#36;');
+  assert.equal(rendered.replaceAll('&#36;', '$'), 'Fee: $5; total: $12; currency: $');
+});
+
+test('message status projection uses native collapse state and only formats percent fields with a suffix', () => {
+  const sources = runtimeSources();
+  const ui = sources.ui[0].value.status_ui;
+  ui.sections[0].collapsed = true;
+  ui.sections[0].fields[0].format = 'percent';
+  const result = applyRegex({ sources });
+  const status = result.payload.data.extensions.regex_scripts.find(script => script.id === IDS.status);
+
+  assert.match(status.replaceString, /<details style=/);
+  assert.doesNotMatch(status.replaceString, /<details open/);
+  assert.match(status.replaceString, /\{\{get_message_variable::stat_data\.runtime\.relationship_score\}\}%<\/dd>/);
+});
+
+test('reapplying the adapter is idempotent for scripts, placeholders, and reply contract', () => {
+  const once = applyRegex();
+  const twice = applyRegex({ payload: once.payload });
+
+  assert.deepEqual(twice.issues, []);
+  assert.deepEqual(twice.payload, once.payload);
+});
+
+test('a recognizable managed status rule refreshes when its generated template changes', () => {
+  const initial = applyRegex();
+  const sources = runtimeSources();
+  sources.ui[0].value.status_ui.text_template = 'Updated trust: {{relationship.trust}}';
+  const refreshed = applyRegex({ payload: initial.payload, sources });
+  const statusRules = refreshed.payload.data.extensions.regex_scripts.filter(script => script.id === IDS.status);
+
+  assert.deepEqual(refreshed.issues, []);
+  assert.equal(statusRules.length, 1);
+  assert.match(statusRules[0].replaceString, /Updated trust:/);
+  assert.doesNotMatch(statusRules[0].replaceString, />Trust:/);
+});
+
+test('user regex scripts retain relative order before managed scripts', () => {
+  const userA = { id: 'user-a', scriptName: 'User A' };
+  const userB = { id: 'user-b', scriptName: 'User B' };
+  const result = applyRegex({ payload: cardPayload([userA, userB]) });
+
+  assert.deepEqual(result.issues, []);
+  assert.deepEqual(result.payload.data.extensions.regex_scripts.map(script => script.id), [
+    'user-a', 'user-b', IDS.prompt, IDS.pending, IDS.complete, IDS.status,
+  ]);
+  assert.deepEqual(result.payload.data.extensions.regex_scripts[0], userA);
+  assert.deepEqual(result.payload.data.extensions.regex_scripts[1], userB);
+});
+
+test('a managed id with different content blocks that rule without overwriting it', () => {
+  const collision = { id: IDS.prompt, scriptName: 'User-owned collision' };
+  const result = applyRegex({
+    payload: cardPayload([collision]),
+    status: false,
+    sources: runtimeSources({ status: false }),
+  });
+
+  assert.ok(result.issues.some(issue => issue.rule === 'sillytavern_regex.id_collision'));
+  assert.deepEqual(result.payload.data.extensions.regex_scripts[0], collision);
+  assert.equal(result.payload.data.extensions.regex_scripts.some(script => (
+    script.id === IDS.prompt && script.scriptName !== collision.scriptName
+  )), false);
+});
+
+test('a non-array regex_scripts value blocks generation and is never overwritten', () => {
+  const payload = cardPayload();
+  payload.data.extensions.regex_scripts = { malformed: true };
+  const result = applyRegex({ payload });
+
+  assert.ok(result.issues.some(issue => issue.path === '/data/extensions/regex_scripts'));
+  assert.deepEqual(result.payload.data.extensions.regex_scripts, { malformed: true });
+});
+
+test('status-disabled projects emit neither a projection rule nor placeholders', () => {
+  const payload = cardPayload();
+  payload.data.first_mes = 'Opening without status.';
+  payload.data.alternate_greetings = ['Alternate without status.'];
+  const result = applyRegex({ payload, status: false, sources: runtimeSources({ status: false }) });
+
+  assert.equal(result.payload.data.extensions.regex_scripts.some(script => script.id === IDS.status), false);
+  assert.equal(result.payload.data.first_mes, payload.data.first_mes);
+  assert.deepEqual(result.payload.data.alternate_greetings, payload.data.alternate_greetings);
+});
+
+test('feature disablement removes only recognizable managed regexes and all status contracts', () => {
+  const generated = applyRegex().payload;
+  const userA = { id: 'user-a', scriptName: 'User A' };
+  const userB = { id: 'user-b', scriptName: 'User B' };
+  generated.data.extensions.regex_scripts.splice(0, 0, userA);
+  generated.data.extensions.regex_scripts.splice(3, 0, userB);
+
+  const statusOff = applyRegex({
+    payload: generated,
+    status: false,
+    sources: runtimeSources({ status: false }),
+  });
+  assert.deepEqual(statusOff.issues, []);
+  assert.deepEqual(statusOff.payload.data.extensions.regex_scripts.map(script => script.id), [
+    'user-a', 'user-b', IDS.prompt, IDS.pending, IDS.complete,
+  ]);
+  assert.doesNotMatch(statusOff.payload.data.first_mes, /StatusPlaceHolderImpl/);
+  assert.ok(statusOff.payload.data.alternate_greetings.every(greeting => !greeting.includes('StatusPlaceHolderImpl')));
+  assert.doesNotMatch(statusOff.payload.data.post_history_instructions, /RP Card Studio status placeholder contract/);
+
+  const mvuOff = applyRegex({
+    payload: generated,
+    mvu: false,
+    sources: runtimeSources({ mvu: false }),
+  });
+  assert.deepEqual(mvuOff.issues, []);
+  assert.deepEqual(mvuOff.payload.data.extensions.regex_scripts.map(script => script.id), [
+    'user-a', 'user-b', IDS.status,
+  ]);
+
+  const allOff = applyRegex({
+    payload: generated,
+    mvu: false,
+    status: false,
+    sources: emptySources(),
+  });
+  assert.deepEqual(allOff.issues, []);
+  assert.deepEqual(allOff.payload.data.extensions.regex_scripts, [userA, userB]);
+  const allOffAgain = applyRegex({
+    payload: allOff.payload,
+    mvu: false,
+    status: false,
+    sources: emptySources(),
+  });
+  assert.deepEqual(allOffAgain.issues, []);
+  assert.deepEqual(allOffAgain.payload, allOff.payload);
+});
+
+test('disabled features retain unrecognized user collisions with managed UUIDs', () => {
+  const userPromptCollision = { id: IDS.prompt, scriptName: 'User prompt collision' };
+  const userStatusCollision = { id: IDS.status, scriptName: 'User status collision' };
+  const result = applyRegex({
+    payload: cardPayload([userPromptCollision, userStatusCollision]),
+    mvu: false,
+    status: false,
+    sources: emptySources(),
+  });
+
+  assert.deepEqual(result.issues, []);
+  assert.deepEqual(result.payload.data.extensions.regex_scripts, [userPromptCollision, userStatusCollision]);
+});
+
+test('MVU output contract orders narrative then update block then status placeholder', () => {
+  const result = applyMvuArtifacts({
+    data: {
+      extensions: {},
+      character_book: { entries: [] },
+    },
+  }, {
     project: { features: { mvu: true, ejs: false, status_ui: true } },
-    sources: runtimeSources(options),
+    sources: runtimeSources(),
     target: 'character',
   });
-  assert.deepEqual(result.issues, []);
-  const script = result.payload.data.extensions.tavern_helper?.scripts
-    ?.find(candidate => candidate.id === 'rp_card_studio_status_ui');
-  assert.ok(script, 'status UI script was not generated');
-  return script.content;
-}
+  const output = result.payload.data.character_book.entries.find(entry => entry.content.includes('<UpdateVariable>'));
 
-function setConnected(node, isConnected) {
-  node.isConnected = isConnected;
-  for (const child of node.childNodes ?? []) setConnected(child, isConnected);
-}
+  assert.ok(output);
+  const narrativeIndex = output.content.indexOf('narrative');
+  const updateIndex = output.content.indexOf('<UpdateVariable>');
+  const placeholderIndex = output.content.lastIndexOf(PLACEHOLDER);
+  assert.ok(narrativeIndex >= 0 && narrativeIndex < updateIndex);
+  assert.ok(updateIndex < placeholderIndex);
+  assert.ok(output.content.trimEnd().endsWith(PLACEHOLDER));
+  assert.doesNotMatch(output.content, /End each reply that changes state with one update block/);
+});
 
-function fakeNode(tagName, realm) {
-  const node = {
-    tagName,
-    realm,
-    id: '',
-    dataset: {},
-    childNodes: [],
-    parentNode: null,
-    isConnected: false,
-    _text: '',
-    setAttribute() {},
-    append(...children) {
-      for (const child of children) {
-        if (!child) continue;
-        if (child.parentNode) child.parentNode.childNodes = child.parentNode.childNodes.filter(item => item !== child);
-        child.parentNode = node;
-        setConnected(child, node.isConnected);
-        node.childNodes.push(child);
-      }
-    },
-    appendChild(child) {
-      node.append(child);
-      return child;
-    },
-    insertBefore(child, reference) {
-      const index = node.childNodes.indexOf(reference);
-      if (index < 0) return node.appendChild(child);
-      if (child.parentNode) child.parentNode.childNodes = child.parentNode.childNodes.filter(item => item !== child);
-      child.parentNode = node;
-      setConnected(child, node.isConnected);
-      node.childNodes.splice(index, 0, child);
-      return child;
-    },
-    replaceChildren(...children) {
-      for (const child of node.childNodes) {
-        child.parentNode = null;
-        setConnected(child, false);
-      }
-      node.childNodes = [];
-      node._text = '';
-      node.append(...children);
-    },
-    remove() {
-      setConnected(node, false);
-      if (node.parentNode) node.parentNode.childNodes = node.parentNode.childNodes.filter(child => child !== node);
-      node.parentNode = null;
-    },
-    addEventListener() {},
-  };
-  Object.defineProperty(node, 'textContent', {
-    get() {
-      return node._text + node.childNodes.map(child => child.textContent ?? '').join('');
-    },
-    set(value) {
-      node._text = String(value ?? '');
-      node.childNodes = [];
-    },
+test('Tavern Helper retains only MVU dependency and guard scripts', () => {
+  const sources = runtimeSources();
+  const result = applyTavernHelperAdapter(cardPayload(), {
+    project: { features: { mvu: true, ejs: false, status_ui: true } },
+    sources,
+    target: 'character',
   });
-  return node;
-}
 
-function fakeDocument(realm, { withShell = false } = {}) {
-  const nodesById = new Map();
-  const html = fakeNode('html', realm);
-  const body = fakeNode('body', realm);
-  html.isConnected = true;
-  html.append(body);
-  const document = {
-    realm,
-    readyState: 'complete',
-    body,
-    documentElement: html,
-    getElementById(id) {
-      const node = nodesById.get(id);
-      return node?.isConnected ? node : null;
-    },
-    createElement(tagName) {
-      const node = fakeNode(tagName, realm);
-      Object.defineProperty(node, 'id', {
-        get: () => node._id ?? '',
-        set: value => {
-          node._id = String(value);
-          nodesById.set(node._id, node);
-        },
-      });
-      return node;
-    },
+  assert.deepEqual(result.issues, []);
+  const scripts = result.payload.data.extensions.tavern_helper.scripts;
+  assert.deepEqual(scripts.map(script => script.id), ['rp_card_studio_runtime_guard']);
+
+  const reapplied = applyTavernHelperAdapter(result.payload, {
+    project: { features: { mvu: true, ejs: false, status_ui: true } },
+    sources,
+    target: 'character',
+  });
+  assert.deepEqual(reapplied.issues, []);
+  assert.deepEqual(reapplied.payload, result.payload);
+});
+
+test('Tavern Helper removes the legacy parent-page status script even without generated scripts', () => {
+  const userScript = { id: 'user-script', name: 'User script' };
+  const legacyStatus = {
+    id: 'rp_card_studio_status_ui',
+    name: 'RP Card Studio Status UI',
+    info: 'Read-only status UI; execution order is encoded by the stable script id',
+    content: `const key = Symbol.for("rp_card_studio.status_ui");
+const hostWindow = globalThis.parent;
+hostWindow.document.getElementById("sheld");
+hostWindow.document.getElementById("form_sheld");`,
   };
-  let shell = null;
-  let chat = null;
-  let form = null;
-  if (withShell) {
-    shell = document.createElement('main');
-    shell.id = 'sheld';
-    chat = document.createElement('section');
-    chat.id = 'chat';
-    form = document.createElement('form');
-    form.id = 'form_sheld';
-    shell.append(chat, form);
-    body.append(shell);
-  }
-  return { body, chat, document, form, html, shell };
-}
-
-async function runStatusScript(script, {
-  exposeMvu = true,
-  namespace = 'stat_data',
-  state = { relationship: { trust: 77 } },
-  waitNever = false,
-  currentMessageId,
-} = {}) {
-  const events = new Map();
-  const parentRealm = fakeDocument('parent', { withShell: true });
-  const childRealm = fakeDocument('status-iframe');
-  const getMvuDataCalls = [];
-  const waitCalls = [];
-  const onCalls = [];
-  const removeCalls = [];
-  const emitCalls = [];
-  const observerRecords = [];
-  const timers = new Set();
-  const api = {
-    events: {
-      VARIABLE_INITIALIZED: 'host:init',
-      VARIABLE_UPDATE_ENDED: 'host:update-ended',
-      BEFORE_MESSAGE_UPDATE: 'host:before-message-update',
-    },
-    getMvuData(target) {
-      getMvuDataCalls.push(JSON.parse(JSON.stringify(target)));
-      return { [namespace]: state };
-    },
+  const payload = cardPayload();
+  payload.data.extensions.tavern_helper = {
+    scripts: [userScript, legacyStatus],
+    user_metadata: { retained: true },
   };
-  class ParentMutationObserver {
-    constructor(callback) {
-      this.callback = callback;
-      this.disconnected = false;
-      this.observed = null;
-      observerRecords.push(this);
-    }
-    observe(target) {
-      this.observed = target;
-    }
-    disconnect() {
-      this.disconnected = true;
-    }
-    trigger() {
-      this.callback([]);
-    }
-  }
-  const parent = {
-    document: parentRealm.document,
-    MutationObserver: ParentMutationObserver,
+  const result = applyTavernHelperAdapter(payload, {
+    project: { features: { mvu: false, ejs: false, status_ui: false } },
+    sources: emptySources(),
+    target: 'character',
+  });
+
+  assert.deepEqual(result.issues, []);
+  assert.deepEqual(result.payload.data.extensions.tavern_helper.scripts, [userScript]);
+  assert.deepEqual(result.payload.data.extensions.tavern_helper.user_metadata, { retained: true });
+});
+
+test('Tavern Helper preserves and reports a user script that only collides with the legacy id', () => {
+  const userCollision = {
+    id: 'rp_card_studio_status_ui',
+    name: 'User custom status script',
+    content: 'globalThis.userStatus = true;',
   };
-  const sandbox = {
-    console,
-    document: childRealm.document,
-    parent,
-    MutationObserver: class ChildMutationObserver {
-      constructor() {
-        throw new Error('status UI must observe the parent realm');
-      }
-    },
-    addEventListener() {
-      throw new Error('business events must use the shared Tavern Helper bus');
-    },
-    dispatchEvent() {
-      throw new Error('business events must use the shared Tavern Helper bus');
-    },
-    setTimeout(handler, delay, ...args) {
-      const timer = setTimeout(() => {
-        timers.delete(timer);
-        handler(...args);
-      }, delay);
-      timers.add(timer);
-      return timer;
-    },
-    clearTimeout(timer) {
-      clearTimeout(timer);
-      timers.delete(timer);
-    },
-    setInterval(handler, delay, ...args) {
-      const timer = setInterval(handler, delay, ...args);
-      timers.add(timer);
-      return timer;
-    },
-    clearInterval(timer) {
-      clearInterval(timer);
-      timers.delete(timer);
-    },
-    async waitGlobalInitialized(name) {
-      waitCalls.push(name);
-      if (waitNever) return new Promise(() => {});
-    },
-    eventOn(eventName, handler) {
-      onCalls.push({ eventName, handler });
-      const listeners = events.get(eventName) ?? new Set();
-      listeners.add(handler);
-      events.set(eventName, listeners);
-    },
-    async eventEmit(eventName, ...args) {
-      emitCalls.push({ eventName, args });
-      for (const handler of [...events.get(eventName) ?? []]) await handler(...args);
-    },
-    eventRemoveListener(eventName, handler) {
-      removeCalls.push({ eventName, handler });
-      events.get(eventName)?.delete(handler);
-    },
-    tavern_events: {
-      USER_MESSAGE_RENDERED: 'user_message_rendered',
-      CHARACTER_MESSAGE_RENDERED: 'character_message_rendered',
-    },
+  const payload = cardPayload();
+  payload.data.extensions.tavern_helper = { scripts: [userCollision] };
+  const result = applyTavernHelperAdapter(payload, {
+    project: { features: { mvu: false, ejs: false, status_ui: false } },
+    sources: emptySources(),
+    target: 'character',
+  });
+
+  assert.ok(result.issues.some(issue => issue.rule === 'adapter.script_collision'));
+  assert.deepEqual(result.payload.data.extensions.tavern_helper.scripts, [userCollision]);
+});
+
+test('Tavern Helper removes recognized runtime guard and dependency scripts when MVU is disabled', () => {
+  const sources = runtimeSources();
+  sources.mvu[0].value.runtime_contract.dependencies = [{
+    id: 'mvu',
+    class: 'remote',
+    delivery: 'https://example.test/mvu-v1.js',
+    version: '1.0.0',
+    load_order: 10,
+    readiness_probe: 'globalThis.Mvu',
+    timeout_ms: 10000,
+    fallback: 'Keep the last legal state.',
+  }];
+  const enabled = applyTavernHelperAdapter(cardPayload(), {
+    project: { features: { mvu: true, ejs: false, status_ui: false } },
+    sources,
+    target: 'character',
+  });
+  const userScript = { id: 'user-script', name: 'User script' };
+  enabled.payload.data.extensions.tavern_helper.scripts.unshift(userScript);
+  enabled.payload.data.extensions.tavern_helper.user_metadata = { retained: true };
+
+  const disabled = applyTavernHelperAdapter(enabled.payload, {
+    project: { features: { mvu: false, ejs: false, status_ui: false } },
+    sources,
+    target: 'character',
+  });
+  assert.deepEqual(disabled.issues, []);
+  assert.deepEqual(disabled.payload.data.extensions.tavern_helper.scripts, [userScript]);
+  assert.deepEqual(disabled.payload.data.extensions.tavern_helper.user_metadata, { retained: true });
+});
+
+test('Tavern Helper refreshes recognized managed scripts when runtime configuration changes', () => {
+  const initialSources = runtimeSources();
+  initialSources.mvu[0].value.runtime_contract.dependencies = [{
+    id: 'mvu',
+    class: 'remote',
+    delivery: 'https://example.test/mvu-v1.js',
+    version: '1.0.0',
+    load_order: 10,
+    readiness_probe: 'globalThis.Mvu',
+    timeout_ms: 10000,
+    fallback: 'Keep the last legal state.',
+  }];
+  const initial = applyTavernHelperAdapter(cardPayload(), {
+    project: { features: { mvu: true, ejs: false, status_ui: false } },
+    sources: initialSources,
+    target: 'character',
+  });
+  const initialGuard = initial.payload.data.extensions.tavern_helper.scripts.find(script => script.id === 'rp_card_studio_runtime_guard');
+
+  const updatedSources = structuredClone(initialSources);
+  updatedSources.mvu[0].value.runtime_contract.adapter.timeout_ms = 20000;
+  updatedSources.mvu[0].value.runtime_contract.dependencies[0].delivery = 'https://example.test/mvu-v2.js';
+  updatedSources.mvu[0].value.runtime_contract.dependencies[0].version = '2.0.0';
+  const updated = applyTavernHelperAdapter(initial.payload, {
+    project: { features: { mvu: true, ejs: false, status_ui: false } },
+    sources: updatedSources,
+    target: 'character',
+  });
+
+  assert.deepEqual(updated.issues, []);
+  const scripts = updated.payload.data.extensions.tavern_helper.scripts;
+  assert.deepEqual(scripts.map(script => script.id), [
+    'rp_card_studio_dependency_mvu',
+    'rp_card_studio_runtime_guard',
+  ]);
+  assert.match(scripts[0].content, /mvu-v2\.js/);
+  assert.match(scripts[0].info, /2\.0\.0/);
+  assert.notEqual(scripts[1].content, initialGuard.content);
+});
+
+test('Tavern Helper preserves and reports unrecognized current managed-id collisions', () => {
+  const userGuard = {
+    id: 'rp_card_studio_runtime_guard',
+    name: 'User runtime guard',
+    content: 'globalThis.userGuard = true;',
   };
-  if (exposeMvu) sandbox.Mvu = api;
-  if (currentMessageId !== undefined) sandbox.getCurrentMessageId = () => currentMessageId;
-
-  const completion = vm.runInNewContext(script, sandbox, { timeout: 1000 });
-  if (completion && typeof completion.then === 'function') await completion;
-  await new Promise(resolve => setImmediate(resolve));
-
-  const handle = vm.runInNewContext(
-    'globalThis[Symbol.for("rp_card_studio.status_ui")]',
-    sandbox,
-  );
-  const emit = async (eventName, ...args) => {
-    await sandbox.eventEmit(eventName, ...args);
-    await new Promise(resolve => setImmediate(resolve));
+  const userDependency = {
+    id: 'rp_card_studio_dependency_mvu',
+    name: 'User dependency',
+    content: 'globalThis.userDependency = true;',
   };
-  const dispose = () => {
-    handle?.cleanup?.();
-    for (const timer of timers) {
-      clearTimeout(timer);
-      clearInterval(timer);
-    }
-    timers.clear();
-  };
-  return {
-    api,
-    body: parentRealm.body,
-    childBody: childRealm.body,
-    dispose,
-    document: parentRealm.document,
-    emit,
-    emitCalls,
-    events,
-    form: parentRealm.form,
-    getMvuDataCalls,
-    handle,
-    observerRecords,
-    onCalls,
-    removeCalls,
-    sandbox,
-    shell: parentRealm.shell,
-    timers,
-    waitCalls,
-  };
-}
+  const payload = cardPayload();
+  payload.data.extensions.tavern_helper = { scripts: [userGuard, userDependency] };
+  const result = applyTavernHelperAdapter(payload, {
+    project: { features: { mvu: false, ejs: false, status_ui: false } },
+    sources: emptySources(),
+    target: 'character',
+  });
 
-test('status UI reads the namespace root through Mvu.getMvuData and never uses legacy globals', () => {
-  const script = statusScript();
-
-  assert.match(script, /getMvuData\s*\(/);
-  assert.match(script, /waitGlobalInitialized\s*\(/);
-  assert.doesNotMatch(script, /getVariables\s*\(/);
-  assert.doesNotMatch(script, /globalThis\.MVU/);
-  assert.doesNotMatch(script, /globalThis\.stat_data/);
-  assert.match(script, /"target":\{"type":"message","message_id":"latest"\}/);
+  assert.equal(result.issues.filter(issue => issue.rule === 'adapter.script_collision').length, 2);
+  assert.deepEqual(result.payload.data.extensions.tavern_helper.scripts, [userGuard, userDependency]);
 });
 
-test('status UI maps non-message storage scope to the same Mvu target contract', () => {
-  const script = statusScript({ scope: 'chat' });
+test('worldbook targets remain untouched', () => {
+  const payload = { entries: {}, extensions: {} };
+  const result = applyRegex({ payload, target: 'worldbook' });
 
-  assert.match(script, /"target":\{"type":"chat"\}/);
-  assert.match(script, /getMvuData\s*\(/);
-});
-
-test('status UI mounts in the visible SillyTavern parent before form_sheld, never in its hidden iframe', async () => {
-  const harness = await runStatusScript(statusScript());
-  try {
-    const anchor = harness.document.getElementById('rp-card-status');
-    assert.ok(anchor, 'parent mount anchor was not created');
-    assert.equal(anchor.realm, 'parent');
-    assert.equal(anchor.parentNode, harness.shell);
-    assert.deepEqual(
-      harness.shell.childNodes.map(node => node.id),
-      ['chat', 'rp-card-status', 'form_sheld'],
-    );
-    assert.equal(harness.childBody.childNodes.length, 0, 'hidden script iframe must remain empty');
-    assert.equal(harness.observerRecords.length, 1);
-    assert.equal(harness.observerRecords[0].observed, harness.document.documentElement);
-
-    harness.handle.cleanup();
-    assert.equal(harness.document.getElementById('rp-card-status'), null);
-    assert.equal(harness.observerRecords[0].disconnected, true);
-    assert.equal(harness.timers.size, 0);
-    assert.doesNotThrow(() => harness.handle.cleanup());
-  } finally {
-    harness.dispose();
-  }
-});
-
-test('a shared state event emitted from another iframe realm refreshes the parent UI', async () => {
-  const state = { relationship: { trust: 77 } };
-  const harness = await runStatusScript(statusScript(), { state });
-  try {
-    state.relationship.trust = 88;
-    await vm.runInNewContext(
-      'eventEmit("rp-card-state-change", { source: "runtime-iframe" })',
-      { eventEmit: harness.sandbox.eventEmit },
-    );
-    await new Promise(resolve => setImmediate(resolve));
-    assert.match(harness.body.textContent, /88/);
-    assert.equal(harness.childBody.textContent, '');
-  } finally {
-    harness.dispose();
-  }
-});
-
-test('on_message refresh listens to the real Tavern Helper rendered-message events', async () => {
-  const state = { relationship: { trust: 77 } };
-  const harness = await runStatusScript(statusScript({ refresh: 'on_message' }), { state });
-  try {
-    const subscribed = new Set(harness.onCalls.map(call => call.eventName));
-    assert.ok(subscribed.has('user_message_rendered'));
-    assert.ok(subscribed.has('character_message_rendered'));
-
-    state.relationship.trust = 91;
-    await vm.runInNewContext(
-      'eventEmit("character_message_rendered", 12, "normal")',
-      { eventEmit: harness.sandbox.eventEmit },
-    );
-    await new Promise(resolve => setImmediate(resolve));
-    assert.match(harness.body.textContent, /91/);
-  } finally {
-    harness.dispose();
-  }
-});
-
-test('current_message uses a numeric contextual id when available and otherwise falls back to latest', async () => {
-  const script = statusScript({ snapshotSelector: 'current_message' });
-  const contextual = await runStatusScript(script, { currentMessageId: 7 });
-  try {
-    assert.deepEqual(contextual.getMvuDataCalls, [{ type: 'message', message_id: 7 }]);
-  } finally {
-    contextual.dispose();
-  }
-
-  const fallback = await runStatusScript(script);
-  try {
-    assert.deepEqual(fallback.getMvuDataCalls, [{ type: 'message', message_id: 'latest' }]);
-  } finally {
-    fallback.dispose();
-  }
-});
-
-test('runtime_event commands cross iframe realms with direct Tavern Helper event arguments', async () => {
-  const command = {
-    id: 'advance',
-    label: 'Advance',
-    channel: 'runtime_event',
-    payload: 'rp-card-test-event',
-    writer_id: 'advance_writer',
-  };
-  const harness = await runStatusScript(statusScript({ readOnly: false, commands: [command] }));
-  let received = null;
-  const externalRealm = {
-    eventOn: harness.sandbox.eventOn,
-  };
-  vm.runInNewContext(
-    'eventOn("rp-card-test-event", value => { globalThis.received = value; })',
-    externalRealm,
-  );
-  try {
-    await harness.handle.executeCommand(command);
-    received = externalRealm.received;
-    assert.equal(received.id, 'advance');
-    assert.equal(received.writerId, 'advance_writer');
-    assert.equal(received.detail, undefined, 'eventOn receives the direct argument, not CustomEvent.detail');
-    const names = harness.emitCalls.map(call => call.eventName);
-    assert.ok(names.indexOf('rp-card-ui-command') < names.indexOf('rp-card-test-event'));
-    assert.ok(names.indexOf('rp-card-test-event') < names.indexOf('rp-card-ui-command-result'));
-  } finally {
-    harness.dispose();
-  }
-});
-
-test('status UI reads the configured namespace instead of hard-coding stat_data', async () => {
-  const namespace = 'project_state';
-  const script = statusScript({ namespace });
-  assert.match(script, /"namespace":"project_state"/);
-  assert.match(script, /name === config\.namespace/);
-
-  const harness = await runStatusScript(script, { namespace });
-  try {
-    assert.match(harness.body.textContent, /77/);
-    assert.deepEqual(harness.getMvuDataCalls, [{ type: 'message', message_id: 'latest' }]);
-  } finally {
-    harness.dispose();
-  }
-});
-
-test('status UI waits for Mvu, renders the returned stat_data namespace, and cleans host listeners', async () => {
-  const state = { relationship: { trust: 77 } };
-  const harness = await runStatusScript(statusScript(), { state });
-  try {
-    assert.deepEqual(harness.waitCalls, ['Mvu']);
-    assert.deepEqual(harness.getMvuDataCalls, [{ type: 'message', message_id: 'latest' }]);
-    assert.match(harness.body.textContent, /77/);
-
-    const subscribed = new Set(harness.onCalls.map(call => call.eventName));
-    assert.ok(subscribed.has(harness.api.events.VARIABLE_INITIALIZED));
-    assert.ok(subscribed.has(harness.api.events.VARIABLE_UPDATE_ENDED));
-
-    state.relationship.trust = 88;
-    await harness.emit(harness.api.events.VARIABLE_UPDATE_ENDED, { stat_data: state });
-    assert.match(harness.body.textContent, /88/);
-
-    harness.handle.cleanup();
-    assert.equal(harness.removeCalls.length, harness.onCalls.length);
-    for (const subscription of harness.onCalls) {
-      assert.ok(harness.removeCalls.some(removal => (
-        removal.eventName === subscription.eventName && removal.handler === subscription.handler
-      )));
-    }
-  } finally {
-    harness.dispose();
-  }
-});
-
-test('status UI degrades without Mvu and does not invent a global stat_data object', async () => {
-  const harness = await runStatusScript(statusScript(), { exposeMvu: false });
-  try {
-    assert.deepEqual(harness.waitCalls, ['Mvu']);
-    assert.equal(Object.hasOwn(harness.sandbox, 'stat_data'), false);
-    assert.deepEqual(harness.getMvuDataCalls, []);
-    assert.match(harness.body.textContent, /Unavailable|Loading/);
-  } finally {
-    harness.dispose();
-  }
-});
-
-test('status UI times out cleanly when Mvu initialization never completes', async () => {
-  const harness = await runStatusScript(statusScript(), { exposeMvu: false, waitNever: true });
-  try {
-    assert.deepEqual(harness.waitCalls, ['Mvu']);
-    assert.deepEqual(harness.getMvuDataCalls, []);
-    assert.equal(harness.onCalls.some(call => call.eventName.startsWith('host:')), false);
-    assert.ok([...harness.events.values()].every(listeners => listeners.size === 0));
-    assert.equal(Object.hasOwn(harness.sandbox, 'stat_data'), false);
-    assert.match(harness.body.textContent, /Unavailable/);
-  } finally {
-    harness.dispose();
-  }
+  assert.equal(result.payload, payload);
+  assert.deepEqual(result.issues, []);
 });

@@ -94,6 +94,7 @@ export function validatePayload(value, format = detectJsonFormat(value)) {
   const warnings = [];
   if (isCharacterFormat(format)) {
     issues.push(...validateNamedSchema("character-card", value));
+    validateCharacterRegexScripts(value, issues);
     return { format, issues, warnings };
   }
   if (format === Format.WORLDBOOK) {
@@ -102,6 +103,39 @@ export function validatePayload(value, format = detectJsonFormat(value)) {
   }
   issues.push(issue("/", "unsupported", "无法识别为 Character Card V2/V3 或世界书 entries JSON"));
   return { format: null, issues, warnings };
+}
+
+function validateCharacterRegexScripts(value, issues) {
+  const scripts = value?.data?.extensions?.regex_scripts;
+  if (!Array.isArray(scripts)) return;
+  const ids = new Set();
+  for (const [index, script] of scripts.entries()) {
+    const base = `/data/extensions/regex_scripts/${index}`;
+    if (!isPlainObject(script)) continue;
+    if (typeof script.id === "string") {
+      if (ids.has(script.id)) issues.push(issue(`${base}/id`, "regex.id_duplicate", `Duplicate scoped regex UUID: ${script.id}`));
+      ids.add(script.id);
+    }
+    if (Number.isInteger(script.minDepth) && Number.isInteger(script.maxDepth) && script.minDepth > script.maxDepth) {
+      issues.push(issue(base, "regex.depth", `Scoped regex minDepth ${script.minDepth} exceeds maxDepth ${script.maxDepth}`));
+    }
+    if (typeof script.findRegex === "string" && script.findRegex.length > 0) {
+      try {
+        compileRegexString(script.findRegex);
+      } catch (error) {
+        issues.push(issue(`${base}/findRegex`, "regex.syntax", `Invalid scoped regex: ${error.message}`));
+      }
+    }
+  }
+}
+
+function compileRegexString(source) {
+  if (!source.startsWith("/")) return new RegExp(source);
+  const closingSlash = source.lastIndexOf("/");
+  if (closingSlash <= 0) return new RegExp(source);
+  const pattern = source.slice(1, closingSlash);
+  const flags = source.slice(closingSlash + 1);
+  return new RegExp(pattern, flags);
 }
 function validateWorldbook(value, basePath, issues) {
   if (!isPlainObject(value)) {

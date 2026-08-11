@@ -705,17 +705,13 @@ function uiTypeCompatible(format, type) {
 
 function completeUiDelivery(ui) {
   const delivery = ui.delivery;
-  const lifecycle = delivery?.lifecycle;
   return isObject(delivery)
-    && typeof delivery.level === "string"
-    && typeof delivery.adapter === "string" && delivery.adapter.length > 0
-    && typeof delivery.entrypoint === "string" && delivery.entrypoint.length > 0
-    && typeof delivery.artifact === "string" && delivery.artifact.length > 0
-    && typeof delivery.mount_anchor === "string" && delivery.mount_anchor.length > 0
-    && isObject(lifecycle)
-    && Array.isArray(lifecycle.wait_for) && lifecycle.wait_for.length > 0
-    && Array.isArray(lifecycle.cleanup) && ["events", "observers", "timers", "dom"].every((item) => lifecycle.cleanup.includes(item))
-    && lifecycle.idempotent === true;
+    && delivery.level === "embedded"
+    && delivery.adapter === "sillytavern_regex"
+    && delivery.surface === "message"
+    && delivery.entrypoint === "generated"
+    && delivery.artifact === "inline"
+    && delivery.placeholder === "<StatusPlaceHolderImpl/>";
 }
 
 function validateUi(uiSources, bySource, project, issues, warnings) {
@@ -724,17 +720,20 @@ function validateUi(uiSources, bySource, project, issues, warnings) {
     issues.push(issue("/runtime/ui", "ui.lifecycle", "project.features.status_ui must match the enabled status UI sources"));
   }
   const runnable = uiSources.filter((source) => source.status_ui?.enabled
-    && ["embedded", "both"].includes(source.status_ui.mode)
+    && ["text", "embedded", "both"].includes(source.status_ui.mode)
     && source.status_ui.delivery?.level === "embedded");
   if (runnable.length > 1) {
-    issues.push(issue("/runtime/ui", "ui.delivery.collision", "Exactly one embedded status UI may own the runtime mount"));
+    issues.push(issue("/runtime/ui", "ui.delivery.collision", "Exactly one embedded status UI may own the message projection"));
   }
   for (const [sourceIndex, source] of uiSources.entries()) {
     const ui = source.status_ui;
     if (!ui?.enabled) continue;
-    if (["embedded", "both"].includes(ui.mode) && !completeUiDelivery(ui)) {
-      issues.push(issue(`/runtime/ui/${sourceIndex}/status_ui/delivery`, "ui.runtime_missing", "Embedded UI requires a complete Tavern Helper delivery contract"));
-    } else if (["embedded", "both"].includes(ui.mode) && ui.delivery?.level !== "embedded") {
+    const enabledMode = ["text", "embedded", "both"].includes(ui.mode);
+    if (enabledMode && ui.delivery?.level === "embedded" && !completeUiDelivery(ui)) {
+      issues.push(issue(`/runtime/ui/${sourceIndex}/status_ui/delivery`, "ui.runtime_missing", "Embedded UI requires a complete SillyTavern message-regex delivery contract"));
+    } else if (enabledMode && !isObject(ui.delivery)) {
+      issues.push(issue(`/runtime/ui/${sourceIndex}/status_ui/delivery`, "ui.runtime_missing", "Enabled UI requires a message delivery contract"));
+    } else if (enabledMode && ui.delivery?.level !== "embedded") {
       warnings.push(issue(`/runtime/ui/${sourceIndex}/status_ui/delivery/level`, "ui.runtime_not_run", `UI delivery level ${ui.delivery?.level} is a specification or host dependency, not an embedded runtime artifact`));
     }
     for (const [sectionIndex, section] of (ui.sections ?? []).entries()) {
@@ -751,6 +750,10 @@ function validateUi(uiSources, bySource, project, issues, warnings) {
       }
     }
     const writerIds = new Set([...bySource.values()].map((variable) => variable.writer?.id).filter(Boolean));
+    if (ui.delivery?.level === "embedded" && ui.delivery?.adapter === "sillytavern_regex"
+      && (ui.read_only !== true || (ui.commands ?? []).length > 0)) {
+      issues.push(issue(`/runtime/ui/${sourceIndex}/status_ui/commands`, "ui.command", "The embedded SillyTavern regex status projection is read-only; use a message-level host adapter for commands"));
+    }
     if (ui.read_only && (ui.commands ?? []).length > 0) {
       issues.push(issue(`/runtime/ui/${sourceIndex}/status_ui/commands`, "ui.command", "A read-only status UI cannot expose write commands"));
     }
@@ -770,7 +773,6 @@ function validateUi(uiSources, bySource, project, issues, warnings) {
 function validateRuntimeDeliveries(mvuSources, uiSources, issues) {
   const entrypoints = new Map();
   const artifacts = new Map();
-  const mountAnchors = new Map();
   const register = (registry, value, pathValue, label) => {
     if (typeof value !== "string" || value.length === 0) return;
     if (registry.has(value)) issues.push(issue(pathValue, "adapter.collision", `${label} collides with ${registry.get(value)}: ${value}`));
@@ -794,13 +796,12 @@ function validateRuntimeDeliveries(mvuSources, uiSources, issues) {
   }
   for (const [sourceIndex, source] of uiSources.entries()) {
     const ui = source.status_ui;
-    if (!ui?.enabled || !["embedded", "both"].includes(ui.mode) || !ui.delivery) continue;
+    if (!ui?.enabled || !["text", "embedded", "both"].includes(ui.mode) || !ui.delivery) continue;
     const base = `/runtime/ui/${sourceIndex}/status_ui/delivery`;
     if (ui.delivery.level === "embedded") {
       register(entrypoints, ui.delivery.entrypoint, `${base}/entrypoint`, "Adapter entrypoint");
       register(artifacts, ui.delivery.artifact, `${base}/artifact`, "Adapter artifact");
-      register(mountAnchors, ui.delivery.mount_anchor, `${base}/mount_anchor`, "UI mount anchor");
-      if (ui.delivery.adapter !== "tavern_helper") {
+      if (ui.delivery.adapter !== "sillytavern_regex") {
         issues.push(issue(base, "adapter.unsupported", `No embedded UI adapter generator is registered for: ${ui.delivery.adapter}`));
       }
       if (ui.delivery.entrypoint !== "generated") {
@@ -808,6 +809,12 @@ function validateRuntimeDeliveries(mvuSources, uiSources, issues) {
       }
       if (ui.delivery.artifact !== "inline") {
         issues.push(issue(`${base}/artifact`, "adapter.artifact", "Embedded status UI artifact must be inline"));
+      }
+      if (ui.delivery.surface !== "message") {
+        issues.push(issue(`${base}/surface`, "adapter.surface", "Embedded status UI must project into each assistant message"));
+      }
+      if (ui.delivery.placeholder !== "<StatusPlaceHolderImpl/>") {
+        issues.push(issue(`${base}/placeholder`, "adapter.placeholder", "Embedded status UI must use <StatusPlaceHolderImpl/>"));
       }
     }
   }
@@ -1757,10 +1764,16 @@ function mvuUpdateRulesContent(mvuSources) {
   return lines.join("\n");
 }
 
-function mvuOutputFormatContent(mvuSources) {
+function mvuOutputFormatContent(mvuSources, { statusEnabled = false } = {}) {
   const protocol = mvuSources.find((source) => source.mvu?.protocol)?.mvu.protocol ?? {};
   const operations = protocol.operations ?? ["replace", "delta", "insert", "remove", "move"];
-  return `End each reply that changes state with one update block using only these operations: ${operations.join(", ")}.
+  const responseOrder = statusEnabled
+    ? `Structure every reply in this exact order: narrative content, one variable update block, then exactly one ${STATUS_PLACEHOLDER}.
+The status placeholder must be the final content. Never put a variable update block after it.`
+    : "End each reply that changes state with one variable update block.";
+  const statusSuffix = statusEnabled ? `\n${STATUS_PLACEHOLDER}` : "";
+  return `${responseOrder}
+Use only these operations: ${operations.join(", ")}.
 Paths use JSON Pointer syntax and must name a declared variable. Return an empty JSON array when no state changes.
 
 <UpdateVariable>
@@ -1770,7 +1783,7 @@ Paths use JSON Pointer syntax and must name a declared variable. Return an empty
   { "op": "replace", "path": "/declared/path", "value": "new value" }
 ]
 </JSONPatch>
-</UpdateVariable>`;
+</UpdateVariable>${statusSuffix}`;
 }
 
 export function applyMvuArtifacts(payload, { project, sources, target }) {
@@ -1778,6 +1791,7 @@ export function applyMvuArtifacts(payload, { project, sources, target }) {
   const mvuSources = values(sources, "mvu").filter((source) => source.mvu?.enabled);
   if (mvuSources.length === 0) return { payload, issues: [] };
   const defaults = mvuSources.reduce((state, source) => mergeValues(state, source.mvu.initialization?.defaults ?? {}), {});
+  const statusEnabled = Boolean(activeStatusUi(project, sources));
   const generated = [
     mvuCharacterBookEntry({
       comment: "[initvar] RP Card Studio defaults - keep disabled",
@@ -1796,7 +1810,7 @@ export function applyMvuArtifacts(payload, { project, sources, target }) {
     }),
     mvuCharacterBookEntry({
       comment: "[mvu_update] RP Card Studio output format",
-      content: mvuOutputFormatContent(mvuSources),
+      content: mvuOutputFormatContent(mvuSources, { statusEnabled }),
       enabled: true,
       kind: "mvu_update_format",
       order: 14722,
@@ -2227,7 +2241,7 @@ export function selectOpeningMessages(openingSources, mvuSources = []) {
   };
 }
 
-function tavernHelperRuntimeConfig(mvuSources, uiSources) {
+function tavernHelperRuntimeConfig(mvuSources) {
   const probes = [];
   const timeouts = [];
   for (const source of mvuSources) {
@@ -2243,12 +2257,6 @@ function tavernHelperRuntimeConfig(mvuSources, uiSources) {
       if (Number.isInteger(dependency.timeout_ms)) timeouts.push(dependency.timeout_ms);
     }
   }
-  const waitFor = uiSources
-    .filter((source) => source.status_ui?.enabled
-      && ["embedded", "both"].includes(source.status_ui.mode)
-      && source.status_ui.delivery?.adapter === "tavern_helper"
-      && source.status_ui.delivery?.level === "embedded")
-    .flatMap((source) => source.status_ui.delivery?.lifecycle?.wait_for ?? []);
   const embeddedAdapter = mvuSources
     .map((source) => source.runtime_contract?.adapter)
     .find((adapter) => adapter?.id === "tavern_helper" && adapter.delivery === "embedded") ?? null;
@@ -2286,7 +2294,6 @@ function tavernHelperRuntimeConfig(mvuSources, uiSources) {
     })));
   return {
     probes: [...new Set(probes.length > 0 ? probes : ["globalThis.Mvu"])],
-    waitFor: [...new Set(waitFor)],
     timeoutMs: timeouts.length > 0 ? Math.max(...timeouts) : 10000,
     readinessPollMs: 100,
     statePollMs: 200,
@@ -2540,352 +2547,6 @@ function runtimeGuardScript(runtimeConfig) {
 })();`;
 }
 
-function statusUiScript(ui, runtimeConfig) {
-  const hierarchy = new Map((ui.visual?.hierarchy ?? []).map((id, index) => [id, index]));
-  const sections = [...ui.sections ?? []].sort((left, right) => {
-    const leftRank = hierarchy.get(left.id) ?? Number.MAX_SAFE_INTEGER;
-    const rightRank = hierarchy.get(right.id) ?? Number.MAX_SAFE_INTEGER;
-    return leftRank - rightRank || (left.priority ?? 0) - (right.priority ?? 0);
-  });
-  const config = JSON.stringify({
-    mountAnchor: ui.delivery?.mount_anchor ?? "rp-card-status",
-    entrypoint: ui.delivery?.entrypoint ?? null,
-    artifact: ui.delivery?.artifact ?? null,
-    waitFor: runtimeConfig.waitFor,
-    timeoutMs: runtimeConfig.timeoutMs,
-    target: clone(runtimeConfig.target ?? { type: "message", message_id: "latest" }),
-    snapshotSelector: runtimeConfig.snapshotSelector ?? "current_message",
-    namespace: runtimeConfig.namespace ?? "stat_data",
-    refresh: ui.refresh ?? "on_state_change",
-    readOnly: ui.read_only !== false,
-    responsive: clone(ui.responsive ?? {}),
-    visual: clone(ui.visual ?? {}),
-    sections: sections.map((section) => ({
-      id: section.id,
-      label: section.display_name,
-      collapsed: Boolean(section.collapsed),
-      fields: (section.fields ?? []).map((field) => ({ id: field.id, path: runtimeConfig.pathMappings[field.source_path] ?? field.source_path, sourcePath: field.source_path, label: field.label, format: field.format, missing: field.missing_value }))
-    })),
-    commands: (ui.commands ?? []).map((command) => clone(command)),
-    loading: ui.states?.loading ?? "Loading",
-    empty: ui.states?.empty ?? "No state",
-    error: ui.states?.error ?? "State unavailable",
-    degraded: ui.states?.degraded ?? ui.text_template ?? "State unavailable",
-    liveUpdates: ui.accessibility?.live_updates ?? "polite"
-  }).replaceAll("<", "\\u003c");
-  return `(async () => {
-  "use strict";
-  const key = Symbol.for("rp_card_studio.status_ui");
-  globalThis[key]?.cleanup?.();
-  const config = ${config};
-  const hostListeners = [];
-  const observers = [];
-  const timers = new Set();
-  const seenEvents = new Set();
-  let host = null;
-  let root = null;
-  let ownsHost = false;
-  let ready = false;
-  let hostReady = false;
-  let mvu = null;
-  let disposed = false;
-  const hostWindow = (() => {
-    try { return globalThis.parent ?? null; }
-    catch { return null; }
-  })();
-  const hostDocument = (() => {
-    try { return hostWindow?.document ?? null; }
-    catch { return null; }
-  })();
-  const HostMutationObserver = hostWindow?.MutationObserver ?? globalThis.MutationObserver;
-  const read = (value, state) => value.split(".").reduce((current, segment) => current == null ? undefined : current[segment], state);
-  const resolveTarget = () => {
-    const target = { ...config.target };
-    if (target.type !== "message" || config.snapshotSelector !== "current_message") return target;
-    try {
-      const messageId = typeof globalThis.getCurrentMessageId === "function"
-        ? globalThis.getCurrentMessageId()
-        : undefined;
-      if (Number.isInteger(messageId)) target.message_id = messageId;
-    } catch { /* Character scripts have no message-frame id; latest is the documented fallback. */ }
-    return target;
-  };
-  const state = () => {
-    if (!mvu?.getMvuData) return null;
-    try {
-      const data = mvu.getMvuData(resolveTarget());
-      return data?.[config.namespace] ?? null;
-    } catch { return null; }
-  };
-  const readGlobalPath = (expression) => {
-    const normalized = String(expression).trim().replace(/^(?:globalThis|window)\./, "");
-    if (!/^[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*$/.test(normalized)) return undefined;
-    return normalized.split(".").reduce((current, segment) => current == null ? undefined : current[segment], globalThis);
-  };
-  const emit = async (name, detail) => {
-    if (typeof globalThis.eventEmit !== "function") return false;
-    try {
-      await globalThis.eventEmit(name, detail);
-      return true;
-    } catch { return false; }
-  };
-  const resolveCallable = (expression) => {
-    const normalized = String(expression).trim().replace(/^(?:globalThis|window)\./, "");
-    if (!/^[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*$/.test(normalized)) return null;
-    const segments = normalized.split(".");
-    const name = segments.pop();
-    const owner = segments.reduce((current, segment) => current == null ? undefined : current[segment], globalThis);
-    const callable = owner?.[name];
-    return typeof callable === "function" ? { owner, callable } : null;
-  };
-  const executeCommand = async (command) => {
-    const detail = { id: command.id, channel: command.channel, payload: command.payload, writerId: command.writer_id };
-    await emit("rp-card-ui-command", detail);
-    try {
-      let result;
-      if (command.channel === "runtime_event") {
-        if (!await emit(command.payload, detail)) throw new Error("Tavern Helper event API is unavailable");
-        result = true;
-      } else if (command.channel === "script_api") {
-        const target = resolveCallable(command.payload);
-        if (!target) throw new Error("Script API is unavailable: " + command.payload);
-        result = await target.callable.call(target.owner, detail);
-      } else if (command.channel === "chat_command") {
-        const context = globalThis.SillyTavern?.getContext?.();
-        const candidates = [
-          [context, context?.executeSlashCommandsWithOptions],
-          [context, context?.executeSlashCommands],
-          [globalThis, globalThis.executeSlashCommandsWithOptions],
-          [globalThis, globalThis.executeSlashCommands]
-        ];
-        const target = candidates.find(([, callable]) => typeof callable === "function");
-        if (!target) throw new Error("SillyTavern chat command API is unavailable");
-        result = await target[1].call(target[0], command.payload);
-      } else {
-        throw new Error("Unsupported UI command channel: " + command.channel);
-      }
-      await emit("rp-card-ui-command-result", { ...detail, result });
-      return result;
-    } catch (error) {
-      await emit("rp-card-ui-command-error", { ...detail, message: error instanceof Error ? error.message : String(error) });
-      throw error;
-    }
-  };
-  const requirementReady = (name) => {
-    if (seenEvents.has(name)) return true;
-    if (name === "runtime_state_available" || name === config.namespace) return state() !== null;
-    if (name === "message_rendered") return state() !== null;
-    return Boolean(readGlobalPath(name));
-  };
-  const ensureRoot = () => {
-    if (!hostDocument?.createElement) return null;
-    if (!host?.isConnected) { host = hostDocument.getElementById(config.mountAnchor); ownsHost = false; }
-    if (!host) {
-      const shell = hostDocument.getElementById("sheld");
-      if (!shell) return null;
-      host = hostDocument.createElement("section");
-      host.id = config.mountAnchor;
-      const form = hostDocument.getElementById("form_sheld");
-      if (shell && form?.parentNode === shell && typeof shell.insertBefore === "function") shell.insertBefore(host, form);
-      else shell.append(host);
-      ownsHost = true;
-    }
-    if (!root?.isConnected || root.parentNode !== host) {
-      root = hostDocument.createElement("section");
-      root.dataset.rpCardStudio = "status_ui";
-      root.dataset.density = config.visual.density || "compact";
-      root.dataset.narrowLayout = config.responsive.narrow || "single_column";
-      root.dataset.wideLayout = config.responsive.wide || "grouped_columns";
-      root.setAttribute("aria-live", config.liveUpdates);
-      host.append(root);
-    }
-    return root;
-  };
-  const showStatus = (text) => {
-    const mount = ensureRoot();
-    if (mount) mount.textContent = text;
-  };
-  const format = (value, kind) => {
-    if (kind === "list" && Array.isArray(value)) return value.join(", ");
-    if (kind === "percent" && typeof value === "number") return String(value) + "%";
-    if (value && typeof value === "object") {
-      try { return JSON.stringify(value); } catch { return config.error; }
-    }
-    return String(value);
-  };
-  const render = () => {
-    try {
-      if (!ensureRoot()) return;
-      root.replaceChildren();
-      const currentState = state();
-      if (!currentState) { root.textContent = config.degraded; return; }
-      for (const section of config.sections) {
-        const group = hostDocument.createElement(section.collapsed ? "details" : "section");
-        if (section.collapsed) {
-          const heading = hostDocument.createElement("summary"); heading.textContent = section.label; group.append(heading);
-        } else {
-          const heading = hostDocument.createElement("h3"); heading.textContent = section.label; group.append(heading);
-        }
-        for (const field of section.fields) {
-          const row = hostDocument.createElement("div");
-          const value = read(field.path, currentState);
-          row.textContent = field.label + ": " + (value == null ? field.missing : format(value, field.format));
-          group.append(row);
-        }
-        root.append(group);
-      }
-      if (!config.readOnly && config.commands.length > 0) {
-        const commands = hostDocument.createElement("div");
-        commands.dataset.rpCardStudioCommands = "true";
-        for (const command of config.commands) {
-          const button = hostDocument.createElement("button");
-          button.type = "button";
-          button.textContent = command.label;
-          button.addEventListener("click", async () => {
-            button.disabled = true;
-            try { await executeCommand(command); }
-            catch { /* The command error is exposed through rp-card-ui-command-error. */ }
-            finally { button.disabled = false; }
-          });
-          commands.append(button);
-        }
-        root.append(commands);
-      }
-      if (!root.childNodes.length) root.textContent = config.empty;
-    } catch { if (root) root.textContent = config.error; }
-  };
-  const onHost = (name, handler) => {
-    if (typeof name !== "string" || typeof globalThis.eventOn !== "function") return;
-    globalThis.eventOn(name, handler);
-    hostListeners.push([name, handler]);
-  };
-  const clearHostListeners = () => {
-    for (const [name, handler] of hostListeners.splice(0)) {
-      try { globalThis.eventRemoveListener(name, handler); } catch { /* Host cleanup must remain best effort. */ }
-    }
-  };
-  let pollTimer = null;
-  const markReady = () => {
-    if (!hostReady) return;
-    ready = true;
-    if (pollTimer !== null) { clearInterval(pollTimer); timers.delete(pollTimer); pollTimer = null; }
-  };
-  const attemptRender = () => {
-    if (!hostReady) return;
-    if (!ready) {
-      if (!config.waitFor.every(requirementReady)) return;
-      markReady();
-    }
-    render();
-  };
-  onHost("rp-card-runtime-ready", () => { attemptRender(); });
-  onHost("rp-card-state-change", () => {
-    if (!ready) attemptRender();
-    else if (["on_state_change", "hybrid"].includes(config.refresh)) render();
-  });
-  onHost("rp-card-runtime-unavailable", () => { if (!ready) showStatus(config.degraded); });
-  for (const name of config.waitFor.filter((candidate) => candidate !== "message_rendered")) onHost(name, () => {
-    seenEvents.add(name);
-    if (!ready) attemptRender();
-  });
-  if (config.waitFor.includes("message_rendered") || ["on_message", "hybrid"].includes(config.refresh)) {
-    const messageEvents = [
-      globalThis.tavern_events?.USER_MESSAGE_RENDERED ?? "user_message_rendered",
-      globalThis.tavern_events?.CHARACTER_MESSAGE_RENDERED ?? "character_message_rendered",
-    ];
-    const onMessageRendered = () => {
-      if (disposed) return;
-      seenEvents.add("message_rendered");
-      if (!ready) attemptRender();
-      else if (["on_message", "hybrid"].includes(config.refresh)) render();
-    };
-    for (const eventName of new Set(messageEvents)) onHost(eventName, onMessageRendered);
-  }
-  if (typeof HostMutationObserver === "function" && hostDocument?.documentElement) {
-    const observer = new HostMutationObserver(() => {
-      if (disposed || (root?.isConnected && host?.isConnected)) return;
-      if (hostReady) attemptRender();
-      else showStatus(config.loading);
-    });
-    observer.observe(hostDocument.documentElement, { childList: true, subtree: true }); observers.push(observer);
-  }
-  const cleanup = () => {
-    if (disposed) return;
-    disposed = true;
-    hostReady = false;
-    ready = false;
-    mvu = null;
-    clearHostListeners();
-    for (const item of observers.splice(0)) item.disconnect();
-    for (const item of timers) { clearTimeout(item); clearInterval(item); }
-    timers.clear();
-    root?.remove();
-    if (ownsHost && host && !host.childNodes.length) host.remove();
-    root = null; host = null; ownsHost = false;
-  };
-  globalThis[key] = { cleanup, render, executeCommand };
-  try {
-    if (!hostDocument?.createElement) throw new Error("SillyTavern parent document is unavailable");
-    showStatus(config.loading);
-  } catch (error) {
-    cleanup();
-    await emit("rp-card-runtime-unavailable", { reason: error instanceof Error ? error.message : String(error) });
-    return;
-  }
-  pollTimer = setInterval(attemptRender, 100); timers.add(pollTimer);
-  const timeoutTimer = setTimeout(() => { if (!ready) showStatus(config.degraded); }, config.timeoutMs); timers.add(timeoutTimer);
-  const initializeHost = async () => {
-    let waitTimer = null;
-    try {
-      if (typeof globalThis.waitGlobalInitialized !== "function") throw new Error("waitGlobalInitialized is unavailable");
-      const timeout = new Promise((_, reject) => {
-        waitTimer = setTimeout(() => reject(new Error("MVU initialization timed out")), config.timeoutMs);
-        timers.add(waitTimer);
-      });
-      try {
-        await Promise.race([globalThis.waitGlobalInitialized("Mvu"), timeout]);
-      } finally {
-        if (waitTimer !== null) { clearTimeout(waitTimer); timers.delete(waitTimer); waitTimer = null; }
-      }
-      if (disposed) return;
-      mvu = globalThis.Mvu;
-      if (!mvu?.getMvuData || !mvu?.events) throw new Error("MVU API is incomplete");
-      if (typeof globalThis.eventOn !== "function"
-        || typeof globalThis.eventEmit !== "function"
-        || typeof globalThis.eventRemoveListener !== "function") {
-        throw new Error("Tavern Helper event API is unavailable");
-      }
-      const eventNames = [
-        mvu.events.VARIABLE_INITIALIZED,
-        mvu.events.VARIABLE_UPDATE_ENDED,
-        mvu.events.BEFORE_MESSAGE_UPDATE,
-      ];
-      if (eventNames.some((name) => typeof name !== "string")) throw new Error("MVU event contract is incomplete");
-      const refresh = () => {
-        if (disposed || !hostReady) return;
-        if (!ready) attemptRender();
-        else if (["on_state_change", "hybrid"].includes(config.refresh)) render();
-      };
-      hostReady = true;
-      onHost(mvu.events.VARIABLE_INITIALIZED, refresh);
-      onHost(mvu.events.VARIABLE_UPDATE_ENDED, refresh);
-      onHost(mvu.events.BEFORE_MESSAGE_UPDATE, refresh);
-      attemptRender();
-    } catch (error) {
-      hostReady = false;
-      clearHostListeners();
-      if (pollTimer !== null) { clearInterval(pollTimer); timers.delete(pollTimer); pollTimer = null; }
-      clearTimeout(timeoutTimer); timers.delete(timeoutTimer);
-      if (!disposed) {
-        showStatus(config.degraded);
-        await emit("rp-card-runtime-unavailable", { reason: error instanceof Error ? error.message : String(error) });
-      }
-    }
-  };
-  await initializeHost();
-})();`;
-}
-
 // JS-Slash-Runner parses character scripts with a strict Zod object. Keep the
 // host-facing projection deliberately small; project-only adapter metadata
 // belongs in the source contract and reports, not in the card extension.
@@ -2903,19 +2564,78 @@ function tavernHelperScript({ id, name, content, enabled = true, info = "" }) {
   };
 }
 
+// Recognition data only. Forge never executes or regenerates this retired
+// parent-page script; matching copies are removed when old cards are rebuilt.
+const DEPRECATED_PARENT_STATUS_SCRIPT_FINGERPRINT = Object.freeze({
+  id: "rp_card_studio_status_ui",
+  name: "RP Card Studio Status UI",
+  info: "Read-only status UI; execution order is encoded by the stable script id"
+});
+const RUNTIME_GUARD_SCRIPT = Object.freeze({
+  id: "rp_card_studio_runtime_guard",
+  name: "RP Card Studio Runtime Guard",
+  info: "MVU runtime guard; execution order is encoded by the stable script id"
+});
+const DEPENDENCY_SCRIPT_PREFIX = "rp_card_studio_dependency_";
+
+function isReservedTavernHelperScriptId(id) {
+  return id === DEPRECATED_PARENT_STATUS_SCRIPT_FINGERPRINT.id
+    || id === RUNTIME_GUARD_SCRIPT.id
+    || (typeof id === "string" && id.startsWith(DEPENDENCY_SCRIPT_PREFIX));
+}
+
+function isDeprecatedParentStatusScript(script) {
+  const content = script?.content;
+  return script?.id === DEPRECATED_PARENT_STATUS_SCRIPT_FINGERPRINT.id
+    && script?.name === DEPRECATED_PARENT_STATUS_SCRIPT_FINGERPRINT.name
+    && script?.info === DEPRECATED_PARENT_STATUS_SCRIPT_FINGERPRINT.info
+    && typeof content === "string"
+    && content.includes('Symbol.for("rp_card_studio.status_ui")')
+    && content.includes("globalThis.parent")
+    && content.includes('getElementById("sheld")')
+    && content.includes('getElementById("form_sheld")');
+}
+
+function isRuntimeGuardScript(script) {
+  const content = script?.content;
+  return script?.id === RUNTIME_GUARD_SCRIPT.id
+    && script?.name === RUNTIME_GUARD_SCRIPT.name
+    && script?.info === RUNTIME_GUARD_SCRIPT.info
+    && typeof content === "string"
+    && content.includes('Symbol.for("rp_card_studio.runtime_guard")')
+    && content.includes('waitGlobalInitialized("Mvu")')
+    && content.includes("getMvuData")
+    && content.includes("replaceMvuData");
+}
+
+function isDependencyScript(script) {
+  const id = script?.id;
+  if (typeof id !== "string" || !id.startsWith(DEPENDENCY_SCRIPT_PREFIX)) return false;
+  const dependencyId = id.slice(DEPENDENCY_SCRIPT_PREFIX.length);
+  if (!dependencyId || script?.name !== `RP Card Studio dependency: ${dependencyId}`) return false;
+  if (typeof script?.info !== "string" || !script.info.startsWith("Pinned remote dependency ")) return false;
+  const match = /^import\s+([\s\S]+);$/.exec(script?.content ?? "");
+  if (!match) return false;
+  try {
+    return typeof JSON.parse(match[1]) === "string";
+  } catch {
+    return false;
+  }
+}
+
+function isRecognizableTavernHelperScript(script) {
+  return isDeprecatedParentStatusScript(script)
+    || isRuntimeGuardScript(script)
+    || isDependencyScript(script);
+}
+
 export function applyTavernHelperAdapter(payload, { project, sources, target }) {
   if (target !== "character") return { payload, issues: [] };
   const mvuSources = values(sources, "mvu");
-  const uiSources = values(sources, "ui");
   const mvuAdapter = mvuSources.find((source) => source.runtime_contract?.adapter?.id === "tavern_helper" && source.runtime_contract.adapter.delivery === "embedded")?.runtime_contract?.adapter ?? null;
-  const uiAdapter = uiSources.some((source) => source.status_ui?.delivery?.adapter === "tavern_helper" && source.status_ui.delivery.level === "embedded");
   const runtimeEnabled = mvuSources.some((source) => source.mvu?.enabled)
     && project?.features?.mvu;
-  const uiSource = uiSources.find((source) => source.status_ui?.enabled
-    && ["embedded", "both"].includes(source.status_ui.mode)
-    && source.status_ui.delivery?.level === "embedded");
-  const uiEnabled = Boolean(project?.features?.status_ui && uiSource);
-  const runtimeConfig = tavernHelperRuntimeConfig(mvuSources, uiSources);
+  const runtimeConfig = tavernHelperRuntimeConfig(mvuSources);
   const generated = [];
   if (runtimeEnabled) {
     const seenImports = new Set();
@@ -2938,23 +2658,22 @@ export function applyTavernHelperAdapter(payload, { project, sources, target }) 
     info: "MVU runtime guard; execution order is encoded by the stable script id",
     content: runtimeGuardScript(runtimeConfig)
   }));
-  if (uiEnabled && uiAdapter) generated.push(tavernHelperScript({
-    id: "rp_card_studio_status_ui",
-    name: "RP Card Studio Status UI",
-    enabled: true,
-    info: "Read-only status UI; execution order is encoded by the stable script id",
-    content: statusUiScript(uiSource.status_ui, runtimeConfig)
-  }));
-  if (generated.length === 0) return { payload, issues: [] };
+  const existingScripts = payload?.data?.extensions?.tavern_helper?.scripts;
+  const cleanupNeeded = Array.isArray(existingScripts)
+    && existingScripts.some((script) => isReservedTavernHelperScriptId(script?.id));
+  if (generated.length === 0 && !cleanupNeeded) return { payload, issues: [] };
 
   // Tavern Helper sorts enabled scripts by id, not by card order or a custom
-  // load_order field. Sort here too so the emitted artifact documents that
-  // deterministic order and remains stable across host versions.
+  // load_order field. Keep its generated block deterministic while preserving
+  // the relative order of user-owned scripts in the serialized card.
   generated.sort((left, right) => left.id.localeCompare(right.id));
 
   const output = clone(payload);
   output.data ??= {};
-  output.data.extensions = isObject(output.data.extensions) ? output.data.extensions : {};
+  if (output.data.extensions !== undefined && !isObject(output.data.extensions)) {
+    return { payload: output, issues: [issue("/data/extensions", "adapter.collision", "Character extensions must be an object")] };
+  }
+  output.data.extensions ??= {};
   const existing = output.data.extensions.tavern_helper;
   if (existing !== undefined && !isObject(existing)) {
     return { payload: output, issues: [issue("/data/extensions/tavern_helper", "adapter.collision", "tavern_helper extension is not an object")] };
@@ -2964,16 +2683,325 @@ export function applyTavernHelperAdapter(payload, { project, sources, target }) 
     return { payload: output, issues: [issue("/data/extensions/tavern_helper/scripts", "adapter.collision", "tavern_helper scripts must be an array")] };
   }
   extension.scripts = extension.scripts ?? [];
-  const existingIds = new Set(extension.scripts.map((script) => script?.id).filter(Boolean));
-  const issues = [];
+  const generatedById = new Map(generated.map((script) => [script.id, script]));
+  const retained = [];
+  const collisions = new Set();
+  const reservedCollisions = new Set();
+  for (const script of extension.scripts) {
+    const desired = generatedById.get(script?.id);
+    const recognizable = isRecognizableTavernHelperScript(script);
+    if (!desired && isReservedTavernHelperScriptId(script?.id)) {
+      if (recognizable) continue;
+      retained.push(script);
+      reservedCollisions.add(script.id);
+      continue;
+    }
+    if (!desired) {
+      retained.push(script);
+      continue;
+    }
+    if (canonicalJson(script) !== canonicalJson(desired) && !recognizable) {
+      retained.push(script);
+      collisions.add(script.id);
+    }
+  }
+  const issues = [...reservedCollisions].map((id) => issue(
+    "/data/extensions/tavern_helper/scripts",
+    "adapter.script_collision",
+    `Refusing to remove unrecognized Tavern Helper script using reserved managed id: ${id}`
+  ));
   for (const script of generated) {
-    if (existingIds.has(script.id)) {
+    if (collisions.has(script.id)) {
       issues.push(issue("/data/extensions/tavern_helper/scripts", "adapter.script_collision", `Refusing to overwrite Tavern Helper script: ${script.id}`));
       continue;
     }
-    extension.scripts.push(script);
-    existingIds.add(script.id);
+    retained.push(script);
   }
+  extension.scripts = retained;
   output.data.extensions.tavern_helper = extension;
   return { payload: output, issues };
+}
+
+const STATUS_PLACEHOLDER = "<StatusPlaceHolderImpl/>";
+const STATUS_REPLY_CONTRACT_MARKER = "[RP Card Studio status placeholder contract]";
+const STATUS_REPLY_CONTRACT = `${STATUS_REPLY_CONTRACT_MARKER}\nEnd every assistant reply with exactly one ${STATUS_PLACEHOLDER}. Emit it after any variable update block, place it at the very end, and do not emit content after it or another copy elsewhere.`;
+const MANAGED_REGEX_IDS = Object.freeze({
+  mvuPromptFilter: "0e4c7a2c-5c51-4a15-8f8e-f2a81f831d01",
+  mvuPendingFold: "0e4c7a2c-5c51-4a15-8f8e-f2a81f831d02",
+  mvuCompleteFold: "0e4c7a2c-5c51-4a15-8f8e-f2a81f831d03",
+  statusProjection: "0e4c7a2c-5c51-4a15-8f8e-f2a81f831d04"
+});
+
+function sillyTavernRegexScript({
+  id,
+  scriptName,
+  findRegex,
+  replaceString,
+  placement,
+  markdownOnly,
+  promptOnly,
+  maxDepth = null
+}) {
+  return {
+    id,
+    scriptName,
+    findRegex,
+    replaceString,
+    trimStrings: [],
+    placement,
+    disabled: false,
+    markdownOnly,
+    promptOnly,
+    runOnEdit: false,
+    substituteRegex: 0,
+    minDepth: null,
+    maxDepth
+  };
+}
+
+function mvuRegexScripts() {
+  return [
+    sillyTavernRegexScript({
+      id: MANAGED_REGEX_IDS.mvuPromptFilter,
+      scriptName: "[MVU] Filter variable updates from prompts",
+      findRegex: "/<update(?:variable)?>[\\s\\S]*?(?:<\\/update(?:variable)?>|$)/gi",
+      replaceString: "",
+      placement: [1, 2],
+      markdownOnly: false,
+      promptOnly: true,
+      maxDepth: 3
+    }),
+    sillyTavernRegexScript({
+      id: MANAGED_REGEX_IDS.mvuPendingFold,
+      scriptName: "[MVU] Fold pending variable update",
+      findRegex: "/<update(?:variable)?>(?![\\s\\S]*?<\\/update(?:variable)?>)\\s*([\\s\\S]*?)\\s*(?=<StatusPlaceHolderImpl\\s*\\/>\\s*$|$)/i",
+      replaceString: '<details data-rp-card-studio="mvu-update-pending"><summary>Variable update (pending)</summary><pre>$1</pre></details>',
+      placement: [2],
+      markdownOnly: true,
+      promptOnly: false
+    }),
+    sillyTavernRegexScript({
+      id: MANAGED_REGEX_IDS.mvuCompleteFold,
+      scriptName: "[MVU] Fold complete variable update",
+      findRegex: "/<update(?:variable)?>\\s*([\\s\\S]*?)\\s*<\\/update(?:variable)?>/gi",
+      replaceString: '<details data-rp-card-studio="mvu-update"><summary>Variable update</summary><pre>$1</pre></details>',
+      placement: [2],
+      markdownOnly: true,
+      promptOnly: false
+    })
+  ];
+}
+
+function escapeHtml(value) {
+  const replacements = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+  return String(value ?? "").replace(/[&<>"']/g, (character) => replacements[character]);
+}
+
+function statusRuntimePath(sourcePath, runtimeConfig) {
+  const namespace = runtimeConfig.namespace ?? "stat_data";
+  const mapped = runtimeConfig.pathMappings[sourcePath] ?? sourcePath;
+  return mapped.startsWith(`${namespace}.`) ? mapped : `${namespace}.${mapped}`;
+}
+
+function compileStatusText(template, runtimeConfig) {
+  return escapeHtml(template).replace(
+    /\{\{\s*([A-Za-z_][A-Za-z0-9_-]*(?:\.[A-Za-z_][A-Za-z0-9_-]*)*)\s*\}\}/g,
+    (_match, sourcePath) => `{{get_message_variable::${statusRuntimePath(sourcePath, runtimeConfig)}}}`
+  );
+}
+
+function statusProjectionHtml(ui, runtimeConfig) {
+  const hierarchy = new Map((ui.visual?.hierarchy ?? []).map((id, index) => [id, index]));
+  const sections = [...ui.sections ?? []].sort((left, right) => {
+    const leftRank = hierarchy.get(left.id) ?? Number.MAX_SAFE_INTEGER;
+    const rightRank = hierarchy.get(right.id) ?? Number.MAX_SAFE_INTEGER;
+    return leftRank - rightRank || (left.priority ?? 0) - (right.priority ?? 0);
+  });
+  const summary = typeof ui.text_template === "string" && ui.text_template.trim().length > 0
+    ? `<div style="grid-column:1/-1;font-weight:650;color:#f4f4f5">${compileStatusText(ui.text_template, runtimeConfig)}</div>`
+    : "";
+  const sectionMarkup = sections.map((section) => {
+    const fields = (section.fields ?? []).map((field) => {
+      const macro = `{{get_message_variable::${statusRuntimePath(field.source_path, runtimeConfig)}}}`;
+      const suffix = field.format === "percent" ? "%" : "";
+      return `<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:baseline"><dt style="min-width:0;color:#a1a1aa">${escapeHtml(field.label ?? field.id)}</dt><dd style="margin:0;color:#fafafa;font-weight:650;overflow-wrap:anywhere">${macro}${suffix}</dd></div>`;
+    }).join("");
+    if (!fields) return "";
+    const open = section.collapsed === true ? "" : " open";
+    return `<details${open} style="min-width:0;border-top:1px solid #3f3f46;padding-top:6px"><summary style="cursor:pointer;font-size:11px;color:#67e8f9">${escapeHtml(section.display_name ?? section.id)}</summary><dl style="display:grid;gap:4px;margin:6px 0 0">${fields}</dl></details>`;
+  }).join("");
+  const fallback = compileStatusText(ui.states?.degraded ?? "Status unavailable", runtimeConfig);
+  const liveMode = ["polite", "assertive"].includes(ui.accessibility?.live_updates)
+    ? ui.accessibility.live_updates
+    : "off";
+  return `<div data-rp-card-studio="status" role="status" aria-live="${liveMode}" aria-atomic="true" style="box-sizing:border-box;margin:8px 0;padding:10px 12px;border:1px solid #3f3f46;border-left:3px solid #22d3ee;border-radius:6px;background:#18181b;color:#e4e4e7;font:12px/1.45 system-ui,sans-serif;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:8px">${summary}${sectionMarkup || `<div>${fallback}</div>`}</div>`;
+}
+
+function statusRegexScript(ui, runtimeConfig) {
+  const projection = ui.mode === "text"
+    ? compileStatusText(ui.text_template || ui.states?.degraded || "Status unavailable", runtimeConfig)
+    : statusProjectionHtml(ui, runtimeConfig);
+  return sillyTavernRegexScript({
+    id: MANAGED_REGEX_IDS.statusProjection,
+    scriptName: "[Status] Project message status bar",
+    findRegex: "/<StatusPlaceHolderImpl\\s*\\/>/g",
+    // SillyTavern interprets every $n in replaceString as a capture reference,
+    // even though it uses a replacement callback. An HTML entity is the only
+    // stable literal dollar representation after Markdown rendering.
+    replaceString: projection.replace(/\$/g, "&#36;"),
+    placement: [2],
+    markdownOnly: true,
+    promptOnly: false
+  });
+}
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (isObject(value)) return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`;
+  return JSON.stringify(value);
+}
+
+function normalizeStatusPlaceholder(value) {
+  const withoutPlaceholders = String(value ?? "")
+    .replace(/<StatusPlaceHolderImpl\s*\/>/gi, "")
+    .trimEnd();
+  return `${withoutPlaceholders}${withoutPlaceholders ? "\n\n" : ""}${STATUS_PLACEHOLDER}`;
+}
+
+function removeStatusPlaceholders(value) {
+  return String(value ?? "")
+    .replace(/<StatusPlaceHolderImpl\s*\/>/gi, "")
+    .replace(/[ \t]+$/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trimEnd();
+}
+
+function appendStatusReplyContract(value) {
+  const existing = String(value ?? "").trimEnd();
+  if (existing.includes(STATUS_REPLY_CONTRACT_MARKER)) return existing;
+  return `${existing}${existing ? "\n\n" : ""}${STATUS_REPLY_CONTRACT}`;
+}
+
+function removeStatusReplyContract(value) {
+  return String(value ?? "")
+    .replace(/\[RP Card Studio status placeholder contract\]\r?\n[^\r\n]*(?:\r?\n)?/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trimEnd();
+}
+
+function activeStatusUi(project, sources) {
+  if (project?.features?.status_ui !== true) return null;
+  return values(sources, "ui").find((source) => source.status_ui?.enabled
+    && ["text", "embedded", "both"].includes(source.status_ui.mode)
+    && source.status_ui.delivery?.level === "embedded"
+    && source.status_ui.delivery?.adapter === "sillytavern_regex"
+    && source.status_ui.delivery?.surface === "message")?.status_ui ?? null;
+}
+
+function managedRegexFingerprint(script) {
+  return canonicalJson({
+    scriptName: script?.scriptName,
+    findRegex: script?.findRegex,
+    trimStrings: script?.trimStrings,
+    placement: script?.placement,
+    disabled: script?.disabled,
+    markdownOnly: script?.markdownOnly,
+    promptOnly: script?.promptOnly,
+    runOnEdit: script?.runOnEdit,
+    substituteRegex: script?.substituteRegex,
+    minDepth: script?.minDepth,
+    maxDepth: script?.maxDepth
+  });
+}
+
+function isRecognizableManagedRegexScript(script) {
+  if (!Object.values(MANAGED_REGEX_IDS).includes(script?.id)) return false;
+  if (script.id === MANAGED_REGEX_IDS.statusProjection) {
+    return managedRegexFingerprint(script) === managedRegexFingerprint({
+      scriptName: "[Status] Project message status bar",
+      findRegex: "/<StatusPlaceHolderImpl\\s*\\/>/g",
+      trimStrings: [],
+      placement: [2],
+      disabled: false,
+      markdownOnly: true,
+      promptOnly: false,
+      runOnEdit: false,
+      substituteRegex: 0,
+      minDepth: null,
+      maxDepth: null
+    });
+  }
+  const expected = mvuRegexScripts().find((candidate) => candidate.id === script.id);
+  return Boolean(expected) && managedRegexFingerprint(script) === managedRegexFingerprint(expected);
+}
+
+function mergeManagedRegexScripts(output, generated) {
+  output.data ??= {};
+  if (output.data.extensions === undefined && generated.length === 0) return [];
+  if (output.data.extensions !== undefined && !isObject(output.data.extensions)) {
+    return [issue("/data/extensions", "sillytavern_regex.collision", "Character extensions must be an object")];
+  }
+  output.data.extensions ??= {};
+  const existing = output.data.extensions.regex_scripts;
+  if (existing === undefined && generated.length === 0) return [];
+  if (existing !== undefined && !Array.isArray(existing)) {
+    return [issue("/data/extensions/regex_scripts", "sillytavern_regex.collision", "regex_scripts must be an array")];
+  }
+  const desiredById = new Map(generated.map((script) => [script.id, script]));
+  const collisions = new Set();
+  const retained = [];
+  for (const script of existing ?? []) {
+    const desired = desiredById.get(script?.id);
+    if (!desired) {
+      if (isRecognizableManagedRegexScript(script)) continue;
+      retained.push(script);
+      continue;
+    }
+    if (canonicalJson(script) !== canonicalJson(desired) && !isRecognizableManagedRegexScript(script)) {
+      retained.push(script);
+      collisions.add(script.id);
+    }
+  }
+  const issues = [...collisions].map((id) => issue(
+    "/data/extensions/regex_scripts",
+    "sillytavern_regex.id_collision",
+    `Refusing to overwrite SillyTavern regex script: ${id}`
+  ));
+  output.data.extensions.regex_scripts = [
+    ...retained,
+    ...generated.filter((script) => !collisions.has(script.id))
+  ];
+  return issues;
+}
+
+export function applySillyTavernRegexAdapter(payload, { project, sources, target }) {
+  if (target !== "character") return { payload, issues: [] };
+  const mvuSources = values(sources, "mvu");
+  const mvuEnabled = project?.features?.mvu === true && mvuSources.some((source) => source.mvu?.enabled);
+  const ui = activeStatusUi(project, sources);
+
+  const output = clone(payload);
+  const generated = mvuEnabled ? mvuRegexScripts() : [];
+  if (ui) {
+    const runtimeConfig = tavernHelperRuntimeConfig(mvuSources);
+    generated.push(statusRegexScript(ui, runtimeConfig));
+    output.data ??= {};
+    output.data.first_mes = normalizeStatusPlaceholder(output.data.first_mes);
+    output.data.alternate_greetings = Array.isArray(output.data.alternate_greetings)
+      ? output.data.alternate_greetings.map(normalizeStatusPlaceholder)
+      : [];
+    output.data.post_history_instructions = appendStatusReplyContract(output.data.post_history_instructions);
+  } else if (isObject(output.data)) {
+    if (typeof output.data.first_mes === "string") {
+      output.data.first_mes = removeStatusPlaceholders(output.data.first_mes);
+    }
+    if (Array.isArray(output.data.alternate_greetings)) {
+      output.data.alternate_greetings = output.data.alternate_greetings.map(removeStatusPlaceholders);
+    }
+    if (typeof output.data.post_history_instructions === "string") {
+      output.data.post_history_instructions = removeStatusReplyContract(output.data.post_history_instructions);
+    }
+  }
+  const issues = mergeManagedRegexScripts(output, generated);
+  return { payload: output, issues, warnings: [] };
 }

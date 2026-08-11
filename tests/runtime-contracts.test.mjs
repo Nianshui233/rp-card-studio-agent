@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   applyAssemblyManifest,
+  applySillyTavernRegexAdapter,
   applyTavernHelperAdapter,
   selectOpeningMessages,
   validateRuntimeSources,
@@ -116,15 +117,11 @@ function runtimeUiSources({ adapterDelivery = 'embedded', uiLevel = 'embedded', 
           dependencies: [],
           delivery: {
             level: uiLevel,
-            adapter: 'tavern_helper',
+            adapter: 'sillytavern_regex',
+            surface: 'message',
             entrypoint: 'generated',
             artifact: 'inline',
-            mount_anchor: 'rp-card-status',
-            lifecycle: {
-              wait_for: ['stat_data'],
-              cleanup: ['events', 'observers', 'timers', 'dom'],
-              idempotent: true,
-            },
+            placeholder: '<StatusPlaceHolderImpl/>',
           },
         },
       },
@@ -728,27 +725,27 @@ test('embedded media is materialized as self-contained base64 with integrity evi
   assert.deepEqual(asset.extensions.rp_card_studio.original_source, { kind: 'inline', content: 'abc' });
 });
 
-test('status UI scripts map runtime paths, execute every command channel, and remount after host replacement', () => {
-  const commands = [
-    { id: 'chat', label: 'Chat', channel: 'chat_command', payload: '/echo ready', writer_id: 'relationship_update' },
-    { id: 'event', label: 'Event', channel: 'runtime_event', payload: 'rp-card-test-event', writer_id: 'relationship_update' },
-    { id: 'api', label: 'API', channel: 'script_api', payload: 'TestApi.update', writer_id: 'relationship_update' },
-  ];
-  const result = applyTavernHelperAdapter({ data: { extensions: {} } }, {
+test('status UI projects compile message-local macros without a parent-page script', () => {
+  const sources = runtimeUiSources();
+  const result = applySillyTavernRegexAdapter({ data: { extensions: {} } }, {
     project: { features: { mvu: true, ejs: false, status_ui: true } },
-    sources: runtimeUiSources({ commands }),
+    sources,
     target: 'character',
   });
   assert.deepEqual(result.issues, []);
-  const script = result.payload.data.extensions.tavern_helper.scripts.find(candidate => candidate.id === 'rp_card_studio_status_ui').content;
-  assert.match(script, /"path":"runtime\.relationship_score"/);
-  assert.match(script, /executeSlashCommandsWithOptions/);
-  assert.match(script, /emit\(command\.payload, detail\)/);
-  assert.match(script, /resolveCallable\(command\.payload\)/);
-  assert.doesNotMatch(script, /const attemptRender = \(\) => \{\s*if \(ready\) return/);
-  assert.match(script, /observer\.observe\(hostDocument\.documentElement/);
-  assert.match(script, /if \(disposed \|\| \(root\?\.isConnected && host\?\.isConnected\)\) return/);
-  assert.match(script, /if \(hostReady\) attemptRender\(\)/);
+  const projection = result.payload.data.extensions.regex_scripts.find(candidate => candidate.id === '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d04');
+  assert.match(projection.replaceString, /get_message_variable::stat_data\.runtime\.relationship_score/);
+  assert.doesNotMatch(projection.replaceString, /<script|<iframe|https?:\/\//i);
+
+  const tavernHelper = applyTavernHelperAdapter({ data: { extensions: {} } }, {
+    project: { features: { mvu: true, ejs: false, status_ui: true } },
+    sources,
+    target: 'character',
+  });
+  assert.deepEqual(
+    tavernHelper.payload.data.extensions.tavern_helper.scripts.map(candidate => candidate.id),
+    ['rp_card_studio_runtime_guard'],
+  );
 });
 
 test('non-embedded adapters do not generate executable runtime guards', () => {
@@ -787,7 +784,53 @@ test('specification UI delivery is reported as not run instead of embedded runti
   assert.ok(validation.warnings.some(candidate => candidate.rule === 'ui.runtime_not_run'));
 });
 
-test('specification UI wait conditions do not block the selected embedded UI owner', async () => {
+test('host-required message adapters remain valid specifications and do not emit embedded UI regex', async () => {
+  const sources = runtimeUiSources();
+  sources.ui[0].value.status_ui.delivery = {
+    level: 'host_required',
+    adapter: 'tavern_helper_message',
+    surface: 'message',
+    entrypoint: 'host_managed',
+    artifact: 'host_managed',
+    placeholder: '<StatusPlaceHolderImpl/>',
+  };
+  const validation = await validateRuntimeSources({
+    project: { features: { mvu: true, ejs: false, status_ui: true } },
+    sources,
+    projectRoot: process.cwd(),
+  });
+
+  assert.deepEqual(validation.issues, []);
+  assert.ok(validation.warnings.some(candidate => candidate.rule === 'ui.runtime_not_run'));
+  const result = applySillyTavernRegexAdapter({ data: { extensions: {} } }, {
+    project: { features: { mvu: true, ejs: false, status_ui: true } },
+    sources,
+    target: 'character',
+  });
+  assert.equal(result.payload.data.extensions.regex_scripts.some(candidate => candidate.id === '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d04'), false);
+});
+
+test('embedded regex status projections reject command controls they cannot execute', async () => {
+  const sources = runtimeUiSources({
+    commands: [{
+      id: 'change_trust',
+      label: 'Change trust',
+      channel: 'runtime_event',
+      payload: 'rp-card-change-trust',
+      writer_id: 'relationship_update',
+    }],
+  });
+  const validation = await validateRuntimeSources({
+    project: { features: { mvu: true, ejs: false, status_ui: true } },
+    sources,
+    projectRoot: process.cwd(),
+  });
+
+  assert.ok(validation.issues.some(candidate => candidate.rule === 'ui.command'
+    && /read-only/.test(candidate.message)));
+});
+
+test('specification UI metadata does not replace the selected embedded message projection', async () => {
   const sources = runtimeUiSources();
   const specification = structuredClone(sources.ui[0]);
   specification.relativePath = 'src/ui/specification.yaml';
@@ -796,8 +839,6 @@ test('specification UI wait conditions do not block the selected embedded UI own
   specification.value.status_ui.delivery.level = 'specification';
   specification.value.status_ui.delivery.entrypoint = 'rp_card_status_specification';
   specification.value.status_ui.delivery.artifact = 'specification_only';
-  specification.value.status_ui.delivery.mount_anchor = 'rp-card-status-specification';
-  specification.value.status_ui.delivery.lifecycle.wait_for = ['never_event'];
   sources.ui.push(specification);
 
   const validation = await validateRuntimeSources({
@@ -808,14 +849,14 @@ test('specification UI wait conditions do not block the selected embedded UI own
   assert.deepEqual(validation.issues, []);
   assert.ok(validation.warnings.some(candidate => candidate.rule === 'ui.runtime_not_run'));
 
-  const result = applyTavernHelperAdapter({ data: { extensions: {} } }, {
+  const result = applySillyTavernRegexAdapter({ data: { extensions: {} } }, {
     project: { features: { mvu: true, ejs: false, status_ui: true } },
     sources,
     target: 'character',
   });
-  const script = result.payload.data.extensions.tavern_helper.scripts.find(candidate => candidate.id === 'rp_card_studio_status_ui').content;
-  assert.doesNotMatch(script, /never_event/);
-  assert.match(script, /stat_data/);
+  const projection = result.payload.data.extensions.regex_scripts.find(candidate => candidate.id === '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d04');
+  assert.ok(projection);
+  assert.match(projection.replaceString, /stat_data/);
 });
 
 test('opening selection traces variant, initialization profile, and resolved state', () => {

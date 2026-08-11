@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const forge = process.env.RP_CARD_FORGE ?? path.join(skillRoot, 'scripts', 'rp-card-forge.bundle.mjs');
@@ -107,13 +108,13 @@ runtime_contract:
 `;
 
 const legacyStatusUiWithMissingPath = `
-schema_version: 1.0.0
+schema_version: 1.2.0
 status: locked
 status_ui:
   enabled: true
   mode: text
   read_only: true
-  refresh: on_state_change
+  refresh: on_message
   text_template: "Trust: {{relationship.missing}}"
   sections:
     - id: relationship
@@ -145,6 +146,13 @@ status_ui:
     live_updates: polite
     color_independent: true
   dependencies: []
+  delivery:
+    level: embedded
+    adapter: sillytavern_regex
+    surface: message
+    entrypoint: generated
+    artifact: inline
+    placeholder: <StatusPlaceHolderImpl/>
 `;
 
 const legacyOpeningWithMissingInit = `
@@ -415,13 +423,13 @@ runtime_contract:
 `);
   write(root, 'src/prompts/opening.yaml', legacyOpeningWithMissingInit.replace('mvu_init:not_defined', 'mvu_init:default'));
   write(root, 'src/ui/status-ui.yaml', `
-schema_version: 1.1.0
+schema_version: 1.2.0
 status: locked
 status_ui:
   enabled: true
   mode: embedded
   read_only: true
-  refresh: on_state_change
+  refresh: on_message
   text_template: "Trust: {{relationship.trust}}"
   sections:
     - id: relationship
@@ -455,14 +463,11 @@ status_ui:
   dependencies: []
   delivery:
     level: embedded
-    adapter: tavern_helper
+    adapter: sillytavern_regex
+    surface: message
     entrypoint: generated
     artifact: inline
-    mount_anchor: rp-card-status
-    lifecycle:
-      wait_for: [Mvu, stat_data]
-      cleanup: [events, observers, timers, dom]
-      idempotent: true
+    placeholder: <StatusPlaceHolderImpl/>
 `);
 
   runForge(['build', root], { expectSuccess: true });
@@ -478,10 +483,15 @@ status_ui:
   assert.equal(card.data.extensions.rp_card_studio.opening_selection.default.profile_id, 'default');
   assert.deepEqual(card.data.extensions.rp_card_studio.opening_selection.default.state, { relationship: { trust: 10 } });
   const scripts = card.data.extensions.tavern_helper.scripts;
-  assert.ok(scripts.some(script => script.id === 'rp_card_studio_runtime_guard'));
-  assert.ok(scripts.some(script => script.id === 'rp_card_studio_status_ui'));
+  const regexScripts = card.data.extensions.regex_scripts;
+  assert.deepEqual(scripts.map(script => script.id), ['rp_card_studio_runtime_guard']);
+  assert.ok(regexScripts.some(script => script.id === '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d04'));
+  assert.ok(card.data.first_mes.endsWith('<StatusPlaceHolderImpl/>'));
   for (const script of scripts) {
     assert.doesNotMatch(script.content, /https?:\/\//, `${script.id} contains a remote runtime dependency`);
+  }
+  for (const script of regexScripts) {
+    assert.doesNotMatch(script.replaceString, /https?:\/\//, `${script.id} contains a remote runtime dependency`);
   }
 });
 
@@ -494,7 +504,8 @@ test('embedded UI cannot be reported complete without a runtime delivery contrac
   write(root, 'src/ui/status-ui.yaml', legacyStatusUiWithMissingPath
     .replace('mode: text', 'mode: embedded')
     .replace('enabled: true', 'enabled: true')
-    .replace(/  sections:[\s\S]*?  commands: \[\]/, '  sections: []\n  commands: []'));
+    .replace(/  sections:[\s\S]*?  commands: \[\]/, '  sections: []\n  commands: []')
+    .replace(/\n  delivery:[\s\S]*$/, ''));
 
   const result = runForge(['validate', root]);
   assert.notEqual(result.status, 0, `embedded UI without runtime delivery unexpectedly passed:\n${result.output}`);
@@ -508,13 +519,13 @@ test('embedded UI rejects entrypoint and artifact paths that are not generated',
     sources: { ui: ['src/ui/status-ui.yaml'] },
   });
   write(root, 'src/ui/status-ui.yaml', `
-schema_version: 1.1.0
+schema_version: 1.2.0
 status: locked
 status_ui:
   enabled: true
   mode: embedded
   read_only: true
-  refresh: manual
+  refresh: on_message
   text_template: Status unavailable.
   sections: []
   commands: []
@@ -537,14 +548,11 @@ status_ui:
   dependencies: []
   delivery:
     level: embedded
-    adapter: tavern_helper
+    adapter: sillytavern_regex
+    surface: message
     entrypoint: src/adapters/status.js
     artifact: dist/status.js
-    mount_anchor: rp-card-status
-    lifecycle:
-      wait_for: [message_rendered]
-      cleanup: [events, observers, timers, dom]
-      idempotent: true
+    placeholder: <StatusPlaceHolderImpl/>
 `);
 
   const result = runForge(['validate', root]);
@@ -733,4 +741,121 @@ test('unpack and rebuild preserve unknown artifact fields', t => {
   const rebuilt = JSON.parse(readFileSync(path.join(unpacked, 'dist', 'character-card.json'), 'utf8'));
   assert.deepEqual(rebuilt.vendor_top_level, { retained: 'top' });
   assert.deepEqual(rebuilt.data.vendor_payload, { retained: true, nested: { value: 7 } });
+});
+
+test('unpack build and roundtrip restore user adapters before appending managed scripts', t => {
+  const root = createProject(t, 'adapter-preservation-input');
+  runForge(['build', root], { expectSuccess: true });
+  const artifact = JSON.parse(readFileSync(path.join(root, 'dist', 'character-card.json'), 'utf8'));
+  const userRegex = [
+    {
+      id: '11111111-1111-4111-8111-111111111111',
+      scriptName: 'User regex A',
+      findRegex: '/alpha/gi',
+      replaceString: 'A',
+      trimStrings: [],
+      placement: [2],
+      disabled: false,
+      markdownOnly: true,
+      promptOnly: false,
+      runOnEdit: false,
+      substituteRegex: 0,
+      minDepth: null,
+      maxDepth: null,
+    },
+    {
+      id: '22222222-2222-4222-8222-222222222222',
+      scriptName: 'User regex B',
+      findRegex: '/beta/gi',
+      replaceString: 'B',
+      trimStrings: [],
+      placement: [1],
+      disabled: false,
+      markdownOnly: false,
+      promptOnly: true,
+      runOnEdit: false,
+      substituteRegex: 0,
+      minDepth: null,
+      maxDepth: 8,
+    },
+  ];
+  const userTavernScript = {
+    type: 'script',
+    enabled: true,
+    name: 'User runtime script',
+    id: 'user_runtime_script',
+    content: 'globalThis.userRuntimeLoaded = true;',
+    info: 'User-owned script',
+    button: { enabled: true, buttons: [] },
+    data: { owner: 'user' },
+    export_with: { data: true, button: true },
+  };
+  const legacyStatusScript = {
+    type: 'script',
+    enabled: true,
+    name: 'RP Card Studio Status UI',
+    id: 'rp_card_studio_status_ui',
+    content: `const key = Symbol.for("rp_card_studio.status_ui");
+const hostWindow = globalThis.parent;
+hostWindow.document.getElementById("sheld");
+hostWindow.document.getElementById("form_sheld");`,
+    info: 'Read-only status UI; execution order is encoded by the stable script id',
+    button: { enabled: true, buttons: [] },
+    data: {},
+    export_with: { data: true, button: true },
+  };
+  artifact.data.extensions ??= {};
+  artifact.data.extensions.regex_scripts = structuredClone(userRegex);
+  artifact.data.extensions.tavern_helper = {
+    scripts: [structuredClone(userTavernScript), structuredClone(legacyStatusScript)],
+    user_metadata: { retained: true },
+  };
+  const inputPath = path.join(root, 'adapter-input.json');
+  writeFileSync(inputPath, JSON.stringify(artifact, null, 2), 'utf8');
+  const unpacked = path.join(root, 'adapter-unpacked');
+
+  runForge(['unpack', inputPath, '--output', unpacked, '--nsfw', 'disabled'], { expectSuccess: true });
+  const sourcePath = path.join(unpacked, 'src', 'characters', 'card.yaml');
+  const source = parseYaml(readFileSync(sourcePath, 'utf8'));
+  delete source.extensions.character_card.data.extensions.regex_scripts;
+  delete source.extensions.character_card.data.extensions.tavern_helper;
+  writeFileSync(sourcePath, stringifyYaml(source), 'utf8');
+  updateProject(unpacked, {
+    features: { mvu: true },
+    sources: { mvu: ['src/mvu/runtime.yaml'] },
+  });
+  const runtimeSource = legacyMvu.replace('runtime_contract:\n', `runtime_contract:
+  adapter:
+    id: tavern_helper
+    version: 1.0.0
+    delivery: embedded
+    entrypoint: rp_card_studio_runtime_guard
+    readiness_probe: globalThis.Mvu
+    timeout_ms: 10000
+    fallback: Keep the last legal state.
+`);
+  write(unpacked, 'src/mvu/runtime.yaml', runtimeSource);
+
+  runForge(['build', unpacked], { expectSuccess: true });
+  const outputPath = path.join(unpacked, 'dist', 'character-card.json');
+  const firstBuild = JSON.parse(readFileSync(outputPath, 'utf8'));
+  assert.deepEqual(firstBuild.data.extensions.regex_scripts.slice(0, 2), userRegex);
+  assert.deepEqual(firstBuild.data.extensions.regex_scripts.slice(2).map(script => script.id), [
+    '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d01',
+    '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d02',
+    '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d03',
+  ]);
+  assert.deepEqual(firstBuild.data.extensions.tavern_helper.scripts[0], userTavernScript);
+  assert.deepEqual(firstBuild.data.extensions.tavern_helper.scripts.map(script => script.id), [
+    'user_runtime_script',
+    'rp_card_studio_runtime_guard',
+  ]);
+  assert.deepEqual(firstBuild.data.extensions.tavern_helper.user_metadata, { retained: true });
+
+  runForge(['build', unpacked, '--force'], { expectSuccess: true });
+  const secondBuild = JSON.parse(readFileSync(outputPath, 'utf8'));
+  assert.deepEqual(secondBuild.data.extensions.regex_scripts, firstBuild.data.extensions.regex_scripts);
+  assert.deepEqual(secondBuild.data.extensions.tavern_helper, firstBuild.data.extensions.tavern_helper);
+  const roundtrip = runForge(['roundtrip', unpacked], { expectSuccess: true });
+  assert.equal(roundtrip.report?.data?.equal, true);
 });

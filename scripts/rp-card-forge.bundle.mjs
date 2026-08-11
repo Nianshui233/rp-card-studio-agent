@@ -15199,6 +15199,7 @@ function validatePayload(value, format = detectJsonFormat(value)) {
   const warnings = [];
   if (isCharacterFormat(format)) {
     issues.push(...validateNamedSchema("character-card", value));
+    validateCharacterRegexScripts(value, issues);
     return { format, issues, warnings };
   }
   if (format === Format.WORLDBOOK) {
@@ -15207,6 +15208,37 @@ function validatePayload(value, format = detectJsonFormat(value)) {
   }
   issues.push(issue("/", "unsupported", "\u65E0\u6CD5\u8BC6\u522B\u4E3A Character Card V2/V3 \u6216\u4E16\u754C\u4E66 entries JSON"));
   return { format: null, issues, warnings };
+}
+function validateCharacterRegexScripts(value, issues) {
+  const scripts = value?.data?.extensions?.regex_scripts;
+  if (!Array.isArray(scripts)) return;
+  const ids = /* @__PURE__ */ new Set();
+  for (const [index, script] of scripts.entries()) {
+    const base = `/data/extensions/regex_scripts/${index}`;
+    if (!isPlainObject(script)) continue;
+    if (typeof script.id === "string") {
+      if (ids.has(script.id)) issues.push(issue(`${base}/id`, "regex.id_duplicate", `Duplicate scoped regex UUID: ${script.id}`));
+      ids.add(script.id);
+    }
+    if (Number.isInteger(script.minDepth) && Number.isInteger(script.maxDepth) && script.minDepth > script.maxDepth) {
+      issues.push(issue(base, "regex.depth", `Scoped regex minDepth ${script.minDepth} exceeds maxDepth ${script.maxDepth}`));
+    }
+    if (typeof script.findRegex === "string" && script.findRegex.length > 0) {
+      try {
+        compileRegexString(script.findRegex);
+      } catch (error) {
+        issues.push(issue(`${base}/findRegex`, "regex.syntax", `Invalid scoped regex: ${error.message}`));
+      }
+    }
+  }
+}
+function compileRegexString(source) {
+  if (!source.startsWith("/")) return new RegExp(source);
+  const closingSlash = source.lastIndexOf("/");
+  if (closingSlash <= 0) return new RegExp(source);
+  const pattern = source.slice(1, closingSlash);
+  const flags = source.slice(closingSlash + 1);
+  return new RegExp(pattern, flags);
 }
 function validateWorldbook(value, basePath, issues) {
   if (!isPlainObject(value)) {
@@ -15305,6 +15337,7 @@ import {
   applyAssemblyManifest,
   applyEjsTemplates,
   applyMvuArtifacts,
+  applySillyTavernRegexAdapter,
   applyTavernHelperAdapter,
   createCharacterBookIdAllocator,
   generateRuntimeStateSchema,
@@ -15657,6 +15690,16 @@ async function applyNsfwTemplates(project, characterSource) {
   const statusUi = await readYaml(await templateAssetUrl("status-ui.yaml"));
   const statusMixin = await readYaml(await templateAssetUrl("nsfw/status-ui.mixin.yaml"));
   characterSource.nsfw = structuredClone(characterMixin.nsfw);
+  statusUi.status_ui.enabled = true;
+  statusUi.status_ui.mode = "embedded";
+  statusUi.status_ui.delivery = {
+    level: "embedded",
+    adapter: "sillytavern_regex",
+    surface: "message",
+    entrypoint: "generated",
+    artifact: "inline",
+    placeholder: "<StatusPlaceHolderImpl/>"
+  };
   statusUi.status_ui.sections.push(...structuredClone(statusMixin.sections));
   project.features.status_ui = true;
   project.source_manifest.ui.push("src/ui/status-ui.yaml");
@@ -15906,31 +15949,38 @@ async function loadProjectSource(loaded) {
     sources,
     target
   });
-  const adapted = applyTavernHelperAdapter(ejsTemplates.payload, {
+  const relativePreserved = projectPreservedPath(loaded.project);
+  const preservedPath = relativePreserved ? resolveWithin(loaded.projectRoot, relativePreserved) : null;
+  const preserved = preservedPath && await pathExists(preservedPath) ? await readJson(preservedPath) : null;
+  const restored = applyPreserved(ejsTemplates.payload, preserved);
+  const adapted = applyTavernHelperAdapter(restored.payload, {
     project: loaded.project,
     sources,
     target
   });
-  const relativePreserved = projectPreservedPath(loaded.project);
-  const preservedPath = relativePreserved ? resolveWithin(loaded.projectRoot, relativePreserved) : null;
-  const preserved = preservedPath && await pathExists(preservedPath) ? await readJson(preservedPath) : null;
-  const merged = applyPreserved(adapted.payload, preserved);
-  const format = target === "worldbook" ? Format.WORLDBOOK : detectJsonFormat(merged.payload);
+  const regexAdapted = applySillyTavernRegexAdapter(adapted.payload, {
+    project: loaded.project,
+    sources,
+    target
+  });
+  const format = target === "worldbook" ? Format.WORLDBOOK : detectJsonFormat(regexAdapted.payload);
   if (!format) throw validationError("\u88C5\u914D\u540E\u7684\u89D2\u8272\u5361\u7248\u672C\u65E0\u6CD5\u8BC6\u522B", {
     issues: [issue("/spec", "unsupported", "\u4EC5\u652F\u6301 Character Card V2 \u6216 V3")]
   });
-  const payloadValidation = validatePayload(merged.payload, format);
+  const payloadValidation = validatePayload(regexAdapted.payload, format);
   payloadValidation.issues.push(
     ...assembled.issues,
     ...mvuArtifacts.issues,
     ...ejsTemplates.issues,
-    ...adapted.issues
+    ...adapted.issues,
+    ...regexAdapted.issues
   );
   payloadValidation.warnings.push(
     ...assembled.warnings ?? [],
     ...mvuArtifacts.warnings ?? [],
     ...ejsTemplates.warnings ?? [],
-    ...adapted.warnings ?? []
+    ...adapted.warnings ?? [],
+    ...regexAdapted.warnings ?? []
   );
   return {
     sourcePath,
@@ -15938,8 +15988,8 @@ async function loadProjectSource(loaded) {
     sources,
     consumedSources: Object.values(sources).flat().map((entry) => entry.relativePath),
     preservedPath,
-    payload: merged.payload,
-    restoredPaths: merged.restoredPaths,
+    payload: regexAdapted.payload,
+    restoredPaths: restored.restoredPaths,
     validation: payloadValidation,
     runtimeStateSchema: generateRuntimeStateSchema(sources),
     format

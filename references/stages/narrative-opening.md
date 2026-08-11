@@ -126,6 +126,7 @@ source_refs:
 - `prose`、`chat`、`galgame` 与 `custom` 变体共享父 opening 的 `established_facts`、`initial_state_ref`、`immediate_change`、`hook` 和 `player_handoff`，不得各自发明不同剧情状态。
 - 任何依赖脚本、媒体或宿主能力的增强变体都必须通过 `fallback_variant_ref` 指向同 opening 内可独立工作的纯文本 `prose` 变体；回退链不能成环。
 - 本阶段只登记能力需求与 `media:*` 叙事引用。媒体文件、URL、完整性、预加载、实际交付与适配器由整合阶段决定。
+- 开场源码保持纯文本，不手写状态栏 HTML。项目启用状态栏时，Forge 在最终角色卡的默认与备选开场末尾幂等追加消息占位符；状态栏阶段与整合阶段负责对应角色正则。
 
 ## 完成门槛
 

@@ -248,7 +248,7 @@ NSFW：不启用
 | 场景 | 设计地点、区域、出入口、线索、事件和可交互内容 | 是 |
 | MVU/EJS | 把已有状态和规则映射成运行时变量、更新协议与条件内容 | 是 |
 | 叙事与开场 | 决定叙事合同、开场事实、钩子、玩家交接点和呈现变体 | 否 |
-| 状态栏/UI | 决定玩家看到哪些状态、怎样排版、怎样刷新和降级 | 是 |
+| 状态栏/UI | 决定玩家看到哪些状态、怎样排版，并区分设计文案与真正可交付的刷新/失败行为 | 是 |
 | 整合交付 | 装配世界书、媒体、适配器和最终制品，并完成验证 | 否 |
 
 ### 为什么每次只聊一个阶段
@@ -370,9 +370,11 @@ EJS 还需要在 `runtime_contract.dependencies` 登记宿主依赖，并把 `gl
 
 ### Tavern Helper 适配器
 
-它是可选的 MVU/UI 宿主桥接层。只有项目明确选择内嵌交付并满足契约时，Forge 才会生成对应脚本。MVU、状态栏脚本以及与 MVU 联动的 EJS 条目都会先执行有界的 `waitGlobalInitialized('Mvu')`，再通过 `Mvu.getMvuData(target)` 读取状态；Runtime Guard 会先订阅 `Mvu.events.*`，再用现有快照补做初始化，避免错过已经发生的初始化事件。跨脚本通知和 UI 命令统一使用 Tavern Helper 的共享 `eventOn/eventEmit/eventRemoveListener`，状态栏 DOM 创建在可见父页的 `#sheld` 中、`#form_sheld` 之前，不会写进隐藏脚本 iframe。所有路径都不会读取 `globalThis.stat_data`、调用 `getVariables()` 或猜测 `globalThis.MVU`。EJS 条目本身仍留在 CharacterBook 中。
+它是可选的 MVU 宿主桥接层。只有项目明确选择内嵌交付并满足契约时，Forge 才会生成 Runtime Guard；它会有界等待 `Mvu`、先订阅公开的 `Mvu.events.*`，再用现有快照补做初始化。所有路径都不会读取 `globalThis.stat_data`、调用 `getVariables()` 或猜测 `globalThis.MVU`。EJS 条目本身仍留在 CharacterBook 中。
 
-生成的适配器随角色卡或项目交付，不通过 CDN 或未登记的远程脚本临时补功能。兼容逻辑全部位于技能产物中，不会修改 SillyTavern 本体或已安装扩展。宿主依赖是否真的可用，仍需在你的 SillyTavern 中验证。
+消息状态栏只有两条交付路径：普通文字或 HTML 使用 SillyTavern 角色正则，复杂交互使用 Tavern Helper 消息级 JS/iframe。两者都把状态栏留在产生它的 AI 消息中。
+
+生成的适配器随角色卡或项目交付，不会临时引入未登记的 CDN 或远程脚本。兼容逻辑全部位于技能产物中，不会修改 SillyTavern 本体或已安装扩展。宿主依赖是否真的可用，仍需在你的 SillyTavern 中验证。
 
 ### 简单选择建议
 
@@ -382,7 +384,9 @@ EJS 还需要在 `runtime_contract.dependencies` 登记宿主依赖，并把 `gl
 | 需要稳定维护关系值、资源或阶段 | 使用 MVU |
 | 需要根据状态切换条目或文本 | 使用 EJS |
 | 两种需求都有 | MVU + EJS |
-| 需要状态栏或宿主事件桥接 | 再评估 Tavern Helper 适配器 |
+| 需要消息内文字或 HTML 状态栏 | 使用 SillyTavern 角色正则 |
+| 状态栏需要复杂消息级交互 | 再评估 Tavern Helper 消息 JS/iframe |
+| MVU 需要宿主事件桥接 | 再评估 Tavern Helper Runtime Guard |
 
 你不需要在项目首轮决定这些。到达 MVU/EJS 阶段前，只需要选择“进入”还是“跳过”。
 
@@ -559,16 +563,37 @@ node $forge roundtrip "D:\AI\RP创作\项目\夜班列车"
 
 ### 状态栏/UI
 
+状态栏固定显示在 AI 聊天消息内部。大多数项目采用下面这条链路：
+
+```text
+AI 原始消息末尾的 <StatusPlaceHolderImpl/>
+        ↓ SillyTavern 角色正则（AI_OUTPUT + Markdown）
+当前楼层的文字或自包含 HTML 状态栏
+        ↓ Tavern Helper 消息变量宏
+显示宿主当前可解析的 stat_data
+```
+
+Forge 会为默认开场和每个备选开场各追加一次占位符，并给后续助手回复加入“末尾恰好一次”的合同。状态栏正则写入角色卡的 `data.extensions.regex_scripts`，不会修改聊天原文；消息重新渲染时，SillyTavern 会重新执行它。
+
+这里要区分“显示位置”和“变量快照”：角色正则能保证状态栏位于各条 AI 消息中，但当前验证的 Tavern Helper 4.9.1 在普通 DOM 宏重绘时没有传入该楼层的 `message_id`，会回退到最近一条带变量的消息。因此默认正则方案不承诺重载历史后仍显示各楼层旧快照。项目确实需要逐楼层历史状态时，必须改用能从自身 iframe 取得数字楼层 ID 的 Tavern Helper 消息级实现，并在真实宿主中验证后才能标记通过。
+
+纯角色正则的能力边界是固定的：`refresh: on_message`、`read_only: true`、`commands: []`，响应式布局不能使用 tabs。它可以生成消息内文字/HTML、原生折叠、静态响应式布局和无障碍标记；`percent` 只是在上游值必有且已经是 0..100 时追加 `%`。`missing_value`、`loading/empty/error/degraded` 在这条路径中只是设计文案，正则无法在 Tavern Helper 展开宏之后判断并切换这些状态，也不能保证历史逐楼层快照。
+
+只要项目需要动态刷新、命令、tabs、条件缺失值、运行时错误/加载态、精确数值格式化或可靠逐楼层历史，就必须选择 `adapter: tavern_helper_message` 与 `level: host_required`。该实现仍位于消息自己的 iframe；没有生成并在真实宿主验收前，只能记录为规格或 `not_run`，不能写成 `embedded` 或 `runtime: pass`。
+
+启用 MVU 时还会生成三条配套规则：一条只处理送给模型的历史副本，移除完整或未闭合的变量更新块；两条只处理玩家看到的 Markdown，把流式和完整更新折叠起来。原始更新块仍留在聊天记录中供 MVU 解析。
+
+角色内嵌正则第一次运行时，SillyTavern 会弹出授权确认。这是正常的安全机制，技能不会绕过。未授权时卡片正文仍可阅读，但消息状态栏和更新折叠不会生效。
+
 UI 的**交付形态**由 `delivery.level` 表示：
 
 | 交付形态 | 含义 |
 | --- | --- |
 | `specification` | 只有设计规格，还没有可运行交付物 |
-| `text` | 交付纯文本状态展示和降级内容 |
-| `embedded` | 生成并内嵌随卡交付的脚本或界面 |
-| `external` | 交付单独的外部制品，并登记入口和依赖 |
+| `embedded` | 生成并内嵌随卡交付的消息角色正则 |
+| `host_required` | 需要消息级 Tavern Helper JS/iframe 与目标宿主验证；未验收能力不能标记通过 |
 
-交付形态不等于验证证据。即使已经生成 `embedded` 制品，也只能证明产物存在；只有在目标 SillyTavern 中实际完成加载、刷新、卸载和降级测试，才能形成下面所说的 `runtime` 证据。只有规格时不会误报成“运行通过”。
+`delivery.surface` 固定为 `message`。即使已经生成 `embedded` 制品，也只能证明正则和占位符存在；只有在目标 SillyTavern 中完成正则授权，并实际检查默认/备选开场、连续两条消息、历史重载后的变量取值、流式更新、重新生成、切聊和移动端显示，才能形成 `runtime` 证据。报告必须区分“状态栏仍在各消息内”“静态标记已经生成”和“动态状态或各自历史快照已经实测”。
 
 ## 三类验证证据
 
@@ -683,7 +708,7 @@ NSFW：不启用
 
 ### 为什么验证通过后仍显示 `runtime: not_run`？
 
-因为离线工具不能代替真实 SillyTavern。你还需要在目标环境中检查导入、新聊天、变量更新、开场分支、状态栏刷新、卸载清理、降级和移动端显示。
+因为离线工具不能代替真实 SillyTavern。你还需要在目标环境中检查导入、新聊天、变量更新、开场分支、状态栏刷新、消息级清理、依赖不可用时的实际行为和移动端显示；纯 Regex 没有实现的动态状态不能列为已通过。
 
 ### 技能为什么不会被自然语言误触？
 
@@ -770,7 +795,7 @@ npm run verify
 | 制品 | 从源码构建出的角色卡 JSON、PNG 或世界书等交付文件 |
 | 制品往返验证 | 检查 JSON 重编码，或 PNG 负载提取/回写后语义与图像数据是否一致 |
 | 拆包重建验证 | 明确执行 `unpack -> build` 并比较制品，检查语义和未知字段是否丢失 |
-| 降级 | 增强功能不可用时，退回纯文本或上一个合法状态继续运行 |
+| 降级 | 已实现的适配器在依赖不可用时明确执行的替代行为；纯 Regex 的设计文案本身不会自动切换视图或恢复上一个状态 |
 
 ## 最短上手清单
 

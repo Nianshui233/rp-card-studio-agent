@@ -18,7 +18,13 @@
       "properties": {
         "spec": { "const": "chara_card_v3" },
         "spec_version": { "$ref": "#/$defs/v3Version" },
-        "data": { "type": "object" }
+        "data": {
+          "type": "object",
+          "properties": {
+            "extensions": { "$ref": "#/$defs/characterExtensions" }
+          },
+          "additionalProperties": true
+        }
       }
     }
   ],
@@ -47,8 +53,43 @@
         "tags": { "type": "array", "items": { "type": "string" } },
         "creator": { "type": "string" },
         "character_version": { "type": "string" },
-        "extensions": { "type": "object" },
+        "extensions": { "$ref": "#/$defs/characterExtensions" },
         "character_book": { "$ref": "#/$defs/characterBook" }
+      },
+      "additionalProperties": true
+    },
+    "characterExtensions": {
+      "type": "object",
+      "properties": {
+        "regex_scripts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/regexScript" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "regexScript": {
+      "type": "object",
+      "required": ["id", "scriptName", "findRegex", "replaceString", "trimStrings", "placement", "disabled", "markdownOnly", "promptOnly", "runOnEdit", "substituteRegex", "minDepth", "maxDepth"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$" },
+        "scriptName": { "type": "string", "minLength": 1 },
+        "findRegex": { "type": "string", "minLength": 1 },
+        "replaceString": { "type": "string" },
+        "trimStrings": { "type": "array", "items": { "type": "string" } },
+        "placement": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": [0, 1, 2, 3, 5, 6] }
+        },
+        "disabled": { "type": "boolean" },
+        "markdownOnly": { "type": "boolean" },
+        "promptOnly": { "type": "boolean" },
+        "runOnEdit": { "type": "boolean" },
+        "substituteRegex": { "enum": [0, 1, 2] },
+        "minDepth": { "type": ["integer", "null"], "minimum": -1 },
+        "maxDepth": { "type": ["integer", "null"], "minimum": 0 }
       },
       "additionalProperties": true
     },

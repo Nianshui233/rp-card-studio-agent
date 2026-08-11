@@ -131,14 +131,17 @@ project-workspace/
 
 启用 MVU 或等价确定性状态源时，Forge 从 `mvu.yaml` 的 storage、变量账本、初始化 profiles 与 opening bindings 生成 `reports/runtime-state.schema.json`。它是可重复生成的验证产物，不是新的语义真源；跳过 MVU/EJS 且没有既有实现时不得生成。
 
-### MVU/EJS 宿主投影
+### MVU/EJS 与消息 UI 宿主投影
 
-- 角色卡构建按 `assembly -> MVU -> EJS -> Tavern Helper` 的顺序投影。每一步只接收上一步的 payload，并把自己的 issues/warnings 合并到构建报告；不能用后续适配器掩盖前序契约错误。
+- 角色卡构建按 `assembly -> MVU -> EJS -> Tavern Helper -> SillyTavern Regex` 的顺序投影。每一步只接收上一步的 payload，并把自己的 issues/warnings 合并到构建报告；不能用后续适配器掩盖前序契约错误。
 - MVU 的内嵌适配器面向 Tavern Helper 的 `Mvu` API：有界等待 `waitGlobalInitialized("Mvu")`，读取 `getMvuData(options)`，解析 `parseMessage(text, oldData)`，提交 `replaceMvuData(nextData, options)`。必须先用 `eventOn` 订阅全部 `Mvu.events.*`，再读取当前快照补做 bootstrap，避免初始化事件已经发生后永远无法 ready；清理时把原始 `(event, handler)` 交给 `eventRemoveListener`。不得退回 `getVariables()`、`globalThis.MVU` 或自造 MVU 事件名。
 - 当前内嵌 MVU 存储契约固定为 message 目标。`latest_message` 使用 `{ type: "message", message_id: "latest" }`；`current_message` 在宿主提供数字楼层上下文时使用该 ID，否则明确降级到 latest。初始化事件只在宿主事件对象内补缺省值，不二次调用 `replaceMvuData`；bootstrap 发现旧快照缺少默认字段时允许一次 `replaceMvuData` 持久化修复。非法更新按整批回滚。
 - EJS 使用 SillyTavern 的 `ST-Prompt-Template 1.17.6.8` 引擎（探针 `globalThis.EjsTemplate`）。条目只投影到 `data.character_book.entries[]`，不写入 Tavern Helper scripts；宿主条目使用 `enabled: false`、`constant: true`、空 `keys`，内容首行保留连续 `@@always_enabled` 与 generate/render 装饰器。`target: both` 必须拆成 generate 与 render 两条条目。
 - EJS 条件必须是结构化 `condition.runtime_path/operator/value`，并提供 `branches.when_true/when_false/fallback`。纯 EJS 使用字段账本中的类型匹配默认值调用 `getvar()`；与 MVU 联动时只接受 `message/stat_data/current|latest message` 契约，有界等待后读取 `Mvu.getMvuData()`。`current_message` 的 render 条目使用 ST-Prompt-Template 提供的数字 `message_id`；generate 条目没有楼层上下文时降级为 latest。快照或路径缺失直接进入 `branches.fallback`，不得用默认值掩盖缺失状态。缺少引擎时按 `missing_dependency` 选择省略动态条目或阻断构建。旧的字符串条件和顶层 `fallback` 不自动迁移，应报告为迁移错误。
-- Tavern Helper 的每个角色脚本运行在独立隐藏 iframe。状态栏必须通过 `globalThis.parent.document` 创建并挂载到可见父页 `#sheld`、`#form_sheld` 之前；运行时 ready/change/unavailable、UI command/result/error 和用户配置的 `runtime_event` 必须通过共享 `eventOn/eventEmit/eventRemoveListener` 通信，不能使用 iframe 本地 DOM 事件。`on_message`/`hybrid` 刷新监听真实的 `user_message_rendered` 与 `character_message_rendered`。
+- 状态栏只投影到 AI 消息内部，交付路径只有 SillyTavern 角色正则或 Tavern Helper 消息级 JS/iframe。内嵌 Regex 使用 `data.extensions.regex_scripts` 把 `<StatusPlaceHolderImpl/>` 替换为自包含文字或 HTML，并用 `{{get_message_variable::stat_data.path}}` 读取宿主可解析的消息变量；该契约固定为 `refresh: on_message`、`read_only: true`、`commands: []` 和非 tabs 布局。`field.missing_value` 与 `states.loading/empty/error/degraded` 在 Regex 路径中只保存设计文案，不能据此声明条件判断、最近合法值保留或自动视图切换。消息内位置也不等于历史快照隔离：当前验证的 Tavern Helper 4.9.1 在普通 DOM 宏重绘时会因缺少 `message_id` 回退到最近变量消息。动态刷新、命令、tabs、条件状态或逐楼层快照必须使用 `tavern_helper_message + host_required`；只有消息 iframe 取得自身数字楼层 ID 并通过真实宿主验证后，才能声明对应能力通过。
+- Forge 会在默认与备选开场末尾幂等追加唯一状态栏占位符，并向助手输出合同加入“每条回复末尾恰好一次”。状态栏禁用时不得残留占位符或对应角色正则。
+- 启用 MVU 时，Forge 同时生成 Prompt 过滤、流式折叠和完整更新折叠正则。Prompt 过滤只改变送模副本，Markdown 规则只改变显示副本，原始聊天中的更新块保持不变；所有自有正则使用稳定 UUID、非贪婪多块匹配和固定顺序，不能覆盖用户规则。
+- SillyTavern 对角色内嵌正则的首次授权属于宿主安全机制。交付报告必须说明需要用户确认，技能和制品不得绕过授权。
 
 ## 8. NSFW 投影
 

@@ -249,6 +249,7 @@ test('Forge build carries Assembly, MVU artifacts, and Tavern Helper guard throu
   const card = builtCard(root);
   const entries = characterBookEntries(card);
   const scripts = card.data?.extensions?.tavern_helper?.scripts ?? [];
+  const regexScripts = card.data?.extensions?.regex_scripts ?? [];
 
   assert.equal(result.report?.ok, true);
   const assemblyEntry = entries.find(entry => entry.extensions?.rp_card_studio?.source_id === 'pipeline_guide');
@@ -257,6 +258,11 @@ test('Forge build carries Assembly, MVU artifacts, and Tavern Helper guard throu
   assert.ok(entries.some(entry => /\[initvar\]/i.test(entry.comment) && entry.enabled === false), 'MVU initvar entry is missing');
   assert.equal(entries.filter(entry => /\[mvu_update\]/i.test(entry.comment)).length, 2, 'MVU update entries are missing');
   assert.ok(scripts.some(script => script.id === 'rp_card_studio_runtime_guard'), 'Tavern Helper runtime guard is missing');
+  assert.deepEqual(regexScripts.map(script => script.id), [
+    '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d01',
+    '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d02',
+    '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d03',
+  ]);
   assert.equal(entries.some(entry => /\[(?:GENERATE|RENDER)\]/.test(entry.comment)), false, 'MVU-only build emitted EJS entries');
 });
 
@@ -272,6 +278,7 @@ test('Forge build omits optional MVU, EJS, and adapter artifacts when no runtime
   assert.equal(entries.some(entry => /\[(?:initvar|mvu_update|GENERATE|RENDER)\]/i.test(entry.comment)), false);
   assert.equal(scripts.some(script => script.id === 'rp_card_studio_runtime_guard'), false);
   assert.equal(card.data?.extensions?.tavern_helper, undefined);
+  assert.equal(card.data?.extensions?.regex_scripts, undefined);
 });
 
 test('Forge accepts the structured EJS source contract and emits executable CharacterBook entries', t => {
@@ -295,9 +302,10 @@ test('Forge accepts the structured EJS source contract and emits executable Char
   assert.match(ejsEntry.content, /getvar\("stat_data\.relationship\.trust",\s*\{\s*defaults:\s*10\s*\}\)/);
   assert.doesNotMatch(ejsEntry.content, /globalThis\.Mvu|waitGlobalInitialized\("Mvu"\)/);
   assert.equal(card.data?.extensions?.tavern_helper, undefined, 'EJS-only cards must not receive an MVU guard');
+  assert.equal(card.data?.extensions?.regex_scripts, undefined, 'EJS-only cards must not receive MVU regex scripts');
 });
 
-test('Forge source locks the character pipeline order as Assembly, MVU, EJS, then Tavern Helper adapter', () => {
+test('Forge source locks the character pipeline order through Tavern Helper and SillyTavern regex adapters', () => {
   const source = readTextFile(forge, 'utf8');
   const pipelineStart = source.indexOf('async function loadProjectSource');
   const pipelineEnd = source.indexOf('async function readRegisteredSources', pipelineStart);
@@ -307,7 +315,9 @@ test('Forge source locks the character pipeline order as Assembly, MVU, EJS, the
     'applyAssemblyManifest',
     'applyMvuArtifacts',
     'applyEjsTemplates',
+    'applyPreserved',
     'applyTavernHelperAdapter',
+    'applySillyTavernRegexAdapter',
   ];
   const positions = requiredCalls.map(name => pipeline.indexOf(`${name}(`));
 

@@ -36,14 +36,16 @@
 - opening 的默认呈现不存在、增强呈现缺少纯文本回退、呈现回退成环，或呈现变体改写父 opening 的事实/初始状态/钩子/玩家交接点。（叙事与开场）
 - 已启用或保留的 EJS 读取不存在的字段、纯 EJS 无安全默认值、MVU 联动无明确失败回退、条件分支不完整或语法无效。（MVU/EJS）
 - 状态栏字段无来源、类型不兼容或暴露非玩家字段。（状态栏/UI）
-- `mode` 为 `embedded`/`both` 但 delivery 不完整，或 adapter ID、entrypoint、artifact、mount anchor 与其他运行时交付发生碰撞。（状态栏/UI、整合）
+- 状态栏启用但 delivery 不是 `surface: message`，角色正则/占位符/助手输出合同缺失，或 adapter ID、entrypoint、artifact、正则 UUID 与其他运行时交付发生碰撞。（状态栏/UI、整合）
+- `embedded + sillytavern_regex` 未固定为 `refresh: on_message`、`read_only: true`、`commands: []`，使用 tabs，或把条件缺失值、动态状态切换、命令、可靠逐楼层快照声明为已实现。（状态栏/UI、整合）
+- 项目需要动态刷新、命令、tabs、条件缺失值、运行时状态切换或可靠逐楼层快照，却没有使用 `adapter: tavern_helper_message`、`level: host_required` 和消息自身的 iframe 上下文。（状态栏/UI、整合）
 - 运行时状态 Schema 与 storage、protocol、初始化 profiles、opening bindings 或字段账本不一致。（MVU/EJS、整合）
 - `assembly.yaml` 未登记、世界书/媒体 consumer 引用悬空、媒体回退成环，或关键远程媒体没有可用回退。（整合）
 - 独立世界书使用数组或非规范 UID 对象键，键与 `uid` 不一致，或把裸 CharacterBook 当作独立世界书导入。（整合）
 - 世界书使用宿主不执行的书级扫描/预算/递归值、非 `shared/model` 路由、`include` 回退，或把角色过滤写入内嵌 CharacterBook。（整合）
 - 运行时代码通过未登记远程脚本加载；远程媒体不在此禁令内，但必须登记到 `media_manifest` 并提供回退。（整合）
 - NSFW 未启用但产物仍含相关专用字段、分组、条件或模板占位。（所有投影）
-- 存在未替换的模板标记、空引用或构建时才发现的占位文件。（整合）
+- 存在未登记、没有对应角色正则消费的占位符，或存在空引用、构建时才发现的占位文件。（整合）
 - 旧卡未知字段、条目顺序或扩展启用状态在往返中无说明地丢失。（整合）
 - PNG 负载损坏、重复且优先级不明、解码失败，或 JSON/PNG 语义不一致。（整合）
 - 写入目标将覆盖原始输入，且用户没有明确传入覆盖授权。（整合）
@@ -88,7 +90,7 @@
 - PNG 可提取声明的数据负载，JSON 与 PNG 语义一致。
 - 解包重打包保留条目、扩展、Unicode、多行文本和未知字段。
 - 构建清单中的哈希、版本、输入修订与实际文件匹配。
-- 生成的 adapter 文件与已锁定契约中的 ID、entrypoint、artifact 和 mount anchor 一致且无碰撞。
+- 生成的 adapter 与已锁定契约中的 ID、entrypoint、artifact、消息占位符和角色正则 UUID 一致且无碰撞。
 
 不能证明：目标宿主会启用依赖、EJS 会在真实上下文按预期运行、UI 与扩展版本兼容。
 
@@ -99,8 +101,9 @@
 - 角色卡导入、新建聊天和所有开场分支。
 - 默认与覆盖初始化、变量更新、保存后重载和旧聊天迁移。
 - EJS 条目显隐、分支、回退及 plot/update 路由。
-- 状态栏加载、更新、交互、错误降级和移动/桌面布局。
-- 状态栏在完整消息、流式部分、解析失败、生成中断、消息编辑/删除和切换聊天时正确更新与清理。
+- 角色正则授权后，状态栏在默认/备选开场及后续 AI 消息内部加载。变量取值另行记录：默认宏方案允许宿主回退到最近一条带变量的消息，不得据此宣称历史楼层快照隔离。
+- 纯 Regex 项目只验证消息内投影、静态布局、原生折叠、ARIA 标记和宿主原值显示；`missing_value`、`states.*`、命令、tabs、动态刷新与逐楼层快照不得顺带标记为通过。
+- Tavern Helper 消息级项目按实际实现验证完整/流式、缺失、加载、错误、依赖不可用、消息编辑/重新生成、加载历史和切换聊天；只有 iframe 按自身数字楼层 ID 读取成功时才记录逐楼层快照通过。
 - 控制台错误、网络失败与宿主依赖状态。
 
 浏览器外静态 HTML、截图、Schema 校验或模拟对象不能标记为 `runtime: pass`。
@@ -138,7 +141,11 @@
 - EJS 条目声明 `st_prompt_template` 引擎及 `globalThis.EjsTemplate` 宿主依赖；生成物只出现在 CharacterBook entries，不得伪装成 Tavern Helper script。
 - MVU 联动 EJS 只接受已验证的 `message/stat_data/current|latest message` storage；必须有界等待 `Mvu` 后读取匹配 selector 的 target。`current_message` 在 render 中使用宿主提供的数字 `message_id`，generate 无楼层上下文时明确降级为 latest。快照、namespace 或路径缺失时输出 `branches.fallback`，不得回退 `getvar()` 后误入真假分支。纯 EJS 才使用带账本默认值的精确 `getvar(runtime_path, { defaults })`。
 - 内嵌 Tavern Helper MVU 适配器只允许已验证的 message current/latest 目标和 `Mvu.events.*` 动态事件；必须先订阅再从当前快照 bootstrap。不得使用 `getVariables()`、`globalThis.MVU` 或硬编码 MVU 事件名。
-- 嵌入式状态栏挂载到 `globalThis.parent.document` 的 `#sheld`，跨脚本通知与命令使用共享 `eventOn/eventEmit/eventRemoveListener`；`on_message`/`hybrid` 使用真实 `user_message_rendered`、`character_message_rendered` 事件。隐藏脚本 iframe 内的 DOM 或本地 `CustomEvent` 不能作为通过证据。
+- 状态栏只有两种消息内投影：默认由 `placement: [2]`、`markdownOnly: true`、`promptOnly: false` 的角色正则替换唯一占位符；复杂交互使用消息自己的 Tavern Helper iframe/楼层上下文。源码和制品中出现 `globalThis.parent.document`、`#sheld` 或 `#form_sheld` 状态栏挂载即为 blocker。
+- `embedded + sillytavern_regex` 只接受 `refresh: on_message`、`read_only: true`、空命令和非 tabs 响应式布局。任一动态刷新模式、非只读、命令或 tabs 都必须映射到 `tavern_helper_message + host_required`。
+- 纯 Regex 的 `field.missing_value` 与 `states.loading/empty/error/degraded` 只是设计元数据；离线或制品检查只能确认文案存在，不能确认条件判断、最近合法值保留或视图切换。`percent` 也只允许对必有且已归一为 0..100 的上游值追加字面 `%`。
+- 默认角色正则中的 `get_message_variable`/`format_message_variable` 宏只证明变量能被宿主解析，不证明它绑定当前 DOM 楼层。当前验证的 Tavern Helper 4.9.1 在普通消息重绘时未向宏传 `message_id`，会回退到最近一条带变量的消息。只有消息级 iframe 能取得自身数字楼层 ID、按该 ID 读取变量并通过历史重载测试时，才允许报告“逐楼层快照：通过”。
+- 启用 MVU 时必须存在 Prompt-only 更新块过滤规则，并覆盖完整块、大小写变体和流式未闭合块；显示折叠规则不得吞掉多个更新块之间的正文或末尾状态栏占位符。
 - 更新模式与接收者清单一致；共享条目有明确理由。
 - 清理和迁移规则覆盖改名、类型变化和旧存档缺失。
 - `mvu.initialization.profiles[]` 的 ID 唯一，默认 profile 可解析；`mvu.initialization.opening_bindings[]` 的每个 opening/profile 引用均存在，且同一 opening 不产生歧义绑定。
@@ -152,17 +159,18 @@
 - `openings[].presentations.default_variant_id` 指向同 opening 内唯一变体；所有 `fallback_variant_ref` 可解析、无环，并最终到达不依赖脚本或媒体的纯文本 `prose` 变体。
 - 呈现变体只改变表达形式，不改变父 opening 的 `established_facts`、`initial_state_ref`、`immediate_change`、`hook` 或 `player_handoff`。
 - 每个 `media_refs` 均在 `assembly.yaml.media_manifest` 中有同 ID 资产；该资产以父 opening 的 `opening:*` 作为 consumer ref，并在 slot 中定位呈现变体。没有媒体时回退文本仍保持父 opening 语义。
-- UI 展示模型不直接修改原始状态；交互经过登记的命令或 writer。
-- 空值、加载、错误和无依赖降级均有可见结果。
-- `status_ui.mode` 与 delivery 一致；嵌入式/并存模式的 adapter、entrypoint、artifact、mount anchor 和 lifecycle 完整，纯文本模式允许 delivery 为 `null`。
-- 完整消息、流式部分、解析失败和生成中断均有确定降级；消息编辑/删除、重新生成和切聊会清理 events、observers、timers、DOM、styles 与 stores。
+- UI 展示模型不直接修改原始状态；需要命令或 writer 的交互只能走 `tavern_helper_message + host_required`。
+- 纯 Regex 项目的空值、加载、错误和依赖不可用文案只作为设计元数据检查，不要求伪造可见运行结果，也不能标记 `runtime: pass`；消息级实现承诺这些能力时才逐项验证可见结果。
+- `status_ui.mode` 与 delivery 一致；所有启用模式都使用 `surface: message` 并拥有 adapter、entrypoint、artifact 和固定占位符。只有 `mode: none` 允许 `delivery: null`。
+- 默认与所有备选开场各含一个占位符，后续回复合同要求恰好一个；状态栏角色正则在自有 MVU 显示规则之后执行。
+- 纯 Regex 对完整消息和已出现的更新块执行确定的消息重绘，但不声称能探测解析失败、自动选择 `states.*` 或恢复最近合法值；消息级实现只有在这些分支实测后才可声明确定行为。任何路径都不得留下跨消息或跨聊天的实例。
 
 ### 装配引用图
 
 - 从 `project.yaml.source_manifest` 出发遍历 world、character、system、scene、MVU、opening、UI 与 `assembly.yaml`；所有强引用必须到达唯一目标，删除或改名后不得遗留悬空边。
 - 世界书 entry 的 source、呈现/场景/UI 的媒体 consumer、EJS reader、状态栏 source path 和 adapter 契约都进入同一份引用图报告。
 - 媒体 `fallback.asset_ref` 构成的图必须无环并到达存在的资产；`skip`/`text`/`block` 为终点。
-- adapter ID、entrypoint、artifact 和 mount anchor 分别全局去重；同一文件不得由两个不兼容契约生成。
+- adapter ID、entrypoint、artifact、角色正则 UUID 和占位符消费者分别去重；同一文件或同一占位符不得由两个不兼容契约生成。
 - 远程运行脚本一律拒绝，除非未来平台契约明确新增并登记相应类别；远程媒体允许 HTTPS，但必须在 media manifest 登记 consumer、证据和失败回退。
 - UI 只有设计规格而没有适用运行时交付物时，记录 `ui.runtime_missing`。当项目承诺嵌入式 UI 成品时它是 blocker；仅交付规格时是明确 warning，不能标记 `runtime: pass`。
 
@@ -189,9 +197,9 @@
 4. EJS 条件的真、假、缺值和依赖不可用分支。
 5. 保存、刷新、继续聊天与旧状态迁移。
 6. 每个呈现默认变体、纯文本回退和媒体加载失败分支。
-7. 状态栏桌面、窄屏、键盘操作、长文本、完整/流式/解析失败/中断状态。
-8. 消息编辑、重新生成、删除和切换聊天后的卸载、清理与重新挂载。
-9. 宿主依赖禁用与重新启用后的安全降级和恢复。
+7. 纯 Regex 状态栏的桌面、窄屏、原生折叠、ARIA 标记、长文本和完整/流式显示；不适用的动态状态记录为 `not_run`。
+8. Tavern Helper 消息级状态栏按已承诺能力验证缺失、加载、错误、中断、命令、tabs、消息编辑、重新生成、删除、切聊和逐楼层快照。
+9. 宿主依赖禁用与重新启用后的实际表现；没有实现的自动降级或恢复不得推定为通过。
 
 无法执行的项目记录为 `not_run` 或 `blocked`，绝不自动改成通过。
 

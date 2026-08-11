@@ -61,6 +61,25 @@ function characterCard(version, name, dataOverrides = {}) {
   };
 }
 
+function regexScript(overrides = {}) {
+  return {
+    id: '666902d9-29fc-49c6-b70e-0a9c26932b09',
+    scriptName: '[UI] Message status',
+    findRegex: '/<StatusPlaceHolderImpl\\s*\\/?>/gi',
+    replaceString: '<div>Status</div>',
+    trimStrings: [],
+    placement: [2],
+    disabled: false,
+    markdownOnly: true,
+    promptOnly: false,
+    runOnEdit: false,
+    substituteRegex: 0,
+    minDepth: null,
+    maxDepth: null,
+    ...overrides,
+  };
+}
+
 function crc32(buffer) {
   let crc = 0xffffffff;
   for (const byte of buffer) {
@@ -237,4 +256,50 @@ test('V2 spec_version accepts exactly 2.0', t => {
   }
 
   assert.deepEqual(unexpectedlyAccepted, [], `invalid V2 versions were accepted: ${unexpectedlyAccepted.join(', ')}`);
+});
+
+test('V2 and V3 artifacts validate complete SillyTavern scoped regex scripts', t => {
+  const root = tempRoot(t, 'regex-schema');
+  for (const version of [2, 3]) {
+    const input = path.join(root, `v${version}.json`);
+    writeJson(input, characterCard(version, `V${version} regex card`, {
+      extensions: { regex_scripts: [regexScript()] },
+    }));
+    runForge(['validate', input], { expectSuccess: true });
+  }
+});
+
+test('artifact validation rejects malformed scoped regex host fields', t => {
+  const root = tempRoot(t, 'regex-invalid');
+  const cases = [
+    ['uuid', { id: 'rp_card_status' }],
+    ['placement', { placement: [4] }],
+    ['boolean', { promptOnly: 'false' }],
+    ['substitute', { substituteRegex: 3 }],
+    ['minimum-depth', { minDepth: -2 }],
+    ['maximum-depth', { maxDepth: -1 }],
+    ['depth-order', { minDepth: 4, maxDepth: 3 }],
+    ['syntax', { findRegex: '/[unterminated/g' }],
+  ];
+
+  for (const [label, overrides] of cases) {
+    const input = path.join(root, `${label}.json`);
+    writeJson(input, characterCard(2, `Invalid regex ${label}`, {
+      extensions: { regex_scripts: [regexScript(overrides)] },
+    }));
+    const result = runForge(['validate', input]);
+    assert.notEqual(result.status, 0, `${label} regex contract was unexpectedly accepted`);
+    assert.match(result.output, /regex_scripts|placement|Depth|substituteRegex|promptOnly|id/i);
+  }
+});
+
+test('artifact validation rejects duplicate scoped regex UUIDs', t => {
+  const root = tempRoot(t, 'regex-duplicate');
+  const input = path.join(root, 'duplicate.json');
+  writeJson(input, characterCard(3, 'Duplicate regex UUID', {
+    extensions: { regex_scripts: [regexScript(), regexScript({ scriptName: 'Duplicate' })] },
+  }));
+  const result = runForge(['validate', input]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.output, /duplicate scoped regex UUID|regex\.id_duplicate/i);
 });

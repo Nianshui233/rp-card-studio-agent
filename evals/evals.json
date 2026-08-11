@@ -1,0 +1,47 @@
+{
+  "skill_name": "rp-card-studio",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "显式使用 $rp-card-studio，在一个空工作区创建一张启用 MVU 和消息内 HTML 状态栏的 SillyTavern V3 测试卡。本次所有创作决定都交给 AI，不要提问，直接完成源码、构建和验证。",
+      "expected_output": "生成可导入的 V3 角色卡；状态栏位于每条 AI 消息内，变量更新协议不会回送模型，且没有父页面常驻面板代码。",
+      "files": [],
+      "expectations": [
+        "data.extensions.regex_scripts 同时包含消息内状态栏、MVU Prompt 过滤、流式折叠和完整折叠规则",
+        "默认开场和所有备选开场末尾各有且仅有一个 <StatusPlaceHolderImpl/>",
+        "post_history_instructions 要求后续助手回复末尾输出且只输出一个状态栏占位符",
+        "消息状态栏规则只作用于 AI_OUTPUT Markdown，并使用楼层级 get_message_variable 宏",
+        "MVU Prompt 过滤规则覆盖完整和未闭合更新块，并保留多个更新块之间的普通正文",
+        "产物不含 globalThis.parent.document、#sheld、#form_sheld 或 rp_card_studio_status_ui 常驻脚本",
+        "项目校验、角色卡制品校验和 roundtrip 均通过"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "显式使用 $rp-card-studio，修改一张已有的 MVU 角色卡：保留用户自定义角色正则，补齐缺失的变量更新过滤和消息内状态栏交付。用户正则与未知扩展字段不得丢失。",
+      "expected_output": "在不覆盖用户规则的前提下幂等合并技能自有正则；重复构建不会新增重复规则。",
+      "files": [],
+      "expectations": [
+        "用户已有角色正则保持原内容与相对顺序",
+        "技能自有正则使用稳定 UUID 并按固定顺序出现",
+        "同 UUID 同内容的重建保持单份，同 UUID 不同内容时阻断而不覆盖",
+        "能识别的技能旧版规则在模板或配置变化后刷新，不被误报为用户碰撞",
+        "能精确识别的历史父页面状态脚本会在重建时删除，同 ID 的非技能脚本保留并报冲突",
+        "未知扩展字段在 unpack、build 和 roundtrip 后仍存在",
+        "状态栏只显示在消息内"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "显式使用 $rp-card-studio，创建一张启用 MVU、但明确不需要状态栏/UI 的角色卡。全部决定交给 AI，并完成构建验证。",
+      "expected_output": "生成 MVU 更新过滤与显示折叠规则，但不生成状态栏占位符、状态栏正则或页面 UI。",
+      "files": [],
+      "expectations": [
+        "MVU Prompt 过滤、流式折叠和完整折叠规则存在",
+        "不存在消息状态栏正则和 <StatusPlaceHolderImpl/> 占位符",
+        "不存在父页面常驻面板脚本",
+        "项目与制品验证通过"
+      ]
+    }
+  ]
+}
