@@ -14955,60 +14955,73 @@ function decodeStrictBase64(text, label) {
 }
 function extractCardFromPng(buffer, label = "PNG") {
   const parsed = parsePng(buffer, label);
-  const matches = parsed.chunks.filter((chunk) => chunk.type === "tEXt").map(parseTextChunk).filter((entry) => entry?.keyword === "chara");
-  if (matches.length === 0) throw inputError(`${label} \u4E0D\u542B tEXt/chara \u89D2\u8272\u5361\u6570\u636E`);
-  if (matches.length > 1) {
-    throw integrityError(`${label} \u542B\u591A\u4E2A tEXt/chara \u6570\u636E\u5757\uFF0C\u65E0\u6CD5\u5B89\u5168\u5224\u5B9A\u4F18\u5148\u7EA7`, {
-      count: matches.length
+  const matches = parsed.chunks.filter((chunk) => chunk.type === "tEXt").map(parseTextChunk).filter((entry) => entry && ["chara", "ccv3"].includes(entry.keyword.toLowerCase())).map((entry) => ({
+    ...entry,
+    normalizedKeyword: entry.keyword.toLowerCase()
+  }));
+  const charaMatches = matches.filter((entry) => entry.normalizedKeyword === "chara");
+  const ccv3Matches = matches.filter((entry) => entry.normalizedKeyword === "ccv3");
+  if (matches.length === 0) throw inputError(`${label} \u4E0D\u542B tEXt/chara \u6216 tEXt/ccv3 \u89D2\u8272\u5361\u6570\u636E`);
+  if (charaMatches.length > 1 || ccv3Matches.length > 1) {
+    throw integrityError(`${label} \u542B\u91CD\u590D\u7684\u89D2\u8272\u5361 PNG \u6570\u636E\u5757\uFF0C\u65E0\u6CD5\u5B89\u5168\u5224\u5B9A\u4F18\u5148\u7EA7`, {
+      chara: charaMatches.length,
+      ccv3: ccv3Matches.length
     });
   }
-  const payloadBuffer = decodeStrictBase64(matches[0].text, `${label} \u7684 chara payload`);
-  const payload = parseJsonText(decodeUtf8(payloadBuffer, `${label} \u7684 chara payload`), `${label} \u7684 chara payload`);
+  const selected = ccv3Matches[0] ?? charaMatches[0];
+  const payloadLabel = `${label} \u7684 ${selected.normalizedKeyword} payload`;
+  const payloadBuffer = decodeStrictBase64(selected.text, payloadLabel);
+  const payload = parseJsonText(decodeUtf8(payloadBuffer, payloadLabel), payloadLabel);
   return {
     payload,
     chunks: parsed.chunks,
-    charaChunks: matches.length,
-    nonCharaDigest: nonCharaChunkDigest(parsed.chunks)
+    selectedKeyword: selected.normalizedKeyword,
+    charaChunks: charaMatches.length,
+    ccv3Chunks: ccv3Matches.length,
+    nonCardDigest: nonCardChunkDigest(parsed.chunks)
   };
 }
-function isCharaChunk(chunk) {
-  return chunk.type === "tEXt" && parseTextChunk(chunk)?.keyword === "chara";
+function cardChunkKeyword(chunk) {
+  if (chunk.type !== "tEXt") return null;
+  const keyword = parseTextChunk(chunk)?.keyword?.toLowerCase();
+  return keyword === "chara" || keyword === "ccv3" ? keyword : null;
 }
-function nonCharaChunkDigest(chunks) {
-  return sha256(Buffer.concat(chunks.filter((chunk) => !isCharaChunk(chunk)).map((chunk) => chunk.raw)));
+function isCardChunk(chunk) {
+  return cardChunkKeyword(chunk) !== null;
+}
+function nonCardChunkDigest(chunks) {
+  return sha256(Buffer.concat(chunks.filter((chunk) => !isCardChunk(chunk)).map((chunk) => chunk.raw)));
+}
+function ccv3Payload(payload) {
+  const converted = structuredClone(payload);
+  converted.spec = "chara_card_v3";
+  converted.spec_version = "3.0";
+  return converted;
 }
 function embedCardInPng(buffer, payload, label = "PNG") {
   const parsed = parsePng(buffer, label);
-  const charaChunks = parsed.chunks.filter(isCharaChunk);
-  if (charaChunks.length > 1) {
-    throw integrityError(`${label} \u542B\u591A\u4E2A tEXt/chara \u6570\u636E\u5757\uFF0C\u65E0\u6CD5\u5B89\u5168\u5224\u5B9A\u4F18\u5148\u7EA7`, {
-      count: charaChunks.length
-    });
-  }
-  const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64");
-  const replacement = makeTextChunk("chara", encoded);
+  const charaEncoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64");
+  const ccv3Encoded = Buffer.from(JSON.stringify(ccv3Payload(payload)), "utf8").toString("base64");
+  const replacements = [
+    makeTextChunk("chara", charaEncoded),
+    makeTextChunk("ccv3", ccv3Encoded)
+  ];
   const output = [PNG_SIGNATURE];
   let inserted = false;
   for (const chunk of parsed.chunks) {
-    if (isCharaChunk(chunk)) {
-      if (!inserted) {
-        output.push(replacement);
-        inserted = true;
-      }
-      continue;
-    }
+    if (isCardChunk(chunk)) continue;
     if (chunk.type === "IEND" && !inserted) {
-      output.push(replacement);
+      output.push(...replacements);
       inserted = true;
     }
     output.push(chunk.raw);
   }
   const result = Buffer.concat(output);
   const reparsed = parsePng(result, `${label} \u8F93\u51FA`);
-  const beforeDigest = nonCharaChunkDigest(parsed.chunks);
-  const afterDigest = nonCharaChunkDigest(reparsed.chunks);
+  const beforeDigest = nonCardChunkDigest(parsed.chunks);
+  const afterDigest = nonCardChunkDigest(reparsed.chunks);
   if (beforeDigest !== afterDigest) {
-    throw integrityError("\u5199\u5165 chara payload \u65F6\u4FEE\u6539\u4E86\u975E chara PNG chunk", {
+    throw integrityError("\u5199\u5165 chara/ccv3 payload \u65F6\u4FEE\u6539\u4E86\u975E\u89D2\u8272\u5361 PNG chunk", {
       beforeDigest,
       afterDigest
     });
@@ -15069,10 +15082,31 @@ var SOURCE_SCHEMA_BY_GROUP = Object.freeze({
 // scripts/forge/formats.mjs
 var Format = Object.freeze({
   CHARACTER_V2: "sillytavern-character-card-v2",
+  CHARACTER_V3: "sillytavern-character-card-v3",
   PNG_CHARACTER_V2: "sillytavern-character-card-v2-png",
+  PNG_CHARACTER_V3: "sillytavern-character-card-v3-png",
   WORLDBOOK: "sillytavern-worldbook-entries",
   PROJECT: "rp-card-studio-project"
 });
+var CHARACTER_FORMATS = /* @__PURE__ */ new Set([
+  Format.CHARACTER_V2,
+  Format.CHARACTER_V3,
+  Format.PNG_CHARACTER_V2,
+  Format.PNG_CHARACTER_V3
+]);
+var PNG_CHARACTER_FORMATS = /* @__PURE__ */ new Set([
+  Format.PNG_CHARACTER_V2,
+  Format.PNG_CHARACTER_V3
+]);
+function isCharacterFormat(format) {
+  return CHARACTER_FORMATS.has(format);
+}
+function isPngCharacterFormat(format) {
+  return PNG_CHARACTER_FORMATS.has(format);
+}
+function pngFormatForPayload(payload) {
+  return payload?.spec === "chara_card_v3" ? Format.PNG_CHARACTER_V3 : Format.PNG_CHARACTER_V2;
+}
 var CHARACTER_DATA_KEYS = /* @__PURE__ */ new Set([
   "name",
   "description",
@@ -15093,11 +15127,12 @@ var CHARACTER_DATA_KEYS = /* @__PURE__ */ new Set([
 function detectJsonFormat(value) {
   if (!isPlainObject(value)) return null;
   if (value.spec === "chara_card_v2" && isPlainObject(value.data)) return Format.CHARACTER_V2;
+  if (value.spec === "chara_card_v3" && isPlainObject(value.data)) return Format.CHARACTER_V3;
   if (Array.isArray(value.entries) || isPlainObject(value.entries)) return Format.WORLDBOOK;
   return null;
 }
 function formatSummary(value, format) {
-  if (format === Format.CHARACTER_V2 || format === Format.PNG_CHARACTER_V2) {
+  if (isCharacterFormat(format)) {
     const topLevelUnknown = Object.keys(value).filter((key) => !["spec", "spec_version", "data"].includes(key));
     const dataUnknown = Object.keys(value.data ?? {}).filter((key) => !CHARACTER_DATA_KEYS.has(key));
     return {
@@ -15130,7 +15165,7 @@ function countWorldbookEntries(book) {
 function validatePayload(value, format = detectJsonFormat(value)) {
   const issues = [];
   const warnings = [];
-  if (format === Format.CHARACTER_V2 || format === Format.PNG_CHARACTER_V2) {
+  if (isCharacterFormat(format)) {
     issues.push(...validateNamedSchema("character-card", value));
     return { format, issues, warnings };
   }
@@ -15138,7 +15173,7 @@ function validatePayload(value, format = detectJsonFormat(value)) {
     validateWorldbook(value, "", issues);
     return { format, issues, warnings };
   }
-  issues.push(issue("/", "unsupported", "\u65E0\u6CD5\u8BC6\u522B\u4E3A Character Card V2 \u6216\u4E16\u754C\u4E66 entries JSON"));
+  issues.push(issue("/", "unsupported", "\u65E0\u6CD5\u8BC6\u522B\u4E3A Character Card V2/V3 \u6216\u4E16\u754C\u4E66 entries JSON"));
   return { format: null, issues, warnings };
 }
 function validateWorldbook(value, basePath, issues) {
@@ -15171,15 +15206,18 @@ async function loadArtifact(inputPath) {
   const buffer = await readFile3(absolute);
   if (buffer.subarray(0, 8).equals(PNG_SIGNATURE)) {
     const extracted = extractCardFromPng(buffer, absolute);
-    const validation = validatePayload(extracted.payload, Format.PNG_CHARACTER_V2);
+    const format = pngFormatForPayload(extracted.payload);
+    const validation = validatePayload(extracted.payload, format);
     return {
-      format: Format.PNG_CHARACTER_V2,
+      format,
       path: absolute,
       buffer,
       payload: extracted.payload,
       png: {
+        selectedKeyword: extracted.selectedKeyword,
         charaChunks: extracted.charaChunks,
-        nonCharaDigest: extracted.nonCharaDigest
+        ccv3Chunks: extracted.ccv3Chunks,
+        nonCardDigest: extracted.nonCardDigest
       },
       validation,
       digest: sha256(buffer)
@@ -15370,7 +15408,7 @@ function characterSourceFromCard(payload) {
     examples: [],
     tags: Array.isArray(data.tags) ? [...data.tags] : [],
     source_refs: [],
-    extensions: { character_card_v2: structuredClone(payload) }
+    extensions: { character_card: structuredClone(payload) }
   };
 }
 function worldSourceFromBook(payload) {
@@ -15527,10 +15565,11 @@ async function initializeProject(root, options = {}) {
   model.issues.push(...validateNamedSchema("positioning", prepared.positioning, "/src/positioning.yaml"));
   model.issues.push(...validateNamedSchema(sourceSchema, prepared.source, `/${projectSourcePath(prepared.project)}`));
   if (sourceSchema === "character") {
+    const embeddedCard = prepared.source.extensions.character_card ?? prepared.source.extensions.character_card_v2;
     model.issues.push(...validateNamedSchema(
       "character-card",
-      prepared.source.extensions.character_card_v2,
-      "/src/characters/card.yaml/extensions/character_card_v2"
+      embeddedCard,
+      "/src/characters/card.yaml/extensions/character_card"
     ));
   }
   if (prepared.uiSource) model.issues.push(...validateNamedSchema("status-ui", prepared.uiSource, "/src/ui/status-ui.yaml"));
@@ -15794,7 +15833,10 @@ async function loadProjectSource(loaded) {
   const preservedPath = relativePreserved ? resolveWithin(loaded.projectRoot, relativePreserved) : null;
   const preserved = preservedPath && await pathExists(preservedPath) ? await readJson(preservedPath) : null;
   const merged = applyPreserved(adapted.payload, preserved);
-  const format = target === "worldbook" ? Format.WORLDBOOK : Format.CHARACTER_V2;
+  const format = target === "worldbook" ? Format.WORLDBOOK : detectJsonFormat(merged.payload);
+  if (!format) throw validationError("\u88C5\u914D\u540E\u7684\u89D2\u8272\u5361\u7248\u672C\u65E0\u6CD5\u8BC6\u522B", {
+    issues: [issue("/spec", "unsupported", "\u4EC5\u652F\u6301 Character Card V2 \u6216 V3")]
+  });
   const payloadValidation = validatePayload(merged.payload, format);
   payloadValidation.issues.push(...assembled.issues, ...adapted.issues);
   return {
@@ -15852,10 +15894,12 @@ async function validateRegisteredSources(loaded) {
 function assembleCharacterCard(sources) {
   const characters = sources.characters.map((entry) => entry.value);
   const primary = characters.find((source) => source.role === "primary_character") ?? characters[0];
-  const embedded = primary?.extensions?.character_card_v2;
+  const embedded = primary?.extensions?.character_card ?? primary?.extensions?.character_card_v2;
   const payload = isPlainObject(embedded) ? structuredClone(embedded) : defaultCharacter(primary?.display_name ?? "\u672A\u547D\u540D\u89D2\u8272");
-  payload.spec = "chara_card_v2";
-  payload.spec_version = typeof payload.spec_version === "string" ? payload.spec_version : "2.0";
+  if (payload.spec !== "chara_card_v2" && payload.spec !== "chara_card_v3") payload.spec = "chara_card_v2";
+  if (typeof payload.spec_version !== "string" && typeof payload.spec_version !== "number") {
+    payload.spec_version = payload.spec === "chara_card_v3" ? "3.0" : "2.0";
+  }
   payload.data = isPlainObject(payload.data) ? payload.data : {};
   payload.data.name = primary?.display_name ?? payload.data.name ?? "\u672A\u547D\u540D\u89D2\u8272";
   payload.data.description = combineText(
@@ -16076,7 +16120,7 @@ function appendWorldbookEntry(entries, entry) {
 }
 function collectPreserved(payload, format) {
   const entries = [];
-  if (format === Format.CHARACTER_V2 || format === Format.PNG_CHARACTER_V2) {
+  if (isCharacterFormat(format)) {
     const knownTop = /* @__PURE__ */ new Set(["spec", "spec_version", "data"]);
     const knownData = /* @__PURE__ */ new Set([
       "name",
@@ -16317,7 +16361,7 @@ var HELP_TEXT = `rp-card-forge - \u79BB\u7EBF\u3001\u4E8B\u52A1\u5F0F SillyTaver
   unpack <input> --nsfw <mode>       \u89E3\u5305\u4E3A\u53EF\u7EF4\u62A4\u9879\u76EE\uFF0C\u4FDD\u7559\u539F\u59CB\u8F93\u5165\u4E0E\u672A\u77E5\u5B57\u6BB5
   validate <input>                   \u6821\u9A8C\u9879\u76EE\u6216\u5236\u54C1
   build <project-dir>                \u4ECE\u6E90\u7801\u6784\u5EFA JSON \u5236\u54C1
-  pack <project-dir>                 \u6784\u5EFA JSON\uFF0C\u6216\u5199\u5165 PNG tEXt/chara \u5757
+  pack <project-dir>                 \u6784\u5EFA JSON\uFF0C\u6216\u5199\u5165 PNG chara/ccv3 \u53CC\u5757
   diff <left> <right>                \u6BD4\u8F83\u8BED\u4E49 JSON
   roundtrip <input>                  \u9A8C\u8BC1 JSON/PNG \u8BED\u4E49\u5F80\u8FD4\u4E0E PNG \u56FE\u50CF\u6570\u636E
   state <project-dir> [action]       show/migrate/lock/unlock/stage
@@ -16441,11 +16485,11 @@ async function commandUnpack(args, options) {
   addPreservedImport(project, originalJsonPath);
   project.materials.push({
     id: "input_artifact",
-    path: artifact.format === Format.PNG_CHARACTER_V2 ? "src/import/original.png" : originalJsonPath,
-    kind: artifact.format === Format.PNG_CHARACTER_V2 ? "character_card_png" : artifact.format === Format.WORLDBOOK ? "worldbook" : "character_card_json",
+    path: isPngCharacterFormat(artifact.format) ? "src/import/original.png" : originalJsonPath,
+    kind: isPngCharacterFormat(artifact.format) ? "character_card_png" : artifact.format === Format.WORLDBOOK ? "worldbook" : "character_card_json",
     read_only: true
   });
-  if (artifact.format === Format.PNG_CHARACTER_V2) {
+  if (isPngCharacterFormat(artifact.format)) {
     addPreservedImport(project, "src/import/original.png");
     project.deliverables = ["character_card_json", "character_card_png"];
   }
@@ -16460,7 +16504,7 @@ async function commandUnpack(args, options) {
     { relativePath: originalJsonPath, content: prettyJson(artifact.payload) },
     { relativePath: preservedPath, content: prettyJson(preserved) }
   ];
-  if (artifact.format === Format.PNG_CHARACTER_V2) {
+  if (isPngCharacterFormat(artifact.format)) {
     files.push({ relativePath: "src/import/original.png", content: artifact.buffer });
   }
   const candidateValidation = validateProjectModel(project, state, outputRoot);
@@ -16674,11 +16718,16 @@ async function buildOrPack(command, root, options, allowPng) {
       const before = parsePng(base.buffer, base.pngPath);
       outputBuffer = embedCardInPng(base.buffer, source.payload, base.pngPath);
       const after = parsePng(outputBuffer, `${outputPath} \u5019\u9009`);
+      const embedded = extractCardFromPng(outputBuffer, `${outputPath} \u5019\u9009`);
       pngEvidence = {
-        nonCharaDigestBefore: nonCharaChunkDigest(before.chunks),
-        nonCharaDigestAfter: nonCharaChunkDigest(after.chunks)
+        selectedKeyword: embedded.selectedKeyword,
+        charaChunks: embedded.charaChunks,
+        ccv3Chunks: embedded.ccv3Chunks,
+        encoding: { chunk: "tEXt", payload: "base64", decoded: "utf8-json" },
+        nonCardDigestBefore: nonCardChunkDigest(before.chunks),
+        nonCardDigestAfter: nonCardChunkDigest(after.chunks)
       };
-      outputFormat = Format.PNG_CHARACTER_V2;
+      outputFormat = Format.PNG_CHARACTER_V3;
     } else {
       outputPath = path4.resolve(options.output ?? resolveWithin(loaded.projectRoot, configured.json));
       assertOutputDoesNotOverwriteSource(outputPath, projectProtectedPaths(loaded));
@@ -16703,6 +16752,7 @@ async function buildOrPack(command, root, options, allowPng) {
     const artifactDigest = sha256(outputBuffer);
     const sourceDigest = sha256(prettyJson(source.payload));
     const relativeOutput = relativeOrAbsolute(loaded.projectRoot, outputPath);
+    const effectiveCardPayload = isCharacterFormat(source.format) ? isPngCharacterFormat(outputFormat) ? ccv3Payload(source.payload) : source.payload : null;
     const manifest = {
       schema_version: "1.0.0",
       project_id: loaded.project.project.id,
@@ -16712,6 +16762,10 @@ async function buildOrPack(command, root, options, allowPng) {
       source_digest: sourceDigest,
       output: relativeOutput,
       output_format: outputFormat,
+      ...effectiveCardPayload ? {
+        card_spec: effectiveCardPayload.spec,
+        card_spec_version: effectiveCardPayload.spec_version
+      } : {},
       artifact_digest: artifactDigest,
       preserved_unknown_fields: source.restoredPaths,
       runtime_state_schema: hasRuntimeSchema ? {
@@ -16777,17 +16831,17 @@ async function commandRoundtrip(args, options) {
   const comparable = await loadComparable(args[0], { includeBinary: true });
   let candidate;
   let pngEvidence = null;
-  if (comparable.format === Format.PNG_CHARACTER_V2) {
+  if (isPngCharacterFormat(comparable.format)) {
     const parsedBefore = parsePng(comparable.buffer, comparable.path);
     candidate = embedCardInPng(comparable.buffer, comparable.payload, comparable.path);
     const extracted = extractCardFromPng(candidate, "roundtrip PNG \u5019\u9009");
     const parsedAfter = parsePng(candidate, "roundtrip PNG \u5019\u9009");
     pngEvidence = {
-      nonCharaDigestBefore: nonCharaChunkDigest(parsedBefore.chunks),
-      nonCharaDigestAfter: nonCharaChunkDigest(parsedAfter.chunks),
-      imageDataUnchanged: nonCharaChunkDigest(parsedBefore.chunks) === nonCharaChunkDigest(parsedAfter.chunks)
+      nonCardDigestBefore: nonCardChunkDigest(parsedBefore.chunks),
+      nonCardDigestAfter: nonCardChunkDigest(parsedAfter.chunks),
+      imageDataUnchanged: nonCardChunkDigest(parsedBefore.chunks) === nonCardChunkDigest(parsedAfter.chunks)
     };
-    if (!semanticEqual(comparable.payload, extracted.payload) || !pngEvidence.imageDataUnchanged) {
+    if (!semanticEqual(ccv3Payload(comparable.payload), extracted.payload) || !pngEvidence.imageDataUnchanged) {
       throw integrityError("PNG \u5F80\u8FD4\u4E0D\u4E00\u81F4", { png: pngEvidence });
     }
   } else if (comparable.project) {
@@ -16798,11 +16852,11 @@ async function commandRoundtrip(args, options) {
       const before = parsePng(base.buffer, base.pngPath);
       const after = parsePng(candidate, "roundtrip \u9879\u76EE PNG \u5019\u9009");
       pngEvidence = {
-        nonCharaDigestBefore: nonCharaChunkDigest(before.chunks),
-        nonCharaDigestAfter: nonCharaChunkDigest(after.chunks),
-        imageDataUnchanged: nonCharaChunkDigest(before.chunks) === nonCharaChunkDigest(after.chunks)
+        nonCardDigestBefore: nonCardChunkDigest(before.chunks),
+        nonCardDigestAfter: nonCardChunkDigest(after.chunks),
+        imageDataUnchanged: nonCardChunkDigest(before.chunks) === nonCardChunkDigest(after.chunks)
       };
-      if (!semanticEqual(comparable.payload, extracted.payload) || !pngEvidence.imageDataUnchanged) {
+      if (!semanticEqual(ccv3Payload(comparable.payload), extracted.payload) || !pngEvidence.imageDataUnchanged) {
         throw integrityError("\u9879\u76EE PNG \u5F80\u8FD4\u4E0D\u4E00\u81F4", { png: pngEvidence });
       }
     } else {
@@ -17070,9 +17124,14 @@ function artifactChecks(artifact) {
     "artifact",
     [artifact.path]
   )];
-  if (artifact.format === Format.PNG_CHARACTER_V2) {
+  if (isPngCharacterFormat(artifact.format)) {
     checks.push(check("artifact.png_crc", "pass", "blocker", "artifact", [artifact.digest]));
-    checks.push(check("artifact.png_chara_unique", artifact.png.charaChunks === 1 ? "pass" : "fail", "blocker", "artifact", [`count=${artifact.png.charaChunks}`]));
+    const unique = artifact.png.charaChunks <= 1 && artifact.png.ccv3Chunks <= 1;
+    checks.push(check("artifact.png_card_blocks_unique", unique ? "pass" : "fail", "blocker", "artifact", [
+      `chara=${artifact.png.charaChunks}`,
+      `ccv3=${artifact.png.ccv3Chunks}`
+    ]));
+    checks.push(check("artifact.png_selected_keyword", "pass", "blocker", "artifact", [artifact.png.selectedKeyword]));
   }
   checks.push(check("runtime.sillytavern", "not_run", "info", "runtime", ["\u79BB\u7EBF\u6821\u9A8C\u4E0D\u80FD\u4EE3\u66FF\u771F\u5B9E SillyTavern \u9A8C\u6536"]));
   return checks;

@@ -1,13 +1,36 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://rp-card-studio.local/schemas/character-card.schema.json",
-  "title": "SillyTavern Character Card V2 Artifact",
+  "title": "SillyTavern Character Card V2/V3 Artifact",
   "type": "object",
   "required": ["spec", "spec_version", "data"],
-  "properties": {
-    "spec": { "const": "chara_card_v2" },
-    "spec_version": { "type": "string", "pattern": "^2(?:\\.[0-9]+)*$" },
-    "data": {
+  "oneOf": [
+    {
+      "title": "Character Card V2",
+      "properties": {
+        "spec": { "const": "chara_card_v2" },
+        "spec_version": { "const": "2.0" },
+        "data": { "$ref": "#/$defs/v2Data" }
+      }
+    },
+    {
+      "title": "Character Card V3",
+      "properties": {
+        "spec": { "const": "chara_card_v3" },
+        "spec_version": { "$ref": "#/$defs/v3Version" },
+        "data": { "type": "object" }
+      }
+    }
+  ],
+  "additionalProperties": true,
+  "$defs": {
+    "v3Version": {
+      "oneOf": [
+        { "type": "string", "pattern": "^3(?:\\.[0-9]+)?$" },
+        { "type": "number", "minimum": 3, "exclusiveMaximum": 4 }
+      ]
+    },
+    "v2Data": {
       "type": "object",
       "required": ["name", "description", "personality", "scenario", "first_mes", "mes_example", "creator_notes", "system_prompt", "post_history_instructions", "alternate_greetings", "tags", "creator", "character_version", "extensions"],
       "properties": {
@@ -28,10 +51,7 @@
         "character_book": { "$ref": "#/$defs/characterBook" }
       },
       "additionalProperties": true
-    }
-  },
-  "additionalProperties": true,
-  "$defs": {
+    },
     "characterBook": {
       "type": "object",
       "required": ["entries"],
