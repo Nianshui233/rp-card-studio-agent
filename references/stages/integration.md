@@ -13,7 +13,7 @@
 ### 允许询问
 
 - 本次构建哪些产物：JSON、PNG、世界书、源项目和报告。
-- 世界书条目的激活、插入位置与顺序、概率、递归、接收者、可见性和失败策略。
+- 世界书条目的激活、插入位置与顺序、条目级扫描深度、概率、递归和失败策略；独立世界书是否需要按角色头像主干或目标实例标签 ID 过滤。
 - 媒体槽位采用本地文件还是 HTTPS 资源、由谁消费、是否预加载、如何校验以及失败时使用何种回退。
 - 已锁定 MVU/UI/呈现契约需要生成哪些 adapter，入口和产物路径如何避免碰撞。
 - PNG 使用哪张头像、输出文件名、是否保留候选构建。
@@ -51,9 +51,9 @@ status: locked
 worldbook_manifest:
   id: midnight_railway_worldbook
   display_name: "午夜铁路世界书"
-  scan_depth: 4
-  token_budget: 2400
-  recursive_scanning: true
+  scan_depth: null
+  token_budget: null
+  recursive_scanning: false
   preserve_imported_entries: true
   duplicate_policy: error
   entries:
@@ -77,14 +77,15 @@ worldbook_manifest:
         depth: null
         role: system
       probability: 100
+      scan_depth: 4
       recursion:
         prevent_incoming: false
         prevent_outgoing: false
         delay_until_recursion: false
-      recipient: plot
+      recipient: shared
       visibility: model
-      token_budget: 500
-      fallback: include
+      token_budget: null
+      fallback: block
 media_manifest:
   enabled: true
   assets:
@@ -108,7 +109,7 @@ media_manifest:
 
 ## 建议的问题批次
 
-1. 世界书装配：条目来源、激活、插入、概率、递归、接收者与失败策略。
+1. 世界书装配：条目来源、激活、插入、条目级扫描深度、概率、递归、独立世界书角色过滤与失败策略。
 2. 媒体装配：实际来源、消费者、预加载、完整性与回退。
 3. 适配器生成：契约清单、入口、产物、挂载点、依赖和碰撞处置。
 4. 产物组合、命名、候选构建、覆盖策略与版本号。
@@ -120,9 +121,13 @@ media_manifest:
 ### 世界书
 
 - 读取前序阶段给出的稳定内容 ID 和可见性，不在这里扩写内容语义。
-- 在 `worldbook_manifest.entries[]` 中决定 `activation`、`insertion`、`probability`、`recursion`、`recipient`、`visibility` 与 `fallback`。
-- 检查常驻条目、关键词条目、递归入口和 token 预算之间是否形成重复注入、不可达条目或无限触发。
+- 在 `worldbook_manifest.entries[]` 中决定 `activation`、`insertion`、条目级 `scan_depth`、`probability`、`recursion` 与 `fallback`。当前 SillyTavern 原生路径固定使用 `recipient: shared` 和 `visibility: model`；其他路由或隔离语义需要另有已验证的外部 router，Forge 默认阻断，不能把它们当作普通选项询问。
+- `worldbook_manifest.scan_depth`、`token_budget` 与 `recursive_scanning` 只保留宿主默认值 `null`、`null`、`false`。当前宿主实际读取全局世界书设置；扫描范围需要逐条控制时使用 `entries[].scan_depth`，范围为 `0..1000`，其中 `0` 是真实的零深度，只有 `null` 表示继承全局。
+- `fallback` 只允许 `skip` 或 `block`。`skip` 会在来源缺失时跳过并报告警告，`block` 会终止构建；不要写 `include`，因为没有可确定注入的替代内容。
+- `character_filter` 只用于独立世界书。`avatar_stems` 是头像文件名去掉末尾扩展名后的值，严格区分大小写；`tag_ids` 是目标 SillyTavern 实例内部的不透明标签 ID，不是显示名称，也不可跨实例照搬。未从目标实例核实时保持 `tag_ids: []` 或登记宿主绑定阻断项，不得猜造。角色卡内嵌 CharacterBook 无法可靠保留该过滤器，Forge 会阻断。
+- 检查常驻条目、关键词条目、递归入口和宿主全局 token 预算之间是否形成重复注入、不可达条目或无限触发。
 - 导入旧卡时按 `preserve_imported_entries` 与 `duplicate_policy` 处理碰撞；任何替换都进入差异报告。
+- 独立世界书 `entries` 必须是以规范非负整数 UID 为键的对象；键、条目 `uid` 和编辑身份必须一致。裸 CharacterBook 的 `keys/enabled/insertion_order` 数组形状不能作为独立世界书导入。
 
 ### 媒体
 

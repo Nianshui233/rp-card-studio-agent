@@ -16,9 +16,9 @@
         "id": { "$ref": "#/$defs/id" },
         "display_name": { "type": "string", "minLength": 1 },
         "description": { "type": "string" },
-        "scan_depth": { "type": ["integer", "null"], "minimum": 0 },
-        "token_budget": { "type": ["integer", "null"], "minimum": 0 },
-        "recursive_scanning": { "type": "boolean" },
+        "scan_depth": { "type": "null" },
+        "token_budget": { "type": "null" },
+        "recursive_scanning": { "const": false },
         "preserve_imported_entries": { "type": "boolean" },
         "duplicate_policy": { "enum": ["error", "keep_imported", "replace_imported"] },
         "entries": {
@@ -118,6 +118,7 @@
           }
         },
         "probability": { "type": "number", "minimum": 0, "maximum": 100 },
+        "scan_depth": { "type": ["integer", "null"], "minimum": 0, "maximum": 1000 },
         "recursion": {
           "type": "object",
           "additionalProperties": false,
@@ -128,10 +129,20 @@
             "delay_until_recursion": { "type": "boolean" }
           }
         },
-        "recipient": { "enum": ["plot", "update", "shared"] },
-        "visibility": { "enum": ["player", "gm", "model"] },
-        "token_budget": { "type": ["integer", "null"], "minimum": 0 },
-        "fallback": { "enum": ["skip", "include", "block"] },
+        "recipient": { "const": "shared" },
+        "visibility": { "const": "model" },
+        "token_budget": { "type": "null" },
+        "fallback": { "enum": ["skip", "block"] },
+        "character_filter": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["avatar_stems", "tag_ids", "is_exclude"],
+          "properties": {
+            "avatar_stems": { "$ref": "#/$defs/stringList" },
+            "tag_ids": { "$ref": "#/$defs/stringList" },
+            "is_exclude": { "type": "boolean" }
+          }
+        },
         "extensions": { "type": "object" }
       }
     },

@@ -15181,14 +15181,47 @@ function validateWorldbook(value, basePath, issues) {
     issues.push(issue(basePath || "/", "type", "\u4E16\u754C\u4E66\u5FC5\u987B\u662F\u5BF9\u8C61"));
     return;
   }
-  if (!Array.isArray(value.entries) && !isPlainObject(value.entries)) {
-    issues.push(issue(`${basePath}/entries` || "/entries", "type", "entries \u5FC5\u987B\u662F\u6570\u7EC4\u6216\u5BF9\u8C61"));
+  if (!isPlainObject(value.entries)) {
+    const looksLikeCharacterBook = Array.isArray(value.entries);
+    issues.push(issue(
+      `${basePath}/entries` || "/entries",
+      looksLikeCharacterBook ? "format.character_book" : "type",
+      looksLikeCharacterBook
+        ? "Detected a bare CharacterBook. It belongs inside a Character Card and cannot be imported as a standalone SillyTavern worldbook"
+        : "Standalone SillyTavern worldbook entries must be an object keyed by uid",
+    ));
     return;
   }
-  const entries = Array.isArray(value.entries) ? value.entries : Object.values(value.entries);
-  entries.forEach((entry, index) => {
-    if (!isPlainObject(entry)) issues.push(issue(`${basePath}/entries/${index}`, "type", "\u4E16\u754C\u4E66\u6761\u76EE\u5FC5\u987B\u662F\u5BF9\u8C61"));
-  });
+  const usedUids = /* @__PURE__ */ new Set();
+  for (const [key, entry] of Object.entries(value.entries)) {
+    const entryPath = `${basePath}/entries/${key}`;
+    if (!isPlainObject(entry)) {
+      issues.push(issue(entryPath, "type", "\u4E16\u754C\u4E66\u6761\u76EE\u5FC5\u987B\u662F\u5BF9\u8C61"));
+      continue;
+    }
+    if (Object.hasOwn(entry, "keys") || Object.hasOwn(entry, "insertion_order")) {
+      issues.push(issue(entryPath, "format.character_book", "CharacterBook entry fields are not valid in a standalone SillyTavern worldbook"));
+      continue;
+    }
+    if (!/^(0|[1-9]\d*)$/.test(key)) {
+      issues.push(issue(entryPath, "worldbook.uid", `Worldbook entry key must be a canonical non-negative integer: ${key}`));
+      continue;
+    }
+    const keyUid = Number(key);
+    const uid = entry.uid === void 0 ? keyUid : entry.uid;
+    if (typeof uid !== "number" || !Number.isInteger(uid) || uid < 0) {
+      issues.push(issue(`${entryPath}/uid`, "worldbook.uid", `Worldbook uid must be a non-negative integer: ${entry.uid}`));
+    } else {
+      if (String(uid) !== key) issues.push(issue(`${entryPath}/uid`, "worldbook.uid", `Worldbook entry key ${key} does not match uid ${uid}`));
+      if (usedUids.has(uid)) issues.push(issue(`${entryPath}/uid`, "worldbook.uid", `Duplicate worldbook uid: ${uid}`));
+      usedUids.add(uid);
+    }
+    if (!Array.isArray(entry.key)) issues.push(issue(`${entryPath}/key`, "type", "Standalone worldbook key must be an array"));
+    if (!Array.isArray(entry.keysecondary)) issues.push(issue(`${entryPath}/keysecondary`, "type", "Standalone worldbook keysecondary must be an array"));
+    if (typeof entry.content !== "string") issues.push(issue(`${entryPath}/content`, "type", "Standalone worldbook content must be a string"));
+    if (typeof entry.disable !== "boolean") issues.push(issue(`${entryPath}/disable`, "type", "Standalone worldbook disable must be a boolean"));
+    if (!Number.isInteger(entry.position)) issues.push(issue(`${entryPath}/position`, "type", "Standalone worldbook position must be an integer"));
+  }
 }
 function issue(pathValue, rule, message) {
   return { path: pathValue || "/", rule, message };
@@ -15839,6 +15872,7 @@ async function loadProjectSource(loaded) {
   });
   const payloadValidation = validatePayload(merged.payload, format);
   payloadValidation.issues.push(...assembled.issues, ...adapted.issues);
+  payloadValidation.warnings.push(...(assembled.warnings ?? []));
   return {
     sourcePath,
     semanticSource,
@@ -15982,12 +16016,13 @@ function assembleWorldbook(sources) {
   const hasAssemblyManifest = sources.assembly.length > 0;
   const hasImportedEntries = entryCount(payload.entries) > 0;
   let order = entryCount(payload.entries);
+  const usedUids = standaloneWorldbookUids(payload.entries);
   if (!hasAssemblyManifest) {
     for (const [group, entries] of Object.entries(sources)) {
       for (const entry of entries) {
         if (group === "positioning" && !positioningIsMeaningful(entry.value)) continue;
         if (entry === primaryEntry && hasImportedEntries) continue;
-        appendWorldbookEntry(payload.entries, standaloneWorldbookEntry(group, entry.value, order));
+        appendWorldbookEntry(payload.entries, standaloneWorldbookEntry(group, entry.value, order, allocateStandaloneWorldbookUid(usedUids)));
         order += 1;
       }
     }
@@ -16099,24 +16134,69 @@ function characterBookEntry(group, source, index) {
     extensions: { rp_card_studio: { group, source_id: id } }
   };
 }
-function standaloneWorldbookEntry(group, source, index) {
+function standaloneWorldbookEntry(group, source, index, uid = index) {
   const id = source.id ?? `${group}_${index + 1}`;
   const displayName = source.display_name ?? id;
   return {
+    uid,
     id: `rp_${group}_${id}`,
-    keys: [displayName, id],
+    key: [displayName, id],
+    keysecondary: [],
+    comment: `${group}:${id}`,
     content: renderStructured(source),
+    constant: true,
+    selective: false,
+    selectiveLogic: 0,
+    useProbability: true,
+    probability: 100,
+    excludeRecursion: false,
+    preventRecursion: false,
+    delayUntilRecursion: false,
+    scanDepth: null,
+    depth: 4,
+    role: 0,
+    disable: false,
     enabled: true,
     order: index,
+    position: 0,
     extensions: { rp_card_studio: { group, source_id: id } }
   };
+}
+function standaloneWorldbookUids(entries) {
+  const usedUids = /* @__PURE__ */ new Set();
+  if (Array.isArray(entries)) throw integrityError("SillyTavern \u72EC\u7ACB\u4E16\u754C\u4E66 entries \u5FC5\u987B\u662F\u4EE5 uid \u4E3A\u952E\u7684\u5BF9\u8C61");
+  const records = Object.entries(entries);
+  for (const [key, entry] of records) {
+    if (!isPlainObject(entry)) continue;
+    const canonicalKey = /^(0|[1-9]\d*)$/.test(key);
+    if (!canonicalKey) throw integrityError(`\u4E16\u754C\u4E66\u6761\u76EE\u952E\u5FC5\u987B\u662F\u89C4\u8303\u975E\u8D1F\u6574\u6570: ${key}`);
+    const keyUid = Number(key);
+    if (entry.uid === void 0 && keyUid !== null) entry.uid = keyUid;
+    const uid = entry.uid === void 0 ? null : entry.uid;
+    if (uid !== null && (typeof uid !== "number" || !Number.isInteger(uid) || uid < 0)) {
+      throw integrityError(`\u4E16\u754C\u4E66\u6761\u76EE uid \u5FC5\u987B\u662F\u975E\u8D1F\u6574\u6570: ${entry.uid}`);
+    }
+    if (keyUid !== null && uid !== null && keyUid !== uid) {
+      throw integrityError(`\u4E16\u754C\u4E66\u6761\u76EE\u952E ${key} \u4E0E uid ${uid} \u4E0D\u4E00\u81F4`);
+    }
+    if (uid !== null && usedUids.has(uid)) throw integrityError(`\u4E16\u754C\u4E66\u542B\u91CD\u590D uid: ${uid}`);
+    if (keyUid !== null) usedUids.add(keyUid);
+    if (uid !== null) usedUids.add(uid);
+  }
+  return usedUids;
+}
+function allocateStandaloneWorldbookUid(usedUids) {
+  let uid = 0;
+  while (usedUids.has(uid)) uid += 1;
+  usedUids.add(uid);
+  return uid;
 }
 function entryCount(entries) {
   return Array.isArray(entries) ? entries.length : Object.keys(entries).length;
 }
 function appendWorldbookEntry(entries, entry) {
   if (Array.isArray(entries)) entries.push(entry);
-  else entries[entry.id] = entry;
+  else entries[entry.uid ?? entry.id] = entry;
 }
 function collectPreserved(payload, format) {
   const entries = [];

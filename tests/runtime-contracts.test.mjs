@@ -457,7 +457,7 @@ test('media consumers resolve to registered project entities', async () => {
   assert.ok(validation.issues.some(issue => issue.rule === 'media.reference' && issue.message.includes('consumer')));
 });
 
-test('standalone object worldbooks treat container keys as imported entry ids', async () => {
+test('standalone object worldbooks reject noncanonical keys and still detect duplicate ids', async () => {
   const sources = emptySources({
     assembly: [{
       relativePath: 'src/integration/assembly.yaml',
@@ -473,6 +473,7 @@ test('standalone object worldbooks treat container keys as imported entry ids', 
   const payload = { entries: { wb_guide: { content: 'Imported guide without an id.' } } };
 
   const result = await applyAssemblyManifest(payload, { sources, projectRoot: process.cwd(), target: 'worldbook' });
+  assert.ok(result.issues.some(candidate => candidate.rule === 'assembly.uid'));
   assert.ok(result.issues.some(candidate => candidate.rule === 'assembly.reference'));
   assert.equal(result.payload.entries.wb_guide.content, 'Imported guide without an id.');
 });
@@ -504,7 +505,9 @@ test('standalone worldbook assembly emits host fields and preserves custom exten
 
   const result = await applyAssemblyManifest({ entries: {} }, { sources, projectRoot: process.cwd(), target: 'worldbook' });
   assert.deepEqual(result.issues, []);
-  const entry = result.payload.entries.wb_guide;
+  const entry = Object.values(result.payload.entries).find(candidate => candidate.extensions?.rp_card_studio?.source_id === 'guide');
+  assert.ok(entry);
+  assert.equal(entry.uid, 0);
   assert.deepEqual(entry.key, ['signal']);
   assert.deepEqual(entry.keysecondary, ['guide']);
   assert.equal(entry.useProbability, true);

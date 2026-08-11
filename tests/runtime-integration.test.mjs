@@ -289,9 +289,9 @@ worldbook_manifest:
         prevent_incoming: true
         prevent_outgoing: true
         delay_until_recursion: false
-      recipient: plot
+      recipient: shared
       visibility: model
-      token_budget: 200
+      token_budget: null
       fallback: skip
 media_manifest:
   enabled: false

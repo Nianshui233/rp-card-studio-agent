@@ -1028,13 +1028,49 @@ function validatePresentations(openingSources, assemblies, issues) {
   }
 }
 
-async function validateAssembly(sources, projectRoot, issues) {
+function worldbookHostIssues(manifest, target, basePath = "/runtime/assembly") {
+  const issues = [];
+  if (manifest?.scan_depth !== undefined && manifest.scan_depth !== null) {
+    issues.push(issue(`${basePath}/worldbook_manifest/scan_depth`, "assembly.host.unsupported", "SillyTavern does not consume per-book scan_depth; configure the host global setting instead"));
+  }
+  if (manifest?.token_budget !== undefined && manifest.token_budget !== null) {
+    issues.push(issue(`${basePath}/worldbook_manifest/token_budget`, "assembly.host.unsupported", "SillyTavern does not consume per-book token_budget; configure the host global setting instead"));
+  }
+  if (manifest?.recursive_scanning === true) {
+    issues.push(issue(`${basePath}/worldbook_manifest/recursive_scanning`, "assembly.host.unsupported", "SillyTavern does not consume per-book recursive_scanning; configure the host global setting instead"));
+  }
+  for (const [entryIndex, entry] of (manifest?.entries ?? []).entries()) {
+    const entryPath = `${basePath}/worldbook_manifest/entries/${entryIndex}`;
+    if (entry.recipient !== undefined && entry.recipient !== "shared") {
+      issues.push(issue(`${entryPath}/recipient`, "assembly.host.unsupported", "SillyTavern worldbook entries do not route to plot/update recipients; use shared"));
+    }
+    if (entry.visibility !== undefined && entry.visibility !== "model") {
+      issues.push(issue(`${entryPath}/visibility`, "assembly.visibility.unsupported", "SillyTavern has no isolated player/GM worldbook channel; only model visibility is safe without a router"));
+    }
+    if (entry.token_budget !== undefined && entry.token_budget !== null) {
+      issues.push(issue(`${entryPath}/token_budget`, "assembly.host.unsupported", "SillyTavern has no per-entry numeric token budget"));
+    }
+    if (entry.scan_depth !== undefined && entry.scan_depth !== null && (!Number.isInteger(entry.scan_depth) || entry.scan_depth < 0 || entry.scan_depth > 1000)) {
+      issues.push(issue(`${entryPath}/scan_depth`, "assembly.host.range", "SillyTavern entry scan_depth must be null or an integer from 0 through 1000"));
+    }
+    if (entry.fallback !== undefined && !["skip", "block"].includes(entry.fallback)) {
+      issues.push(issue(`${entryPath}/fallback`, "assembly.fallback.unsupported", "Worldbook fallback must be skip or block; include has no deterministic replacement content"));
+    }
+    if (target === "character" && entry.character_filter) {
+      issues.push(issue(`${entryPath}/character_filter`, "assembly.host.unsupported", "Embedded character books do not preserve SillyTavern characterFilter; use a standalone worldbook"));
+    }
+  }
+  return issues;
+}
+
+async function validateAssembly(sources, projectRoot, issues, warnings, target) {
   const assemblies = assemblySources(sources);
   if (assemblies.length > 1) {
     issues.push(issue("/runtime/assembly", "assembly.configuration", "Exactly one assembly source may own the integration manifest"));
   }
   for (const [sourceIndex, assembly] of assemblies.entries()) {
     const manifest = assembly.worldbook_manifest;
+    issues.push(...worldbookHostIssues(manifest, target, `/runtime/assembly/${sourceIndex}`));
     const ids = new Set();
     for (const [entryIndex, entry] of (manifest?.entries ?? []).entries()) {
       if (ids.has(entry.id)) issues.push(issue(`/runtime/assembly/${sourceIndex}/worldbook_manifest/entries/${entryIndex}/id`, "assembly.reference", `Duplicate worldbook entry id: ${entry.id}`));
@@ -1042,7 +1078,8 @@ async function validateAssembly(sources, projectRoot, issues) {
       try {
         await resolveAssemblyContent(entry.source, sources, projectRoot);
       } catch (error) {
-        issues.push(issue(`/runtime/assembly/${sourceIndex}/worldbook_manifest/entries/${entryIndex}/source`, "assembly.source", error.message));
+        const sourceIssue = issue(`/runtime/assembly/${sourceIndex}/worldbook_manifest/entries/${entryIndex}/source`, entry.fallback === "skip" ? "assembly.source.skipped" : "assembly.source", error.message);
+        (entry.fallback === "skip" ? warnings : issues).push(sourceIssue);
       }
     }
     const media = assembly.media_manifest;
@@ -1106,6 +1143,13 @@ async function validateAssembly(sources, projectRoot, issues) {
   }
 }
 
+function runtimeAssemblyTarget(project) {
+  if (project?.project?.target === "worldbook" || project?.target === "worldbook") return "worldbook";
+  if (project?.project?.target === "character_card" || project?.target === "character_card") return "character";
+  const deliverables = Array.isArray(project?.deliverables) ? project.deliverables : [];
+  return deliverables.some((item) => item === "character_card_json" || item === "character_card_png") ? "character" : "worldbook";
+}
+
 export async function validateRuntimeSources({ project, sources, projectRoot }) {
   const issues = [];
   const warnings = [];
@@ -1126,7 +1170,8 @@ export async function validateRuntimeSources({ project, sources, projectRoot }) 
   validatePresentations(openingSources, assemblySources(sources), issues);
   validateMediaConsumers(sources, issues);
   validateStateMachines(values(sources, "systems"), project, sources, issues);
-  await validateAssembly(sources, projectRoot, issues);
+  const projectTarget = runtimeAssemblyTarget(project);
+  await validateAssembly(sources, projectRoot, issues, warnings, projectTarget);
   return { issues, warnings };
 }
 
@@ -1215,6 +1260,46 @@ function containerIds(container) {
   });
 }
 
+function normalizeAndValidateContainerUids(container) {
+  const usedUids = new Set();
+  const issues = [];
+  if (Array.isArray(container)) {
+    issues.push(issue("/entries", "assembly.uid", "Standalone SillyTavern worldbook entries must be an object keyed by canonical numeric uid values"));
+  }
+  const records = Array.isArray(container) ? container.map((entry, index) => [String(index), entry]) : Object.entries(container);
+  for (const [key, entry] of records) {
+    if (!isObject(entry)) continue;
+    const canonicalKey = /^(0|[1-9]\d*)$/.test(key);
+    const keyUid = canonicalKey ? Number(key) : null;
+    if (!Array.isArray(container) && !canonicalKey) {
+      issues.push(issue(`/entries/${key}`, "assembly.uid", `Worldbook entry key must be a canonical non-negative integer: ${key}`));
+    }
+    if (entry.uid === undefined && keyUid !== null) entry.uid = keyUid;
+    const uid = entry.uid === undefined ? null : entry.uid;
+    if (uid !== null && (typeof uid !== "number" || !Number.isInteger(uid) || uid < 0)) {
+      issues.push(issue(`/entries/${key}/uid`, "assembly.uid", `Worldbook uid must be a non-negative integer: ${entry.uid}`));
+      if (keyUid !== null) usedUids.add(keyUid);
+      continue;
+    }
+    if (keyUid !== null && uid !== null && uid !== keyUid) {
+      issues.push(issue(`/entries/${key}/uid`, "assembly.uid", `Worldbook entry key ${key} does not match uid ${uid}`));
+    }
+    if (uid !== null && usedUids.has(uid)) {
+      issues.push(issue(`/entries/${key}/uid`, "assembly.uid", `Duplicate worldbook uid: ${uid}`));
+    }
+    if (keyUid !== null) usedUids.add(keyUid);
+    if (uid !== null) usedUids.add(uid);
+  }
+  return { usedUids, issues };
+}
+
+function allocateWorldbookUid(usedUids) {
+  let uid = 0;
+  while (usedUids.has(uid)) uid += 1;
+  usedUids.add(uid);
+  return uid;
+}
+
 function removeContainerEntry(container, id) {
   if (Array.isArray(container)) {
     const index = container.findIndex((entry) => String(entry?.id) === id);
@@ -1228,7 +1313,7 @@ function removeContainerEntry(container, id) {
 
 function appendContainerEntry(container, entry) {
   if (Array.isArray(container)) container.push(entry);
-  else container[entry.id] = entry;
+  else container[entry.uid ?? entry.id] = entry;
 }
 
 function rpExtensionHost(payload, target) {
@@ -1248,8 +1333,9 @@ function manifestEntry(entry, content, target) {
   const insertion = entry.insertion ?? {};
   const recursion = entry.recursion ?? {};
   const probability = entry.probability ?? 100;
+  const scanDepth = entry.scan_depth ?? null;
   const selectiveLogic = ({ any: 0, not_all: 1, not_any: 2, all: 3 })[activation.logic ?? "any"];
-  const rawPosition = ({ before_char: 0, after_char: 1, before_example: 2, after_example: 3, at_depth: 4 })[insertion.position ?? "before_char"];
+  const rawPosition = ({ before_char: 0, after_char: 1, before_example: 5, after_example: 6, at_depth: 4 })[insertion.position ?? "before_char"];
   const rawRole = ({ system: 0, user: 1, assistant: 2 })[insertion.role] ?? null;
   const rawHostFields = {
     useProbability: true,
@@ -1275,30 +1361,35 @@ function manifestEntry(entry, content, target) {
     recipient: entry.recipient ?? "shared",
     visibility: entry.visibility ?? "model",
     token_budget: entry.token_budget ?? null,
+    scan_depth: scanDepth,
     fallback: clone(entry.fallback ?? "skip")
   };
   const characterExtensions = {
     ...customExtensions,
     position: rawPosition,
-    use_probability: rawHostFields.useProbability,
+    useProbability: rawHostFields.useProbability,
     probability,
     exclude_recursion: rawHostFields.excludeRecursion,
     prevent_recursion: rawHostFields.preventRecursion,
     delay_until_recursion: rawHostFields.delayUntilRecursion,
     depth: rawHostFields.depth,
     role: rawRole,
-    selective_logic: selectiveLogic,
+    selectiveLogic,
     case_sensitive: rawHostFields.caseSensitive,
     match_whole_words: rawHostFields.matchWholeWords,
+    scan_depth: scanDepth,
     rp_card_studio: tracking
   };
   if (target === "worldbook") {
+    const characterFilter = isObject(entry.character_filter) ? {
+      names: clone(entry.character_filter.avatar_stems ?? []),
+      tags: clone(entry.character_filter.tag_ids ?? []),
+      isExclude: Boolean(entry.character_filter.is_exclude)
+    } : null;
     return {
       id: `wb_${entry.id}`,
       key: clone(activation.primary_keys ?? []),
       keysecondary: clone(activation.secondary_keys ?? []),
-      keys: clone(activation.primary_keys ?? []),
-      secondary_keys: clone(activation.secondary_keys ?? []),
       comment: entry.display_name ?? entry.id,
       content,
       constant: activation.mode === "constant",
@@ -1307,7 +1398,9 @@ function manifestEntry(entry, content, target) {
       position: rawPosition,
       disable: entry.enabled === false,
       enabled: entry.enabled !== false,
+      scanDepth,
       ...rawHostFields,
+      ...characterFilter ? { characterFilter } : {},
       extensions: { ...customExtensions, rp_card_studio: tracking }
     };
   }
@@ -1329,20 +1422,26 @@ function manifestEntry(entry, content, target) {
 
 export async function applyAssemblyManifest(payload, { sources, projectRoot, target }) {
   const manifests = assemblySources(sources);
-  if (manifests.length === 0) return { payload, issues: [] };
+  if (manifests.length === 0) return { payload, issues: [], warnings: [] };
   if (manifests.length > 1) {
     return {
       payload: clone(payload),
-      issues: [issue("/runtime/assembly", "assembly.configuration", "Exactly one assembly source may own the integration manifest")]
+      issues: [issue("/runtime/assembly", "assembly.configuration", "Exactly one assembly source may own the integration manifest")],
+      warnings: []
     };
   }
   const issues = [];
+  const warnings = [];
   const output = clone(payload);
   const manifest = manifests.at(-1)?.worldbook_manifest ?? { entries: [] };
+  issues.push(...worldbookHostIssues(manifest, target, "/runtime/assembly/0"));
   const container = worldbookEntriesContainer(output, target, manifest);
   const records = manifests.flatMap((source, sourceIndex) => (source.worldbook_manifest?.entries ?? []).map((entry, entryIndex) => ({ entry, sourceIndex, entryIndex })));
   records.sort((left, right) => (left.entry.insertion?.order ?? 0) - (right.entry.insertion?.order ?? 0) || left.entry.id.localeCompare(right.entry.id));
   const outputIds = new Set(containerIds(container));
+  const uidState = target === "worldbook" ? normalizeAndValidateContainerUids(container) : { usedUids: new Set(), issues: [] };
+  issues.push(...uidState.issues);
+  const usedUids = uidState.usedUids;
   const generatedIds = [];
   for (const record of records) {
     try {
@@ -1357,10 +1456,12 @@ export async function applyAssemblyManifest(payload, { sources, projectRoot, tar
         }
       }
       outputIds.add(assembled.id);
+      if (target === "worldbook") assembled.uid = allocateWorldbookUid(usedUids);
       appendContainerEntry(container, assembled);
       generatedIds.push(assembled.id);
     } catch (error) {
-      issues.push(issue(`/runtime/assembly/${record.sourceIndex}/worldbook_manifest/entries/${record.entryIndex}/source`, "assembly.source", error.message));
+      const sourceIssue = issue(`/runtime/assembly/${record.sourceIndex}/worldbook_manifest/entries/${record.entryIndex}/source`, record.entry.fallback === "skip" ? "assembly.source.skipped" : "assembly.source", error.message);
+      (record.entry.fallback === "skip" ? warnings : issues).push(sourceIssue);
     }
   }
   const extension = rpExtensionHost(output, target);
@@ -1373,7 +1474,7 @@ export async function applyAssemblyManifest(payload, { sources, projectRoot, tar
   issues.push(...materializedMedia.issues);
   extension.media_manifest = materializedMedia.manifest;
   extension.assembly_extensions = clone(manifests[0]?.extensions ?? {});
-  return { payload: output, issues };
+  return { payload: output, issues, warnings };
 }
 
 function presentationVariants(opening) {

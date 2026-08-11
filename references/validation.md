@@ -39,6 +39,8 @@
 - `mode` 为 `embedded`/`both` 但 delivery 不完整，或 adapter ID、entrypoint、artifact、mount anchor 与其他运行时交付发生碰撞。（状态栏/UI、整合）
 - 运行时状态 Schema 与 storage、protocol、初始化 profiles、opening bindings 或字段账本不一致。（MVU/EJS、整合）
 - `assembly.yaml` 未登记、世界书/媒体 consumer 引用悬空、媒体回退成环，或关键远程媒体没有可用回退。（整合）
+- 独立世界书使用数组或非规范 UID 对象键，键与 `uid` 不一致，或把裸 CharacterBook 当作独立世界书导入。（整合）
+- 世界书使用宿主不执行的书级扫描/预算/递归值、非 `shared/model` 路由、`include` 回退，或把角色过滤写入内嵌 CharacterBook。（整合）
 - 运行时代码通过未登记远程脚本加载；远程媒体不在此禁令内，但必须登记到 `media_manifest` 并提供回退。（整合）
 - NSFW 未启用但产物仍含相关专用字段、分组、条件或模板占位。（所有投影）
 - 存在未替换的模板标记、空引用或构建时才发现的占位文件。（整合）
@@ -165,6 +167,8 @@
 - 中途失败不提交候选目录，也不留下半成品状态。
 - JSON、PNG 和世界书中的共享语义相同。
 - `assembly.yaml` 与生成世界书、媒体清单和 adapter 文件语义一致；`source_manifest.assembly` 指向实际装配源。
+- 独立世界书的对象键、数字 `uid` 和条目身份一致；条目级 `scan_depth` 在独立世界书映射为 `scanDepth`，在内嵌 CharacterBook 映射为 `extensions.scan_depth`，并保持 `0`、`null` 和 `1000` 的含义。
+- 独立世界书角色过滤的 `avatar_stems` 不带扩展名且大小写准确；`tag_ids` 有目标实例证据，不使用显示标签名。内嵌 CharacterBook 不携带该过滤器。
 - `unpack -> build -> unpack` 后对规范化对象做深比较；忽略项必须列入白名单并说明非语义原因。
 - Unicode、换行、条目顺序、启用状态、扩展对象和未知字段均保留。
 - PNG 图像数据保持一致；仅角色卡元数据块允许变化。

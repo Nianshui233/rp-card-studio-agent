@@ -124,7 +124,7 @@ project-workspace/
 
 `src/integration/assembly.yaml` 是整合阶段维护的装配真源，并登记到 `project.yaml.source_manifest.assembly`。它包含两部分：
 
-- `worldbook_manifest`：把已锁定内容引用映射为世界书条目，并在此决定 `activation`、`insertion`、`probability`、`recursion`、`recipient`、`visibility` 与失败策略。世界观、角色、系统和场景阶段只提供内容与稳定 ID，不提前决定这些宿主参数。
+- `worldbook_manifest`：把已锁定内容引用映射为世界书条目，并在此决定 `activation`、`insertion`、条目级 `scan_depth`、`probability`、`recursion` 与失败策略。当前 SillyTavern 原生世界书固定为 `recipient: shared`、`visibility: model`，其他路由或隔离语义需要另有已验证的外部 router，Forge 默认阻断。书级扫描、预算和递归字段只保留宿主默认值；角色过滤只用于独立世界书，头像使用区分大小写且不带扩展名的 `avatar_stems`，标签使用目标实例内部且不可移植的 `tag_ids`。世界观、角色、系统和场景阶段只提供内容与稳定 ID，不提前决定这些宿主参数。
 - `media_manifest`：登记媒体 ID、种类、文件或 HTTPS 地址、交付方式、消费者、可选的 `preload` 策略和失败回退；`preload` 只允许 `none | on_opening | eager | on_demand`。实际文件存在性、远程可用性、摘要与消费者引用在整合阶段验证；远程媒体不能成为无回退的唯一关键路径。
 
 媒体清单不设置许可或来源署名字段。导入项目若已有同类未知字段，按未知字段保留规则往返保存，但技能不主动创建或询问这些字段。
