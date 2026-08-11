@@ -83,11 +83,59 @@ export function formatSummary(value, format) {
   }
   return { format };
 }
+function worldbookEntries(book) {
+  if (!isPlainObject(book)) return [];
+  if (Array.isArray(book.entries)) return book.entries;
+  if (isPlainObject(book.entries)) return Object.values(book.entries);
+  return [];
+}
 function countWorldbookEntries(book) {
-  if (!isPlainObject(book)) return 0;
-  if (Array.isArray(book.entries)) return book.entries.length;
-  if (isPlainObject(book.entries)) return Object.keys(book.entries).length;
-  return 0;
+  return worldbookEntries(book).length;
+}
+export function hasWorldbookEntries(book) {
+  return countWorldbookEntries(book) > 0;
+}
+function hasManagedWorldbookEntries(book) {
+  return worldbookEntries(book).some((entry) => (
+    isPlainObject(entry?.extensions?.rp_card_studio)
+    && entry.extensions.rp_card_studio.generated === true
+  ));
+}
+function embeddedCharacterBookName(value) {
+  const explicitName = value?.data?.character_book?.name;
+  if (typeof explicitName === "string" && explicitName.trim().length > 0) return explicitName;
+  const characterName = value?.data?.name;
+  if (typeof characterName === "string" && characterName.trim().length > 0) {
+    return `${characterName}'s Lorebook`;
+  }
+  return null;
+}
+function validateEmbeddedCharacterBookBinding(value, issues, warnings) {
+  const characterBook = value?.data?.character_book;
+  if (!hasWorldbookEntries(characterBook)) return;
+  const expectedName = embeddedCharacterBookName(value);
+  const explicitName = characterBook?.name;
+  if (typeof explicitName !== "string" || explicitName.trim().length === 0) {
+    warnings.push(issue(
+      "/data/character_book/name",
+      "character_book.name_fallback",
+      expectedName
+        ? `Embedded CharacterBook has no usable name; SillyTavern falls back to ${expectedName}`
+        : "Embedded CharacterBook has no usable name and no character name is available for SillyTavern's fallback",
+    ));
+  }
+  if (!expectedName) return;
+  const boundName = value?.data?.extensions?.world;
+  if (boundName === expectedName) return;
+  const managed = hasManagedWorldbookEntries(characterBook);
+  const target = managed ? issues : warnings;
+  target.push(issue(
+    "/data/extensions/world",
+    "character_book.binding",
+    managed
+      ? `Forge-managed CharacterBook entries require the primary lorebook binding ${expectedName}; found ${JSON.stringify(boundName ?? null)}`
+      : `Embedded CharacterBook ${expectedName} is not the character's primary lorebook; found ${JSON.stringify(boundName ?? null)}. This is valid only when the different or empty binding is intentional`,
+  ));
 }
 export function validatePayload(value, format = detectJsonFormat(value)) {
   const issues = [];
@@ -95,6 +143,7 @@ export function validatePayload(value, format = detectJsonFormat(value)) {
   if (isCharacterFormat(format)) {
     issues.push(...validateNamedSchema("character-card", value));
     validateCharacterRegexScripts(value, issues);
+    validateEmbeddedCharacterBookBinding(value, issues, warnings);
     return { format, issues, warnings };
   }
   if (format === Format.WORLDBOOK) {

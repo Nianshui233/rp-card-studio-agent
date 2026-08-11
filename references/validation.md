@@ -44,6 +44,7 @@
 - 运行时状态 Schema 与 storage、protocol、初始化 profiles、opening bindings 或字段账本不一致。（MVU/EJS、整合）
 - `assembly.yaml` 未登记、世界书/媒体 consumer 引用悬空、媒体回退成环，或关键远程媒体没有可用回退。（整合）
 - 独立世界书使用数组或非规范 UID 对象键，键与 `uid` 不一致，或把裸 CharacterBook 当作独立世界书导入。（整合）
+- Forge 管理的角色制品含有非空内嵌 CharacterBook，但没有按显式名称或 SillyTavern 回退名建立 `data.extensions.world` 绑定；或导入旧卡已有不同主世界书却未显式解决冲突。（整合）
 - 世界书使用宿主不执行的书级扫描/预算/递归值、非 `shared/model` 路由、`include` 回退，或把角色过滤写入内嵌 CharacterBook。（整合）
 - 运行时代码通过未登记远程脚本加载；远程媒体不在此禁令内，但必须登记到 `media_manifest` 并提供回退。（整合）
 - NSFW 未启用但产物仍含相关专用字段、分组、条件或模板占位。（所有投影）
@@ -104,6 +105,7 @@
 - 默认与覆盖初始化、变量更新、保存后重载和旧聊天迁移。
 - EJS 条目显隐、分支、回退及 plot/update 路由。
 - 角色正则授权后，状态栏在默认/备选开场及后续 AI 消息内部加载。变量取值另行记录：默认宏方案允许宿主回退到最近一条带变量的消息，不得据此宣称历史楼层快照隔离。
+- 启用 MVU 的角色制品在新建聊天的开场楼层立即产生预期 `stat_data`；若消息 iframe 已加载但变量为空，先核对角色主世界书绑定与 Tavern Helper 角色脚本启用状态，不能把空变量误判为状态栏渲染故障。
 - 纯 Regex 项目只验证消息内投影、静态布局、原生折叠、ARIA 标记和宿主原值显示；`missing_value`、`states.*`、命令、tabs、动态刷新与逐楼层快照不得顺带标记为通过。
 - Tavern Helper 消息级项目按实际实现验证完整/流式、缺失、加载、错误、依赖不可用、消息编辑/重新生成、加载历史和切换聊天；只有 iframe 脚本实际执行、`getCurrentMessageId()` 返回自身整数 ID，并由 `getVariables({ type: "message", message_id })` 反复读出该楼变量时才记录逐楼层快照通过。必须制造首读合法旧值、随后同楼提交新值的时序，确认新值出现且未读取 latest；读取失败不得以 latest 数据冒充成功。
 - 控制台错误、网络失败与宿主依赖状态。
@@ -183,6 +185,7 @@
 - 未提供显式覆盖参数时拒绝覆盖已有产物。
 - 中途失败不提交候选目录，也不留下半成品状态。
 - JSON、PNG 和世界书中的共享语义相同。
+- Forge 管理的角色制品内嵌 CharacterBook 含有条目时，JSON、PNG 负载和 roundtrip 候选中的 `data.extensions.world` 均严格等于固化后的非空 `data.character_book.name`；真实宿主中的同名书还包含本次构建的受管条目。
 - `assembly.yaml` 与生成世界书、媒体清单和 adapter 文件语义一致；`source_manifest.assembly` 指向实际装配源。
 - 独立世界书的对象键、数字 `uid` 和条目身份一致；条目级 `scan_depth` 在独立世界书映射为 `scanDepth`，在内嵌 CharacterBook 映射为 `extensions.scan_depth`，并保持 `0`、`null` 和 `1000` 的含义。
 - 独立世界书角色过滤的 `avatar_stems` 不带扩展名且大小写准确；`tag_ids` 有目标实例证据，不使用显示标签名。内嵌 CharacterBook 不携带该过滤器。

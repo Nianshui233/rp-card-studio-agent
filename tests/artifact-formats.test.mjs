@@ -80,6 +80,37 @@ function regexScript(overrides = {}) {
   };
 }
 
+function characterBook({ name = 'Embedded Test Lore', managed = true } = {}) {
+  return {
+    ...(name === null ? {} : { name }),
+    description: 'Host binding fixture.',
+    scan_depth: null,
+    token_budget: null,
+    recursive_scanning: false,
+    extensions: {},
+    entries: [{
+      id: 101,
+      keys: [],
+      secondary_keys: [],
+      comment: managed ? '[initvar] Managed fixture' : 'Portable fixture',
+      content: managed ? '<initvar>{"value":1}</initvar>' : 'Portable lore.',
+      constant: true,
+      selective: false,
+      insertion_order: 100,
+      enabled: false,
+      position: 'before_char',
+      extensions: managed ? {
+        rp_card_studio: {
+          generated: true,
+          kind: 'mvu_initvar',
+          source_id: 'mvu_initvar',
+          source_key: 'mvu:initvar',
+        },
+      } : {},
+    }],
+  };
+}
+
 function crc32(buffer) {
   let crc = 0xffffffff;
   for (const byte of buffer) {
@@ -302,4 +333,78 @@ test('artifact validation rejects duplicate scoped regex UUIDs', t => {
   const result = runForge(['validate', input]);
   assert.notEqual(result.status, 0);
   assert.match(result.output, /duplicate scoped regex UUID|regex\.id_duplicate/i);
+});
+
+test('artifact validation rejects missing or mismatched bindings for Forge-managed CharacterBooks', t => {
+  const root = tempRoot(t, 'managed-character-book-binding');
+  for (const version of [2, 3]) {
+    for (const [label, extensions] of [
+      ['missing', {}],
+      ['mismatch', { world: 'Different Lore' }],
+    ]) {
+      const input = path.join(root, `v${version}-${label}.json`);
+      writeJson(input, characterCard(version, `Managed V${version} ${label}`, {
+        extensions,
+        character_book: characterBook(),
+      }));
+      const result = runForge(['validate', input]);
+      assert.notEqual(result.status, 0, `V${version} ${label} binding was unexpectedly accepted`);
+      assert.match(result.output, /character_book\.binding|primary lorebook binding/i);
+    }
+
+    const matching = path.join(root, `v${version}-matching.json`);
+    writeJson(matching, characterCard(version, `Managed V${version} matching`, {
+      extensions: { world: 'Embedded Test Lore' },
+      character_book: characterBook(),
+    }));
+    runForge(['validate', matching], { expectSuccess: true });
+  }
+});
+
+test('unpack repairs a missing managed binding with SillyTavern fallback naming', t => {
+  const root = tempRoot(t, 'repair-managed-character-book-binding');
+  const input = path.join(root, 'broken.json');
+  writeJson(input, characterCard(3, 'Fallback Character', {
+    extensions: {},
+    character_book: characterBook({ name: null }),
+  }));
+  const project = path.join(root, 'repair-project');
+
+  const unpacked = runForge(['unpack', input, '--output', project, '--nsfw', 'disabled'], { expectSuccess: true });
+  assert.ok(unpacked.report?.warnings?.some(message => /primary lorebook binding/i.test(message)), unpacked.output);
+  runForge(['build', project], { expectSuccess: true });
+
+  const repaired = JSON.parse(readFileSync(path.join(project, 'dist', 'character-card.json'), 'utf8'));
+  assert.equal(repaired.data.character_book.name, "Fallback Character's Lorebook");
+  assert.equal(repaired.data.extensions.world, repaired.data.character_book.name);
+});
+
+test('project build blocks rather than overwrites a conflicting imported primary lorebook', t => {
+  const root = tempRoot(t, 'conflicting-imported-binding');
+  const input = path.join(root, 'conflict.json');
+  writeJson(input, characterCard(2, 'Conflict Character', {
+    extensions: { world: 'External Primary Lore' },
+    character_book: characterBook({ name: 'Embedded Portable Lore' }),
+  }));
+  const project = path.join(root, 'conflict-project');
+
+  runForge(['unpack', input, '--output', project, '--nsfw', 'disabled'], { expectSuccess: true });
+  const built = runForge(['build', project]);
+
+  assert.notEqual(built.status, 0, 'conflicting imported primary lorebook was silently overwritten');
+  assert.match(built.output, /character_book\.binding_conflict|Refusing to replace existing primary lorebook/i);
+});
+
+test('unmanaged embedded CharacterBook bindings remain compatible warnings', t => {
+  const root = tempRoot(t, 'portable-character-book');
+  const input = path.join(root, 'portable.json');
+  writeJson(input, characterCard(2, 'Portable Character', {
+    extensions: { world: 'External Primary Lore' },
+    character_book: characterBook({ name: 'Embedded Portable Lore', managed: false }),
+  }));
+
+  const result = runForge(['validate', input], { expectSuccess: true });
+
+  assert.equal(result.report?.data?.summary?.blockers, 0, result.output);
+  assert.ok(result.report?.data?.warnings?.some(candidate => candidate.rule === 'character_book.binding'), result.output);
 });

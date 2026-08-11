@@ -380,6 +380,22 @@ EJS 还需要在 `runtime_contract.dependencies` 登记宿主依赖，并把 `gl
 
 生成的适配器随角色卡或项目交付，不会临时引入未登记的 CDN 或远程脚本。兼容逻辑全部位于技能产物中，不会修改 SillyTavern 本体或已安装扩展。宿主依赖是否真的可用，仍需在你的 SillyTavern 中验证。
 
+### 为什么“卡里有世界书”还不够
+
+角色卡里的 `data.character_book` 代表“这张卡携带了一本内嵌世界书”，但 SillyTavern 实际把哪本书作为角色主世界书，读取的是 `data.extensions.world`。两者不是同一个开关，卡内嵌入也不等于宿主已经把内容导入为可用世界书。
+
+如果只装进 CharacterBook 条目，却没有把它绑定为角色主世界书，会出现一种很迷惑的半成功状态：角色正则能执行，消息里的状态栏 iframe 也能出现，但 MVU 在开场时找不到世界书中的 `[initvar]`，所以消息变量仍是空的，状态栏只能报告没有数据。
+
+Forge 现在会在最终装配中自动保证：
+
+```text
+data.extensions.world == data.character_book.name
+```
+
+无名 CharacterBook 会先按 SillyTavern 自身的规则固化为 `<角色名>'s Lorebook`。如果修改的旧卡已经绑定了另一本主世界书，Forge 会阻断并保留原值，等你明确决定使用哪一本；它不会为了通过校验而偷偷改掉旧卡语义。
+
+这个绑定只写入生成的角色卡，不会修改 SillyTavern 本体。首次把卡导入一个干净的 SillyTavern 时，还必须在提示中确认 **Import Card Lore**，宿主才会把内嵌条目保存为真实世界书。如果宿主已经存在同名世界书，SillyTavern 会直接使用旧文件并跳过导入提示；因此同名不等于同内容，验收必须打开该书核对 `[initvar]` 等受管条目。最后再允许该角色的局部正则，并确认 Tavern Helper 中随角色导入的脚本处于启用状态。
+
 ### 简单选择建议
 
 | 需求 | 建议 |

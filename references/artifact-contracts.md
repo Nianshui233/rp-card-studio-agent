@@ -133,7 +133,9 @@ project-workspace/
 
 ### MVU/EJS 与消息 UI 宿主投影
 
-- 角色卡构建按 `assembly -> MVU -> EJS -> Tavern Helper -> SillyTavern Regex` 的顺序投影。每一步只接收上一步的 payload，并把自己的 issues/warnings 合并到构建报告；不能用后续适配器掩盖前序契约错误。
+- 角色卡构建按 `assembly -> MVU -> EJS -> preserved imports -> CharacterBook binding -> Tavern Helper -> SillyTavern Regex` 的顺序投影。每一步只接收上一步的 payload，并把自己的 issues/warnings 合并到构建报告；不能用后续适配器掩盖前序契约错误。
+- Forge 生成或管理的非空内嵌 CharacterBook 必须成为角色主世界书。有显式书名时最终 payload 满足 `data.extensions.world === data.character_book.name`；无名书先固化为 SillyTavern 的 `<角色名>'s Lorebook` 回退名。Forge 在恢复保留字段后建立绑定；若导入旧卡已经指向另一主世界书，则保留原值并报 `character_book.binding_conflict` blocker，等待整合阶段明确解决。SillyTavern 只会从已导入且绑定的角色主世界书或全局世界书扫描 MVU 的 `[initvar]` 条目；仅嵌入 CharacterBook 时，即使消息正则和 iframe 正常运行，开场变量仍可能完全不初始化。
+- `data.extensions.world` 相等只证明“指向这个名字”，不证明卡内条目已经导入。干净宿主首次导入要确认 **Import Card Lore**；宿主已有同名书时会跳过提示并直接使用旧文件，所以真实验收还要核对目标世界书包含本制品的受管条目。
 - MVU 的内嵌适配器面向 Tavern Helper 的 `Mvu` API：有界等待 `waitGlobalInitialized("Mvu")`，读取 `getMvuData(options)`，并使用宿主的解析、校验和替换能力守护状态。必须先用 `eventOn` 订阅全部 `Mvu.events.*`，再读取当前快照补做 bootstrap，避免初始化事件已经发生后永远无法 ready；清理时把原始 `(event, handler)` 交给 `eventRemoveListener`。MVU 适配器不得退回 `getVariables()`、`globalThis.MVU` 或自造 MVU 事件名；消息状态栏 iframe 使用 `getVariables()` 是另一条只读投影链，不得与这里混用。
 - 当前内嵌 MVU 存储契约固定为 message 目标。`latest_message` 使用 `{ type: "message", message_id: "latest" }`；`current_message` 在宿主提供数字楼层上下文时使用该 ID，否则明确降级到 latest。初始化事件只在宿主事件对象内补缺省值，不二次调用 `replaceMvuData`；bootstrap 发现旧快照缺少默认字段时允许一次 `replaceMvuData` 持久化修复。非法更新按整批回滚。
 - 当前自动更新模式固定为 `same_generation`：同一条助手原始消息携带叙事与变量更新块，由宿主解析并提交。`extra_pass` 与 `both` 必须有独立请求触发、路由、响应解析、协议校验、原子提交、失败回退和真实宿主证据；缺少完整链路就阻断。单独存在解析或提交入口不构成自动 extra-pass 实现。

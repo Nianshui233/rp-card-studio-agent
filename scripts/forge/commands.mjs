@@ -163,6 +163,8 @@ async function commandUnpack(args, options) {
   exactArgs("unpack", args, 1);
   const artifact = await loadArtifact(args[0]);
   if (artifact.format === Format.PROJECT) throw unsupportedError("unpack 输入必须是 JSON 或 PNG 制品，不能是项目目录");
+  const repairableIssues = artifact.validation.issues.filter((candidate) => candidate.rule === "character_book.binding");
+  artifact.validation.issues = artifact.validation.issues.filter((candidate) => candidate.rule !== "character_book.binding");
   if (artifact.validation.issues.length > 0) {
     throw validationError("输入制品未通过结构校验", artifact.validation);
   }
@@ -231,7 +233,10 @@ async function commandUnpack(args, options) {
     preservedUnknownFields: preserved.entries.length,
     originalDigest: artifact.digest,
     dryRun: result.dryRun
-  }, [], result.changes);
+  }, [
+    ...artifact.validation.warnings,
+    ...repairableIssues,
+  ].map((candidate) => candidate.message), result.changes);
 }
 async function commandValidate(args, options) {
   exactArgs("validate", args, 1);

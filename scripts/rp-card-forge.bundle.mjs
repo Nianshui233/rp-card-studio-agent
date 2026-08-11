@@ -15188,11 +15188,52 @@ function formatSummary(value, format) {
   }
   return { format };
 }
+function worldbookEntries(book) {
+  if (!isPlainObject(book)) return [];
+  if (Array.isArray(book.entries)) return book.entries;
+  if (isPlainObject(book.entries)) return Object.values(book.entries);
+  return [];
+}
 function countWorldbookEntries(book) {
-  if (!isPlainObject(book)) return 0;
-  if (Array.isArray(book.entries)) return book.entries.length;
-  if (isPlainObject(book.entries)) return Object.keys(book.entries).length;
-  return 0;
+  return worldbookEntries(book).length;
+}
+function hasWorldbookEntries(book) {
+  return countWorldbookEntries(book) > 0;
+}
+function hasManagedWorldbookEntries(book) {
+  return worldbookEntries(book).some((entry) => isPlainObject(entry?.extensions?.rp_card_studio) && entry.extensions.rp_card_studio.generated === true);
+}
+function embeddedCharacterBookName(value) {
+  const explicitName = value?.data?.character_book?.name;
+  if (typeof explicitName === "string" && explicitName.trim().length > 0) return explicitName;
+  const characterName = value?.data?.name;
+  if (typeof characterName === "string" && characterName.trim().length > 0) {
+    return `${characterName}'s Lorebook`;
+  }
+  return null;
+}
+function validateEmbeddedCharacterBookBinding(value, issues, warnings) {
+  const characterBook = value?.data?.character_book;
+  if (!hasWorldbookEntries(characterBook)) return;
+  const expectedName = embeddedCharacterBookName(value);
+  const explicitName = characterBook?.name;
+  if (typeof explicitName !== "string" || explicitName.trim().length === 0) {
+    warnings.push(issue(
+      "/data/character_book/name",
+      "character_book.name_fallback",
+      expectedName ? `Embedded CharacterBook has no usable name; SillyTavern falls back to ${expectedName}` : "Embedded CharacterBook has no usable name and no character name is available for SillyTavern's fallback"
+    ));
+  }
+  if (!expectedName) return;
+  const boundName = value?.data?.extensions?.world;
+  if (boundName === expectedName) return;
+  const managed = hasManagedWorldbookEntries(characterBook);
+  const target = managed ? issues : warnings;
+  target.push(issue(
+    "/data/extensions/world",
+    "character_book.binding",
+    managed ? `Forge-managed CharacterBook entries require the primary lorebook binding ${expectedName}; found ${JSON.stringify(boundName ?? null)}` : `Embedded CharacterBook ${expectedName} is not the character's primary lorebook; found ${JSON.stringify(boundName ?? null)}. This is valid only when the different or empty binding is intentional`
+  ));
 }
 function validatePayload(value, format = detectJsonFormat(value)) {
   const issues = [];
@@ -15200,6 +15241,7 @@ function validatePayload(value, format = detectJsonFormat(value)) {
   if (isCharacterFormat(format)) {
     issues.push(...validateNamedSchema("character-card", value));
     validateCharacterRegexScripts(value, issues);
+    validateEmbeddedCharacterBookBinding(value, issues, warnings);
     return { format, issues, warnings };
   }
   if (format === Format.WORLDBOOK) {
@@ -15953,7 +15995,8 @@ async function loadProjectSource(loaded) {
   const preservedPath = relativePreserved ? resolveWithin(loaded.projectRoot, relativePreserved) : null;
   const preserved = preservedPath && await pathExists(preservedPath) ? await readJson(preservedPath) : null;
   const restored = applyPreserved(ejsTemplates.payload, preserved);
-  const adapted = applyTavernHelperAdapter(restored.payload, {
+  const worldbookBound = bindEmbeddedCharacterBook(restored.payload, { target });
+  const adapted = applyTavernHelperAdapter(worldbookBound.payload, {
     project: loaded.project,
     sources,
     target
@@ -15972,6 +16015,7 @@ async function loadProjectSource(loaded) {
     ...assembled.issues,
     ...mvuArtifacts.issues,
     ...ejsTemplates.issues,
+    ...worldbookBound.issues,
     ...adapted.issues,
     ...regexAdapted.issues
   );
@@ -15979,6 +16023,7 @@ async function loadProjectSource(loaded) {
     ...assembled.warnings ?? [],
     ...mvuArtifacts.warnings ?? [],
     ...ejsTemplates.warnings ?? [],
+    ...worldbookBound.warnings ?? [],
     ...adapted.warnings ?? [],
     ...regexAdapted.warnings ?? []
   );
@@ -16394,6 +16439,38 @@ function applyPreserved(payload, preserved) {
   }
   return { payload: clone, restoredPaths };
 }
+function bindEmbeddedCharacterBook(payload, { target }) {
+  const clone = structuredClone(payload);
+  const issues = [];
+  const warnings = [];
+  if (target !== "character") return { payload: clone, issues, warnings };
+  const characterBook = clone.data?.character_book;
+  if (!hasWorldbookEntries(characterBook)) return { payload: clone, issues, warnings };
+  const explicitName = characterBook.name;
+  const characterName = clone.data?.name;
+  const bookName = typeof explicitName === "string" && explicitName.trim().length > 0 ? explicitName : typeof characterName === "string" && characterName.trim().length > 0 ? `${characterName}'s Lorebook` : null;
+  if (!bookName) {
+    issues.push(issue(
+      "/data/character_book/name",
+      "character_book.binding",
+      "An embedded CharacterBook requires either a usable book name or a character name for SillyTavern's fallback"
+    ));
+    return { payload: clone, issues, warnings };
+  }
+  characterBook.name = bookName;
+  clone.data.extensions = isPlainObject(clone.data.extensions) ? clone.data.extensions : {};
+  const existingWorld = clone.data.extensions.world;
+  if (typeof existingWorld === "string" && existingWorld.length > 0 && existingWorld !== bookName) {
+    issues.push(issue(
+      "/data/extensions/world",
+      "character_book.binding_conflict",
+      `Refusing to replace existing primary lorebook ${JSON.stringify(existingWorld)} with embedded CharacterBook ${JSON.stringify(bookName)}; resolve the imported-card binding explicitly`
+    ));
+    return { payload: clone, issues, warnings };
+  }
+  clone.data.extensions.world = bookName;
+  return { payload: clone, issues, warnings };
+}
 function lockHash(value) {
   return sha256(JSON.stringify(stableJson(value)));
 }
@@ -16671,6 +16748,8 @@ async function commandUnpack(args, options) {
   exactArgs("unpack", args, 1);
   const artifact = await loadArtifact(args[0]);
   if (artifact.format === Format.PROJECT) throw unsupportedError("unpack \u8F93\u5165\u5FC5\u987B\u662F JSON \u6216 PNG \u5236\u54C1\uFF0C\u4E0D\u80FD\u662F\u9879\u76EE\u76EE\u5F55");
+  const repairableIssues = artifact.validation.issues.filter((candidate) => candidate.rule === "character_book.binding");
+  artifact.validation.issues = artifact.validation.issues.filter((candidate) => candidate.rule !== "character_book.binding");
   if (artifact.validation.issues.length > 0) {
     throw validationError("\u8F93\u5165\u5236\u54C1\u672A\u901A\u8FC7\u7ED3\u6784\u6821\u9A8C", artifact.validation);
   }
@@ -16739,7 +16818,10 @@ async function commandUnpack(args, options) {
     preservedUnknownFields: preserved.entries.length,
     originalDigest: artifact.digest,
     dryRun: result.dryRun
-  }, [], result.changes);
+  }, [
+    ...artifact.validation.warnings,
+    ...repairableIssues
+  ].map((candidate) => candidate.message), result.changes);
 }
 async function commandValidate(args, options) {
   exactArgs("validate", args, 1);

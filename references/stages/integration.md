@@ -121,6 +121,7 @@ media_manifest:
 ### 世界书
 
 - 读取前序阶段给出的稳定内容 ID 和可见性，不在这里扩写内容语义。
+- Forge 生成或管理的内嵌 CharacterBook 只要含有条目，就必须绑定为角色主世界书。有名书写入同名的 `data.extensions.world`；无名书先按 SillyTavern 的 `<角色名>'s Lorebook` 规则固化名称。导入旧卡已有不同主世界书时保留原值并阻断，当前阶段必须明确选择，不得静默覆盖。不能把“条目已嵌入”当作“宿主已导入并加载”。
 - 在 `worldbook_manifest.entries[]` 中决定 `activation`、`insertion`、条目级 `scan_depth`、`probability`、`recursion` 与 `fallback`。当前 SillyTavern 原生路径固定使用 `recipient: shared` 和 `visibility: model`；其他路由或隔离语义需要另有已验证的外部 router，Forge 默认阻断，不能把它们当作普通选项询问。
 - `worldbook_manifest.scan_depth`、`token_budget` 与 `recursive_scanning` 只保留宿主默认值 `null`、`null`、`false`。当前宿主实际读取全局世界书设置；扫描范围需要逐条控制时使用 `entries[].scan_depth`，范围为 `0..1000`，其中 `0` 是真实的零深度，只有 `null` 表示继承全局。
 - `fallback` 只允许 `skip` 或 `block`。`skip` 会在来源缺失时跳过并报告警告，`block` 会终止构建；不要写 `include`，因为没有可确定注入的替代内容。
@@ -139,7 +140,7 @@ media_manifest:
 
 ### 适配器
 
-- 角色卡 payload 按固定顺序处理：先应用 `assembly.yaml`，再生成 MVU CharacterBook 条目，再生成 EJS CharacterBook 条目，再生成必要的 Tavern Helper 运行时脚本，最后合并 SillyTavern 角色正则。后一步不得覆盖或重新解释前一步的语义。
+- 角色卡 payload 按固定顺序处理：先应用 `assembly.yaml`，再生成 MVU CharacterBook 条目，再生成 EJS CharacterBook 条目，恢复保留字段后把非空内嵌 CharacterBook 绑定为角色主世界书，再生成必要的 Tavern Helper 运行时脚本，最后合并 SillyTavern 角色正则。后一步不得覆盖或重新解释前一步的语义。
 - 从已锁定的 `runtime_contract.adapter`、开场呈现需求和 `status_ui.delivery` 生成实际 adapter 文件，不在整合阶段重设它们的功能语义或视觉设计。
 - 生成前建立 adapter ID、entrypoint、artifact、角色正则 UUID、消息占位符和宿主依赖表；任何 ID、路径、正则或占位符碰撞都先阻断并路由到责任契约。
 - EJS 依赖 `ST-Prompt-Template 1.17.6.8`，动态条目留在 `data.character_book.entries[]`；MVU 运行时桥接脚本进入 `data.extensions.tavern_helper.scripts`，消息状态栏进入 `data.extensions.regex_scripts`。
@@ -164,6 +165,7 @@ media_manifest:
 
 - 语法、Schema、ID、引用、字段生命周期、可见性和占位符检查通过。
 - 目标 JSON 可重新读取，PNG 负载可提取，世界书条目顺序稳定。
+- Forge 管理的角色制品含内嵌 CharacterBook 条目时，JSON、PNG 内负载和 roundtrip 候选均满足 `data.extensions.world === data.character_book.name`，且名称非空；首次宿主导入已确认 **Import Card Lore**，目标世界书中能找到本次构建的受管条目。同名旧书必须核对内容，不能只凭名字判通过。
 - `unpack -> build` 往返不会丢失已知或未知字段。
 - 每个产物记录来源修订、构建参数、哈希和验证结果。
 - 阻断项为零；警告都有处置记录。

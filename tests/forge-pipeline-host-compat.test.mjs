@@ -114,6 +114,7 @@ const assemblySource = `
 schema_version: 1.0.0
 status: locked
 worldbook_manifest:
+  display_name: Pipeline Worldbook
   entries:
     - id: pipeline_guide
       source:
@@ -268,6 +269,31 @@ test('Forge build carries Assembly, MVU artifacts, and Tavern Helper guard throu
   assert.equal(entries.some(entry => /\[(?:GENERATE|RENDER)\]/.test(entry.comment)), false, 'MVU-only build emitted EJS entries');
 });
 
+test('Forge binds an embedded MVU worldbook for SillyTavern build and roundtrip artifacts', t => {
+  const root = createProject(t, 'mvu-worldbook-binding');
+  updateProject(root, {
+    features: { mvu: true },
+    sources: {
+      mvu: ['src/mvu/runtime.yaml'],
+      assembly: ['src/integration/assembly.yaml'],
+    },
+  });
+  write(root, 'src/mvu/runtime.yaml', mvuSource);
+  write(root, 'src/integration/assembly.yaml', assemblySource);
+
+  runForge(['build', root], { expectSuccess: true });
+  const card = builtCard(root);
+  const candidatePath = path.join(root, 'roundtrip-candidate.json');
+  const roundtrip = runForge(['roundtrip', root, '--output', candidatePath], { expectSuccess: true });
+  const candidate = JSON.parse(readTextFile(candidatePath, 'utf8'));
+
+  assert.equal(card.data?.character_book?.name, 'Pipeline Worldbook');
+  assert.equal(card.data?.extensions?.world, card.data.character_book.name);
+  assert.equal(roundtrip.report?.data?.equal, true);
+  assert.equal(candidate.data?.character_book?.name, 'Pipeline Worldbook');
+  assert.equal(candidate.data?.extensions?.world, candidate.data.character_book.name);
+});
+
 test('Forge build omits optional MVU, EJS, and adapter artifacts when no runtime stage is enabled', t => {
   const root = createProject(t, 'none');
 
@@ -318,6 +344,7 @@ test('Forge source locks the character pipeline order through Tavern Helper and 
     'applyMvuArtifacts',
     'applyEjsTemplates',
     'applyPreserved',
+    'bindEmbeddedCharacterBook',
     'applyTavernHelperAdapter',
     'applySillyTavernRegexAdapter',
   ];

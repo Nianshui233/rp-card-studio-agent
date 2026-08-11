@@ -17,7 +17,7 @@ import {
   resolveWithin,
   withProjectLock,
 } from './fs-transaction.mjs';
-import { detectJsonFormat, Format, isCharacterFormat, issue, validatePayload } from './formats.mjs';
+import { detectJsonFormat, Format, hasWorldbookEntries, isCharacterFormat, issue, validatePayload } from './formats.mjs';
 import {
   isPlainObject,
   prettyJson,
@@ -612,7 +612,8 @@ export async function loadProjectSource(loaded) {
   const preservedPath = relativePreserved ? resolveWithin(loaded.projectRoot, relativePreserved) : null;
   const preserved = preservedPath && await pathExists(preservedPath) ? await readJson(preservedPath) : null;
   const restored = applyPreserved(ejsTemplates.payload, preserved);
-  const adapted = applyTavernHelperAdapter(restored.payload, {
+  const worldbookBound = bindEmbeddedCharacterBook(restored.payload, { target });
+  const adapted = applyTavernHelperAdapter(worldbookBound.payload, {
     project: loaded.project,
     sources,
     target
@@ -631,6 +632,7 @@ export async function loadProjectSource(loaded) {
     ...assembled.issues,
     ...mvuArtifacts.issues,
     ...ejsTemplates.issues,
+    ...worldbookBound.issues,
     ...adapted.issues,
     ...regexAdapted.issues,
   );
@@ -638,6 +640,7 @@ export async function loadProjectSource(loaded) {
     ...(assembled.warnings ?? []),
     ...(mvuArtifacts.warnings ?? []),
     ...(ejsTemplates.warnings ?? []),
+    ...(worldbookBound.warnings ?? []),
     ...(adapted.warnings ?? []),
     ...(regexAdapted.warnings ?? []),
   );
@@ -1056,6 +1059,42 @@ function applyPreserved(payload, preserved) {
     }
   }
   return { payload: clone, restoredPaths };
+}
+function bindEmbeddedCharacterBook(payload, { target }) {
+  const clone = structuredClone(payload);
+  const issues = [];
+  const warnings = [];
+  if (target !== "character") return { payload: clone, issues, warnings };
+  const characterBook = clone.data?.character_book;
+  if (!hasWorldbookEntries(characterBook)) return { payload: clone, issues, warnings };
+  const explicitName = characterBook.name;
+  const characterName = clone.data?.name;
+  const bookName = typeof explicitName === "string" && explicitName.trim().length > 0
+    ? explicitName
+    : typeof characterName === "string" && characterName.trim().length > 0
+      ? `${characterName}'s Lorebook`
+      : null;
+  if (!bookName) {
+    issues.push(issue(
+      "/data/character_book/name",
+      "character_book.binding",
+      "An embedded CharacterBook requires either a usable book name or a character name for SillyTavern's fallback",
+    ));
+    return { payload: clone, issues, warnings };
+  }
+  characterBook.name = bookName;
+  clone.data.extensions = isPlainObject(clone.data.extensions) ? clone.data.extensions : {};
+  const existingWorld = clone.data.extensions.world;
+  if (typeof existingWorld === "string" && existingWorld.length > 0 && existingWorld !== bookName) {
+    issues.push(issue(
+      "/data/extensions/world",
+      "character_book.binding_conflict",
+      `Refusing to replace existing primary lorebook ${JSON.stringify(existingWorld)} with embedded CharacterBook ${JSON.stringify(bookName)}; resolve the imported-card binding explicitly`,
+    ));
+    return { payload: clone, issues, warnings };
+  }
+  clone.data.extensions.world = bookName;
+  return { payload: clone, issues, warnings };
 }
 function lockHash(value) {
   return sha256(JSON.stringify(stableJson(value)));
