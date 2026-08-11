@@ -841,7 +841,9 @@ hostWindow.document.getElementById("form_sheld");`,
   const firstBuild = JSON.parse(readFileSync(outputPath, 'utf8'));
   assert.deepEqual(firstBuild.data.extensions.regex_scripts.slice(0, 2), userRegex);
   assert.deepEqual(firstBuild.data.extensions.regex_scripts.slice(2).map(script => script.id), [
+    '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d05',
     '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d01',
+    '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d06',
     '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d02',
     '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d03',
   ]);

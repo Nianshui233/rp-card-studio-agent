@@ -28,7 +28,9 @@ status_ui:
     live_updates: polite
     color_independent: true
   dependencies: []
-  # Embedded regex is always read-only, on_message, command-free, and non-tabbed.
-  # Dynamic refresh, commands, tabs, or per-message snapshots require
-  # adapter: tavern_helper_message with level: host_required.
+  # A generated self-contained message iframe uses level: host_required,
+  # adapter: tavern_helper_message, entrypoint: generated, artifact: inline.
+  # Generated inline delivery is read-only, on_message, command-free, and
+  # non-tabbed. A separately implemented host specification must instead use
+  # entrypoint: host_managed and artifact: host_managed.
   delivery: null

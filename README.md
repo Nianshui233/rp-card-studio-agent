@@ -327,6 +327,10 @@ NSFW 只在项目预检时确认一次。
 
 如果你的卡没有需要稳定维护的运行时状态，可以跳过。
 
+当前 Forge 真正实现的是 `same_generation`：角色在一次回复中同时给出叙事和变量更新块，MVU 从这条原始消息解析并提交。它不会自动再请求一次“更新模型”。配置里的 `writer.kind: update_model` 只是说明字段由哪个逻辑角色负责，不等于已经存在第二次 API 请求。
+
+`extra_pass` 和 `both` 只有在项目确实实现了独立请求触发、提示词/接收者路由、响应解析、协议校验、原子提交、失败回退和真实宿主测试整条链时才成立。当前技能没有这条独立请求链，因此新项目默认并只允许 `same_generation`；旧项目声明另外两种模式会被阻断，而不会因为存在一个可手工调用的解析/提交函数就假装可用。
+
 ### EJS
 
 EJS 负责根据已有状态选择内容，例如：
@@ -370,7 +374,7 @@ EJS 还需要在 `runtime_contract.dependencies` 登记宿主依赖，并把 `gl
 
 ### Tavern Helper 适配器
 
-它是可选的 MVU 宿主桥接层。只有项目明确选择内嵌交付并满足契约时，Forge 才会生成 Runtime Guard；它会有界等待 `Mvu`、先订阅公开的 `Mvu.events.*`，再用现有快照补做初始化。所有路径都不会读取 `globalThis.stat_data`、调用 `getVariables()` 或猜测 `globalThis.MVU`。EJS 条目本身仍留在 CharacterBook 中。
+它是可选的 MVU 宿主桥接层。只有项目明确选择内嵌交付并满足契约时，Forge 才会生成 Runtime Guard；它会有界等待 `Mvu`、先订阅公开的 `Mvu.events.*`，再用现有快照补做初始化。MVU Runtime Guard 不会读取 `globalThis.stat_data`、调用 `getVariables()` 或猜测 `globalThis.MVU`。消息状态栏 iframe 是另一条只读链路，会使用 Tavern Helper 的 `getVariables()` 读取自己的消息快照；EJS 条目本身仍留在 CharacterBook 中。
 
 消息状态栏只有两条交付路径：普通文字或 HTML 使用 SillyTavern 角色正则，复杂交互使用 Tavern Helper 消息级 JS/iframe。两者都把状态栏留在产生它的 AI 消息中。
 
@@ -384,8 +388,8 @@ EJS 还需要在 `runtime_contract.dependencies` 登记宿主依赖，并把 `gl
 | 需要稳定维护关系值、资源或阶段 | 使用 MVU |
 | 需要根据状态切换条目或文本 | 使用 EJS |
 | 两种需求都有 | MVU + EJS |
-| 需要消息内文字或 HTML 状态栏 | 使用 SillyTavern 角色正则 |
-| 状态栏需要复杂消息级交互 | 再评估 Tavern Helper 消息 JS/iframe |
+| 需要消息内文字或简单静态 HTML 状态栏 | 使用 SillyTavern 角色正则直接投影 |
+| 状态栏需要动态逻辑、复杂交互或可靠逐楼快照 | 使用 Tavern Helper 消息 iframe |
 | MVU 需要宿主事件桥接 | 再评估 Tavern Helper Runtime Guard |
 
 你不需要在项目首轮决定这些。到达 MVU/EJS 阶段前，只需要选择“进入”还是“跳过”。
@@ -563,25 +567,27 @@ node $forge roundtrip "D:\AI\RP创作\项目\夜班列车"
 
 ### 状态栏/UI
 
-状态栏固定显示在 AI 聊天消息内部。大多数项目采用下面这条链路：
+状态栏固定显示在 AI 聊天消息内部。简单静态状态栏采用下面这条链路：
 
 ```text
 AI 原始消息末尾的 <StatusPlaceHolderImpl/>
         ↓ SillyTavern 角色正则（AI_OUTPUT + Markdown）
-当前楼层的文字或自包含 HTML 状态栏
+消息内文字或简单静态 HTML 状态栏
         ↓ Tavern Helper 消息变量宏
 显示宿主当前可解析的 stat_data
 ```
 
 Forge 会为默认开场和每个备选开场各追加一次占位符，并给后续助手回复加入“末尾恰好一次”的合同。状态栏正则写入角色卡的 `data.extensions.regex_scripts`，不会修改聊天原文；消息重新渲染时，SillyTavern 会重新执行它。
 
-这里要区分“显示位置”和“变量快照”：角色正则能保证状态栏位于各条 AI 消息中，但当前验证的 Tavern Helper 4.9.1 在普通 DOM 宏重绘时没有传入该楼层的 `message_id`，会回退到最近一条带变量的消息。因此默认正则方案不承诺重载历史后仍显示各楼层旧快照。项目确实需要逐楼层历史状态时，必须改用能从自身 iframe 取得数字楼层 ID 的 Tavern Helper 消息级实现，并在真实宿主中验证后才能标记通过。
+这里要区分“显示位置”和“变量快照”：角色正则能保证状态栏位于各条 AI 消息中，但当前验证的 Tavern Helper 4.9.1 在普通 DOM 宏重绘时没有传入该楼层的 `message_id`，会回退到最近一条带变量的消息。因此默认正则方案不承诺重载历史后仍显示各楼层旧快照，也不适合复杂运行时逻辑。
 
 纯角色正则的能力边界是固定的：`refresh: on_message`、`read_only: true`、`commands: []`，响应式布局不能使用 tabs。它可以生成消息内文字/HTML、原生折叠、静态响应式布局和无障碍标记；`percent` 只是在上游值必有且已经是 0..100 时追加 `%`。`missing_value`、`loading/empty/error/degraded` 在这条路径中只是设计文案，正则无法在 Tavern Helper 展开宏之后判断并切换这些状态，也不能保证历史逐楼层快照。
 
-只要项目需要动态刷新、命令、tabs、条件缺失值、运行时错误/加载态、精确数值格式化或可靠逐楼层历史，就必须选择 `adapter: tavern_helper_message` 与 `level: host_required`。该实现仍位于消息自己的 iframe；没有生成并在真实宿主验收前，只能记录为规格或 `not_run`，不能写成 `embedded` 或 `runtime: pass`。
+只要项目需要动态刷新、命令、tabs、条件缺失值、运行时错误/加载态、精确数值格式化或可靠逐楼层历史，就必须选择 `adapter: tavern_helper_message` 与 `level: host_required`。这条路径仍由角色正则消费占位符，但替换结果是完整、自包含的 fenced HTML；Tavern Helper 把它变成该消息自己的 iframe。HTML、CSS、脚本和错误文案都随卡交付，不访问父页面、不创建页面常驻面板，也不加载远程 UI。
 
-启用 MVU 时还会生成三条配套规则：一条只处理送给模型的历史副本，移除完整或未闭合的变量更新块；两条只处理玩家看到的 Markdown，把流式和完整更新折叠起来。原始更新块仍留在聊天记录中供 MVU 解析。
+消息 iframe 必须调用 `getCurrentMessageId()`，并且只有 `Number.isInteger(message_id)` 为真时才调用 `getVariables({ type: "message", message_id })`。新楼第一次读到的合法 `stat_data` 可能仍是继承自上一楼的旧快照，因此不能在首次成功后停止；Forge 会先快速获取，再默认每 2 秒低频复查同一个整数楼层，只在可见值变化时重绘，并在 `pagehide`/`unload` 清理计时器。拿不到整数 ID 时会在当前消息内显示明确错误并停止；初次读取持续失败时有界重试后显示错误。已经显示合法状态后遇到暂时读取失败，则保留最近合法值并继续低频复查。所有路径都不会改读 `"latest"`，因为 latest 会让旧楼层在重载后串到新状态。没有生成并在真实宿主验收前，这项能力只能记录为规格或 `not_run`，不能写成 `embedded` 或 `runtime: pass`。
+
+启用 MVU 时还会生成五条配套规则。两条分别从送模副本和玩家显示副本中隐藏完整 `<initvar>...</initvar>`；一条只从送模历史副本移除完整或未闭合的变量更新块；两条只处理玩家看到的 Markdown，把流式和完整更新折叠起来。初始化隐藏规则只接受成对闭合的完整块，不能吞掉未闭合正文。原始初始化块和更新块都留在聊天记录中供 MVU 使用。
 
 角色内嵌正则第一次运行时，SillyTavern 会弹出授权确认。这是正常的安全机制，技能不会绕过。未授权时卡片正文仍可阅读，但消息状态栏和更新折叠不会生效。
 
@@ -593,7 +599,7 @@ UI 的**交付形态**由 `delivery.level` 表示：
 | `embedded` | 生成并内嵌随卡交付的消息角色正则 |
 | `host_required` | 需要消息级 Tavern Helper JS/iframe 与目标宿主验证；未验收能力不能标记通过 |
 
-`delivery.surface` 固定为 `message`。即使已经生成 `embedded` 制品，也只能证明正则和占位符存在；只有在目标 SillyTavern 中完成正则授权，并实际检查默认/备选开场、连续两条消息、历史重载后的变量取值、流式更新、重新生成、切聊和移动端显示，才能形成 `runtime` 证据。报告必须区分“状态栏仍在各消息内”“静态标记已经生成”和“动态状态或各自历史快照已经实测”。
+`delivery.surface` 固定为 `message`。即使已经生成 `embedded` 制品，也只能证明正则和占位符存在；只有在目标 SillyTavern 中完成正则授权，并实际检查默认/备选开场、连续两条消息、历史重载后的变量取值、流式更新、重新生成、切聊和移动端显示，才能形成 `runtime` 证据。消息 iframe 还必须证明子文档确实导航、脚本哨兵出现、当前楼 ID 是整数且读取了各自快照。若 iframe 元素和 Blob 内容存在，但当前内置浏览器没有执行 Blob URL 导航，结果应记为 `runtime: not_run`、原因 `host_incompatible`，不能算通过。报告必须区分“状态栏仍在各消息内”“静态标记已经生成”和“动态状态或各自历史快照已经实测”。
 
 ## 三类验证证据
 
@@ -709,6 +715,8 @@ NSFW：不启用
 ### 为什么验证通过后仍显示 `runtime: not_run`？
 
 因为离线工具不能代替真实 SillyTavern。你还需要在目标环境中检查导入、新聊天、变量更新、开场分支、状态栏刷新、消息级清理、依赖不可用时的实际行为和移动端显示；纯 Regex 没有实现的动态状态不能列为已通过。
+
+消息 iframe 也不能只看“页面里出现了 iframe 元素”。验收会确认子文档真的导航并执行脚本；如果 Blob URL 在当前内置浏览器中不导航，即使 Blob 内容可以读取，也会准确记录为 `runtime: not_run`、`host_incompatible`，而不是把没有运行的 UI 判为成功。
 
 ### 技能为什么不会被自然语言误触？
 

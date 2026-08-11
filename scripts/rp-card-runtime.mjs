@@ -705,9 +705,10 @@ function uiTypeCompatible(format, type) {
 
 function completeUiDelivery(ui) {
   const delivery = ui.delivery;
+  const supportedAdapter = (delivery?.level === "embedded" && delivery?.adapter === "sillytavern_regex")
+    || (delivery?.level === "host_required" && delivery?.adapter === "tavern_helper_message");
   return isObject(delivery)
-    && delivery.level === "embedded"
-    && delivery.adapter === "sillytavern_regex"
+    && supportedAdapter
     && delivery.surface === "message"
     && delivery.entrypoint === "generated"
     && delivery.artifact === "inline"
@@ -721,20 +722,32 @@ function validateUi(uiSources, bySource, project, issues, warnings) {
   }
   const runnable = uiSources.filter((source) => source.status_ui?.enabled
     && ["text", "embedded", "both"].includes(source.status_ui.mode)
-    && source.status_ui.delivery?.level === "embedded");
+    && completeUiDelivery(source.status_ui));
   if (runnable.length > 1) {
-    issues.push(issue("/runtime/ui", "ui.delivery.collision", "Exactly one embedded status UI may own the message projection"));
+    issues.push(issue("/runtime/ui", "ui.delivery.collision", "Exactly one generated status UI may own the message projection"));
   }
   for (const [sourceIndex, source] of uiSources.entries()) {
     const ui = source.status_ui;
     if (!ui?.enabled) continue;
     const enabledMode = ["text", "embedded", "both"].includes(ui.mode);
-    if (enabledMode && ui.delivery?.level === "embedded" && !completeUiDelivery(ui)) {
-      issues.push(issue(`/runtime/ui/${sourceIndex}/status_ui/delivery`, "ui.runtime_missing", "Embedded UI requires a complete SillyTavern message-regex delivery contract"));
+    const generatedRequested = ui.delivery?.level === "embedded"
+      || ui.delivery?.entrypoint === "generated"
+      || ui.delivery?.artifact === "inline";
+    if (enabledMode && generatedRequested && !completeUiDelivery(ui)) {
+      issues.push(issue(`/runtime/ui/${sourceIndex}/status_ui/delivery`, "ui.runtime_missing", "Generated UI requires a complete supported message delivery contract"));
     } else if (enabledMode && !isObject(ui.delivery)) {
       issues.push(issue(`/runtime/ui/${sourceIndex}/status_ui/delivery`, "ui.runtime_missing", "Enabled UI requires a message delivery contract"));
     } else if (enabledMode && ui.delivery?.level !== "embedded") {
-      warnings.push(issue(`/runtime/ui/${sourceIndex}/status_ui/delivery/level`, "ui.runtime_not_run", `UI delivery level ${ui.delivery?.level} is a specification or host dependency, not an embedded runtime artifact`));
+      const message = completeUiDelivery(ui)
+        ? "The message iframe is generated, but its Tavern Helper host runtime has not been verified by offline validation"
+        : `UI delivery level ${ui.delivery?.level} is a specification or unverified host dependency`;
+      warnings.push(issue(`/runtime/ui/${sourceIndex}/status_ui/delivery/level`, "ui.runtime_not_run", message));
+    }
+    const boundUiPaths = new Set((ui.sections ?? []).flatMap((section) => (section.fields ?? []).map((field) => field.source_path)));
+    for (const match of String(ui.text_template ?? "").matchAll(/\{\{\s*([A-Za-z_][A-Za-z0-9_-]*(?:\.[A-Za-z_][A-Za-z0-9_-]*)*)\s*\}\}/g)) {
+      if (!boundUiPaths.has(match[1])) {
+        issues.push(issue(`/runtime/ui/${sourceIndex}/status_ui/text_template`, "ui.summary_path", `Status summary path must also be a player-visible UI field: ${match[1]}`));
+      }
     }
     for (const [sectionIndex, section] of (ui.sections ?? []).entries()) {
       for (const [fieldIndex, field] of (section.fields ?? []).entries()) {
@@ -750,9 +763,13 @@ function validateUi(uiSources, bySource, project, issues, warnings) {
       }
     }
     const writerIds = new Set([...bySource.values()].map((variable) => variable.writer?.id).filter(Boolean));
-    if (ui.delivery?.level === "embedded" && ui.delivery?.adapter === "sillytavern_regex"
+    if (completeUiDelivery(ui)
       && (ui.read_only !== true || (ui.commands ?? []).length > 0)) {
-      issues.push(issue(`/runtime/ui/${sourceIndex}/status_ui/commands`, "ui.command", "The embedded SillyTavern regex status projection is read-only; use a message-level host adapter for commands"));
+      issues.push(issue(`/runtime/ui/${sourceIndex}/status_ui/commands`, "ui.command", "The generated status projection is read-only; command execution requires a separately implemented message runtime"));
+    }
+    if (completeUiDelivery(ui) && (ui.refresh !== "on_message"
+      || ui.responsive?.narrow === "tabs" || ui.responsive?.wide === "tabs")) {
+      issues.push(issue(`/runtime/ui/${sourceIndex}/status_ui/delivery`, "ui.runtime_unimplemented", "The generated status projection currently supports on_message refresh without tabs"));
     }
     if (ui.read_only && (ui.commands ?? []).length > 0) {
       issues.push(issue(`/runtime/ui/${sourceIndex}/status_ui/commands`, "ui.command", "A read-only status UI cannot expose write commands"));
@@ -798,23 +815,20 @@ function validateRuntimeDeliveries(mvuSources, uiSources, issues) {
     const ui = source.status_ui;
     if (!ui?.enabled || !["text", "embedded", "both"].includes(ui.mode) || !ui.delivery) continue;
     const base = `/runtime/ui/${sourceIndex}/status_ui/delivery`;
-    if (ui.delivery.level === "embedded") {
+    if (completeUiDelivery(ui)) {
       register(entrypoints, ui.delivery.entrypoint, `${base}/entrypoint`, "Adapter entrypoint");
       register(artifacts, ui.delivery.artifact, `${base}/artifact`, "Adapter artifact");
-      if (ui.delivery.adapter !== "sillytavern_regex") {
-        issues.push(issue(base, "adapter.unsupported", `No embedded UI adapter generator is registered for: ${ui.delivery.adapter}`));
-      }
       if (ui.delivery.entrypoint !== "generated") {
-        issues.push(issue(`${base}/entrypoint`, "adapter.artifact", "Embedded status UI entrypoint must be generated"));
+        issues.push(issue(`${base}/entrypoint`, "adapter.artifact", "Generated status UI entrypoint must be generated"));
       }
       if (ui.delivery.artifact !== "inline") {
-        issues.push(issue(`${base}/artifact`, "adapter.artifact", "Embedded status UI artifact must be inline"));
+        issues.push(issue(`${base}/artifact`, "adapter.artifact", "Generated status UI artifact must be inline"));
       }
       if (ui.delivery.surface !== "message") {
-        issues.push(issue(`${base}/surface`, "adapter.surface", "Embedded status UI must project into each assistant message"));
+        issues.push(issue(`${base}/surface`, "adapter.surface", "Generated status UI must project into each assistant message"));
       }
       if (ui.delivery.placeholder !== "<StatusPlaceHolderImpl/>") {
-        issues.push(issue(`${base}/placeholder`, "adapter.placeholder", "Embedded status UI must use <StatusPlaceHolderImpl/>"));
+        issues.push(issue(`${base}/placeholder`, "adapter.placeholder", "Generated status UI must use <StatusPlaceHolderImpl/>"));
       }
     }
   }
@@ -825,6 +839,12 @@ function validateHostRuntimeContracts(mvuSources, issues) {
     const base = `/runtime/mvu/${sourceIndex}`;
     const mvu = source.mvu;
     const adapter = source.runtime_contract?.adapter;
+    if (mvu?.enabled && mvu.update_mode !== "same_generation") {
+      issues.push(issue(`${base}/mvu/update_mode`, "mvu.update_mode_unimplemented", "Enabled MVU currently supports same_generation only; extra_pass requires an independent request, parse, and commit chain"));
+    }
+    if (!mvu?.enabled && mvu?.update_mode !== "disabled") {
+      issues.push(issue(`${base}/mvu/update_mode`, "mvu.update_mode_lifecycle", "Disabled MVU must use update_mode: disabled"));
+    }
     if (mvu?.enabled && adapter?.id === "tavern_helper" && adapter.delivery === "embedded") {
       const storage = mvu.storage ?? {};
       const scope = storage.scope ?? "message";
@@ -2241,7 +2261,7 @@ export function selectOpeningMessages(openingSources, mvuSources = []) {
   };
 }
 
-function tavernHelperRuntimeConfig(mvuSources) {
+function tavernHelperRuntimeConfig(mvuSources, expectedCharacterName = null) {
   const probes = [];
   const timeouts = [];
   for (const source of mvuSources) {
@@ -2293,6 +2313,9 @@ function tavernHelperRuntimeConfig(mvuSources) {
       loadOrder: dependency.load_order ?? 0
     })));
   return {
+    expectedCharacterName: typeof expectedCharacterName === "string" && expectedCharacterName.length > 0
+      ? expectedCharacterName
+      : null,
     probes: [...new Set(probes.length > 0 ? probes : ["globalThis.Mvu"])],
     timeoutMs: timeouts.length > 0 ? Math.max(...timeouts) : 10000,
     readinessPollMs: 100,
@@ -2316,6 +2339,7 @@ function runtimeGuardScript(runtimeConfig) {
   const config = ${config};
   const timers = new Set();
   const listeners = [];
+  const lifecycleListeners = [];
   let disposed = false;
   let ready = false;
   let api = null;
@@ -2339,6 +2363,11 @@ function runtimeGuardScript(runtimeConfig) {
     if (typeof globalThis.eventEmit === "function") {
       try { await globalThis.eventEmit(name, detail); } catch { /* Host observers must not break MVU state. */ }
     }
+  };
+  const belongsToCurrentCharacter = () => {
+    if (!config.expectedCharacterName) return true;
+    if (typeof globalThis.getCurrentCharacterName !== "function") return false;
+    try { return globalThis.getCurrentCharacterName() === config.expectedCharacterName; } catch { return false; }
   };
   const getAt = (root, path) => String(path).split(".").reduce((value, name) => value == null ? undefined : value[name], root);
   const setAt = (root, path, value) => {
@@ -2438,11 +2467,11 @@ function runtimeGuardScript(runtimeConfig) {
     return true;
   };
   const onInitialized = (variables, swipeId) => {
-    if (disposed) return;
+    if (!ensureCurrentCharacter()) return;
     void initializeState(variables, swipeId);
   };
   const onCommandsParsed = (_variables, commands) => {
-    if (disposed) return;
+    if (!ensureCurrentCharacter()) return;
     if (!Array.isArray(commands)) return;
     const accepted = commands.filter((command) => {
       const variable = allowedCommands.get(normalizeCommandPath(command?.args?.[0]));
@@ -2456,7 +2485,7 @@ function runtimeGuardScript(runtimeConfig) {
     commands.splice(0, commands.length, ...accepted);
   };
   const onUpdateEnded = (variables, before) => {
-    if (disposed) return;
+    if (!ensureCurrentCharacter()) return;
     const invalid = validateData(variables);
     if (invalid.length > 0) {
       if (before && typeof before === "object") replaceInPlace(variables, before);
@@ -2470,7 +2499,7 @@ function runtimeGuardScript(runtimeConfig) {
     void emit("rp-card-state-change", { source: "mvu_update" });
   };
   const onBeforeMessageUpdate = (context) => {
-    if (disposed) return;
+    if (!ensureCurrentCharacter()) return;
     const invalid = validateData(context?.variables);
     if (invalid.length > 0 && lastLegal && context?.variables) {
       replaceInPlace(context.variables, lastLegal);
@@ -2483,32 +2512,37 @@ function runtimeGuardScript(runtimeConfig) {
     listeners.push([event, handler]);
   };
   const cleanup = () => {
+    if (disposed) return;
     disposed = true;
     for (const [event, handler] of listeners.splice(0)) {
       try { globalThis.eventRemoveListener(event, handler); } catch { /* Host cleanup must remain best effort. */ }
     }
     for (const timer of timers) { clearTimeout(timer); clearInterval(timer); }
     timers.clear();
-  };
-  const parseAndCommit = async (message, target = resolveTarget()) => {
-    if (disposed) throw new Error("Runtime guard is disposed");
-    if (!api) throw new Error("MVU is unavailable");
-    const oldData = api.getMvuData(target);
-    if (!oldData?.stat_data || typeof oldData.stat_data !== "object") throw new Error("MVU state is not initialized");
-    const nextData = await api.parseMessage(message, oldData);
-    if (!nextData) return oldData;
-    const invalid = validateData(nextData);
-    if (invalid.length > 0) {
-      await emit("rp-card-state-rejected", { reason: "invalid_manual_update", paths: invalid });
-      return oldData;
+    for (const [event, handler] of lifecycleListeners.splice(0)) {
+      try { globalThis.removeEventListener?.(event, handler); } catch { /* Frame cleanup must remain best effort. */ }
     }
-    await api.replaceMvuData(nextData, target);
-    lastLegal = cloneValue(nextData);
-    await emit("rp-card-state-change", { source: "manual_update" });
-    return nextData;
+    if (globalThis[key] === handle) {
+      try { delete globalThis[key]; } catch { globalThis[key] = undefined; }
+    }
   };
-  const handle = { cleanup, parseAndCommit, get ready() { return ready; } };
+  const ensureCurrentCharacter = () => {
+    if (disposed) return false;
+    if (belongsToCurrentCharacter()) return true;
+    cleanup();
+    void emit("rp-card-runtime-unavailable", { reason: "Runtime guard no longer belongs to the current character" });
+    return false;
+  };
+  const onLifecycle = (event) => {
+    if (typeof globalThis.addEventListener !== "function") return;
+    const handler = () => cleanup();
+    globalThis.addEventListener(event, handler, { once: true });
+    lifecycleListeners.push([event, handler]);
+  };
+  const handle = { cleanup, get ready() { return ready; } };
   globalThis[key] = handle;
+  onLifecycle("pagehide");
+  onLifecycle("unload");
   try {
     if (typeof globalThis.waitGlobalInitialized !== "function") throw new Error("waitGlobalInitialized is unavailable");
     let timeoutTimer = null;
@@ -2522,10 +2556,14 @@ function runtimeGuardScript(runtimeConfig) {
       if (timeoutTimer !== null) { clearTimeout(timeoutTimer); timers.delete(timeoutTimer); }
     }
     api = globalThis.Mvu;
-    if (!api?.getMvuData || !api?.parseMessage || !api?.replaceMvuData || !api?.events) throw new Error("MVU API is incomplete");
+    if (!api?.getMvuData || !api?.replaceMvuData || !api?.events) throw new Error("MVU API is incomplete");
     if (typeof globalThis.eventOn !== "function"
       || typeof globalThis.eventEmit !== "function"
       || typeof globalThis.eventRemoveListener !== "function") throw new Error("Tavern Helper event API is unavailable");
+    if (!belongsToCurrentCharacter()) {
+      cleanup();
+      throw new Error("Runtime guard belongs to a different character");
+    }
     const eventNames = [
       api.events.VARIABLE_INITIALIZED,
       api.events.COMMAND_PARSED,
@@ -2537,6 +2575,8 @@ function runtimeGuardScript(runtimeConfig) {
     on(api.events.COMMAND_PARSED, onCommandsParsed);
     on(api.events.VARIABLE_UPDATE_ENDED, onUpdateEnded);
     on(api.events.BEFORE_MESSAGE_UPDATE, onBeforeMessageUpdate);
+    const chatChangedEvent = globalThis.tavern_events?.CHAT_CHANGED;
+    if (typeof chatChangedEvent === "string") on(chatChangedEvent, ensureCurrentCharacter);
     const snapshot = api.getMvuData(resolveTarget());
     if (!ready && snapshot?.stat_data && typeof snapshot.stat_data === "object") {
       await initializeState(snapshot, undefined, "bootstrap", true);
@@ -2635,7 +2675,7 @@ export function applyTavernHelperAdapter(payload, { project, sources, target }) 
   const mvuAdapter = mvuSources.find((source) => source.runtime_contract?.adapter?.id === "tavern_helper" && source.runtime_contract.adapter.delivery === "embedded")?.runtime_contract?.adapter ?? null;
   const runtimeEnabled = mvuSources.some((source) => source.mvu?.enabled)
     && project?.features?.mvu;
-  const runtimeConfig = tavernHelperRuntimeConfig(mvuSources);
+  const runtimeConfig = tavernHelperRuntimeConfig(mvuSources, payload?.data?.name);
   const generated = [];
   if (runtimeEnabled) {
     const seenImports = new Set();
@@ -2726,6 +2766,8 @@ const STATUS_PLACEHOLDER = "<StatusPlaceHolderImpl/>";
 const STATUS_REPLY_CONTRACT_MARKER = "[RP Card Studio status placeholder contract]";
 const STATUS_REPLY_CONTRACT = `${STATUS_REPLY_CONTRACT_MARKER}\nEnd every assistant reply with exactly one ${STATUS_PLACEHOLDER}. Emit it after any variable update block, place it at the very end, and do not emit content after it or another copy elsewhere.`;
 const MANAGED_REGEX_IDS = Object.freeze({
+  mvuInitPromptFilter: "0e4c7a2c-5c51-4a15-8f8e-f2a81f831d05",
+  mvuInitDisplayFilter: "0e4c7a2c-5c51-4a15-8f8e-f2a81f831d06",
   mvuPromptFilter: "0e4c7a2c-5c51-4a15-8f8e-f2a81f831d01",
   mvuPendingFold: "0e4c7a2c-5c51-4a15-8f8e-f2a81f831d02",
   mvuCompleteFold: "0e4c7a2c-5c51-4a15-8f8e-f2a81f831d03",
@@ -2762,6 +2804,15 @@ function sillyTavernRegexScript({
 function mvuRegexScripts() {
   return [
     sillyTavernRegexScript({
+      id: MANAGED_REGEX_IDS.mvuInitPromptFilter,
+      scriptName: "[MVU] Filter initialization from prompts",
+      findRegex: "/<initvar>\\s*[\\s\\S]*?\\s*<\\/initvar>/gi",
+      replaceString: "",
+      placement: [1, 2],
+      markdownOnly: false,
+      promptOnly: true
+    }),
+    sillyTavernRegexScript({
       id: MANAGED_REGEX_IDS.mvuPromptFilter,
       scriptName: "[MVU] Filter variable updates from prompts",
       findRegex: "/<update(?:variable)?>[\\s\\S]*?(?:<\\/update(?:variable)?>|$)/gi",
@@ -2770,6 +2821,15 @@ function mvuRegexScripts() {
       markdownOnly: false,
       promptOnly: true,
       maxDepth: 3
+    }),
+    sillyTavernRegexScript({
+      id: MANAGED_REGEX_IDS.mvuInitDisplayFilter,
+      scriptName: "[MVU] Hide initialization from messages",
+      findRegex: "/<initvar>\\s*[\\s\\S]*?\\s*<\\/initvar>/gi",
+      replaceString: "",
+      placement: [2],
+      markdownOnly: true,
+      promptOnly: false
     }),
     sillyTavernRegexScript({
       id: MANAGED_REGEX_IDS.mvuPendingFold,
@@ -2837,10 +2897,296 @@ function statusProjectionHtml(ui, runtimeConfig) {
   return `<div data-rp-card-studio="status" role="status" aria-live="${liveMode}" aria-atomic="true" style="box-sizing:border-box;margin:8px 0;padding:10px 12px;border:1px solid #3f3f46;border-left:3px solid #22d3ee;border-radius:6px;background:#18181b;color:#e4e4e7;font:12px/1.45 system-ui,sans-serif;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:8px">${summary}${sectionMarkup || `<div>${fallback}</div>`}</div>`;
 }
 
+function statusTemplateTokens(template, runtimeConfig, fieldsBySourcePath) {
+  const source = String(template ?? "");
+  const tokens = [];
+  const pattern = /\{\{\s*([A-Za-z_][A-Za-z0-9_-]*(?:\.[A-Za-z_][A-Za-z0-9_-]*)*)\s*\}\}/g;
+  let cursor = 0;
+  for (const match of source.matchAll(pattern)) {
+    if (match.index > cursor) tokens.push({ type: "text", value: source.slice(cursor, match.index) });
+    const field = fieldsBySourcePath.get(match[1]);
+    if (field) {
+      tokens.push({
+        type: "value",
+        runtimePath: statusRuntimePath(match[1], runtimeConfig),
+        format: field.format,
+        missing: field.missing_value
+      });
+    } else {
+      tokens.push({ type: "text", value: match[0] });
+    }
+    cursor = match.index + match[0].length;
+  }
+  if (cursor < source.length) tokens.push({ type: "text", value: source.slice(cursor) });
+  return tokens;
+}
+
+function statusMessageConfig(ui, runtimeConfig) {
+  const hierarchy = new Map((ui.visual?.hierarchy ?? []).map((id, index) => [id, index]));
+  const playerSections = [...ui.sections ?? []]
+    .map((section) => ({
+      id: section.id,
+      displayName: section.display_name ?? section.id,
+      priority: section.priority ?? 0,
+      collapsed: section.collapsed === true,
+      fields: (section.fields ?? [])
+        .filter((field) => field.visibility === "player")
+        .map((field) => ({
+          id: field.id,
+          label: field.label ?? field.id,
+          runtimePath: statusRuntimePath(field.source_path, runtimeConfig),
+          sourcePath: field.source_path,
+          format: field.format,
+          missing: field.missing_value ?? "Unavailable"
+        }))
+    }))
+    .filter((section) => section.fields.length > 0)
+    .sort((left, right) => {
+      const leftRank = hierarchy.get(left.id) ?? Number.MAX_SAFE_INTEGER;
+      const rightRank = hierarchy.get(right.id) ?? Number.MAX_SAFE_INTEGER;
+      return leftRank - rightRank || left.priority - right.priority;
+    });
+  const fieldsBySourcePath = new Map(playerSections.flatMap((section) => section.fields.map((field) => [field.sourcePath, field])));
+  return {
+    mode: ui.mode,
+    namespace: runtimeConfig.namespace ?? "stat_data",
+    summary: statusTemplateTokens(ui.text_template, runtimeConfig, fieldsBySourcePath),
+    sections: playerSections.map((section) => ({
+      id: section.id,
+      displayName: section.displayName,
+      collapsed: section.collapsed,
+      fields: section.fields.map(({ sourcePath: _sourcePath, ...field }) => field)
+    })),
+    states: {
+      loading: ui.states?.loading ?? "Loading status...",
+      empty: ui.states?.empty ?? "No status is available for this message.",
+      error: ui.states?.error ?? "Status could not be read.",
+      degraded: ui.states?.degraded ?? "The message runtime is unavailable."
+    },
+    liveMode: ["polite", "assertive"].includes(ui.accessibility?.live_updates)
+      ? ui.accessibility.live_updates
+      : "off",
+    pollIntervalMs: 100,
+    steadyPollIntervalMs: 2000,
+    maxAttempts: 40
+  };
+}
+
+const STATUS_MESSAGE_RUNTIME = `(function () {
+  "use strict";
+  var encoded = "__RP_STATUS_CONFIG_BASE64__";
+  var bytes = Uint8Array.from(atob(encoded), function (character) { return character.charCodeAt(0); });
+  var config = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+  var root = document.getElementById("rp-card-status");
+  var timer = null;
+  var attempts = 0;
+  var disposed = false;
+  var ready = false;
+  var lastFingerprint = null;
+  function clearTimer() {
+    if (timer !== null) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  }
+  function cleanup() {
+    disposed = true;
+    clearTimer();
+  }
+  function stateText(name) {
+    return config.states[name] || config.states.error;
+  }
+  function showState(name) {
+    if (!root || disposed) return;
+    root.setAttribute("data-rp-runtime-state", name);
+    root.replaceChildren();
+    var message = document.createElement("p");
+    message.className = "rp-status-state";
+    message.textContent = stateText(name);
+    root.appendChild(message);
+  }
+  function getAt(value, path) {
+    return String(path).split(".").reduce(function (current, name) {
+      return current == null ? undefined : current[name];
+    }, value);
+  }
+  function displayValue(value, binding) {
+    if (value === undefined || value === null) return binding.missing;
+    if (binding.format === "percent") return String(value) + "%";
+    if (binding.format === "list" || binding.format === "object") {
+      try { return JSON.stringify(value); } catch (_error) { return binding.missing; }
+    }
+    return String(value);
+  }
+  function appendValue(parent, variables, binding) {
+    var value = document.createElement("span");
+    value.className = "rp-status-value";
+    value.setAttribute("data-rp-status-path", binding.runtimePath);
+    value.textContent = displayValue(getAt(variables, binding.runtimePath), binding);
+    parent.appendChild(value);
+  }
+  function appendSummary(parent, variables) {
+    if (!Array.isArray(config.summary) || config.summary.length === 0) return;
+    var summary = document.createElement("div");
+    summary.className = "rp-status-summary";
+    config.summary.forEach(function (token) {
+      if (token.type === "text") {
+        summary.appendChild(document.createTextNode(token.value));
+      } else {
+        appendValue(summary, variables, token);
+      }
+    });
+    parent.appendChild(summary);
+  }
+  function appendSections(parent, variables) {
+    config.sections.forEach(function (section) {
+      var details = document.createElement("details");
+      details.className = "rp-status-section";
+      details.open = !section.collapsed;
+      var summary = document.createElement("summary");
+      summary.textContent = section.displayName;
+      details.appendChild(summary);
+      var list = document.createElement("dl");
+      section.fields.forEach(function (field) {
+        var row = document.createElement("div");
+        row.className = "rp-status-row";
+        var term = document.createElement("dt");
+        term.textContent = field.label;
+        var definition = document.createElement("dd");
+        appendValue(definition, variables, field);
+        row.appendChild(term);
+        row.appendChild(definition);
+        list.appendChild(row);
+      });
+      details.appendChild(list);
+      parent.appendChild(details);
+    });
+  }
+  function render(variables) {
+    if (!root || disposed) return;
+    root.setAttribute("data-rp-runtime-state", "ready");
+    root.replaceChildren();
+    appendSummary(root, variables);
+    if (config.mode !== "text") appendSections(root, variables);
+    if (!root.hasChildNodes()) showState("empty");
+  }
+  function displayFingerprint(variables) {
+    var values = [];
+    config.summary.forEach(function (token) {
+      if (token.type === "value") {
+        values.push([token.runtimePath, displayValue(getAt(variables, token.runtimePath), token)]);
+      }
+    });
+    config.sections.forEach(function (section) {
+      section.fields.forEach(function (field) {
+        values.push([field.runtimePath, displayValue(getAt(variables, field.runtimePath), field)]);
+      });
+    });
+    return JSON.stringify(values);
+  }
+  function schedule(delay) {
+    if (disposed) return;
+    clearTimer();
+    timer = setTimeout(attempt, delay);
+  }
+  function retry(finalState) {
+    if (disposed) return;
+    if (ready) {
+      schedule(config.steadyPollIntervalMs);
+      return;
+    }
+    attempts += 1;
+    if (attempts >= config.maxAttempts) {
+      showState(finalState);
+      return;
+    }
+    schedule(config.pollIntervalMs);
+  }
+  function attempt() {
+    clearTimer();
+    if (disposed) return;
+    if (typeof globalThis.getCurrentMessageId !== "function" || typeof globalThis.getVariables !== "function") {
+      retry("degraded");
+      return;
+    }
+    var messageId;
+    try {
+      messageId = globalThis.getCurrentMessageId();
+    } catch (_error) {
+      showState("error");
+      return;
+    }
+    if (!Number.isInteger(messageId) || messageId < 0) {
+      showState("error");
+      return;
+    }
+    var variables;
+    try {
+      variables = globalThis.getVariables({ type: "message", message_id: messageId });
+    } catch (_error) {
+      retry("error");
+      return;
+    }
+    var namespace = getAt(variables, config.namespace);
+    if (!namespace || typeof namespace !== "object" || Array.isArray(namespace)) {
+      retry("empty");
+      return;
+    }
+    var fingerprint = displayFingerprint(variables);
+    if (!ready || fingerprint !== lastFingerprint) {
+      render(variables);
+      ready = true;
+      lastFingerprint = fingerprint;
+    }
+    attempts = 0;
+    schedule(config.steadyPollIntervalMs);
+  }
+  if (root) {
+    root.setAttribute("aria-live", config.liveMode);
+    showState("loading");
+  }
+  if (typeof globalThis.addEventListener === "function") {
+    globalThis.addEventListener("pagehide", cleanup, { once: true });
+    globalThis.addEventListener("unload", cleanup, { once: true });
+  }
+  attempt();
+})();`;
+
+function statusMessageFrontend(ui, runtimeConfig) {
+  const encoded = Buffer.from(JSON.stringify(statusMessageConfig(ui, runtimeConfig)), "utf8").toString("base64");
+  const runtime = STATUS_MESSAGE_RUNTIME.replace("__RP_STATUS_CONFIG_BASE64__", encoded);
+  return [
+    "```",
+    '<body data-rp-card-studio="status-frame">',
+    "<style>",
+    'body[data-rp-card-studio="status-frame"]{margin:0;padding:0;background:transparent;color:#e4e4e7;font:12px/1.45 system-ui,sans-serif}',
+    '#rp-card-status{box-sizing:border-box;margin:8px 0;padding:10px 12px;border:1px solid #3f3f46;border-left:3px solid #22d3ee;border-radius:6px;background:#18181b;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:8px}',
+    '.rp-status-summary{grid-column:1/-1;font-weight:650;color:#f4f4f5;overflow-wrap:anywhere}',
+    '.rp-status-section{min-width:0;border-top:1px solid #3f3f46;padding-top:6px}',
+    '.rp-status-section>summary{cursor:pointer;font-size:11px;color:#67e8f9}',
+    '.rp-status-section>dl{display:grid;gap:4px;margin:6px 0 0}',
+    '.rp-status-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:baseline}',
+    '.rp-status-row>dt{min-width:0;color:#a1a1aa;overflow-wrap:anywhere}',
+    '.rp-status-row>dd{margin:0;color:#fafafa;font-weight:650;overflow-wrap:anywhere}',
+    '.rp-status-state{grid-column:1/-1;margin:0;color:#a1a1aa;overflow-wrap:anywhere}',
+    '@media(max-width:520px){#rp-card-status{grid-template-columns:minmax(0,1fr)}.rp-status-row{grid-template-columns:minmax(0,1fr)}}',
+    "</style>",
+    '<main id="rp-card-status" data-rp-runtime-state="loading" role="status" aria-atomic="true"></main>',
+    "<script>",
+    runtime,
+    "</script>",
+    "</body>",
+    "```"
+  ].join("\n");
+}
+
 function statusRegexScript(ui, runtimeConfig) {
-  const projection = ui.mode === "text"
-    ? compileStatusText(ui.text_template || ui.states?.degraded || "Status unavailable", runtimeConfig)
-    : statusProjectionHtml(ui, runtimeConfig);
+  const messageRuntime = ui.delivery?.adapter === "tavern_helper_message";
+  const projection = messageRuntime
+    ? statusMessageFrontend(ui, runtimeConfig)
+    : ui.mode === "text"
+      ? compileStatusText(ui.text_template || ui.states?.degraded || "Status unavailable", runtimeConfig)
+      : statusProjectionHtml(ui, runtimeConfig);
   return sillyTavernRegexScript({
     id: MANAGED_REGEX_IDS.statusProjection,
     scriptName: "[Status] Project message status bar",
@@ -2848,7 +3194,7 @@ function statusRegexScript(ui, runtimeConfig) {
     // SillyTavern interprets every $n in replaceString as a capture reference,
     // even though it uses a replacement callback. An HTML entity is the only
     // stable literal dollar representation after Markdown rendering.
-    replaceString: projection.replace(/\$/g, "&#36;"),
+    replaceString: messageRuntime ? projection : projection.replace(/\$/g, "&#36;"),
     placement: [2],
     markdownOnly: true,
     promptOnly: false
@@ -2893,9 +3239,7 @@ function activeStatusUi(project, sources) {
   if (project?.features?.status_ui !== true) return null;
   return values(sources, "ui").find((source) => source.status_ui?.enabled
     && ["text", "embedded", "both"].includes(source.status_ui.mode)
-    && source.status_ui.delivery?.level === "embedded"
-    && source.status_ui.delivery?.adapter === "sillytavern_regex"
-    && source.status_ui.delivery?.surface === "message")?.status_ui ?? null;
+    && completeUiDelivery(source.status_ui))?.status_ui ?? null;
 }
 
 function managedRegexFingerprint(script) {

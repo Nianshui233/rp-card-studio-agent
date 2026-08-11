@@ -241,10 +241,13 @@ function assertHostApiText(script) {
   assert.match(script, /Promise\.race\s*\(/);
   assert.match(script, /globalThis\.Mvu/);
   assert.match(script, /getMvuData\s*\(/);
-  assert.match(script, /parseMessage\s*\(/);
   assert.match(script, /replaceMvuData\s*\(/);
   assert.match(script, /eventOn\s*\(/);
   assert.match(script, /eventRemoveListener\s*\(/);
+  assert.match(script, /getCurrentCharacterName\s*\(/);
+  assert.match(script, /onLifecycle\("pagehide"\)/);
+  assert.match(script, /onLifecycle\("unload"\)/);
+  assert.doesNotMatch(script, /parseAndCommit|parseMessage\s*\(/);
   assert.doesNotMatch(script, /getVariables\s*\(/);
   assert.doesNotMatch(script, /globalThis\.MVU/);
   assert.doesNotMatch(script, /mag_variable_/);
@@ -252,10 +255,10 @@ function assertHostApiText(script) {
 
 async function evaluateGuard(script, {
   initialData = mvuData({ relationship: { trust: 10, mood: 'calm' } }),
-  parsedData,
   exposeMvu = true,
   waitFailure = null,
   currentMessageId,
+  currentCharacterName = 'MVU host compatibility card',
 } = {}) {
   const eventNames = {
     VARIABLE_INITIALIZED: 'host:init',
@@ -263,17 +266,19 @@ async function evaluateGuard(script, {
     VARIABLE_UPDATE_ENDED: 'host:update-ended',
     BEFORE_MESSAGE_UPDATE: 'host:before-message-update',
   };
+  const tavernEvents = { CHAT_CHANGED: 'host:chat-changed' };
   const listeners = new Map();
+  const lifecycleListeners = new Map();
   const onCalls = [];
   const removeCalls = [];
   const emitCalls = [];
   const waitCalls = [];
   const getCalls = [];
-  const parseCalls = [];
   const replaceCalls = [];
   const trace = [];
   const timers = new Set();
   let currentData = initialData;
+  let activeCharacterName = currentCharacterName;
 
   const api = {
     events: eventNames,
@@ -281,10 +286,6 @@ async function evaluateGuard(script, {
       trace.push('getMvuData');
       getCalls.push(plain(options));
       return currentData;
-    },
-    async parseMessage(message, oldData) {
-      parseCalls.push({ message, oldData });
-      return typeof parsedData === 'function' ? parsedData(message, oldData) : parsedData;
     },
     async replaceMvuData(nextData, options) {
       replaceCalls.push({ data: nextData, options: plain(options) });
@@ -328,6 +329,18 @@ async function evaluateGuard(script, {
     clearTimeout: clearTrackedTimeout,
     setInterval: setTrackedInterval,
     clearInterval: clearTrackedInterval,
+    getCurrentCharacterName() {
+      return activeCharacterName;
+    },
+    addEventListener(eventName, handler) {
+      const eventListeners = lifecycleListeners.get(eventName) ?? new Set();
+      eventListeners.add(handler);
+      lifecycleListeners.set(eventName, eventListeners);
+    },
+    removeEventListener(eventName, handler) {
+      lifecycleListeners.get(eventName)?.delete(handler);
+    },
+    tavern_events: tavernEvents,
     async waitGlobalInitialized(name) {
       waitCalls.push(name);
       if (waitFailure) throw waitFailure;
@@ -363,6 +376,10 @@ async function evaluateGuard(script, {
     await sandbox.eventEmit(eventName, ...args);
     await new Promise(resolve => setImmediate(resolve));
   };
+  const emitLifecycle = async (eventName) => {
+    for (const listener of [...lifecycleListeners.get(eventName) ?? []]) await listener();
+    await new Promise(resolve => setImmediate(resolve));
+  };
   const dispose = () => {
     vm.runInNewContext(
       'globalThis[Symbol.for("rp_card_studio.runtime_guard")]?.cleanup?.()',
@@ -379,6 +396,7 @@ async function evaluateGuard(script, {
     api,
     dispose,
     emit,
+    emitLifecycle,
     eventNames,
     emitCalls,
     get currentData() { return currentData; },
@@ -390,11 +408,13 @@ async function evaluateGuard(script, {
     },
     getCalls,
     listeners,
+    lifecycleListeners,
     onCalls,
-    parseCalls,
     removeCalls,
     replaceCalls,
     sandbox,
+    setCurrentCharacterName(value) { activeCharacterName = value; },
+    tavernEvents,
     trace,
     waitCalls,
   };
@@ -487,7 +507,7 @@ test('runtime guard subscribes first and bootstraps an already initialized MVU s
     const firstRead = harness.trace.indexOf('getMvuData');
     assert.ok(firstRead > 0);
     assert.ok(
-      harness.trace.slice(0, firstRead).filter(item => item.startsWith('eventOn:')).length === 4,
+      harness.trace.slice(0, firstRead).filter(item => item.startsWith('eventOn:')).length === 5,
       `all MVU listeners must be installed before bootstrap: ${JSON.stringify(harness.trace)}`,
     );
     const emitted = new Set(harness.emitCalls.map(call => call.eventName));
@@ -567,47 +587,6 @@ test('runtime guard rolls an invalid host update back as one atomic batch', asyn
   }
 });
 
-test('manual parseAndCommit replaces the same message target only after successful validation', async () => {
-  const oldData = mvuData({ relationship: { trust: 10, mood: 'calm' } });
-  const nextData = mvuData({ relationship: { trust: 35, mood: 'calm' } });
-  const { guard } = findGuard(guardResult());
-  assertHostApiText(guard.content);
-  const harness = await evaluateGuard(guard.content, { initialData: oldData, parsedData: nextData });
-  try {
-    assert.equal(typeof harness.handle?.parseAndCommit, 'function');
-    const message = '<UpdateVariable><JSONPatch>[]</JSONPatch></UpdateVariable>';
-
-    await harness.handle.parseAndCommit(message);
-
-    assert.deepEqual(harness.getCalls, [MVU_TARGET, MVU_TARGET]);
-    assert.equal(harness.parseCalls.length, 1);
-    assert.equal(harness.parseCalls[0].message, message);
-    assert.equal(harness.parseCalls[0].oldData, oldData);
-    assert.equal(harness.replaceCalls.length, 1);
-    assert.equal(harness.replaceCalls[0].data, nextData);
-    assert.deepEqual(harness.replaceCalls[0].options, MVU_TARGET);
-  } finally {
-    harness.dispose();
-  }
-});
-
-test('manual parseAndCommit keeps the prior state when parsing yields an invalid batch', async () => {
-  const oldData = mvuData({ relationship: { trust: 10, mood: 'calm' } });
-  const invalidData = mvuData({ relationship: { trust: -1, mood: 'angry' } });
-  const { guard } = findGuard(guardResult());
-  assertHostApiText(guard.content);
-  const harness = await evaluateGuard(guard.content, { initialData: oldData, parsedData: invalidData });
-  try {
-    await Promise.resolve(harness.handle?.parseAndCommit?.('invalid update')).catch(() => undefined);
-
-    assert.equal(harness.parseCalls.length, 1);
-    assert.equal(harness.replaceCalls.length, 0);
-    assert.equal(harness.currentData, oldData);
-  } finally {
-    harness.dispose();
-  }
-});
-
 test('runtime guard cleanup removes every listener with the original dynamic event and handler', async () => {
   const { guard } = findGuard(guardResult());
   assertHostApiText(guard.content);
@@ -615,7 +594,7 @@ test('runtime guard cleanup removes every listener with the original dynamic eve
   try {
     assert.deepEqual(
       new Set(harness.onCalls.map(call => call.eventName)),
-      new Set(Object.values(harness.eventNames)),
+      new Set([...Object.values(harness.eventNames), harness.tavernEvents.CHAT_CHANGED]),
     );
 
     harness.handle.cleanup();
@@ -626,6 +605,42 @@ test('runtime guard cleanup removes every listener with the original dynamic eve
         removal.eventName === subscription.eventName && removal.handler === subscription.handler
       )));
     }
+    assert.ok([...harness.listeners.values()].every(eventListeners => eventListeners.size === 0));
+  } finally {
+    harness.dispose();
+  }
+});
+
+test('runtime guard cleans itself up when its script iframe unloads', async () => {
+  const { guard } = findGuard(guardResult());
+  const harness = await evaluateGuard(guard.content);
+  try {
+    assert.equal(harness.lifecycleListeners.get('pagehide')?.size, 1);
+    assert.equal(harness.lifecycleListeners.get('unload')?.size, 1);
+
+    await harness.emitLifecycle('pagehide');
+
+    assert.equal(harness.handle, undefined);
+    assert.ok([...harness.listeners.values()].every(eventListeners => eventListeners.size === 0));
+    assert.ok([...harness.lifecycleListeners.values()].every(eventListeners => eventListeners.size === 0));
+  } finally {
+    harness.dispose();
+  }
+});
+
+test('a stale guard cannot filter or roll back another character update', async () => {
+  const { guard } = findGuard(guardResult());
+  const harness = await evaluateGuard(guard.content);
+  try {
+    harness.setCurrentCharacterName('Another character');
+    await harness.emit(harness.tavernEvents.CHAT_CHANGED, 'another-chat');
+
+    const before = mvuData({ other: { phase: 'arrival' } });
+    const candidate = mvuData({ other: { phase: 'verification' } });
+    await harness.emit(harness.eventNames.VARIABLE_UPDATE_ENDED, candidate, before);
+
+    assert.deepEqual(plain(candidate), plain(mvuData({ other: { phase: 'verification' } })));
+    assert.equal(harness.handle, undefined);
     assert.ok([...harness.listeners.values()].every(eventListeners => eventListeners.size === 0));
   } finally {
     harness.dispose();

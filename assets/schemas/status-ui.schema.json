@@ -152,10 +152,10 @@
               "delivery": {
                 "type": "object",
                 "properties": {
-                  "level": { "const": "embedded" },
-                  "adapter": { "const": "sillytavern_regex" }
+                  "entrypoint": { "const": "generated" },
+                  "artifact": { "const": "inline" }
                 },
-                "required": ["level", "adapter"]
+                "required": ["entrypoint", "artifact"]
               }
             },
             "required": ["enabled", "delivery"]
@@ -222,9 +222,11 @@
                 "type": "object",
                 "properties": {
                   "level": { "const": "host_required" },
-                  "adapter": { "const": "tavern_helper_message" }
+                  "adapter": { "const": "tavern_helper_message" },
+                  "entrypoint": { "const": "host_managed" },
+                  "artifact": { "const": "host_managed" }
                 },
-                "required": ["level", "adapter"]
+                "required": ["level", "adapter", "entrypoint", "artifact"]
               }
             }
           }
@@ -240,7 +242,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["level", "adapter", "surface", "entrypoint", "artifact", "placeholder"],
-      "description": "Message-only delivery. The supported surfaces are generated SillyTavern character regexes and Tavern Helper message-local JS/iframes.",
+      "description": "Message-only delivery. Generated inline artifacts are either SillyTavern character regexes or self-contained Tavern Helper message iframes; host-managed Tavern Helper specifications remain explicitly marked host_managed.",
       "properties": {
         "level": { "enum": ["specification", "embedded", "host_required"] },
         "adapter": { "enum": ["sillytavern_regex", "tavern_helper_message"] },
@@ -293,7 +295,23 @@
           "then": {
             "properties": {
               "adapter": { "const": "tavern_helper_message" }
-            }
+            },
+            "oneOf": [
+              {
+                "properties": {
+                  "entrypoint": { "const": "generated" },
+                  "artifact": { "const": "inline" }
+                },
+                "required": ["entrypoint", "artifact"]
+              },
+              {
+                "properties": {
+                  "entrypoint": { "const": "host_managed" },
+                  "artifact": { "const": "host_managed" }
+                },
+                "required": ["entrypoint", "artifact"]
+              }
+            ]
           }
         }
       ]

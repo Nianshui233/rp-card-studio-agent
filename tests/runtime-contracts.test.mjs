@@ -49,13 +49,21 @@ function worldbookEntry(overrides = {}) {
   };
 }
 
-function runtimeUiSources({ adapterDelivery = 'embedded', uiLevel = 'embedded', commands = [] } = {}) {
+function runtimeUiSources({
+  adapterDelivery = 'embedded',
+  uiLevel = 'embedded',
+  uiAdapter = 'sillytavern_regex',
+  uiEntrypoint = 'generated',
+  uiArtifact = 'inline',
+  commands = [],
+} = {}) {
   return emptySources({
     mvu: [{
       relativePath: 'src/mvu/runtime.yaml',
       value: {
         mvu: {
           enabled: true,
+          update_mode: 'same_generation',
           storage: { namespace: 'stat_data' },
           variables: [{
             source_path: 'relationship.trust',
@@ -93,7 +101,7 @@ function runtimeUiSources({ adapterDelivery = 'embedded', uiLevel = 'embedded', 
           enabled: true,
           mode: 'embedded',
           read_only: commands.length === 0,
-          refresh: 'manual',
+          refresh: 'on_message',
           text_template: 'Trust: {{relationship.trust}}',
           sections: [{
             id: 'relationship',
@@ -117,10 +125,10 @@ function runtimeUiSources({ adapterDelivery = 'embedded', uiLevel = 'embedded', 
           dependencies: [],
           delivery: {
             level: uiLevel,
-            adapter: 'sillytavern_regex',
+            adapter: uiAdapter,
             surface: 'message',
-            entrypoint: 'generated',
-            artifact: 'inline',
+            entrypoint: uiEntrypoint,
+            artifact: uiArtifact,
             placeholder: '<StatusPlaceHolderImpl/>',
           },
         },
@@ -770,11 +778,16 @@ test('embedded adapters reject undeployed entrypoint and artifact paths', async 
     projectRoot: process.cwd(),
   });
   const artifactIssues = validation.issues.filter(candidate => candidate.rule === 'adapter.artifact');
-  assert.equal(artifactIssues.length, 3);
+  assert.equal(artifactIssues.length, 1);
+  assert.ok(validation.issues.some(candidate => candidate.rule === 'ui.runtime_missing'));
 });
 
 test('specification UI delivery is reported as not run instead of embedded runtime evidence', async () => {
-  const sources = runtimeUiSources({ uiLevel: 'specification' });
+  const sources = runtimeUiSources({
+    uiLevel: 'specification',
+    uiEntrypoint: 'host_managed',
+    uiArtifact: 'host_managed',
+  });
   const validation = await validateRuntimeSources({
     project: { features: { mvu: true, ejs: false, status_ui: true } },
     sources,
@@ -784,16 +797,40 @@ test('specification UI delivery is reported as not run instead of embedded runti
   assert.ok(validation.warnings.some(candidate => candidate.rule === 'ui.runtime_not_run'));
 });
 
-test('host-required message adapters remain valid specifications and do not emit embedded UI regex', async () => {
-  const sources = runtimeUiSources();
-  sources.ui[0].value.status_ui.delivery = {
-    level: 'host_required',
-    adapter: 'tavern_helper_message',
-    surface: 'message',
-    entrypoint: 'host_managed',
-    artifact: 'host_managed',
-    placeholder: '<StatusPlaceHolderImpl/>',
-  };
+test('host-required generated inline message adapters emit a read-only UI regex', async () => {
+  const sources = runtimeUiSources({
+    uiLevel: 'host_required',
+    uiAdapter: 'tavern_helper_message',
+  });
+  const validation = await validateRuntimeSources({
+    project: { features: { mvu: true, ejs: false, status_ui: true } },
+    sources,
+    projectRoot: process.cwd(),
+  });
+
+  assert.deepEqual(validation.issues, []);
+  const result = applySillyTavernRegexAdapter({ data: { extensions: {} } }, {
+    project: { features: { mvu: true, ejs: false, status_ui: true } },
+    sources,
+    target: 'character',
+  });
+  const projection = result.payload.data.extensions.regex_scripts.find(
+    candidate => candidate.id === '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d04',
+  );
+
+  assert.ok(projection);
+  assert.match(projection.replaceString, /getCurrentMessageId\s*\(/);
+  assert.match(projection.replaceString, /getVariables\s*\(/);
+  assert.doesNotMatch(projection.replaceString, /message_id\s*:\s*["']latest["']|\bMvu\b|globalThis\.parent/);
+});
+
+test('host-managed message adapters remain specifications and emit no generated UI regex', async () => {
+  const sources = runtimeUiSources({
+    uiLevel: 'host_required',
+    uiAdapter: 'tavern_helper_message',
+    uiEntrypoint: 'host_managed',
+    uiArtifact: 'host_managed',
+  });
   const validation = await validateRuntimeSources({
     project: { features: { mvu: true, ejs: false, status_ui: true } },
     sources,
@@ -837,8 +874,8 @@ test('specification UI metadata does not replace the selected embedded message p
   specification.value.status_ui.sections[0].id = 'spec_relationship';
   specification.value.status_ui.visual.hierarchy = ['spec_relationship'];
   specification.value.status_ui.delivery.level = 'specification';
-  specification.value.status_ui.delivery.entrypoint = 'rp_card_status_specification';
-  specification.value.status_ui.delivery.artifact = 'specification_only';
+  specification.value.status_ui.delivery.entrypoint = 'host_managed';
+  specification.value.status_ui.delivery.artifact = 'host_managed';
   sources.ui.push(specification);
 
   const validation = await validateRuntimeSources({

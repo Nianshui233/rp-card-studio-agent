@@ -15,7 +15,7 @@
       "properties": {
         "enabled": { "type": "boolean" },
         "implementation": { "type": "string", "minLength": 1 },
-        "update_mode": { "enum": ["disabled", "same_generation", "extra_pass", "both"] },
+        "update_mode": { "enum": ["disabled", "same_generation"] },
         "output_dialect": { "type": "string", "minLength": 1 },
         "storage": { "$ref": "#/$defs/storage" },
         "protocol": { "$ref": "#/$defs/protocol" },
@@ -99,7 +99,27 @@
             }
           }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "enabled": { "const": true } },
+            "required": ["enabled"]
+          },
+          "then": {
+            "properties": { "update_mode": { "const": "same_generation" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "enabled": { "const": false } },
+            "required": ["enabled"]
+          },
+          "then": {
+            "properties": { "update_mode": { "const": "disabled" } }
+          }
+        }
+      ]
     },
     "ejs": {
       "type": "object",

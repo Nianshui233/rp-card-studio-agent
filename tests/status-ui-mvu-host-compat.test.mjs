@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import vm from 'node:vm';
+import { TextDecoder } from 'node:util';
 
 import {
   applyMvuArtifacts,
@@ -8,6 +10,8 @@ import {
 } from '../scripts/rp-card-runtime.mjs';
 
 const IDS = Object.freeze({
+  initPrompt: '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d05',
+  initDisplay: '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d06',
   prompt: '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d01',
   pending: '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d02',
   complete: '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d03',
@@ -30,7 +34,13 @@ function emptySources(overrides = {}) {
   };
 }
 
-function runtimeSources({ mvu = true, ejs = false, status = true, statusMode = 'embedded' } = {}) {
+function runtimeSources({
+  mvu = true,
+  ejs = false,
+  status = true,
+  statusMode = 'embedded',
+  statusAdapter = 'sillytavern_regex',
+} = {}) {
   return emptySources({
     mvu: [{
       relativePath: 'src/mvu/runtime.yaml',
@@ -100,8 +110,8 @@ function runtimeSources({ mvu = true, ejs = false, status = true, statusMode = '
           visual: { hierarchy: ['relationship'] },
           accessibility: { keyboard: true, live_updates: 'polite', color_independent: true },
           delivery: {
-            level: 'embedded',
-            adapter: 'sillytavern_regex',
+            level: statusAdapter === 'tavern_helper_message' ? 'host_required' : 'embedded',
+            adapter: statusAdapter,
             surface: 'message',
             entrypoint: 'generated',
             artifact: 'inline',
@@ -159,13 +169,264 @@ function simulateSillyTavernReplacement(script, rawString) {
   });
 }
 
-test('MVU emits the exact SillyTavern prompt filter and two display folds in stable order', () => {
+function datasetAttribute(property) {
+  return `data-${String(property).replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)}`;
+}
+
+function matchesAttributeSelector(element, selector) {
+  const match = /^\[([\w:-]+)(?:="([^"]*)")?\]$/.exec(selector);
+  if (!match) return false;
+  const actual = element.getAttribute(match[1]);
+  return match[2] === undefined ? actual !== null : actual === match[2];
+}
+
+class FakeElement {
+  constructor(tagName, innerHtmlWrites) {
+    this.tagName = String(tagName).toUpperCase();
+    this.children = [];
+    this.parentNode = null;
+    this.attributes = new Map();
+    this.style = {};
+    this._textContent = '';
+    this._innerHtmlWrites = innerHtmlWrites;
+    const datasetValues = {};
+    this.dataset = new Proxy(datasetValues, {
+      set: (target, property, value) => {
+        target[property] = String(value);
+        this.attributes.set(datasetAttribute(property), String(value));
+        return true;
+      },
+    });
+    this._datasetValues = datasetValues;
+  }
+
+  append(...nodes) {
+    for (const node of nodes) {
+      const child = typeof node === 'string' ? new FakeText(node) : node;
+      child.parentNode = this;
+      this.children.push(child);
+    }
+  }
+
+  appendChild(node) {
+    this.append(node);
+    return node;
+  }
+
+  replaceChildren(...nodes) {
+    for (const child of this.children) child.parentNode = null;
+    this.children = [];
+    this._textContent = '';
+    this.append(...nodes);
+  }
+
+  remove() {
+    if (!this.parentNode) return;
+    this.parentNode.children = this.parentNode.children.filter(child => child !== this);
+    this.parentNode = null;
+  }
+
+  setAttribute(name, value) {
+    const normalized = String(name);
+    const text = String(value);
+    this.attributes.set(normalized, text);
+    if (normalized.startsWith('data-')) {
+      const property = normalized.slice(5).replace(/-([a-z])/g, (_match, letter) => letter.toUpperCase());
+      this._datasetValues[property] = text;
+    }
+  }
+
+  getAttribute(name) {
+    return this.attributes.get(String(name)) ?? null;
+  }
+
+  querySelectorAll(selector) {
+    const matches = [];
+    const visit = node => {
+      if (!(node instanceof FakeElement)) return;
+      if (matchesAttributeSelector(node, selector)) matches.push(node);
+      for (const child of node.children) visit(child);
+    };
+    for (const child of this.children) visit(child);
+    return matches;
+  }
+
+  querySelector(selector) {
+    return this.querySelectorAll(selector)[0] ?? null;
+  }
+
+  hasChildNodes() {
+    return this.children.length > 0;
+  }
+
+  set textContent(value) {
+    this._textContent = String(value ?? '');
+    this.children = [];
+  }
+
+  get textContent() {
+    return this._textContent + this.children.map(child => child.textContent).join('');
+  }
+
+  set innerHTML(value) {
+    const text = String(value ?? '');
+    this._innerHtmlWrites.push(text);
+    this._textContent = text;
+    this.children = [];
+  }
+
+  get innerHTML() {
+    return this._textContent;
+  }
+}
+
+class FakeText {
+  constructor(value) {
+    this.parentNode = null;
+    this.textContent = String(value);
+  }
+}
+
+function inlineStatusProgram(replaceString) {
+  const rendered = simulateSillyTavernReplacement({
+    findRegex: '/<StatusPlaceHolderImpl\\s*\\/>/g',
+    replaceString,
+  }, PLACEHOLDER);
+  const body = /^```\n<body([^>]*)>([\s\S]*)<\/body>\n```$/.exec(rendered);
+  assert.ok(body, `invalid Tavern Helper message body: ${rendered}`);
+  const script = /<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/.exec(body[2]);
+  assert.ok(script, `missing inline status program: ${rendered}`);
+  return { bodyAttributes: body[1], bodyMarkup: body[2], program: script[1] };
+}
+
+async function evaluateInlineStatus(replaceString, { messageId, getVariables }) {
+  const { bodyAttributes, bodyMarkup, program } = inlineStatusProgram(replaceString);
+  const innerHtmlWrites = [];
+  const body = new FakeElement('body', innerHtmlWrites);
+  for (const attribute of bodyAttributes.matchAll(/([\w:-]+)(?:="([^"]*)")?/g)) {
+    body.setAttribute(attribute[1], attribute[2] ?? '');
+  }
+  const mainMarkup = /<main([^>]*)><\/main>/.exec(bodyMarkup);
+  assert.ok(mainMarkup, `missing status root: ${bodyMarkup}`);
+  const main = new FakeElement('main', innerHtmlWrites);
+  for (const attribute of mainMarkup[1].matchAll(/([\w:-]+)(?:="([^"]*)")?/g)) {
+    main.setAttribute(attribute[1], attribute[2] ?? '');
+  }
+  body.appendChild(main);
+  const findById = (node, id) => {
+    if (node instanceof FakeElement && node.getAttribute('id') === id) return node;
+    for (const child of node.children ?? []) {
+      const found = findById(child, id);
+      if (found) return found;
+    }
+    return null;
+  };
+  const document = {
+    body,
+    createElement: tagName => new FakeElement(tagName, innerHtmlWrites),
+    createTextNode: value => new FakeText(value),
+    getElementById: id => findById(body, String(id)),
+    querySelector: selector => (
+      matchesAttributeSelector(body, selector) ? body : body.querySelector(selector)
+    ),
+    querySelectorAll: selector => [
+      ...(matchesAttributeSelector(body, selector) ? [body] : []),
+      ...body.querySelectorAll(selector),
+    ],
+  };
+  const calls = [];
+  const timers = new Map();
+  const lifecycleListeners = new Map();
+  let nextTimerId = 1;
+  const sandbox = {
+    TextDecoder,
+    Uint8Array,
+    atob: value => Buffer.from(String(value), 'base64').toString('binary'),
+    clearTimeout(id) {
+      timers.delete(id);
+    },
+    console,
+    document,
+    getCurrentMessageId: () => messageId,
+    getVariables(options) {
+      calls.push(JSON.parse(JSON.stringify(options)));
+      return getVariables(options, calls.length);
+    },
+    addEventListener(name, handler) {
+      const handlers = lifecycleListeners.get(name) ?? [];
+      handlers.push(handler);
+      lifecycleListeners.set(name, handlers);
+    },
+    setTimeout(handler) {
+      const id = nextTimerId++;
+      timers.set(id, handler);
+      return id;
+    },
+  };
+
+  const settle = async () => {
+    await Promise.resolve();
+    await new Promise(resolve => setImmediate(resolve));
+  };
+  const completion = vm.runInNewContext(program, sandbox, {
+    filename: 'rp_card_studio_message_status.js',
+    timeout: 1000,
+  });
+  if (completion && typeof completion.then === 'function') await completion;
+  await settle();
+
+  return {
+    calls,
+    document,
+    innerHtmlWrites,
+    pendingTimers: () => timers.size,
+    dispatchLifecycle(name) {
+      for (const handler of lifecycleListeners.get(name) ?? []) handler();
+      lifecycleListeners.delete(name);
+    },
+    async runNextTimer() {
+      const next = timers.entries().next().value;
+      assert.ok(next, 'no pending status poll');
+      const [id, handler] = next;
+      timers.delete(id);
+      await handler();
+      await settle();
+    },
+  };
+}
+
+function statusValueNodes(harness) {
+  return harness.document.querySelectorAll('[data-rp-status-path="stat_data.runtime.relationship_score"]');
+}
+
+test('MVU emits init hiding, prompt filtering, and display folds in stable order', () => {
   const result = applyRegex({ status: false, sources: runtimeSources({ status: false }) });
 
   assert.deepEqual(result.issues, []);
   const scripts = result.payload.data.extensions.regex_scripts;
-  assert.deepEqual(scripts.map(script => script.id), [IDS.prompt, IDS.pending, IDS.complete]);
+  assert.deepEqual(scripts.map(script => script.id), [
+    IDS.initPrompt,
+    IDS.prompt,
+    IDS.initDisplay,
+    IDS.pending,
+    IDS.complete,
+  ]);
   assert.deepEqual(scripts[0], {
+    id: IDS.initPrompt,
+    scriptName: '[MVU] Filter initialization from prompts',
+    findRegex: '/<initvar>\\s*[\\s\\S]*?\\s*<\\/initvar>/gi',
+    replaceString: '',
+    trimStrings: [],
+    placement: [1, 2],
+    disabled: false,
+    markdownOnly: false,
+    promptOnly: true,
+    runOnEdit: false,
+    substituteRegex: 0,
+    minDepth: null,
+    maxDepth: null,
+  });
+  assert.deepEqual(scripts[1], {
     id: IDS.prompt,
     scriptName: '[MVU] Filter variable updates from prompts',
     findRegex: '/<update(?:variable)?>[\\s\\S]*?(?:<\\/update(?:variable)?>|$)/gi',
@@ -180,7 +441,22 @@ test('MVU emits the exact SillyTavern prompt filter and two display folds in sta
     minDepth: null,
     maxDepth: 3,
   });
-  for (const script of scripts.slice(1)) {
+  assert.deepEqual(scripts[2], {
+    id: IDS.initDisplay,
+    scriptName: '[MVU] Hide initialization from messages',
+    findRegex: scripts[0].findRegex,
+    replaceString: '',
+    trimStrings: [],
+    placement: [2],
+    disabled: false,
+    markdownOnly: true,
+    promptOnly: false,
+    runOnEdit: false,
+    substituteRegex: 0,
+    minDepth: null,
+    maxDepth: null,
+  });
+  for (const script of scripts.filter(script => [IDS.initDisplay, IDS.pending, IDS.complete].includes(script.id))) {
     assert.deepEqual(script.placement, [2]);
     assert.equal(script.markdownOnly, true);
     assert.equal(script.promptOnly, false);
@@ -188,9 +464,21 @@ test('MVU emits the exact SillyTavern prompt filter and two display folds in sta
   }
 });
 
+test('complete initvar blocks are hidden from prompts and rendered messages without mutating raw text', () => {
+  const result = applyRegex({ status: false, sources: runtimeSources({ status: false }) });
+  const promptRule = result.payload.data.extensions.regex_scripts.find(script => script.id === IDS.initPrompt);
+  const displayRule = result.payload.data.extensions.regex_scripts.find(script => script.id === IDS.initDisplay);
+  const raw = 'Opening.\n<initvar>\n{"relationship":{"trust":10}}\n</initvar>\nAfter.';
+
+  assert.equal(simulateSillyTavernReplacement(promptRule, raw), 'Opening.\n\nAfter.');
+  assert.equal(simulateSillyTavernReplacement(displayRule, raw), 'Opening.\n\nAfter.');
+  assert.equal(raw.includes('<initvar>'), true, 'regex simulation must not rewrite the source message');
+  assert.equal(simulateSillyTavernReplacement(displayRule, 'Opening. <initvar>{"x":1}'), 'Opening. <initvar>{"x":1}');
+});
+
 test('prompt filter removes multiple update blocks without swallowing prose between them', () => {
   const result = applyRegex({ status: false, sources: runtimeSources({ status: false }) });
-  const filter = regexFromLiteral(result.payload.data.extensions.regex_scripts[0].findRegex);
+  const filter = regexFromLiteral(result.payload.data.extensions.regex_scripts.find(script => script.id === IDS.prompt).findRegex);
   const message = 'Before <UpdateVariable>one</UpdateVariable> middle <update>two</update> after';
 
   assert.equal(message.replace(filter, ''), 'Before  middle  after');
@@ -223,7 +511,14 @@ test('message status projection compiles full MVU paths and normalizes every ope
 
   assert.deepEqual(result.issues, []);
   const scripts = result.payload.data.extensions.regex_scripts;
-  assert.deepEqual(scripts.map(script => script.id), [IDS.prompt, IDS.pending, IDS.complete, IDS.status]);
+  assert.deepEqual(scripts.map(script => script.id), [
+    IDS.initPrompt,
+    IDS.prompt,
+    IDS.initDisplay,
+    IDS.pending,
+    IDS.complete,
+    IDS.status,
+  ]);
   const status = scripts.at(-1);
   assert.deepEqual(status.placement, [2]);
   assert.equal(status.markdownOnly, true);
@@ -241,6 +536,156 @@ test('message status projection compiles full MVU paths and normalizes every ope
     assert.ok(greeting.endsWith(PLACEHOLDER));
   }
   assert.equal(result.payload.data.post_history_instructions.match(/RP Card Studio status placeholder contract/g)?.length, 1);
+});
+
+test('Tavern Helper message status emits a self-contained iframe program with a strict message id', () => {
+  const result = applyRegex({ sources: runtimeSources({ statusAdapter: 'tavern_helper_message' }) });
+  const status = result.payload.data.extensions.regex_scripts.find(script => script.id === IDS.status);
+
+  assert.deepEqual(result.issues, []);
+  assert.match(status.replaceString, /^```\n<body[\s\S]*<script>[\s\S]*<\/script>[\s\S]*<\/body>\n```$/);
+  assert.match(status.replaceString, /getCurrentMessageId\s*\(/);
+  assert.match(status.replaceString, /Number\.isInteger\s*\(/);
+  assert.match(status.replaceString, /getVariables\s*\(/);
+  assert.match(status.replaceString, /message_id\s*:/);
+  assert.match(status.replaceString, /data-rp-runtime-state/);
+  assert.match(status.replaceString, /data-rp-status-path/);
+  assert.doesNotMatch(status.replaceString, /get_message_variable|getMvuData|\bMvu\b|message_id\s*:\s*["']latest["']/);
+  assert.doesNotMatch(status.replaceString, /globalThis\.parent|parent\.document|https?:\/\//i);
+});
+
+test('Tavern Helper message status keeps each floor bound to its own immutable snapshot', async () => {
+  const result = applyRegex({ sources: runtimeSources({ statusAdapter: 'tavern_helper_message' }) });
+  const status = result.payload.data.extensions.regex_scripts.find(script => script.id === IDS.status);
+  const snapshots = new Map([
+    [2, { stat_data: { runtime: { relationship_score: 21 } } }],
+    [4, { stat_data: { runtime: { relationship_score: 47 } } }],
+  ]);
+
+  const floor2 = await evaluateInlineStatus(status.replaceString, {
+    messageId: 2,
+    getVariables: options => snapshots.get(options.message_id),
+  });
+  const floor4 = await evaluateInlineStatus(status.replaceString, {
+    messageId: 4,
+    getVariables: options => snapshots.get(options.message_id),
+  });
+
+  assert.deepEqual(floor2.calls, [{ type: 'message', message_id: 2 }]);
+  assert.deepEqual(floor4.calls, [{ type: 'message', message_id: 4 }]);
+  assert.ok(statusValueNodes(floor2).length > 0);
+  assert.ok(statusValueNodes(floor4).length > 0);
+  assert.ok(statusValueNodes(floor2).every(node => node.textContent === '21'));
+  assert.ok(statusValueNodes(floor4).every(node => node.textContent === '47'));
+  assert.equal(floor2.document.querySelector('[data-rp-runtime-state]').getAttribute('data-rp-runtime-state'), 'ready');
+  assert.equal(floor4.document.querySelector('[data-rp-runtime-state]').getAttribute('data-rp-runtime-state'), 'ready');
+  assert.equal(floor2.pendingTimers(), 1, 'a valid floor snapshot must remain bound to its live message poll');
+  assert.equal(floor4.pendingTimers(), 1, 'a valid floor snapshot must remain bound to its live message poll');
+});
+
+test('Tavern Helper message status never reads latest for a missing or non-integer message id', async () => {
+  for (const messageId of [undefined, '4', 4.5]) {
+    let read = false;
+    const result = applyRegex({ sources: runtimeSources({ statusAdapter: 'tavern_helper_message' }) });
+    const status = result.payload.data.extensions.regex_scripts.find(script => script.id === IDS.status);
+    const harness = await evaluateInlineStatus(status.replaceString, {
+      messageId,
+      getVariables() {
+        read = true;
+        return { stat_data: { runtime: { relationship_score: 99 } } };
+      },
+    });
+
+    assert.equal(read, false, `invalid message id must not read variables: ${String(messageId)}`);
+    assert.deepEqual(harness.calls, []);
+    assert.notEqual(
+      harness.document.querySelector('[data-rp-runtime-state]')?.getAttribute('data-rp-runtime-state'),
+      'ready',
+    );
+  }
+});
+
+test('Tavern Helper message status writes hostile dynamic values only through textContent', async () => {
+  const result = applyRegex({ sources: runtimeSources({ statusAdapter: 'tavern_helper_message' }) });
+  const status = result.payload.data.extensions.regex_scripts.find(script => script.id === IDS.status);
+  const hostile = '<img src=x onerror="globalThis.compromised=true">';
+  const harness = await evaluateInlineStatus(status.replaceString, {
+    messageId: 7,
+    getVariables: () => ({ stat_data: { runtime: { relationship_score: hostile } } }),
+  });
+
+  assert.ok(statusValueNodes(harness).length > 0);
+  assert.ok(statusValueNodes(harness).every(node => node.textContent === hostile));
+  assert.equal(harness.innerHtmlWrites.some(value => value.includes(hostile)), false);
+  assert.equal(harness.pendingTimers(), 1);
+});
+
+test('Tavern Helper message status keeps a low-frequency poll after a delayed snapshot succeeds', async () => {
+  const result = applyRegex({ sources: runtimeSources({ statusAdapter: 'tavern_helper_message' }) });
+  const status = result.payload.data.extensions.regex_scripts.find(script => script.id === IDS.status);
+  const harness = await evaluateInlineStatus(status.replaceString, {
+    messageId: 8,
+    getVariables: (_options, attempt) => (
+      attempt === 1 ? {} : { stat_data: { runtime: { relationship_score: 63 } } }
+    ),
+  });
+
+  assert.equal(harness.calls.length, 1);
+  assert.equal(harness.pendingTimers(), 1);
+  await harness.runNextTimer();
+
+  assert.equal(harness.calls.length, 2);
+  assert.equal(harness.pendingTimers(), 1);
+  assert.ok(statusValueNodes(harness).every(node => node.textContent === '63'));
+  assert.equal(
+    harness.document.querySelector('[data-rp-runtime-state]').getAttribute('data-rp-runtime-state'),
+    'ready',
+  );
+});
+
+test('Tavern Helper message status refreshes an inherited valid snapshot after the same-message MVU commit', async () => {
+  const result = applyRegex({ sources: runtimeSources({ statusAdapter: 'tavern_helper_message' }) });
+  const status = result.payload.data.extensions.regex_scripts.find(script => script.id === IDS.status);
+  const harness = await evaluateInlineStatus(status.replaceString, {
+    messageId: 9,
+    getVariables: (_options, attempt) => ({
+      stat_data: { runtime: { relationship_score: attempt === 1 ? 21 : 84 } },
+    }),
+  });
+
+  assert.deepEqual(harness.calls, [{ type: 'message', message_id: 9 }]);
+  assert.ok(statusValueNodes(harness).length > 0);
+  assert.ok(statusValueNodes(harness).every(node => node.textContent === '21'));
+  assert.equal(harness.pendingTimers(), 1, 'a valid inherited snapshot must be checked after MVU can commit');
+  await harness.runNextTimer();
+
+  assert.deepEqual(harness.calls, [
+    { type: 'message', message_id: 9 },
+    { type: 'message', message_id: 9 },
+  ]);
+  assert.ok(statusValueNodes(harness).length > 0);
+  assert.ok(statusValueNodes(harness).every(node => node.textContent === '84'));
+});
+
+test('Tavern Helper message status does not rebuild unchanged content and clears its poll on pagehide', async () => {
+  const result = applyRegex({ sources: runtimeSources({ statusAdapter: 'tavern_helper_message' }) });
+  const status = result.payload.data.extensions.regex_scripts.find(script => script.id === IDS.status);
+  const harness = await evaluateInlineStatus(status.replaceString, {
+    messageId: 10,
+    getVariables: () => ({ stat_data: { runtime: { relationship_score: 55 } } }),
+  });
+  const initialNodes = statusValueNodes(harness);
+
+  assert.equal(harness.pendingTimers(), 1);
+  await harness.runNextTimer();
+
+  const unchangedNodes = statusValueNodes(harness);
+  assert.equal(harness.calls.length, 2);
+  assert.equal(unchangedNodes[0], initialNodes[0], 'unchanged display values must preserve the existing DOM');
+  assert.equal(harness.pendingTimers(), 1);
+
+  harness.dispatchLifecycle('pagehide');
+  assert.equal(harness.pendingTimers(), 0);
 });
 
 test('text mode emits a message-local text projection instead of HTML markup', () => {
@@ -303,7 +748,7 @@ test('user regex scripts retain relative order before managed scripts', () => {
 
   assert.deepEqual(result.issues, []);
   assert.deepEqual(result.payload.data.extensions.regex_scripts.map(script => script.id), [
-    'user-a', 'user-b', IDS.prompt, IDS.pending, IDS.complete, IDS.status,
+    'user-a', 'user-b', IDS.initPrompt, IDS.prompt, IDS.initDisplay, IDS.pending, IDS.complete, IDS.status,
   ]);
   assert.deepEqual(result.payload.data.extensions.regex_scripts[0], userA);
   assert.deepEqual(result.payload.data.extensions.regex_scripts[1], userB);
@@ -322,6 +767,26 @@ test('a managed id with different content blocks that rule without overwriting i
   assert.equal(result.payload.data.extensions.regex_scripts.some(script => (
     script.id === IDS.prompt && script.scriptName !== collision.scriptName
   )), false);
+});
+
+test('user collisions with either initvar rule are preserved and block only the colliding rule', () => {
+  const promptCollision = { id: IDS.initPrompt, scriptName: 'User prompt initvar rule' };
+  const displayCollision = { id: IDS.initDisplay, scriptName: 'User display initvar rule' };
+  const result = applyRegex({
+    payload: cardPayload([promptCollision, displayCollision]),
+    status: false,
+    sources: runtimeSources({ status: false }),
+  });
+
+  assert.equal(result.issues.filter(issue => issue.rule === 'sillytavern_regex.id_collision').length, 2);
+  assert.deepEqual(result.payload.data.extensions.regex_scripts.slice(0, 2), [promptCollision, displayCollision]);
+  assert.equal(result.payload.data.extensions.regex_scripts.filter(script => script.id === IDS.initPrompt).length, 1);
+  assert.equal(result.payload.data.extensions.regex_scripts.filter(script => script.id === IDS.initDisplay).length, 1);
+  assert.deepEqual(result.payload.data.extensions.regex_scripts.slice(2).map(script => script.id), [
+    IDS.prompt,
+    IDS.pending,
+    IDS.complete,
+  ]);
 });
 
 test('a non-array regex_scripts value blocks generation and is never overwritten', () => {
@@ -358,7 +823,7 @@ test('feature disablement removes only recognizable managed regexes and all stat
   });
   assert.deepEqual(statusOff.issues, []);
   assert.deepEqual(statusOff.payload.data.extensions.regex_scripts.map(script => script.id), [
-    'user-a', 'user-b', IDS.prompt, IDS.pending, IDS.complete,
+    'user-a', 'user-b', IDS.initPrompt, IDS.prompt, IDS.initDisplay, IDS.pending, IDS.complete,
   ]);
   assert.doesNotMatch(statusOff.payload.data.first_mes, /StatusPlaceHolderImpl/);
   assert.ok(statusOff.payload.data.alternate_greetings.every(greeting => !greeting.includes('StatusPlaceHolderImpl')));
@@ -393,17 +858,29 @@ test('feature disablement removes only recognizable managed regexes and all stat
 });
 
 test('disabled features retain unrecognized user collisions with managed UUIDs', () => {
+  const userInitPromptCollision = { id: IDS.initPrompt, scriptName: 'User init prompt collision' };
+  const userInitDisplayCollision = { id: IDS.initDisplay, scriptName: 'User init display collision' };
   const userPromptCollision = { id: IDS.prompt, scriptName: 'User prompt collision' };
   const userStatusCollision = { id: IDS.status, scriptName: 'User status collision' };
   const result = applyRegex({
-    payload: cardPayload([userPromptCollision, userStatusCollision]),
+    payload: cardPayload([
+      userInitPromptCollision,
+      userInitDisplayCollision,
+      userPromptCollision,
+      userStatusCollision,
+    ]),
     mvu: false,
     status: false,
     sources: emptySources(),
   });
 
   assert.deepEqual(result.issues, []);
-  assert.deepEqual(result.payload.data.extensions.regex_scripts, [userPromptCollision, userStatusCollision]);
+  assert.deepEqual(result.payload.data.extensions.regex_scripts, [
+    userInitPromptCollision,
+    userInitDisplayCollision,
+    userPromptCollision,
+    userStatusCollision,
+  ]);
 });
 
 test('MVU output contract orders narrative then update block then status placeholder', () => {

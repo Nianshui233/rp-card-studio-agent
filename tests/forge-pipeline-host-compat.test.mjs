@@ -259,7 +259,9 @@ test('Forge build carries Assembly, MVU artifacts, and Tavern Helper guard throu
   assert.equal(entries.filter(entry => /\[mvu_update\]/i.test(entry.comment)).length, 2, 'MVU update entries are missing');
   assert.ok(scripts.some(script => script.id === 'rp_card_studio_runtime_guard'), 'Tavern Helper runtime guard is missing');
   assert.deepEqual(regexScripts.map(script => script.id), [
+    '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d05',
     '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d01',
+    '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d06',
     '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d02',
     '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d03',
   ]);

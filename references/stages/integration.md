@@ -143,8 +143,9 @@ media_manifest:
 - 从已锁定的 `runtime_contract.adapter`、开场呈现需求和 `status_ui.delivery` 生成实际 adapter 文件，不在整合阶段重设它们的功能语义或视觉设计。
 - 生成前建立 adapter ID、entrypoint、artifact、角色正则 UUID、消息占位符和宿主依赖表；任何 ID、路径、正则或占位符碰撞都先阻断并路由到责任契约。
 - EJS 依赖 `ST-Prompt-Template 1.17.6.8`，动态条目留在 `data.character_book.entries[]`；MVU 运行时桥接脚本进入 `data.extensions.tavern_helper.scripts`，消息状态栏进入 `data.extensions.regex_scripts`。
-- 启用 MVU 时必须生成 Prompt 过滤及完整/流式显示规则；启用状态栏时必须生成 AI_OUTPUT 消息正则、为全部开场追加唯一占位符，并写入后续助手回复合同。
-- 状态栏交付只有角色正则和 Tavern Helper 消息级 JS/iframe。`embedded + sillytavern_regex` 必须是 `refresh: on_message`、只读、无命令、无 tabs；动态刷新、命令、tabs、条件缺失/错误状态或逐楼层快照必须使用 `tavern_helper_message + host_required`。没有已验证消息级实现时不得冒充 embedded 或 runtime pass。
+- 当前 MVU 更新模式只装配 `same_generation`。`extra_pass` 或 `both` 若没有独立请求触发、路由、解析、校验、提交、失败回退与宿主测试全链路，必须阻断；不能把手工解析/提交入口列作自动更新证据。
+- 启用 MVU 时必须生成完整 `<initvar>...</initvar>` 的 Prompt/显示双隐藏规则、更新块 Prompt 过滤及完整/流式显示规则；初始化块与更新块都保留在原始消息中。启用状态栏时必须生成 AI_OUTPUT 消息正则、为全部开场追加唯一占位符，并写入后续助手回复合同。
+- 状态栏交付只有角色正则和 Tavern Helper 消息级 JS/iframe。`embedded + sillytavern_regex` 只用于 `refresh: on_message`、只读、无命令、无 tabs 的文字或简单静态 HTML，且不保证重载历史快照；动态刷新、命令、tabs、条件缺失/错误状态或逐楼层快照必须使用 `tavern_helper_message + host_required`。后者由角色正则生成自包含 fenced HTML，Tavern Helper 在消息内创建 iframe；iframe 必须取得严格整数 `getCurrentMessageId()`，再持续低频调用 `getVariables({ type: "message", message_id })` 复查同一楼层，不能因首个合法旧快照而停止，只在可见值变化时重绘，并在卸载时清理。失败时不得回退 latest。任何消息 UI 都不得访问父页面或加载远程 UI。没有已验证消息级实现时不得冒充 embedded 或 runtime pass。
 - 运行时代码必须随项目、角色卡或明确的宿主依赖交付并登记；禁止通过未登记的远程脚本 URL 临时补能力。
 - 生成成功、语法通过和静态预览只形成 `offline` 或 `artifact` 证据；只有目标宿主实际加载、更新、卸载和降级用例通过，才能形成 `runtime` 证据。
 
@@ -166,7 +167,7 @@ media_manifest:
 - `unpack -> build` 往返不会丢失已知或未知字段。
 - 每个产物记录来源修订、构建参数、哈希和验证结果。
 - 阻断项为零；警告都有处置记录。
-- 真实运行测试已执行，或明确列为 `not_run`/`blocked` 并说明原因。
+- 真实运行测试已执行，或明确列为 `not_run`/`blocked` 并说明原因。iframe 元素存在但子文档未导航或脚本未执行仍算 `not_run`；Blob URL 在当前宿主浏览器不导航时记录原因 `host_incompatible`。
 - `reports/handoff.md` 能区分已证实、未证实、需宿主设置和用户验收。
 - `assembly.yaml` 已登记到 `source_manifest.assembly`；世界书、媒体 consumer、adapter 入口、角色正则和消息占位符均无悬空引用或碰撞。
 - 所有适用的本地/远程媒体和运行时代码都已登记；远程媒体有回退，且没有未登记远程运行脚本。

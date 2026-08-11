@@ -53,6 +53,7 @@
 | 状态快照属于哪里？ | message / chat / character | 影响存档隔离、覆盖顺序和迁移 | 默认 message；确有跨消息合并需求再扩大 scope |
 | 变量由谁写入？ | 剧情模型 / 独立更新模型 / 确定性脚本 | 影响提示词路由与竞争写入风险 | 公式派生值推荐脚本独占 |
 | 开场如何初始化？ | 共用 profile / 具名差异 profile | 影响开场一致性与迁移 | 共用默认 profile，只有真实差异才增加 binding |
+| 更新在哪次请求完成？ | 同轮生成 / 独立更新请求 | 影响调用链、失败处理和可验证性 | 当前 Forge 只实现 `same_generation`；没有完整独立请求链时不得选择后者 |
 ```
 
 收到选择后给出本轮片段：
@@ -63,8 +64,8 @@ schema_version: 1.1.0
 status: locked
 mvu:
   enabled: true
-  implementation: "内嵌状态更新契约"
-  update_mode: extra_pass
+  implementation: "内嵌同轮状态更新契约"
+  update_mode: same_generation
   output_dialect: rp_json_patch
   storage:
     scope: message
@@ -168,6 +169,10 @@ runtime_contract:
 
 片段后报告已锁定决定、字段生命周期缺口、运行时假设和下一批本阶段问题。用户完全放权时，先一次性列出选择与理由，再锁定授权范围内的全部决定，之后不重复询问。
 
+当前 Forge 生成并验证的 MVU 更新链只有 `same_generation`：同一次助手生成同时输出叙事、合法变量更新块与适用的状态栏占位符，宿主从这条原始消息解析并提交更新。`writer.kind: update_model` 只是字段所有权名称，不代表已经发起第二次模型请求。
+
+`extra_pass` 与 `both` 只作为既有项目的待迁移值识别。项目只有在实际交付了独立请求触发、提示词/接收者路由、响应解析、协议校验、原子提交、失败回退和真实宿主测试整条链时，才能启用这两个值；当前实现缺少这条链，构建必须阻断，不能把一个可被手工调用的解析或提交辅助函数当成自动 extra pass。
+
 ## 建议的问题批次
 
 1. 能力与开关：MVU/EJS 组合、运行时实现、版本和依赖。
@@ -185,12 +190,14 @@ runtime_contract:
 - `source_path` 是语义路径，`runtime_path` 是运行时路径，两者通过显式映射连接。
 - `storage` 必须声明单一可信 scope；跨 scope 读取只有在 `merge_policy` 明确时允许，不能依赖宿主的隐式覆盖顺序。
 - `protocol.id + protocol.version` 构成稳定协议身份。新项目使用结构化、可校验的协议；`output_dialect` 仅作为兼容摘要，不能替代 `protocol`。
+- 当前实现的 `update_mode` 必须是 `same_generation`；同一条原始助手消息中的更新块由 MVU 自动解析。发现 `extra_pass` 或 `both` 时先检查是否存在并通过独立请求全链路证据，没有就阻断，不能静默降级或虚构一次额外调用。
 - 纯 EJS 读取必须有与类型一致的默认值；MVU 联动读取必须有可证明的初始化先序和明确 `branches.fallback`，不得用默认值掩盖缺失快照或路径。
 - 每个 profile 有稳定 ID；`opening_bindings` 只引用已存在 opening 与 profile，继承不得成环，合并后必须通过完整运行时 Schema。
 - EJS 条件只读取已登记字段并覆盖所有分支。纯 EJS 通过 `getvar(runtime_path, { defaults })` 读取；MVU 联动当前只允许 `message/stat_data/current|latest message`，有界等待 `Mvu` 后读取快照。`current_message` 的 render 条目使用 ST-Prompt-Template 提供的数字 `message_id`；generate 上下文没有楼层号时明确降级到 latest。宿主、namespace 或路径缺失时进入 `branches.fallback`。
 - 条目路由与条目激活是两个维度；路由不能替代关键词、深度、顺序等激活规则。
 - 未确认的宿主能力进入 `runtime_contract.assumptions`，不得写成已经验证。
 - Tavern Helper adapter 是可选宿主桥接，不是默认依赖。需要时在本阶段锁定契约，实际 adapter 文件、入口装配和碰撞扫描留到 `integration`；不得直接引用未登记的远程运行脚本。
+- 每条实际开场的完整 `<initvar>...</initvar>` 块保留在原始消息供 MVU 初始化；整合时必须生成分别作用于送模副本和玩家显示副本的隐藏正则。两条规则都不得吞掉未闭合块或改写原始记录。
 - NSFW 已启用时，只映射前序阶段已锁定的相关字段，不再询问偏好或边界；关闭时不得生成相关字段、条件或依赖。始终服从平台硬约束。
 
 ## 完成门槛
@@ -200,6 +207,7 @@ runtime_contract:
 - 默认初始化与每个开场覆盖都符合字段类型和约束。
 - profiles、opening bindings 和继承图可解析，且每个开场合并后的状态合法。
 - 所有更新操作属于锁定的协议版本，更新边界、原子性、修订保护和失败行为已定义。
+- `update_mode` 与真实请求链一致；当前项目使用 `same_generation`，或对尚无独立请求链的 `extra_pass`/`both` 给出 blocker。
 - 已启用的变量账本能确定性生成 `reports/runtime-state.schema.json`；跳过本阶段且没有既有实现时不生成该报告。
 - 每个业务状态机映射保持原状态、转换与后果，不新增或改写系统语义。
 - 所有 EJS 读取路径存在；纯 EJS 条件具备类型匹配的默认值，MVU 联动条件具备安全 fallback，且两者都有完整分支。
