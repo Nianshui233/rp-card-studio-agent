@@ -1,0 +1,8 @@
+sections:
+  - id: intimate_state
+    display_name: 亲密状态
+    priority: 90
+    collapsed: true
+    content_class: nsfw
+    fields: []
+

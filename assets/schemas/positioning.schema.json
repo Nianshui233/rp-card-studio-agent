@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rp-card-studio.local/schemas/positioning.schema.json",
+  "title": "Project Positioning Source",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "status",
+    "premise",
+    "target_users",
+    "card_mode",
+    "user_role",
+    "experience_pillars",
+    "tone",
+    "expected_span",
+    "scope_notes",
+    "source_refs"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "id": { "$ref": "#/$defs/id" },
+    "status": { "enum": ["draft", "locked"] },
+    "premise": { "type": "string" },
+    "target_users": { "$ref": "#/$defs/stringList" },
+    "card_mode": { "$ref": "#/$defs/id" },
+    "user_role": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "agency", "description"],
+      "properties": {
+        "label": { "type": "string" },
+        "agency": { "type": "string" },
+        "description": { "type": "string" }
+      }
+    },
+    "experience_pillars": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "priority", "description"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "priority": { "type": "integer", "minimum": 1 },
+          "description": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "tone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary", "secondary"],
+      "properties": {
+        "primary": { "type": "string" },
+        "secondary": { "type": "string" }
+      }
+    },
+    "expected_span": { "$ref": "#/$defs/id" },
+    "scope_notes": { "$ref": "#/$defs/stringList" },
+    "source_refs": { "$ref": "#/$defs/stringList" }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "stringList": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    }
+  }
+}

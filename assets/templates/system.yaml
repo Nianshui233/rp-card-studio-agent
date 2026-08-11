@@ -1,0 +1,13 @@
+schema_version: 1.0.0
+id: system_id
+display_name: 未命名系统
+status: draft
+purpose: ""
+
+axes: []
+rules: []
+state_machines: []
+settlement_order: []
+invariants: []
+failure_modes: []
+source_refs: []

@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rp-card-studio.local/schemas/scene.schema.json",
+  "title": "Scene Source",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "display_name", "status", "purpose", "context", "entrances", "exits", "zones", "player_visible", "gm_only", "risks", "clues", "events", "state_bindings", "source_refs"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "id": { "$ref": "#/$defs/id" },
+    "display_name": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["draft", "locked"] },
+    "purpose": { "type": "string" },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["world_ref", "time_window", "location_ref"],
+      "properties": {
+        "world_ref": { "type": "string", "pattern": "^world:[a-z][a-z0-9_]*$" },
+        "time_window": { "type": "string" },
+        "location_ref": { "type": "string" }
+      }
+    },
+    "entrances": { "type": "array", "items": { "$ref": "#/$defs/entrance" } },
+    "exits": { "type": "array", "items": { "$ref": "#/$defs/exit" } },
+    "zones": { "type": "array", "items": { "$ref": "#/$defs/zone" } },
+    "player_visible": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["first_impression", "sensory_cues", "affordances"],
+      "properties": {
+        "first_impression": { "type": "string" },
+        "sensory_cues": { "$ref": "#/$defs/stringList" },
+        "affordances": { "$ref": "#/$defs/stringList" }
+      }
+    },
+    "gm_only": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["truth", "hidden_events", "concealed_connections"],
+      "properties": {
+        "truth": { "type": "string" },
+        "hidden_events": { "$ref": "#/$defs/stringList" },
+        "concealed_connections": { "$ref": "#/$defs/stringList" }
+      }
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "trigger", "consequence", "escape"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "trigger": { "type": "string", "minLength": 1 },
+          "consequence": { "type": "string", "minLength": 1 },
+          "escape": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "clues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "discovery", "player_information", "gm_meaning", "leads_to"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "discovery": { "type": "string", "minLength": 1 },
+          "player_information": { "type": "string", "minLength": 1 },
+          "gm_meaning": { "type": "string", "minLength": 1 },
+          "leads_to": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+        }
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "trigger", "result", "writes"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "trigger": { "type": "string", "minLength": 1 },
+          "result": { "type": "string", "minLength": 1 },
+          "writes": { "type": "array", "items": { "$ref": "#/$defs/write" } }
+        }
+      }
+    },
+    "state_bindings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_path", "access", "purpose"],
+        "properties": {
+          "source_path": { "$ref": "#/$defs/path" },
+          "access": { "enum": ["read", "write", "read_write"] },
+          "purpose": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "source_refs": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "extensions": { "type": "object" }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "path": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$" },
+    "stringList": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "entrance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "from_ref", "access"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "from_ref": { "type": "string", "minLength": 1 },
+        "access": { "type": "string", "minLength": 1 }
+      }
+    },
+    "exit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "to_ref", "condition", "fallback"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "to_ref": { "type": "string", "pattern": "^scene:[a-z][a-z0-9_]*$" },
+        "condition": { "type": "string", "minLength": 1 },
+        "fallback": { "type": "string", "minLength": 1 }
+      }
+    },
+    "zone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "display_name", "description", "connections"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "display_name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "connections": { "type": "array", "items": { "$ref": "#/$defs/id" }, "uniqueItems": true }
+      }
+    },
+    "write": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "operation"],
+      "properties": {
+        "path": { "$ref": "#/$defs/path" },
+        "operation": { "enum": ["set", "add", "subtract", "append", "remove"] },
+        "value": {}
+      }
+    }
+  }
+}
+

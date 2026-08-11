@@ -1,0 +1,74 @@
+schema_version: 1.0.0
+
+project:
+  id: project_id
+  display_name: 未命名项目
+  locale: zh-CN
+  workspace: .
+  operation: create
+  status: draft
+
+preflight:
+  workspace_confirmed: false
+  nsfw:
+    confirmed: false
+    enabled: false
+    decision_source: pending
+  input_materials_confirmed: false
+  deliverables_confirmed: false
+
+workflow:
+  stage_order:
+    - positioning
+    - materials
+    - worldbuilding
+    - character
+    - systems
+    - scenes
+    - mvu_ejs
+    - narrative_opening
+    - status_ui
+    - integration
+  optional_stages:
+    - materials
+    - systems
+    - scenes
+    - mvu_ejs
+    - status_ui
+
+features:
+  materials: false
+  systems: false
+  scenes: false
+  mvu: false
+  ejs: false
+  status_ui: false
+
+deliverables:
+  - character_card_json
+
+materials: []
+decisions: []
+cross_stage_backlog: []
+
+source_manifest:
+  positioning: []
+  world: []
+  characters: []
+  systems: []
+  scenes: []
+  mvu: []
+  prompts: []
+  ui: []
+  assembly: []
+  preserved_imports: []
+
+runtime_target:
+  application: SillyTavern
+  version: unverified
+  dependencies: []
+
+release:
+  version: 0.1.0
+  outputs: []
+  accepted_warnings: []

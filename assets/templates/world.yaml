@@ -1,0 +1,37 @@
+schema_version: 1.0.0
+id: world_main
+display_name: 未命名世界
+status: draft
+
+premise:
+  summary: ""
+  scale: pending
+  time_scope: ""
+  space_scope: ""
+  public_reality: ""
+
+fundamental_rules: []
+
+society:
+  norms: []
+  institutions: []
+  factions: []
+
+geography:
+  locations: []
+
+history:
+  events: []
+
+knowledge:
+  player_visible: []
+  conditional: []
+  gm_only: []
+  model_only: []
+
+continuity:
+  invariants: []
+  open_questions: []
+
+hooks: []
+source_refs: []

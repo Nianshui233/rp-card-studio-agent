@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rp-card-studio.local/schemas/world.schema.json",
+  "title": "World Source",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "display_name", "status", "premise", "fundamental_rules", "society", "geography", "history", "knowledge", "continuity", "hooks", "source_refs"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "id": { "$ref": "#/$defs/id" },
+    "display_name": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["draft", "locked"] },
+    "premise": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "scale", "time_scope", "space_scope", "public_reality"],
+      "properties": {
+        "summary": { "type": "string" },
+        "scale": { "enum": ["pending", "personal", "local", "regional", "global", "multiverse"] },
+        "time_scope": { "type": "string" },
+        "space_scope": { "type": "string" },
+        "public_reality": { "type": "string" }
+      }
+    },
+    "fundamental_rules": { "type": "array", "items": { "$ref": "#/$defs/rule" } },
+    "society": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["norms", "institutions", "factions"],
+      "properties": {
+        "norms": { "$ref": "#/$defs/contentList" },
+        "institutions": { "$ref": "#/$defs/entityList" },
+        "factions": { "$ref": "#/$defs/entityList" }
+      }
+    },
+    "geography": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locations"],
+      "properties": { "locations": { "$ref": "#/$defs/entityList" } }
+    },
+    "history": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["events"],
+      "properties": { "events": { "$ref": "#/$defs/entityList" } }
+    },
+    "knowledge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["player_visible", "gm_only", "model_only"],
+      "properties": {
+        "player_visible": { "$ref": "#/$defs/contentList" },
+        "conditional": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "fact", "access"],
+            "properties": {
+              "id": { "$ref": "#/$defs/id" },
+              "fact": { "type": "string", "minLength": 1 },
+              "access": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "gm_only": { "$ref": "#/$defs/contentList" },
+        "model_only": { "$ref": "#/$defs/contentList" }
+      }
+    },
+    "continuity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariants", "open_questions"],
+      "properties": {
+        "invariants": { "$ref": "#/$defs/contentList" },
+        "open_questions": { "$ref": "#/$defs/contentList" }
+      }
+    },
+    "hooks": { "$ref": "#/$defs/contentList" },
+    "source_refs": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "extensions": { "type": "object" }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "content": {
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "summary"],
+          "properties": {
+            "id": { "$ref": "#/$defs/id" },
+            "summary": { "type": "string", "minLength": 1 },
+            "refs": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+          }
+        }
+      ]
+    },
+    "contentList": { "type": "array", "items": { "$ref": "#/$defs/content" } },
+    "entityList": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "display_name", "summary"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "display_name": { "type": "string", "minLength": 1 },
+          "summary": { "type": "string", "minLength": 1 },
+          "visibility": { "enum": ["player", "gm", "model"] },
+          "goal": { "type": "string" },
+          "methods": { "$ref": "#/$defs/contentList" },
+          "resources": { "$ref": "#/$defs/contentList" },
+          "leverage": { "type": "string" },
+          "relationships": { "$ref": "#/$defs/contentList" },
+          "refs": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+        }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement", "scope", "exceptions", "consequences", "visibility"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "statement": { "type": "string", "minLength": 1 },
+        "scope": { "type": "string", "minLength": 1 },
+        "can": { "$ref": "#/$defs/contentList" },
+        "cannot": { "$ref": "#/$defs/contentList" },
+        "cost": { "type": "string" },
+        "limits": { "type": "string" },
+        "adjudication": { "type": "string" },
+        "precedence": { "type": "string" },
+        "boundary_cases": { "$ref": "#/$defs/contentList" },
+        "exceptions": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "consequences": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "visibility": { "enum": ["player", "gm", "model"] }
+      }
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0.0",
+  "project_id": "project_id",
+  "revision": 0,
+  "active_stage": "preflight",
+  "stages": {
+    "preflight": { "status": "in_progress", "round": 1, "summary": null },
+    "positioning": { "status": "not_started", "round": 0, "summary": null },
+    "materials": { "status": "not_started", "round": 0, "summary": null },
+    "worldbuilding": { "status": "not_started", "round": 0, "summary": null },
+    "character": { "status": "not_started", "round": 0, "summary": null },
+    "systems": { "status": "not_started", "round": 0, "summary": null },
+    "scenes": { "status": "not_started", "round": 0, "summary": null },
+    "mvu_ejs": { "status": "not_started", "round": 0, "summary": null },
+    "narrative_opening": { "status": "not_started", "round": 0, "summary": null },
+    "status_ui": { "status": "not_started", "round": 0, "summary": null },
+    "integration": { "status": "not_started", "round": 0, "summary": null }
+  },
+  "decision_locks": [],
+  "delegations": [],
+  "cross_stage_backlog": [],
+  "dirty_sources": [],
+  "last_build": null,
+  "validation": {
+    "status": "not_run",
+    "runs": []
+  },
+  "transaction": null,
+  "updated_at": null
+}
+

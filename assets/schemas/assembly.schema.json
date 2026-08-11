@@ -1,0 +1,233 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rp-card-studio.local/schemas/assembly.schema.json",
+  "title": "RP Card Assembly Source",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "worldbook_manifest", "media_manifest"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "status": { "enum": ["draft", "locked"] },
+    "worldbook_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entries"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "display_name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "scan_depth": { "type": ["integer", "null"], "minimum": 0 },
+        "token_budget": { "type": ["integer", "null"], "minimum": 0 },
+        "recursive_scanning": { "type": "boolean" },
+        "preserve_imported_entries": { "type": "boolean" },
+        "duplicate_policy": { "enum": ["error", "keep_imported", "replace_imported"] },
+        "entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/worldbookEntry" }
+        }
+      }
+    },
+    "media_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "assets"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "assets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/mediaAsset" }
+        }
+      }
+    },
+    "extensions": { "type": "object" }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "stringList": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["file", "registered_source", "inline"] },
+        "path": { "type": "string", "minLength": 1 },
+        "source_ref": { "type": "string", "minLength": 1 },
+        "selector": { "type": "string", "pattern": "^(?:|/(?:[^~/]|~[01])*)?(?:/(?:[^~/]|~[01])*)*$" },
+        "content": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "file" } }, "required": ["kind"] },
+          "then": {
+            "properties": { "path": { "type": "string", "minLength": 1 } },
+            "required": ["path"]
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "registered_source" } }, "required": ["kind"] },
+          "then": {
+            "properties": { "source_ref": { "type": "string", "minLength": 1 } },
+            "required": ["source_ref"]
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "inline" } }, "required": ["kind"] },
+          "then": {
+            "properties": { "content": { "type": "string" } },
+            "required": ["content"]
+          }
+        }
+      ]
+    },
+    "worldbookEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "source", "enabled", "activation", "insertion", "probability", "recursion", "recipient", "visibility", "fallback"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "display_name": { "type": "string", "minLength": 1 },
+        "source": { "$ref": "#/$defs/source" },
+        "enabled": { "type": "boolean" },
+        "activation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "primary_keys", "secondary_keys", "selective"],
+          "properties": {
+            "mode": { "enum": ["constant", "keywords"] },
+            "primary_keys": { "$ref": "#/$defs/stringList" },
+            "secondary_keys": { "$ref": "#/$defs/stringList" },
+            "selective": { "type": "boolean" },
+            "logic": { "enum": ["any", "all", "not_any", "not_all"] },
+            "case_sensitive": { "type": "boolean" },
+            "match_whole_words": { "type": "boolean" }
+          }
+        },
+        "insertion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["position", "order"],
+          "properties": {
+            "position": { "enum": ["before_char", "after_char", "before_example", "after_example", "at_depth"] },
+            "order": { "type": "integer" },
+            "depth": { "type": ["integer", "null"], "minimum": 0 },
+            "role": { "enum": ["system", "user", "assistant"] }
+          }
+        },
+        "probability": { "type": "number", "minimum": 0, "maximum": 100 },
+        "recursion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["prevent_incoming", "prevent_outgoing", "delay_until_recursion"],
+          "properties": {
+            "prevent_incoming": { "type": "boolean" },
+            "prevent_outgoing": { "type": "boolean" },
+            "delay_until_recursion": { "type": "boolean" }
+          }
+        },
+        "recipient": { "enum": ["plot", "update", "shared"] },
+        "visibility": { "enum": ["player", "gm", "model"] },
+        "token_budget": { "type": ["integer", "null"], "minimum": 0 },
+        "fallback": { "enum": ["skip", "include", "block"] },
+        "extensions": { "type": "object" }
+      }
+    },
+    "mediaAsset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "source", "delivery", "consumers", "fallback"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": { "enum": ["portrait", "background", "sprite", "audio", "video", "ui_image", "font", "other"] },
+        "source": {
+          "oneOf": [
+            { "$ref": "#/$defs/source" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "url"],
+              "properties": {
+                "kind": { "const": "url" },
+                "url": { "type": "string", "pattern": "^https://" }
+              }
+            }
+          ]
+        },
+        "delivery": { "enum": ["embedded", "remote", "host_required"] },
+        "preload": { "enum": ["none", "on_opening", "eager", "on_demand"] },
+        "mime_type": { "type": "string", "minLength": 1 },
+        "integrity": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+            "bytes": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "consumers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["ref", "slot"],
+            "properties": {
+              "ref": { "type": "string", "minLength": 1 },
+              "slot": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "fallback": {
+          "oneOf": [
+            { "enum": ["skip", "text", "block"] },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["strategy"],
+              "properties": {
+                "strategy": { "enum": ["skip", "text", "asset", "block"] },
+                "text": { "type": "string" },
+                "asset_ref": { "type": "string", "pattern": "^media:[a-z][a-z0-9_]*$" }
+              }
+            }
+          ]
+        },
+        "extensions": { "type": "object" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "delivery": { "const": "remote" } },
+            "required": ["delivery"]
+          },
+          "then": {
+            "properties": {
+              "source": {
+                "type": "object",
+                "properties": { "kind": { "const": "url" } },
+                "required": ["kind"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source": {
+                "type": "object",
+                "properties": { "kind": { "enum": ["file", "registered_source", "inline"] } },
+                "required": ["kind"]
+              }
+            },
+            "required": ["source"]
+          },
+          "then": {
+            "properties": { "delivery": { "const": "embedded" } }
+          }
+        }
+      ]
+    }
+  }
+}

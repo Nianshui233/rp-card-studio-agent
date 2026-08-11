@@ -1,0 +1,23 @@
+schema_version: 1.0.0
+id: project_positioning
+status: draft
+
+premise: ""
+target_users: []
+card_mode: pending
+
+user_role:
+  label: ""
+  agency: ""
+  description: ""
+
+experience_pillars: []
+
+tone:
+  primary: ""
+  secondary: ""
+
+expected_span: pending
+scope_notes: []
+source_refs: []
+

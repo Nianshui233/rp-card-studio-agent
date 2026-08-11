@@ -1,0 +1,29 @@
+schema_version: 1.1.0
+status: draft
+
+status_ui:
+  enabled: false
+  mode: none
+  read_only: true
+  refresh: on_message
+  text_template: ""
+  sections: []
+  commands: []
+  states:
+    loading: 正在读取状态
+    empty: 暂无可显示状态
+    error: 状态暂时不可用
+    degraded: 使用文字状态栏
+  responsive:
+    narrow: single_column
+    wide: grouped_columns
+  visual:
+    density: pending
+    hierarchy: []
+    motion: pending
+  accessibility:
+    keyboard: true
+    live_updates: polite
+    color_independent: true
+  dependencies: []
+  delivery: null

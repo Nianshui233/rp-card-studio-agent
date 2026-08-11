@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rp-card-studio.local/schemas/opening.schema.json",
+  "title": "Narrative and Opening Source",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "narrative", "openings", "dialogue_examples", "source_refs"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "status": { "enum": ["draft", "locked"] },
+    "narrative": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["point_of_view", "tense", "pacing", "prose_density", "dialogue_ratio", "sensory_focus", "player_agency", "information_policy"],
+      "properties": {
+        "point_of_view": { "enum": ["pending", "second_person_limited", "third_person_limited", "first_person_character", "flexible_camera"] },
+        "tense": { "enum": ["pending", "present", "past"] },
+        "pacing": { "type": "string" },
+        "prose_density": { "type": "string" },
+        "dialogue_ratio": { "type": "string" },
+        "sensory_focus": { "$ref": "#/$defs/stringList" },
+        "player_agency": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["never_decide", "npc_permissions", "handoff"],
+          "properties": {
+            "never_decide": { "$ref": "#/$defs/stringList" },
+            "npc_permissions": { "$ref": "#/$defs/stringList" },
+            "handoff": { "type": "string" }
+          }
+        },
+        "information_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reveal", "withhold"],
+          "properties": {
+            "reveal": { "$ref": "#/$defs/stringList" },
+            "withhold": { "$ref": "#/$defs/stringList" }
+          }
+        }
+      }
+    },
+    "openings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "display_name", "is_default", "scene_ref", "present_character_refs", "visible_text", "immediate_change", "hook", "player_handoff", "initial_state_ref", "established_facts"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "display_name": { "type": "string", "minLength": 1 },
+          "is_default": { "type": "boolean" },
+          "scene_ref": { "type": "string", "pattern": "^scene:[a-z][a-z0-9_]*$" },
+          "present_character_refs": { "type": "array", "items": { "type": "string", "pattern": "^character:[a-z][a-z0-9_]*$" }, "uniqueItems": true },
+          "visible_text": { "type": "string", "minLength": 1 },
+          "presentations": { "$ref": "#/$defs/presentations" },
+          "immediate_change": { "type": "string", "minLength": 1 },
+          "hook": { "type": "string", "minLength": 1 },
+          "player_handoff": { "type": "string", "minLength": 1 },
+          "initial_state_ref": { "type": ["string", "null"], "pattern": "^mvu_init:[a-z][a-z0-9_]*$" },
+          "established_facts": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+        }
+      }
+    },
+    "dialogue_examples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["character_ref", "context", "line", "demonstrates"],
+        "properties": {
+          "character_ref": { "type": "string", "pattern": "^character:[a-z][a-z0-9_]*$" },
+          "context": { "type": "string", "minLength": 1 },
+          "line": { "type": "string", "minLength": 1 },
+          "demonstrates": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "source_refs": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "extensions": { "type": "object" }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "stringList": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "presentations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default_variant_id", "variants"],
+      "properties": {
+        "default_variant_id": { "$ref": "#/$defs/id" },
+        "variants": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/presentationVariant" }
+        }
+      }
+    },
+    "presentationVariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "mode", "visible_text"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "display_name": { "type": "string", "minLength": 1 },
+        "mode": { "enum": ["prose", "chat", "galgame", "custom"] },
+        "visible_text": { "type": "string", "minLength": 1 },
+        "requirements": { "$ref": "#/$defs/stringList" },
+        "media_refs": { "type": "array", "items": { "type": "string", "pattern": "^media:[a-z][a-z0-9_]*$" }, "uniqueItems": true },
+        "fallback_variant_ref": { "type": ["string", "null"], "pattern": "^presentation:[a-z][a-z0-9_]*$" },
+        "delivery": { "enum": ["builtin", "embedded", "host_required"] },
+        "extensions": { "type": "object" }
+      }
+    }
+  }
+}

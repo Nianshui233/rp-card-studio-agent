@@ -1,0 +1,22 @@
+schema_version: 1.0.0
+status: draft
+
+narrative:
+  point_of_view: pending
+  tense: pending
+  pacing: ""
+  prose_density: ""
+  dialogue_ratio: ""
+  sensory_focus: []
+  player_agency:
+    never_decide: []
+    npc_permissions: []
+    handoff: ""
+  information_policy:
+    reveal: []
+    withhold: []
+
+openings: []
+dialogue_examples: []
+source_refs: []
+

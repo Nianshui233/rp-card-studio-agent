@@ -1,0 +1,56 @@
+schema_version: 1.0.0
+id: character_id
+display_name: 未命名角色
+status: draft
+role: primary_character
+
+identity:
+  aliases: []
+  age: null
+  species: ""
+  occupation: ""
+  appearance: []
+
+narrative_function:
+  purpose: ""
+  pressure_on_player: ""
+
+goals:
+  immediate: []
+  long_term: []
+  hidden: []
+
+psychology:
+  needs: []
+  fears: []
+  weaknesses: []
+  biases: []
+  self_deceptions: []
+
+value_priority: []
+internal_conflicts: []
+boundaries: []
+
+behavioral_rules: []
+stress_ladder: []
+ooc_guardrails: []
+
+speech:
+  register: ""
+  rhythm: ""
+  habits: []
+  avoid: []
+
+relationships: []
+
+knowledge:
+  player_visible: []
+  gm_only: []
+  model_only: []
+  mistaken: []
+  forbidden: []
+
+state_bindings: []
+examples: []
+tags: []
+source_refs: []

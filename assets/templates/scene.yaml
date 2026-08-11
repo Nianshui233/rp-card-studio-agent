@@ -1,0 +1,31 @@
+schema_version: 1.0.0
+id: scene_id
+display_name: 未命名场景
+status: draft
+purpose: ""
+
+context:
+  world_ref: world:world_main
+  time_window: ""
+  location_ref: ""
+
+entrances: []
+exits: []
+zones: []
+
+player_visible:
+  first_impression: ""
+  sensory_cues: []
+  affordances: []
+
+gm_only:
+  truth: ""
+  hidden_events: []
+  concealed_connections: []
+
+risks: []
+clues: []
+events: []
+state_bindings: []
+source_refs: []
+

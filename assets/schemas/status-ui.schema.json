@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rp-card-studio.local/schemas/status-ui.schema.json",
+  "title": "Status UI Source",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "status_ui"],
+  "properties": {
+    "schema_version": { "enum": ["1.0.0", "1.1.0"] },
+    "status": { "enum": ["draft", "locked"] },
+    "status_ui": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "mode", "read_only", "refresh", "text_template", "sections", "commands", "states", "responsive", "visual", "accessibility", "dependencies"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "mode": { "enum": ["none", "text", "embedded", "both"] },
+        "read_only": { "type": "boolean" },
+        "refresh": { "enum": ["on_message", "on_state_change", "manual", "hybrid"] },
+        "text_template": { "type": "string" },
+        "sections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "display_name", "priority", "collapsed", "fields"],
+            "properties": {
+              "id": { "$ref": "#/$defs/id" },
+              "display_name": { "type": "string", "minLength": 1 },
+              "priority": { "type": "integer", "minimum": 0 },
+              "collapsed": { "type": "boolean" },
+              "fields": { "type": "array", "items": { "$ref": "#/$defs/field" } },
+              "content_class": { "enum": ["standard", "nsfw"] }
+            }
+          }
+        },
+        "commands": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "label", "channel", "payload", "writer_id"],
+            "properties": {
+              "id": { "$ref": "#/$defs/id" },
+              "label": { "type": "string", "minLength": 1 },
+              "channel": { "enum": ["chat_command", "runtime_event", "script_api"] },
+              "payload": { "type": "string", "minLength": 1 },
+              "writer_id": { "$ref": "#/$defs/id" }
+            }
+          }
+        },
+        "states": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["loading", "empty", "error", "degraded"],
+          "properties": {
+            "loading": { "type": "string", "minLength": 1 },
+            "empty": { "type": "string", "minLength": 1 },
+            "error": { "type": "string", "minLength": 1 },
+            "degraded": { "type": "string", "minLength": 1 }
+          }
+        },
+        "responsive": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["narrow", "wide"],
+          "properties": {
+            "narrow": { "enum": ["single_column", "compact_list", "tabs"] },
+            "wide": { "enum": ["single_column", "grouped_columns", "tabs"] }
+          }
+        },
+        "visual": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["density", "hierarchy", "motion"],
+          "properties": {
+            "density": { "enum": ["pending", "compact", "comfortable", "spacious"] },
+            "hierarchy": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+            "motion": { "enum": ["pending", "none", "restrained", "expressive"] }
+          }
+        },
+        "accessibility": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["keyboard", "live_updates", "color_independent"],
+          "properties": {
+            "keyboard": { "type": "boolean" },
+            "live_updates": { "enum": ["off", "polite", "assertive"] },
+            "color_independent": { "type": "boolean" }
+          }
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "class", "delivery", "fallback"],
+            "properties": {
+              "id": { "$ref": "#/$defs/id" },
+              "class": { "enum": ["builtin", "embedded", "host_required", "remote", "development_only"] },
+              "delivery": { "type": "string", "minLength": 1 },
+              "fallback": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "delivery": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/delivery" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "level": { "const": "embedded" } },
+            "required": ["level"]
+          },
+          "then": {
+            "properties": {
+              "adapter": { "const": "tavern_helper" },
+              "entrypoint": { "const": "generated" },
+              "artifact": { "const": "inline" }
+            }
+          }
+        }
+      ]
+    },
+    "extensions": { "type": "object" }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "sourcePath": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$" },
+    "delivery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level", "adapter", "entrypoint", "artifact", "mount_anchor", "lifecycle"],
+      "properties": {
+        "level": { "enum": ["specification", "text", "embedded", "external"] },
+        "adapter": { "$ref": "#/$defs/id" },
+        "entrypoint": { "type": "string", "minLength": 1 },
+        "artifact": { "type": "string", "minLength": 1 },
+        "mount_anchor": { "$ref": "#/$defs/domId" },
+        "lifecycle": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["wait_for", "cleanup", "idempotent"],
+          "properties": {
+            "wait_for": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+            "cleanup": { "type": "array", "items": { "enum": ["events", "observers", "timers", "dom", "styles", "stores"] }, "uniqueItems": true },
+            "idempotent": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "domId": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]*$" },
+    "field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "source_path", "label", "format", "missing_value", "visibility"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "source_path": { "$ref": "#/$defs/sourcePath" },
+        "label": { "type": "string", "minLength": 1 },
+        "format": { "enum": ["string", "integer", "number", "boolean", "percent", "enum", "list", "object"] },
+        "missing_value": { "type": "string" },
+        "visibility": { "const": "player" },
+        "content_class": { "enum": ["standard", "nsfw"] }
+      }
+    }
+  }
+}

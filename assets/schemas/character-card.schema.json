@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rp-card-studio.local/schemas/character-card.schema.json",
+  "title": "SillyTavern Character Card V2 Artifact",
+  "type": "object",
+  "required": ["spec", "spec_version", "data"],
+  "properties": {
+    "spec": { "const": "chara_card_v2" },
+    "spec_version": { "type": "string", "pattern": "^2(?:\\.[0-9]+)*$" },
+    "data": {
+      "type": "object",
+      "required": ["name", "description", "personality", "scenario", "first_mes", "mes_example", "creator_notes", "system_prompt", "post_history_instructions", "alternate_greetings", "tags", "creator", "character_version", "extensions"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "personality": { "type": "string" },
+        "scenario": { "type": "string" },
+        "first_mes": { "type": "string" },
+        "mes_example": { "type": "string" },
+        "creator_notes": { "type": "string" },
+        "system_prompt": { "type": "string" },
+        "post_history_instructions": { "type": "string" },
+        "alternate_greetings": { "type": "array", "items": { "type": "string" } },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "creator": { "type": "string" },
+        "character_version": { "type": "string" },
+        "extensions": { "type": "object" },
+        "character_book": { "$ref": "#/$defs/characterBook" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "characterBook": {
+      "type": "object",
+      "required": ["entries"],
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "scan_depth": { "type": ["integer", "null"], "minimum": 0 },
+        "token_budget": { "type": ["integer", "null"], "minimum": 0 },
+        "recursive_scanning": { "type": ["boolean", "null"] },
+        "extensions": { "type": "object" },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "keys", "secondary_keys", "comment", "content", "constant", "selective", "insertion_order", "enabled", "position", "extensions"],
+            "properties": {
+              "id": { "type": ["integer", "string"] },
+              "keys": { "type": "array", "items": { "type": "string" } },
+              "secondary_keys": { "type": "array", "items": { "type": "string" } },
+              "comment": { "type": "string" },
+              "content": { "type": "string" },
+              "constant": { "type": "boolean" },
+              "selective": { "type": "boolean" },
+              "insertion_order": { "type": "integer" },
+              "enabled": { "type": "boolean" },
+              "position": { "type": "string" },
+              "extensions": { "type": "object" }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
+
