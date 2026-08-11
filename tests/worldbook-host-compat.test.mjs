@@ -111,6 +111,7 @@ test('embedded worldbook maps example-message positions to SillyTavern 5 and 6',
   });
 
   assert.deepEqual(result.issues, []);
+  assert.ok(result.payload.data.character_book.entries.every(entry => Number.isInteger(entry.id) && entry.id >= 0));
   const actual = Object.fromEntries(result.payload.data.character_book.entries.map(entry => [
     entry.extensions.rp_card_studio.source_id,
     entry.extensions.position,

@@ -337,11 +337,42 @@ EJS 负责根据已有状态选择内容，例如：
 
 EJS 读取已经登记的字段，不负责凭空发明新的世界规则或数值系统。
 
+在本技能里，EJS 的执行引擎是 SillyTavern 的 `ST-Prompt-Template 1.17.6.8`，不是 Tavern Helper 自带的状态 API。你在 `mvu.yaml` 中写的是结构化条件，而不是一整段自由格式的脚本：
+
+```yaml
+ejs:
+  enabled: true
+  entries:
+    - id: trust_gate
+      source_ref: character:guide
+      complexity: section_branch
+      engine: st_prompt_template
+      placement: after
+      insertion_order: 120
+      condition:
+        runtime_path: stat_data.relationship.trust
+        operator: gte
+        value: 50
+      reads: [stat_data.relationship.trust]
+      target: both
+      branches:
+        when_true: "使用已写好的信任版本段落。"
+        when_false: "使用已写好的谨慎版本段落。"
+        fallback: "状态不可用时使用中性段落。"
+      missing_dependency: omit_dynamic
+```
+
+Forge 会把 `target: both` 拆成一条 generate 条目和一条 render 条目，写入角色卡的 `data.character_book.entries[]`。它不会把 EJS 塞进 Tavern Helper scripts，也不会替你创造分支正文。旧项目如果仍使用 `condition: "..."` 和顶层 `fallback`，请先在 MVU/EJS 阶段迁移；工具会报结构错误，不会猜测改写。
+
+纯 EJS 模式会使用 `getvar(runtime_path, { defaults })` 精确读取变量。MVU + EJS 模式则把 MVU 快照当作唯一事实源：当前已验证的组合固定为 `message` scope、`stat_data` namespace 和 current/latest message snapshot；条目会在有界超时内等待 `Mvu`，再调用 `Mvu.getMvuData(target)`。`latest_message` 始终读取最新楼层；`current_message` 在 render 上下文读取 ST-Prompt-Template 提供的数字 `message_id`，在 generate 上下文因宿主不提供楼层号而明确降级到 latest。快照、namespace 或字段路径缺失时直接输出 `branches.fallback`，不会用默认值悄悄落入真假分支。其它 storage 组合会在构建前被阻断，直到技能具备对应的宿主映射。
+
+EJS 还需要在 `runtime_contract.dependencies` 登记宿主依赖，并把 `globalThis.EjsTemplate` 作为 readiness probe。依赖未安装时，`omit_dynamic` 会保留静态内容并省略动态条目，`block` 则阻止交付；两种行为都要在项目报告里明确写出。
+
 ### Tavern Helper 适配器
 
-它是可选的宿主桥接层。只有项目明确选择内嵌交付并满足契约时，Forge 才会生成对应脚本。
+它是可选的 MVU/UI 宿主桥接层。只有项目明确选择内嵌交付并满足契约时，Forge 才会生成对应脚本。MVU、状态栏脚本以及与 MVU 联动的 EJS 条目都会先执行有界的 `waitGlobalInitialized('Mvu')`，再通过 `Mvu.getMvuData(target)` 读取状态；Runtime Guard 会先订阅 `Mvu.events.*`，再用现有快照补做初始化，避免错过已经发生的初始化事件。跨脚本通知和 UI 命令统一使用 Tavern Helper 的共享 `eventOn/eventEmit/eventRemoveListener`，状态栏 DOM 创建在可见父页的 `#sheld` 中、`#form_sheld` 之前，不会写进隐藏脚本 iframe。所有路径都不会读取 `globalThis.stat_data`、调用 `getVariables()` 或猜测 `globalThis.MVU`。EJS 条目本身仍留在 CharacterBook 中。
 
-生成的适配器随角色卡或项目交付，不通过 CDN 或未登记的远程脚本临时补功能。宿主依赖是否真的可用，仍需在你的 SillyTavern 中验证。
+生成的适配器随角色卡或项目交付，不通过 CDN 或未登记的远程脚本临时补功能。兼容逻辑全部位于技能产物中，不会修改 SillyTavern 本体或已安装扩展。宿主依赖是否真的可用，仍需在你的 SillyTavern 中验证。
 
 ### 简单选择建议
 
@@ -404,7 +435,9 @@ EJS 读取已经登记的字段，不负责凭空发明新的世界规则或数�
 
 ## 内置 Forge
 
-仓库自带 `scripts/rp-card-forge.bundle.mjs`。它是离线、事务式的制卡工具，不要求另外安装 npm 依赖。
+仓库自带 `scripts/rp-card-forge.bundle.mjs`。它是离线、事务式的制卡工具，不要求普通用户另外安装 npm 依赖。
+
+这个 bundle 不是不可维护的黑盒：它由仓库内的 `scripts/rp-card-forge.mjs` 与 `scripts/forge/` 构建，并在运行时加载同目录的 `scripts/rp-card-runtime.mjs`。源码、固定版本依赖和重建命令都随仓库保存；日常使用只运行 bundle，只有维护者修改 Forge 时才需要安装构建依赖。不要直接修改 bundle，因为下一次重建会覆盖手工修改。
 
 通常由技能代你调用。新手不必手动操作，但可以用它检查项目。
 
@@ -652,9 +685,11 @@ NSFW：不启用
 
 因为离线工具不能代替真实 SillyTavern。你还需要在目标环境中检查导入、新聊天、变量更新、开场分支、状态栏刷新、卸载清理、降级和移动端显示。
 
-### `quick_validate.py` 说不认识 `disable-model-invocation` 怎么办？
+### 技能为什么不会被自然语言误触？
 
-这是旧版技能校验器不认识当前元数据键。不要删除它；这个字段正是“只允许显式调用”的保护。请使用当前 Codex 的技能加载结果和仓库自带测试作为验证依据。
+Codex 的实际调用策略写在 `agents/openai.yaml` 中：`policy.allow_implicit_invocation: false`。这会阻止 Codex 根据普通自然语言自动注入技能，但仍允许你通过技能选择器或 `$rp-card-studio` 显式调用。`SKILL.md` 的入口门还会再检查一次显式调用证据，形成产品策略与工作流规则两层保护。
+
+如果使用 `quick_validate.py` 校验中文文件，Windows 下建议加上 UTF-8 模式：`python -X utf8 quick_validate.py <技能目录>`。
 
 ### Forge 报告输出路径冲突怎么办？
 
@@ -681,8 +716,13 @@ rp-card-studio/
 │  ├─ templates/            # 项目和各阶段模板
 │  └─ schemas/              # YAML/JSON 结构契约
 ├─ scripts/
-│  ├─ rp-card-forge.bundle.mjs
-│  └─ rp-card-runtime.mjs
+│  ├─ forge/                 # Forge 的参数、格式、项目、事务等模块化源码
+│  ├─ build-forge.mjs       # 确定性构建与 bundle 一致性检查
+│  ├─ rp-card-forge.mjs     # Forge CLI 源码入口
+│  ├─ rp-card-forge.bundle.mjs # 普通使用者直接运行的免安装依赖制品
+│  └─ rp-card-runtime.mjs   # SillyTavern 运行时适配源码
+├─ package.json             # 仅供维护者使用的构建命令与固定依赖
+├─ package-lock.json        # 可重复安装所需的精确依赖锁
 └─ tests/                   # 运行时契约与 CLI 集成测试
 ```
 
@@ -691,15 +731,23 @@ rp-card-studio/
 
 ## 开发与自检
 
-普通使用者不需要执行本节命令。修改技能、Schema 或 Forge 后，至少运行：
+普通使用者不需要执行本节命令。维护者第一次检出仓库或依赖锁变化后，先安装精确锁定的构建依赖：
 
 ```powershell
-node --test tests/runtime-contracts.test.mjs tests/runtime-integration.test.mjs
-node --check scripts/rp-card-runtime.mjs
-node --check scripts/rp-card-forge.bundle.mjs
+npm ci
 ```
 
-当前测试覆盖世界书装配、运行时状态 Schema、初始化 profile、跨文件引用、状态机、媒体、开场变体、UI 生命周期、适配器、自包含交付、输出保护、CLI 生命周期和未知字段拆包重建保留。
+Forge 的维护源是 `scripts/rp-card-forge.mjs` 与 `scripts/forge/`，`scripts/rp-card-forge.bundle.mjs` 是生成物。修改维护源后按顺序重建并验证：
+
+```powershell
+npm run build:forge
+npm run check:forge
+npm run verify
+```
+
+`npm run check:forge` 会在内存中重新构建并逐字节比较已提交 bundle；若有人只改源码却忘了重建，它会直接失败。构建过程会把通用的 JSON Schema 与 YAML 库打进 bundle，但始终把同目录的 `rp-card-runtime.mjs` 保持为外部模块，因此更新运行时源码后不会偷偷继续使用 bundle 内的旧副本。
+
+当前测试覆盖源码重建一致性、外部运行时边界、技能入口与阶段规则、世界书装配、运行时状态 Schema、初始化 profile、跨文件引用、状态机、媒体、开场变体、EJS、真实宿主接口契约、UI 生命周期、适配器、自包含交付、输出保护、CLI 生命周期和未知字段拆包重建保留。
 
 </details>
 

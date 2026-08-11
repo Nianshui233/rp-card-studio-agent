@@ -131,6 +131,15 @@ project-workspace/
 
 启用 MVU 或等价确定性状态源时，Forge 从 `mvu.yaml` 的 storage、变量账本、初始化 profiles 与 opening bindings 生成 `reports/runtime-state.schema.json`。它是可重复生成的验证产物，不是新的语义真源；跳过 MVU/EJS 且没有既有实现时不得生成。
 
+### MVU/EJS 宿主投影
+
+- 角色卡构建按 `assembly -> MVU -> EJS -> Tavern Helper` 的顺序投影。每一步只接收上一步的 payload，并把自己的 issues/warnings 合并到构建报告；不能用后续适配器掩盖前序契约错误。
+- MVU 的内嵌适配器面向 Tavern Helper 的 `Mvu` API：有界等待 `waitGlobalInitialized("Mvu")`，读取 `getMvuData(options)`，解析 `parseMessage(text, oldData)`，提交 `replaceMvuData(nextData, options)`。必须先用 `eventOn` 订阅全部 `Mvu.events.*`，再读取当前快照补做 bootstrap，避免初始化事件已经发生后永远无法 ready；清理时把原始 `(event, handler)` 交给 `eventRemoveListener`。不得退回 `getVariables()`、`globalThis.MVU` 或自造 MVU 事件名。
+- 当前内嵌 MVU 存储契约固定为 message 目标。`latest_message` 使用 `{ type: "message", message_id: "latest" }`；`current_message` 在宿主提供数字楼层上下文时使用该 ID，否则明确降级到 latest。初始化事件只在宿主事件对象内补缺省值，不二次调用 `replaceMvuData`；bootstrap 发现旧快照缺少默认字段时允许一次 `replaceMvuData` 持久化修复。非法更新按整批回滚。
+- EJS 使用 SillyTavern 的 `ST-Prompt-Template 1.17.6.8` 引擎（探针 `globalThis.EjsTemplate`）。条目只投影到 `data.character_book.entries[]`，不写入 Tavern Helper scripts；宿主条目使用 `enabled: false`、`constant: true`、空 `keys`，内容首行保留连续 `@@always_enabled` 与 generate/render 装饰器。`target: both` 必须拆成 generate 与 render 两条条目。
+- EJS 条件必须是结构化 `condition.runtime_path/operator/value`，并提供 `branches.when_true/when_false/fallback`。纯 EJS 使用字段账本中的类型匹配默认值调用 `getvar()`；与 MVU 联动时只接受 `message/stat_data/current|latest message` 契约，有界等待后读取 `Mvu.getMvuData()`。`current_message` 的 render 条目使用 ST-Prompt-Template 提供的数字 `message_id`；generate 条目没有楼层上下文时降级为 latest。快照或路径缺失直接进入 `branches.fallback`，不得用默认值掩盖缺失状态。缺少引擎时按 `missing_dependency` 选择省略动态条目或阻断构建。旧的字符串条件和顶层 `fallback` 不自动迁移，应报告为迁移错误。
+- Tavern Helper 的每个角色脚本运行在独立隐藏 iframe。状态栏必须通过 `globalThis.parent.document` 创建并挂载到可见父页 `#sheld`、`#form_sheld` 之前；运行时 ready/change/unavailable、UI command/result/error 和用户配置的 `runtime_event` 必须通过共享 `eventOn/eventEmit/eventRemoveListener` 通信，不能使用 iframe 本地 DOM 事件。`on_message`/`hybrid` 刷新监听真实的 `user_message_rendered` 与 `character_message_rendered`。
+
 ## 8. NSFW 投影
 
 `project.yaml` 中的 NSFW 值只在项目预检阶段由用户明确锁定。

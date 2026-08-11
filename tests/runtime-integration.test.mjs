@@ -304,8 +304,9 @@ media_manifest:
   const card = JSON.parse(readFileSync(output, 'utf8'));
   const rawEntries = card.data.character_book.entries;
   const entries = Array.isArray(rawEntries) ? rawEntries : Object.values(rawEntries);
-  const entry = entries.find(candidate => candidate.id === 'wb_signal_guide');
+  const entry = entries.find(candidate => candidate.extensions?.rp_card_studio?.source_id === 'signal_guide');
   assert.ok(entry, 'assembled worldbook entry is missing');
+  assert.ok(Number.isInteger(entry.id) && entry.id >= 0, `invalid CharacterBook id: ${entry.id}`);
   assert.deepEqual(entry.keys, ['signal']);
   assert.equal(entry.constant, false);
   assert.equal(entry.insertion_order, 42);

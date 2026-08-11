@@ -31,10 +31,16 @@ mvu:
 
 ejs:
   enabled: false
+  # 启用后，每条 entry 使用 condition.runtime_path/operator/value 与
+  # branches.when_true/when_false/fallback；不要使用旧的字符串 condition。
+  # 与 MVU 同时启用时仅使用上方 message/stat_data/current_message 契约；
+  # 状态或路径缺失会进入 branches.fallback。纯 EJS 才使用账本默认值。
   entries: []
 
 runtime_contract:
   adapter: null
+  # EJS 启用时登记 id=st_prompt_template、version=1.17.6.8、
+  # readiness_probe=globalThis.EjsTemplate 的 host_required 依赖。
   dependencies: []
   assumptions: []
   fallbacks: []

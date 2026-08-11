@@ -2,3 +2,6 @@ interface:
   display_name: "SillyTavern制卡工坊"
   short_description: "分阶段共创并交付可验证的 SillyTavern 角色卡"
   default_prompt: "使用 $rp-card-studio 开始或继续一个 SillyTavern 制卡项目。"
+
+policy:
+  allow_implicit_invocation: false

@@ -112,15 +112,19 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["id", "source_ref", "complexity", "condition", "reads", "target", "fallback"],
+            "required": ["id", "source_ref", "complexity", "condition", "reads", "target", "placement", "insertion_order", "branches"],
             "properties": {
               "id": { "$ref": "#/$defs/id" },
               "source_ref": { "type": "string", "minLength": 1 },
               "complexity": { "enum": ["entry_visibility", "section_branch", "dynamic_text"] },
-              "condition": { "type": "string", "minLength": 1 },
+              "engine": { "const": "st_prompt_template" },
+              "placement": { "enum": ["before", "after"] },
+              "insertion_order": { "type": "integer" },
+              "condition": { "$ref": "#/$defs/ejsCondition" },
               "reads": { "$ref": "#/$defs/runtimePaths" },
               "target": { "enum": ["prompt", "render", "both"] },
-              "fallback": { "type": "string", "minLength": 1 }
+              "branches": { "$ref": "#/$defs/ejsBranches" },
+              "missing_dependency": { "enum": ["omit_dynamic", "block"] }
             }
           }
         }
@@ -170,6 +174,41 @@
     "runtimePath": { "type": "string", "pattern": "^stat_data\\.[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$" },
     "sourcePaths": { "type": "array", "items": { "$ref": "#/$defs/sourcePath" }, "uniqueItems": true },
     "runtimePaths": { "type": "array", "items": { "$ref": "#/$defs/runtimePath" }, "uniqueItems": true },
+    "ejsCondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runtime_path", "operator"],
+      "properties": {
+        "runtime_path": { "$ref": "#/$defs/runtimePath" },
+        "operator": { "enum": ["eq", "ne", "lt", "lte", "gt", "gte", "truthy", "falsy", "includes"] },
+        "value": {}
+      }
+    },
+    "ejsBranches": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["when_true", "when_false", "fallback"],
+      "properties": {
+        "when_true": { "type": "string", "minLength": 1 },
+        "when_false": { "type": "string", "minLength": 1 },
+        "fallback": { "type": "string", "minLength": 1 }
+      }
+    },
+    "ejsDependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "class", "delivery", "readiness_probe"],
+      "properties": {
+        "id": { "const": "st_prompt_template" },
+        "class": { "const": "host_required" },
+        "delivery": { "type": "string", "minLength": 1 },
+        "version": { "const": "1.17.6.8" },
+        "load_order": { "type": "integer", "minimum": 0 },
+        "readiness_probe": { "type": "string", "pattern": "^(?:(?:globalThis|window)\\.)?EjsTemplate$" },
+        "timeout_ms": { "type": "integer", "minimum": 1 },
+        "fallback": { "type": "string", "minLength": 1 }
+      }
+    },
     "stringList": { "type": "array", "items": { "type": "string", "minLength": 1 } },
     "storage": {
       "type": "object",

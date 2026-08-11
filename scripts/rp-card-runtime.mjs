@@ -55,6 +55,117 @@ function clone(value) {
   return structuredClone(value);
 }
 
+// SillyTavern CharacterBook ids are numeric. Keep generated ids in a stable,
+// high range so imported low ids remain readable and collision probing is cheap.
+const CHARACTER_BOOK_ID_MIN = 1_000_000;
+const CHARACTER_BOOK_ID_MAX = 2_147_483_647;
+const CHARACTER_BOOK_ID_SPAN = CHARACTER_BOOK_ID_MAX - CHARACTER_BOOK_ID_MIN + 1;
+
+function canonicalCharacterBookId(value) {
+  if (typeof value === "number") {
+    return Number.isSafeInteger(value) && value >= 0 ? value : null;
+  }
+  if (typeof value !== "string" || !/^\d+$/.test(value)) return null;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
+}
+
+export function characterBookIdCandidate(sourceKey) {
+  if (typeof sourceKey !== "string" || sourceKey.length === 0) {
+    throw new Error("CharacterBook source key must be a non-empty string");
+  }
+  const digest = createHash("sha256").update(`rp-card-studio:character-book:${sourceKey}`).digest();
+  const hash = digest.readUInt32BE(0);
+  return CHARACTER_BOOK_ID_MIN + (hash % CHARACTER_BOOK_ID_SPAN);
+}
+
+function characterBookTrackingKey(entry) {
+  const tracking = entry?.extensions?.rp_card_studio;
+  if (!isObject(tracking)) return null;
+  if (typeof tracking.source_key === "string" && tracking.source_key.length > 0) return tracking.source_key;
+  if (tracking.generated !== true || tracking.source_id === undefined || tracking.source_id === null) return null;
+  const sourceId = String(tracking.source_id);
+  if (tracking.kind === "ejs_template") return `ejs:${sourceId}:${tracking.channel ?? "generate"}`;
+  if (typeof tracking.kind === "string" && tracking.kind.startsWith("mvu_")) return `mvu:${tracking.kind.slice(4)}`;
+  if (tracking.kind === "assembly") return `assembly:${sourceId}`;
+  return `${tracking.kind ?? "generated"}:${sourceId}`;
+}
+
+export function createCharacterBookIdAllocator(existingEntries = []) {
+  const entries = Array.isArray(existingEntries)
+    ? existingEntries
+    : isObject(existingEntries) ? Object.values(existingEntries) : [];
+  const used = new Set();
+  const reusable = new Map();
+  const assigned = new Map();
+  const idOwners = new Map();
+  for (const entry of entries) {
+    const id = canonicalCharacterBookId(entry?.id);
+    if (id === null) continue;
+    used.add(id);
+    const sourceKey = characterBookTrackingKey(entry);
+    const owners = idOwners.get(id) ?? [];
+    owners.push(sourceKey);
+    idOwners.set(id, owners);
+    if (sourceKey && !reusable.has(sourceKey)) reusable.set(sourceKey, id);
+  }
+
+  function allocateMany(sourceKeys) {
+    const keys = [...new Set((sourceKeys ?? []).filter((key) => typeof key === "string" && key.length > 0))].sort();
+    const requested = new Set(keys);
+    // A generated entry with the same source key can keep its previous id.
+    // Release those ids before assigning the batch, then claim them again in
+    // sorted source-key order so hash collisions are order independent.
+    const releasable = new Set();
+    for (const [sourceKey, id] of reusable) {
+      const owners = idOwners.get(id) ?? [];
+      if (requested.has(sourceKey) && !assigned.has(sourceKey) && owners.length === 1 && owners[0] === sourceKey) {
+        used.delete(id);
+        releasable.add(sourceKey);
+      }
+    }
+    const allocations = new Map();
+    const pending = [];
+    for (const sourceKey of keys) {
+      if (assigned.has(sourceKey)) {
+        allocations.set(sourceKey, assigned.get(sourceKey));
+        continue;
+      }
+      const reusableId = reusable.get(sourceKey);
+      if (releasable.has(sourceKey) && reusableId !== undefined && !used.has(reusableId)) {
+        const allocation = { id: reusableId, candidate: reusableId, collision: false, reused: true };
+        used.add(reusableId);
+        assigned.set(sourceKey, allocation);
+        allocations.set(sourceKey, allocation);
+        continue;
+      }
+      pending.push(sourceKey);
+    }
+    for (const sourceKey of pending) {
+      const candidate = characterBookIdCandidate(sourceKey);
+      let id = candidate;
+      let collision = false;
+      while (used.has(id)) {
+        collision = true;
+        id = id >= CHARACTER_BOOK_ID_MAX ? CHARACTER_BOOK_ID_MIN : id + 1;
+        if (id === candidate) throw new Error("CharacterBook id space exhausted");
+      }
+      const allocation = { id, candidate, collision, reused: false };
+      used.add(id);
+      idOwners.set(id, [sourceKey]);
+      assigned.set(sourceKey, allocation);
+      allocations.set(sourceKey, allocation);
+    }
+    return allocations;
+  }
+
+  function allocate(sourceKey) {
+    return allocateMany([sourceKey]).get(sourceKey);
+  }
+
+  return { allocate, allocateMany, used };
+}
+
 function mergeValues(base, overlay) {
   const output = isObject(base) ? clone(base) : {};
   for (const [key, value] of Object.entries(isObject(overlay) ? overlay : {})) {
@@ -243,7 +354,10 @@ export function generateRuntimeStateSchema(sources) {
 }
 
 function validateVariables(mvuSources, issues) {
-  const variables = mvuSources.flatMap((source) => source.mvu?.enabled ? source.mvu.variables ?? [] : []);
+  // EJS-only projects still need a ledger so their conditions can be checked
+  // and compiled. They do not activate the MVU runtime just because the
+  // variables are declared here.
+  const variables = mvuSources.flatMap((source) => (source.mvu?.enabled || source.ejs?.enabled) ? source.mvu.variables ?? [] : []);
   const bySource = new Map();
   const byRuntime = new Map();
   const namespaces = new Set(mvuSources.filter((source) => source.mvu?.enabled).map((source) => source.mvu.storage?.namespace ?? "stat_data"));
@@ -308,13 +422,41 @@ function validateVariables(mvuSources, issues) {
     }
     if (source.ejs?.enabled) {
       for (const [entryIndex, ejsEntry] of (source.ejs.entries ?? []).entries()) {
+        const entryBase = `/runtime/mvu/${sourceIndex}/ejs/entries/${entryIndex}`;
         for (const runtimePath of ejsEntry.reads ?? []) {
           const variable = byRuntime.get(runtimePath);
           if (!variable) {
-            issues.push(issue(`/runtime/mvu/${sourceIndex}/ejs/entries/${entryIndex}/reads`, "mvu.reference", `EJS reads an unknown runtime path: ${runtimePath}`));
+            issues.push(issue(`${entryBase}/reads`, "mvu.reference", `EJS reads an unknown runtime path: ${runtimePath}`));
           } else if (!(variable.readers ?? []).includes("ejs")) {
-            issues.push(issue(`/runtime/mvu/${sourceIndex}/ejs/entries/${entryIndex}/reads`, "mvu.reader", `Variable does not grant EJS read access: ${runtimePath}`));
+            issues.push(issue(`${entryBase}/reads`, "mvu.reader", `Variable does not grant EJS read access: ${runtimePath}`));
           }
+        }
+        if (!isObject(ejsEntry.condition)) {
+          issues.push(issue(`${entryBase}/condition`, "ejs.contract", "Executable EJS entries require a structured condition"));
+        } else {
+          const conditionVariable = byRuntime.get(ejsEntry.condition.runtime_path);
+          if (!conditionVariable) {
+            issues.push(issue(`${entryBase}/condition/runtime_path`, "mvu.reference", `EJS condition reads an unknown runtime path: ${ejsEntry.condition.runtime_path}`));
+          } else {
+            if (!(ejsEntry.reads ?? []).includes(ejsEntry.condition.runtime_path)) {
+              issues.push(issue(`${entryBase}/reads`, "ejs.contract", "EJS condition runtime_path must be declared in reads"));
+            }
+            const operator = ejsEntry.condition.operator;
+            if (["lt", "lte", "gt", "gte"].includes(operator) && !["integer", "number"].includes(conditionVariable.type)) {
+              issues.push(issue(`${entryBase}/condition/operator`, "ejs.condition", `${operator} requires a numeric runtime variable`));
+            }
+            if (operator === "includes" && !["string", "array"].includes(conditionVariable.type)) {
+              issues.push(issue(`${entryBase}/condition/operator`, "ejs.condition", "includes requires a string or array runtime variable"));
+            }
+            if (!["truthy", "falsy"].includes(operator)
+              && !valueMatchesType(ejsEntry.condition.value, conditionVariable.type === "enum" ? "string" : conditionVariable.type)) {
+              issues.push(issue(`${entryBase}/condition/value`, "ejs.condition", "EJS comparison value does not match the runtime variable type"));
+            }
+          }
+        }
+        if (!isObject(ejsEntry.branches)
+          || !["when_true", "when_false", "fallback"].every((name) => typeof ejsEntry.branches[name] === "string" && ejsEntry.branches[name].length > 0)) {
+          issues.push(issue(`${entryBase}/branches`, "ejs.contract", "Executable EJS entries require non-empty true, false, and fallback branches"));
         }
       }
     }
@@ -666,6 +808,50 @@ function validateRuntimeDeliveries(mvuSources, uiSources, issues) {
       }
       if (ui.delivery.artifact !== "inline") {
         issues.push(issue(`${base}/artifact`, "adapter.artifact", "Embedded status UI artifact must be inline"));
+      }
+    }
+  }
+}
+
+function validateHostRuntimeContracts(mvuSources, issues) {
+  for (const [sourceIndex, source] of mvuSources.entries()) {
+    const base = `/runtime/mvu/${sourceIndex}`;
+    const mvu = source.mvu;
+    const adapter = source.runtime_contract?.adapter;
+    if (mvu?.enabled && adapter?.id === "tavern_helper" && adapter.delivery === "embedded") {
+      const storage = mvu.storage ?? {};
+      const scope = storage.scope ?? "message";
+      const snapshotSelector = storage.snapshot_selector ?? "current_message";
+      if (scope !== "message" || !["current_message", "latest_message"].includes(snapshotSelector)) {
+        issues.push(issue(`${base}/mvu/storage`, "adapter.storage_scope", "Embedded Tavern Helper MVU currently supports only message storage with current_message or latest_message snapshots"));
+      }
+    }
+    if (!source.ejs?.enabled) continue;
+    if (mvu?.enabled) {
+      const storage = mvu.storage ?? {};
+      const scope = storage.scope ?? "message";
+      const namespace = storage.namespace ?? "stat_data";
+      const snapshotSelector = storage.snapshot_selector ?? "current_message";
+      if (scope !== "message" || namespace !== "stat_data"
+        || !["current_message", "latest_message"].includes(snapshotSelector)) {
+        issues.push(issue(
+          `${base}/mvu/storage`,
+          "ejs.storage_contract",
+          "EJS linked to MVU currently supports only the stat_data namespace on the current/latest message snapshot",
+        ));
+      }
+    }
+    const dependencies = Array.isArray(source.runtime_contract?.dependencies) ? source.runtime_contract.dependencies : [];
+    const ejsDependency = dependencies.find((dependency) => dependency?.id === "st_prompt_template");
+    if (!ejsDependency
+      || ejsDependency.class !== "host_required"
+      || ejsDependency.version !== "1.17.6.8"
+      || !/^(?:(?:globalThis|window)\.)?EjsTemplate$/.test(ejsDependency.readiness_probe ?? "")) {
+      issues.push(issue(`${base}/runtime_contract/dependencies`, "ejs.dependency", "Enabled EJS requires the host ST-Prompt-Template 1.17.6.8 dependency with an EjsTemplate readiness probe"));
+    }
+    for (const [entryIndex, entry] of (source.ejs.entries ?? []).entries()) {
+      if (entry.engine !== "st_prompt_template") {
+        issues.push(issue(`${base}/ejs/entries/${entryIndex}/engine`, "ejs.engine", "EJS entries must use the st_prompt_template engine"));
       }
     }
   }
@@ -1162,6 +1348,7 @@ export async function validateRuntimeSources({ project, sources, projectRoot }) 
     validateInitializations(mvuSources, openingSources, graph.bySource, issues);
     validateUi(uiSources, graph.bySource, project, issues, warnings);
     validateRuntimeDeliveries(mvuSources, uiSources, issues);
+    validateHostRuntimeContracts(mvuSources, issues);
     validateStateBindings(sources, graph.bySource, issues);
   }
   validateStableIds(sources, issues);
@@ -1252,12 +1439,20 @@ function worldbookEntriesContainer(payload, target, manifest) {
 }
 
 function containerIds(container) {
-  if (Array.isArray(container)) return container.map((entry) => String(entry?.id)).filter(Boolean);
-  return Object.entries(container).flatMap(([key, entry]) => {
-    const ids = [String(key)];
-    if (entry?.id !== undefined && entry?.id !== null) ids.push(String(entry.id));
+  const ids = [];
+  const add = (value) => {
+    if (value === undefined || value === null) return;
+    ids.push(value, String(value));
+  };
+  if (Array.isArray(container)) {
+    for (const entry of container) add(entry?.id);
     return ids;
-  });
+  }
+  for (const [key, entry] of Object.entries(container)) {
+    add(key);
+    add(entry?.id);
+  }
+  return ids;
 }
 
 function normalizeAndValidateContainerUids(container) {
@@ -1328,7 +1523,7 @@ function rpExtensionHost(payload, target) {
   return payload.extensions.rp_card_studio;
 }
 
-function manifestEntry(entry, content, target) {
+function manifestEntry(entry, content, target, characterBookId = null) {
   const activation = entry.activation ?? {};
   const insertion = entry.insertion ?? {};
   const recursion = entry.recursion ?? {};
@@ -1354,6 +1549,11 @@ function manifestEntry(entry, content, target) {
   const tracking = {
     ...existingTracking,
     source_id: entry.id,
+    ...(target === "character" ? {
+      source_key: `assembly:${entry.id}`,
+      generated: true,
+      kind: "assembly",
+    } : {}),
     activation: clone(activation),
     insertion: clone(insertion),
     probability,
@@ -1405,7 +1605,7 @@ function manifestEntry(entry, content, target) {
     };
   }
   return {
-    id: `wb_${entry.id}`,
+    id: characterBookId,
     keys: clone(activation.primary_keys ?? []),
     secondary_keys: clone(activation.secondary_keys ?? []),
     comment: entry.display_name ?? entry.id,
@@ -1442,27 +1642,51 @@ export async function applyAssemblyManifest(payload, { sources, projectRoot, tar
   const uidState = target === "worldbook" ? normalizeAndValidateContainerUids(container) : { usedUids: new Set(), issues: [] };
   issues.push(...uidState.issues);
   const usedUids = uidState.usedUids;
+  const characterBookIds = target === "character" ? createCharacterBookIdAllocator(container) : null;
   const generatedIds = [];
+  const resolvedRecords = [];
   for (const record of records) {
     try {
-      const assembled = manifestEntry(record.entry, await resolveAssemblyContent(record.entry.source, sources, projectRoot), target);
-      if (outputIds.has(assembled.id)) {
-        if (manifest.duplicate_policy === "keep_imported") continue;
-        if (manifest.duplicate_policy === "replace_imported") {
-          removeContainerEntry(container, assembled.id);
-        } else {
-          issues.push(issue(`/runtime/assembly/${record.sourceIndex}/worldbook_manifest/entries/${record.entryIndex}/id`, "assembly.reference", `Duplicate assembled entry id: ${assembled.id}`));
-          continue;
+      const content = await resolveAssemblyContent(record.entry.source, sources, projectRoot);
+      const legacyId = `wb_${record.entry.id}`;
+      const legacyCollision = target === "character" && container.some((entry) => entry?.id === legacyId);
+      if (legacyCollision && manifest.duplicate_policy !== "replace_imported") {
+        if (manifest.duplicate_policy !== "keep_imported") {
+          issues.push(issue(`/runtime/assembly/${record.sourceIndex}/worldbook_manifest/entries/${record.entryIndex}/id`, "assembly.reference", `Duplicate assembled entry id: ${legacyId}`));
         }
+        continue;
       }
-      outputIds.add(assembled.id);
-      if (target === "worldbook") assembled.uid = allocateWorldbookUid(usedUids);
-      appendContainerEntry(container, assembled);
-      generatedIds.push(assembled.id);
+      if (legacyCollision) {
+        removeContainerEntry(container, legacyId);
+        outputIds.delete(legacyId);
+      }
+      resolvedRecords.push({ ...record, content });
     } catch (error) {
       const sourceIssue = issue(`/runtime/assembly/${record.sourceIndex}/worldbook_manifest/entries/${record.entryIndex}/source`, record.entry.fallback === "skip" ? "assembly.source.skipped" : "assembly.source", error.message);
       (record.entry.fallback === "skip" ? warnings : issues).push(sourceIssue);
     }
+  }
+  const allocations = characterBookIds?.allocateMany(resolvedRecords.map((record) => `assembly:${record.entry.id}`));
+  for (const record of resolvedRecords) {
+    const allocation = allocations?.get(`assembly:${record.entry.id}`);
+    const assembled = manifestEntry(record.entry, record.content, target, allocation?.id);
+    if (allocation?.collision) {
+      warnings.push(issue(`/data/character_book/entries/${assembled.id}`, "assembly.id_collision", `Stable CharacterBook id ${allocation.candidate} was occupied; assigned ${allocation.id} to ${record.entry.id}`));
+    }
+    if (outputIds.has(assembled.id) || outputIds.has(String(assembled.id))) {
+      if (manifest.duplicate_policy === "keep_imported") continue;
+      if (manifest.duplicate_policy === "replace_imported") {
+        removeContainerEntry(container, String(assembled.id));
+      } else {
+        issues.push(issue(`/runtime/assembly/${record.sourceIndex}/worldbook_manifest/entries/${record.entryIndex}/id`, "assembly.reference", `Duplicate assembled entry id: ${assembled.id}`));
+        continue;
+      }
+    }
+    outputIds.add(assembled.id);
+    outputIds.add(String(assembled.id));
+    if (target === "worldbook") assembled.uid = allocateWorldbookUid(usedUids);
+    appendContainerEntry(container, assembled);
+    generatedIds.push(assembled.id);
   }
   const extension = rpExtensionHost(output, target);
   extension.worldbook_manifest = {
@@ -1474,6 +1698,430 @@ export async function applyAssemblyManifest(payload, { sources, projectRoot, tar
   issues.push(...materializedMedia.issues);
   extension.media_manifest = materializedMedia.manifest;
   extension.assembly_extensions = clone(manifests[0]?.extensions ?? {});
+  return { payload: output, issues, warnings };
+}
+
+function mvuCharacterBookEntry({ id, sourceId, sourceKey, comment, content, enabled, kind, order, atDepth = false }) {
+  return {
+    id,
+    keys: [],
+    secondary_keys: [],
+    comment,
+    content,
+    constant: true,
+    selective: false,
+    insertion_order: order,
+    enabled,
+    position: atDepth ? "after_char" : "before_char",
+    use_regex: true,
+    extensions: {
+      position: atDepth ? 4 : 0,
+      useProbability: true,
+      probability: 100,
+      exclude_recursion: true,
+      prevent_recursion: true,
+      delay_until_recursion: false,
+      depth: atDepth ? 0 : 4,
+      role: 0,
+      selectiveLogic: 0,
+      scan_depth: null,
+      rp_card_studio: {
+        kind,
+        source_id: sourceId ?? kind,
+        source_key: sourceKey ?? `mvu:${kind.replace(/^mvu_/, "")}`,
+        generated: true,
+      }
+    }
+  };
+}
+
+function mvuUpdateRulesContent(mvuSources) {
+  const variables = mvuSources.flatMap((source) => source.mvu?.variables ?? []);
+  const rules = mvuSources.flatMap((source) => source.mvu?.update_rules ?? []);
+  const lines = [
+    "MVU variable update rules:",
+    "- Update only paths declared below and only when the current reply supplies the stated evidence.",
+    "- Keep the previous legal value when a condition is uncertain or a constraint would be violated.",
+    "- Treat one response as one batch; do not partially keep a rejected batch.",
+    "",
+    "Declared variables:"
+  ];
+  for (const variable of variables) {
+    lines.push(`- ${variable.source_path}: type=${variable.type}; default=${JSON.stringify(variable.default)}; operations=${(variable.writer?.operations ?? []).join(",") || "none"}; constraints=${JSON.stringify(variable.constraints ?? {})}`);
+  }
+  lines.push("", "Update triggers:");
+  for (const rule of rules) {
+    lines.push(`- ${rule.id}: ${rule.trigger}`);
+    lines.push(`  failure: ${rule.failure}`);
+  }
+  return lines.join("\n");
+}
+
+function mvuOutputFormatContent(mvuSources) {
+  const protocol = mvuSources.find((source) => source.mvu?.protocol)?.mvu.protocol ?? {};
+  const operations = protocol.operations ?? ["replace", "delta", "insert", "remove", "move"];
+  return `End each reply that changes state with one update block using only these operations: ${operations.join(", ")}.
+Paths use JSON Pointer syntax and must name a declared variable. Return an empty JSON array when no state changes.
+
+<UpdateVariable>
+<Analysis>Briefly justify every change from facts in the current reply.</Analysis>
+<JSONPatch>
+[
+  { "op": "replace", "path": "/declared/path", "value": "new value" }
+]
+</JSONPatch>
+</UpdateVariable>`;
+}
+
+export function applyMvuArtifacts(payload, { project, sources, target }) {
+  if (target !== "character" || project?.features?.mvu !== true) return { payload, issues: [] };
+  const mvuSources = values(sources, "mvu").filter((source) => source.mvu?.enabled);
+  if (mvuSources.length === 0) return { payload, issues: [] };
+  const defaults = mvuSources.reduce((state, source) => mergeValues(state, source.mvu.initialization?.defaults ?? {}), {});
+  const generated = [
+    mvuCharacterBookEntry({
+      comment: "[initvar] RP Card Studio defaults - keep disabled",
+      content: JSON.stringify(defaults, null, 2),
+      enabled: false,
+      kind: "mvu_initvar",
+      order: 14720
+    }),
+    mvuCharacterBookEntry({
+      comment: "[mvu_update] RP Card Studio variable rules",
+      content: mvuUpdateRulesContent(mvuSources),
+      enabled: true,
+      kind: "mvu_update_rules",
+      order: 14721,
+      atDepth: true
+    }),
+    mvuCharacterBookEntry({
+      comment: "[mvu_update] RP Card Studio output format",
+      content: mvuOutputFormatContent(mvuSources),
+      enabled: true,
+      kind: "mvu_update_format",
+      order: 14722,
+      atDepth: true
+    })
+  ];
+  const output = clone(payload);
+  const existingEntries = output.data?.character_book?.entries;
+  const entries = Array.isArray(existingEntries) ? existingEntries : [];
+  const ids = new Set(entries.map((entry) => entry?.id).filter((id) => id !== undefined));
+  const sourceKeys = new Set(entries.map((entry) => characterBookTrackingKey(entry)).filter(Boolean));
+  const allocator = createCharacterBookIdAllocator(entries);
+  const allocations = allocator.allocateMany(generated.map((entry) => entry.extensions.rp_card_studio.source_key));
+  const issues = [];
+  const warnings = [];
+  const accepted = [];
+  for (const entry of generated) {
+    const tracking = entry.extensions.rp_card_studio;
+    const sourceKey = tracking.source_key;
+    const allocation = allocations.get(sourceKey);
+    const legacyId = `rp_${tracking.kind}`;
+    if (entries.some((candidate) => candidate?.id === legacyId)) {
+      issues.push(issue(`/data/character_book/entries/${legacyId}`, "mvu.entry_collision", `Refusing to overwrite CharacterBook entry: ${legacyId}`));
+      continue;
+    }
+    entry.id = allocation.id;
+    if (allocation.collision) {
+      warnings.push(issue(`/data/character_book/entries/${entry.id}`, "mvu.id_collision", `Stable CharacterBook id ${allocation.candidate} was occupied; assigned ${allocation.id} to ${tracking.kind}`));
+    }
+    const existingSourceIndex = entries.findIndex((candidate) => characterBookTrackingKey(candidate) === sourceKey);
+    if (existingSourceIndex >= 0 && allocation.reused) {
+      entries[existingSourceIndex] = entry;
+      ids.add(entry.id);
+      continue;
+    }
+    if (sourceKeys.has(sourceKey) || ids.has(entry.id)) {
+      issues.push(issue(`/data/character_book/entries/${entry.id}`, "mvu.entry_collision", `Refusing to overwrite CharacterBook entry: ${entry.id}`));
+      continue;
+    }
+    sourceKeys.add(sourceKey);
+    ids.add(entry.id);
+    accepted.push(entry);
+  }
+  if (accepted.length === 0) return { payload: output, issues, warnings };
+  output.data ??= {};
+  output.data.character_book ??= {
+    name: `${output.data.name ?? "Character"} MVU`,
+    description: "RP Card Studio MVU runtime entries",
+    scan_depth: null,
+    token_budget: null,
+    recursive_scanning: false,
+    extensions: {},
+    entries: []
+  };
+  output.data.character_book.entries = Array.isArray(output.data.character_book.entries) ? output.data.character_book.entries : [];
+  output.data.character_book.entries.push(...accepted);
+  return { payload: output, issues, warnings };
+}
+
+function ejsLiteral(value) {
+  const serialized = JSON.stringify(value);
+  if (serialized === undefined) return "undefined";
+  return serialized
+    .replaceAll("<", "\\u003c")
+    .replaceAll(">", "\\u003e")
+    .replaceAll("&", "\\u0026")
+    .replaceAll("%", "\\u0025")
+    .replaceAll("\u2028", "\\u2028")
+    .replaceAll("\u2029", "\\u2029");
+}
+
+function ejsConditionExpression(condition) {
+  switch (condition.operator) {
+    case "eq": return `Object.is(__rp_value, ${ejsLiteral(condition.value)})`;
+    case "ne": return `!Object.is(__rp_value, ${ejsLiteral(condition.value)})`;
+    case "lt": return `__rp_value < ${ejsLiteral(condition.value)}`;
+    case "lte": return `__rp_value <= ${ejsLiteral(condition.value)}`;
+    case "gt": return `__rp_value > ${ejsLiteral(condition.value)}`;
+    case "gte": return `__rp_value >= ${ejsLiteral(condition.value)}`;
+    case "truthy": return "Boolean(__rp_value)";
+    case "falsy": return "!__rp_value";
+    case "includes": return `(typeof __rp_value === "string" || Array.isArray(__rp_value)) && __rp_value.includes(${ejsLiteral(condition.value)})`;
+    default: return "false";
+  }
+}
+
+function ejsTemplateContent(entry, channel, variable, bridge = null) {
+  const placement = entry.placement === "before" ? "before" : "after";
+  // Every entry gets its own lexical scope because SillyTavern may evaluate
+  // several CharacterBook entries in one EJS context.
+  const decorators = ["@@always_enabled", "@@private", `@@${channel}_${placement}`];
+  if (channel === "render") decorators.push("@@if !is_user && !is_system");
+  const runtimePath = ejsLiteral(entry.condition.runtime_path);
+  const defaultValue = ejsLiteral(variable.default);
+  const namespace = bridge?.namespace ?? "stat_data";
+  const namespacePrefix = `${namespace}.`;
+  const pathWithoutNamespace = entry.condition.runtime_path.startsWith(namespacePrefix)
+    ? entry.condition.runtime_path.slice(namespacePrefix.length)
+    : entry.condition.runtime_path;
+  const runtimeSegments = pathWithoutNamespace.split(".").map(ejsLiteral).join(", ");
+  const trueBranch = ejsLiteral(entry.branches.when_true);
+  const falseBranch = ejsLiteral(entry.branches.when_false);
+  const fallbackBranch = ejsLiteral(entry.branches.fallback);
+  const expression = ejsConditionExpression(entry.condition);
+  const header = `${decorators.join("\n")}
+<% {
+  const __rp_when_true = ${trueBranch};
+  const __rp_when_false = ${falseBranch};
+  const __rp_fallback = ${fallbackBranch};
+  try {`;
+  if (!bridge?.enabled) {
+    return `${header}
+    const __rp_value = getvar(${runtimePath}, { defaults: ${defaultValue} });
+    if (${expression}) { %><%- __rp_when_true %><% } else { %><%- __rp_when_false %><% }
+  } catch (__rp_error) { %><%- __rp_fallback %><% }
+} %>`;
+  }
+  const target = ejsLiteral(bridge.target);
+  const snapshotSelector = ejsLiteral(bridge.snapshotSelector ?? "latest_message");
+  const timeoutMs = Number.isInteger(bridge.timeoutMs) && bridge.timeoutMs > 0 ? bridge.timeoutMs : 10000;
+  const namespaceLiteral = ejsLiteral(namespace);
+  return `${header}
+    if (typeof globalThis.waitGlobalInitialized !== "function") throw new Error("waitGlobalInitialized is unavailable");
+    let __rp_timeout_id = null;
+    try {
+      await Promise.race([
+        globalThis.waitGlobalInitialized("Mvu"),
+        new Promise((_, reject) => {
+          __rp_timeout_id = setTimeout(() => reject(new Error("MVU initialization timed out")), ${timeoutMs});
+        })
+      ]);
+    } finally {
+      if (__rp_timeout_id !== null) clearTimeout(__rp_timeout_id);
+    }
+    const __rp_mvu = globalThis.Mvu;
+    if (!__rp_mvu || typeof __rp_mvu.getMvuData !== "function") throw new Error("MVU API is unavailable");
+    const __rp_snapshot_selector = ${snapshotSelector};
+    const __rp_target = __rp_snapshot_selector === "current_message"
+      && typeof message_id === "number"
+      && Number.isInteger(message_id)
+      ? { type: "message", message_id }
+      : ${target};
+    const __rp_mvu_data = __rp_mvu.getMvuData(__rp_target);
+    const __rp_namespace = __rp_mvu_data?.[${namespaceLiteral}];
+    let __rp_value;
+    let __rp_found = Boolean(__rp_namespace) && typeof __rp_namespace === "object";
+    let __rp_cursor = __rp_namespace;
+    if (__rp_found) {
+      for (const __rp_segment of [${runtimeSegments}]) {
+        if (__rp_cursor == null
+          || (typeof __rp_cursor !== "object" && typeof __rp_cursor !== "function")
+          || !Object.prototype.hasOwnProperty.call(__rp_cursor, __rp_segment)) {
+          __rp_found = false;
+          break;
+        }
+        __rp_cursor = __rp_cursor[__rp_segment];
+      }
+      if (__rp_found) __rp_value = __rp_cursor;
+    }
+    if (!__rp_found) { %><%- __rp_fallback %><% } else {
+      if (${expression}) { %><%- __rp_when_true %><% } else { %><%- __rp_when_false %><% }
+    }
+  } catch (__rp_error) { %><%- __rp_fallback %><% }
+} %>`;
+}
+
+function ejsHostEntry(entry, channel, variable, characterBookId = null, bridge = null) {
+  const suffix = channel === "generate" ? "generate" : "render";
+  return {
+    id: characterBookId,
+    keys: [],
+    secondary_keys: [],
+    comment: `[${channel.toUpperCase()}] ${entry.id}`,
+    content: ejsTemplateContent(entry, channel, variable, bridge),
+    constant: true,
+    selective: false,
+    insertion_order: entry.insertion_order,
+    enabled: false,
+    position: "before_char",
+    use_regex: true,
+    extensions: {
+      position: 0,
+      useProbability: true,
+      probability: 100,
+      exclude_recursion: true,
+      prevent_recursion: true,
+      delay_until_recursion: false,
+      depth: 0,
+      role: 0,
+      selectiveLogic: 0,
+      scan_depth: null,
+      rp_card_studio: {
+        kind: "ejs_template",
+        source_id: entry.id,
+        source_key: `ejs:${entry.id}:${channel}`,
+        generated: true,
+        target: entry.target,
+        channel,
+        runtime_path: entry.condition.runtime_path,
+        missing_dependency: entry.missing_dependency ?? "omit_dynamic"
+      }
+    }
+  };
+}
+
+export function applyEjsTemplates(payload, { project, sources, target }) {
+  if (target !== "character" || project?.features?.ejs !== true) return { payload, issues: [] };
+  const mvuSources = values(sources, "mvu");
+  const enabledSources = mvuSources.filter((source) => source.ejs?.enabled);
+  if (enabledSources.length === 0) return { payload, issues: [] };
+  const output = clone(payload);
+  const issues = [];
+  const warnings = [];
+  const declarations = mvuSources.flatMap((source, sourceIndex) => (source.mvu?.variables ?? []).map((variable, variableIndex) => ({
+    sourceIndex,
+    variableIndex,
+    variable,
+    source,
+  })));
+  const ambiguousPaths = new Set();
+  for (let leftIndex = 0; leftIndex < declarations.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < declarations.length; rightIndex += 1) {
+      const left = declarations[leftIndex];
+      const right = declarations[rightIndex];
+      if (!pathConflict(left.variable.runtime_path, right.variable.runtime_path)) continue;
+      ambiguousPaths.add(left.variable.runtime_path);
+      ambiguousPaths.add(right.variable.runtime_path);
+    }
+  }
+  if (ambiguousPaths.size > 0) {
+    for (const runtimePath of [...ambiguousPaths].sort()) {
+      const owners = declarations
+        .filter(({ variable }) => pathConflict(variable.runtime_path, runtimePath))
+        .map(({ sourceIndex, variableIndex, variable }) => "/runtime/mvu/" + sourceIndex + "/variables/" + variableIndex + " (" + variable.runtime_path + ")")
+        .join(", ");
+      issues.push(issue("/runtime/ejs/" + runtimePath, "ejs.variable_ambiguous", "EJS projection refused because runtime path " + runtimePath + " conflicts with " + owners));
+    }
+    return { payload: output, issues, warnings };
+  }
+  const variables = new Map(declarations.map((declaration) => [declaration.variable.runtime_path, declaration]));
+  const generated = [];
+  const existingEntries = output.data?.character_book?.entries;
+  const entries = Array.isArray(existingEntries) ? existingEntries : [];
+  const ids = new Set(entries.map((entry) => entry?.id).filter((id) => id !== undefined));
+  const sourceKeys = new Set(entries.map((entry) => characterBookTrackingKey(entry)).filter(Boolean));
+  const allocator = createCharacterBookIdAllocator(entries);
+  const existingSourceEntries = new Map(entries.map((entry) => [characterBookTrackingKey(entry), entry]).filter(([key]) => key));
+  const candidates = [];
+  for (const source of enabledSources) {
+    for (const entry of source.ejs.entries ?? []) {
+      const declaration = isObject(entry.condition) ? variables.get(entry.condition.runtime_path) : null;
+      const variable = declaration?.variable;
+      if (!variable || !isObject(entry.branches)) {
+        issues.push(issue(`/runtime/ejs/${entry.id ?? "unknown"}`, "ejs.contract", "EJS entry cannot be compiled without a structured condition, branches, and a declared runtime variable"));
+        continue;
+      }
+      if (!(entry.reads ?? []).includes(entry.condition.runtime_path)) {
+        issues.push(issue(`/runtime/ejs/${entry.id}/reads`, "ejs.contract", "EJS condition runtime_path must be declared in reads"));
+        continue;
+      }
+      const channels = entry.target === "both" ? ["generate", "render"] : [entry.target === "render" ? "render" : "generate"];
+      for (const channel of channels) {
+        const sourceKey = `ejs:${entry.id}:${channel}`;
+        const legacyId = `ejs_${entry.id}_${channel === "generate" ? "generate" : "render"}`;
+        candidates.push({ entry, channel, variable, declaration, sourceKey, legacyId });
+      }
+    }
+  }
+  const allocations = allocator.allocateMany(candidates.map((candidate) => candidate.sourceKey));
+  for (const candidate of candidates) {
+    const { entry, channel, variable, declaration, sourceKey, legacyId } = candidate;
+    if (entries.some((existing) => existing?.id === legacyId)) {
+      issues.push(issue(`/data/character_book/entries/${legacyId}`, "ejs.entry_collision", `Refusing to overwrite CharacterBook entry: ${legacyId}`));
+      continue;
+    }
+    const allocation = allocations.get(sourceKey);
+    const bridgeSource = project?.features?.mvu === true && declaration.source.mvu?.enabled
+      ? declaration.source
+      : null;
+    const storage = bridgeSource?.mvu?.storage ?? {};
+    const bridgeContractParts = bridgeSource
+      ? [bridgeSource.runtime_contract?.adapter, ...(bridgeSource.runtime_contract?.dependencies ?? [])].filter(Boolean)
+      : [];
+    const bridgeTimeout = bridgeContractParts.find((part) => part.id === "tavern_helper"
+      || /(?:^|\.)Mvu$/.test(part.readiness_probe ?? ""))?.timeout_ms
+      ?? bridgeContractParts.find((part) => part.id === "st_prompt_template")?.timeout_ms
+      ?? 10000;
+    const bridge = bridgeSource ? {
+      enabled: true,
+      namespace: storage.namespace ?? "stat_data",
+      target: { type: "message", message_id: "latest" },
+      snapshotSelector: storage.snapshot_selector ?? "current_message",
+      timeoutMs: bridgeTimeout,
+    } : null;
+    const compiled = ejsHostEntry(entry, channel, variable, allocation.id, bridge);
+    if (allocation.collision) {
+      warnings.push(issue(`/data/character_book/entries/${compiled.id}`, "ejs.id_collision", `Stable CharacterBook id ${allocation.candidate} was occupied; assigned ${allocation.id} to ${sourceKey}`));
+    }
+    const existingSourceEntry = existingSourceEntries.get(sourceKey);
+    if (existingSourceEntry && allocation.reused) {
+      const existingIndex = entries.indexOf(existingSourceEntry);
+      if (existingIndex >= 0) entries[existingIndex] = compiled;
+      continue;
+    }
+    if (sourceKeys.has(sourceKey) || ids.has(compiled.id)) {
+      issues.push(issue(`/data/character_book/entries/${compiled.id}`, "ejs.entry_collision", `Refusing to overwrite CharacterBook entry: ${compiled.id}`));
+      continue;
+    }
+    sourceKeys.add(sourceKey);
+    ids.add(compiled.id);
+    generated.push(compiled);
+  }
+  if (generated.length === 0) return { payload: output, issues, warnings };
+  output.data ??= {};
+  output.data.character_book ??= {
+    name: `${output.data.name ?? "Character"} EJS`,
+    description: "RP Card Studio executable EJS templates",
+    scan_depth: null,
+    token_budget: null,
+    recursive_scanning: false,
+    extensions: {},
+    entries: []
+  };
+  output.data.character_book.entries = Array.isArray(output.data.character_book.entries) ? output.data.character_book.entries : [];
+  output.data.character_book.entries.push(...generated);
   return { payload: output, issues, warnings };
 }
 
@@ -1545,6 +2193,11 @@ function resolveOpeningInitializations(openingSources, mvuSources) {
   })));
 }
 
+function openingTextWithInitialization(text, initialization) {
+  if (!isObject(initialization?.state)) return text;
+  return `${text}\n\n<initvar>\n${JSON.stringify(initialization.state, null, 2)}\n</initvar>`;
+}
+
 export function selectOpeningMessages(openingSources, mvuSources = []) {
   const openings = openingSources.flatMap((source) => source.openings ?? []);
   if (openings.length === 0) return null;
@@ -1552,20 +2205,22 @@ export function selectOpeningMessages(openingSources, mvuSources = []) {
   const defaultVariants = presentationVariants(defaultOpening);
   const selected = defaultVariants.find((variant) => variant.isDefault) ?? defaultVariants[0];
   const lookup = initializationLookup(mvuSources);
+  const defaultInitialization = resolveOpeningInitialization(defaultOpening, lookup);
   const alternates = [];
   const alternateSelections = [];
   for (const opening of openings) {
     for (const variant of presentationVariants(opening)) {
       if (opening === defaultOpening && variant.id === selected.id) continue;
-      alternates.push(variant.text);
-      alternateSelections.push({ opening_id: opening.id, variant_id: variant.id, ...resolveOpeningInitialization(opening, lookup) });
+      const initialization = resolveOpeningInitialization(opening, lookup);
+      alternates.push(openingTextWithInitialization(variant.text, initialization));
+      alternateSelections.push({ opening_id: opening.id, variant_id: variant.id, ...initialization });
     }
   }
   return {
-    first: selected.text,
+    first: openingTextWithInitialization(selected.text, defaultInitialization),
     alternates,
     selection: {
-      default: { opening_id: defaultOpening.id, variant_id: selected.id, ...resolveOpeningInitialization(defaultOpening, lookup) },
+      default: { opening_id: defaultOpening.id, variant_id: selected.id, ...defaultInitialization },
       alternates: alternateSelections,
       evidence: "artifact_only"
     }
@@ -1604,6 +2259,31 @@ function tavernHelperRuntimeConfig(mvuSources, uiSources) {
       variable.runtime_path.startsWith(`${namespace}.`) ? variable.runtime_path.slice(namespace.length + 1) : variable.runtime_path
     ]);
   }));
+  const activeMvu = mvuSources.find((source) => source.mvu?.enabled) ?? null;
+  const storage = activeMvu?.mvu?.storage ?? {};
+  const storageScope = storage.scope ?? "message";
+  const snapshotSelector = storage.snapshot_selector ?? "current_message";
+  const target = storageScope === "message"
+    ? { type: "message", message_id: "latest" }
+    : storageScope === "script"
+      ? { type: "script" }
+      : { type: storageScope };
+  const variables = mvuSources.flatMap((source) => (source.mvu?.enabled ? source.mvu.variables ?? [] : [])).map((variable) => ({
+    sourcePath: variable.source_path,
+    runtimePath: variable.runtime_path,
+    type: variable.type,
+    default: clone(variable.default),
+    constraints: clone(variable.constraints ?? {}),
+    operations: clone(variable.writer?.operations ?? [])
+  }));
+  const remoteImports = mvuSources.flatMap((source) => (source.runtime_contract?.dependencies ?? [])
+    .filter((dependency) => dependency.class === "remote" && typeof dependency.delivery === "string")
+    .map((dependency) => ({
+      id: dependency.id,
+      version: dependency.version,
+      url: dependency.delivery,
+      loadOrder: dependency.load_order ?? 0
+    })));
   return {
     probes: [...new Set(probes.length > 0 ? probes : ["globalThis.Mvu"])],
     waitFor: [...new Set(waitFor)],
@@ -1611,102 +2291,252 @@ function tavernHelperRuntimeConfig(mvuSources, uiSources) {
     readinessPollMs: 100,
     statePollMs: 200,
     adapter: clone(embeddedAdapter),
-    pathMappings
+    pathMappings,
+    target,
+    snapshotSelector,
+    namespace: storage.namespace ?? "stat_data",
+    variables,
+    remoteImports
   };
 }
 
 function runtimeGuardScript(runtimeConfig) {
   const config = JSON.stringify(runtimeConfig).replaceAll("<", "\\u003c");
-  return `(() => {
+  return `(async () => {
   "use strict";
   const key = Symbol.for("rp_card_studio.runtime_guard");
   globalThis[key]?.cleanup?.();
   const config = ${config};
   const timers = new Set();
   const listeners = [];
-  const seenEvents = new Set();
   let disposed = false;
   let ready = false;
-  const emit = (name, detail) => {
-    if (typeof globalThis.CustomEvent === "function") globalThis.dispatchEvent?.(new CustomEvent(name, { detail }));
-    else globalThis.dispatchEvent?.({ type: name, detail });
+  let api = null;
+  let lastLegal = null;
+  const cloneValue = (value) => {
+    if (typeof globalThis.structuredClone === "function") return globalThis.structuredClone(value);
+    return JSON.parse(JSON.stringify(value));
   };
-  const readState = () => {
-    if (globalThis.stat_data && typeof globalThis.stat_data === "object") return globalThis.stat_data;
-    const lower = globalThis.Mvu?.getVariables?.()?.stat_data;
-    if (lower && typeof lower === "object") return lower;
-    const upper = globalThis.MVU?.getVariables?.()?.stat_data;
-    return upper && typeof upper === "object" ? upper : null;
+  const resolveTarget = () => {
+    const target = cloneValue(config.target);
+    if (target?.type !== "message" || config.snapshotSelector !== "current_message") return target;
+    try {
+      const messageId = typeof globalThis.getCurrentMessageId === "function"
+        ? globalThis.getCurrentMessageId()
+        : undefined;
+      if (Number.isInteger(messageId)) target.message_id = messageId;
+    } catch { /* Character scripts have no message-frame id; latest is the documented fallback. */ }
+    return target;
   };
-  const readGlobalPath = (expression) => {
-    const normalized = String(expression).trim().replace(/^(?:globalThis|window)\./, "");
-    if (!/^[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*$/.test(normalized)) return undefined;
-    return normalized.split(".").reduce((current, segment) => current == null ? undefined : current[segment], globalThis);
-  };
-  const evaluators = config.probes.map((expression) => {
-    return () => Boolean(readGlobalPath(expression));
-  });
-  const requirementReady = (name) => {
-    if (seenEvents.has(name)) return true;
-    if (name === "runtime_state_available" || name === "stat_data") return readState() !== null;
-    if (name === "message_rendered") return typeof document !== "undefined" && document.readyState !== "loading";
-    return Boolean(readGlobalPath(name));
-  };
-  const stableFingerprint = (value) => {
-    const seen = new WeakSet();
-    const normalize = (item) => {
-      if (!item || typeof item !== "object") return item;
-      if (seen.has(item)) return "[Circular]";
-      seen.add(item);
-      if (Array.isArray(item)) return item.map(normalize);
-      const output = {};
-      for (const name of Object.keys(item).sort()) output[name] = normalize(item[name]);
-      return output;
-    };
-    try { return JSON.stringify(normalize(value)); } catch { return "[Unserializable]"; }
-  };
-  let readinessTimer = null;
-  let timeoutTimer = null;
-  const checkReady = () => {
-    if (disposed || ready) return;
-    if (evaluators.every((evaluate) => evaluate()) && config.waitFor.every(requirementReady)) {
-      ready = true;
-      if (readinessTimer !== null) clearInterval(readinessTimer);
-      if (timeoutTimer !== null) clearTimeout(timeoutTimer);
-      emit("rp-card-runtime-ready", { probes: config.probes, waitFor: config.waitFor });
+  const emit = async (name, detail) => {
+    if (typeof globalThis.eventEmit === "function") {
+      try { await globalThis.eventEmit(name, detail); } catch { /* Host observers must not break MVU state. */ }
     }
   };
-  for (const name of config.waitFor) {
-    const handler = () => { seenEvents.add(name); checkReady(); };
-    globalThis.addEventListener?.(name, handler);
-    listeners.push([name, handler]);
+  const getAt = (root, path) => String(path).split(".").reduce((value, name) => value == null ? undefined : value[name], root);
+  const setAt = (root, path, value) => {
+    const names = String(path).split(".");
+    const leaf = names.pop();
+    let owner = root;
+    for (const name of names) {
+      if (!owner[name] || typeof owner[name] !== "object" || Array.isArray(owner[name])) owner[name] = {};
+      owner = owner[name];
+    }
+    owner[leaf] = cloneValue(value);
+  };
+  const validValue = (value, variable) => {
+    const typed = variable.type === "integer" ? Number.isInteger(value)
+      : variable.type === "number" ? typeof value === "number" && Number.isFinite(value)
+      : variable.type === "string" ? typeof value === "string"
+      : variable.type === "enum" ? ["string", "number", "boolean"].includes(typeof value)
+      : variable.type === "boolean" ? typeof value === "boolean"
+      : variable.type === "array" ? Array.isArray(value)
+      : variable.type === "object" ? Boolean(value) && typeof value === "object" && !Array.isArray(value)
+      : true;
+    if (!typed) return false;
+    const constraints = variable.constraints || {};
+    if (typeof constraints.minimum === "number" && typeof value === "number" && value < constraints.minimum) return false;
+    if (typeof constraints.maximum === "number" && typeof value === "number" && value > constraints.maximum) return false;
+    if (Array.isArray(constraints.values) && !constraints.values.some((candidate) => Object.is(candidate, value))) return false;
+    if (typeof constraints.pattern === "string" && typeof value === "string") {
+      try { if (!new RegExp(constraints.pattern).test(value)) return false; } catch { return false; }
+    }
+    if (Number.isInteger(constraints.max_items) && Array.isArray(value) && value.length > constraints.max_items) return false;
+    return true;
+  };
+  const validateData = (data) => {
+    if (!data || typeof data !== "object" || !data.stat_data || typeof data.stat_data !== "object") return ["stat_data"];
+    return config.variables.filter((variable) => !validValue(getAt(data, variable.runtimePath), variable)).map((variable) => variable.runtimePath);
+  };
+  const repairDefaults = (data) => {
+    if (!data?.stat_data || typeof data.stat_data !== "object") return { validRoot: false, changed: false };
+    let changed = false;
+    for (const variable of config.variables) {
+      const value = getAt(data, variable.runtimePath);
+      if (value === undefined) {
+        setAt(data, variable.runtimePath, variable.default);
+        changed = true;
+      }
+    }
+    return { validRoot: true, changed };
+  };
+  const replaceInPlace = (target, source) => {
+    for (const name of Object.keys(target)) delete target[name];
+    Object.assign(target, cloneValue(source));
+  };
+  const normalizeCommandPath = (path) => String(path ?? "")
+    .replace(/^stat_data\\./, "")
+    .replace(/^\\//, "")
+    .replaceAll("/", ".");
+  const allowedCommands = new Map();
+  for (const variable of config.variables) {
+    const aliases = [variable.sourcePath, variable.runtimePath, variable.runtimePath.replace(/^stat_data\\./, "")];
+    for (const alias of aliases) allowedCommands.set(normalizeCommandPath(alias), variable);
   }
-  let lastFingerprint = stableFingerprint(readState());
-  const stateTimer = setInterval(() => {
-    if (disposed) return;
-    const nextFingerprint = stableFingerprint(readState());
-    if (nextFingerprint !== lastFingerprint) {
-      lastFingerprint = nextFingerprint;
-      emit("rp-card-state-change", { fingerprint: nextFingerprint });
-      checkReady();
+  const operationAllowed = (command, variable) => {
+    const allowed = variable.operations || [];
+    if (command.type === "set") return allowed.includes("set");
+    if (command.type === "add") return allowed.includes("add") || allowed.includes("subtract");
+    if (command.type === "insert") return allowed.includes("append") || allowed.includes("set");
+    if (command.type === "delete") return allowed.includes("remove");
+    if (command.type === "move") return allowed.includes("move");
+    return false;
+  };
+  const initializeState = async (variables, swipeId, source = "initialized", persistDefaults = false) => {
+    if (disposed) return false;
+    const repaired = repairDefaults(variables);
+    if (!repaired.validRoot) {
+      void emit("rp-card-runtime-unavailable", { reason: "MVU did not initialize stat_data", swipeId });
+      return false;
     }
-  }, config.statePollMs);
-  timers.add(stateTimer);
-  readinessTimer = setInterval(checkReady, config.readinessPollMs);
-  timers.add(readinessTimer);
-  timeoutTimer = setTimeout(() => {
-    if (!disposed && !ready) emit("rp-card-runtime-unavailable", { timeoutMs: config.timeoutMs, probes: config.probes, waitFor: config.waitFor });
-    if (readinessTimer !== null) clearInterval(readinessTimer);
-  }, config.timeoutMs);
-  timers.add(timeoutTimer);
+    const invalid = validateData(variables);
+    if (invalid.length > 0) {
+      void emit("rp-card-state-rejected", { reason: "invalid_initial_state", paths: invalid });
+      return false;
+    }
+    if (persistDefaults && repaired.changed) {
+      try {
+        await api.replaceMvuData(cloneValue(variables), resolveTarget());
+      } catch (error) {
+        await emit("rp-card-runtime-unavailable", { reason: error instanceof Error ? error.message : String(error) });
+        return false;
+      }
+    }
+    if (disposed) return false;
+    const becameReady = !ready;
+    lastLegal = cloneValue(variables);
+    ready = true;
+    if (becameReady) void emit("rp-card-runtime-ready", { target: resolveTarget() });
+    void emit("rp-card-state-change", { source });
+    return true;
+  };
+  const onInitialized = (variables, swipeId) => {
+    if (disposed) return;
+    void initializeState(variables, swipeId);
+  };
+  const onCommandsParsed = (_variables, commands) => {
+    if (disposed) return;
+    if (!Array.isArray(commands)) return;
+    const accepted = commands.filter((command) => {
+      const variable = allowedCommands.get(normalizeCommandPath(command?.args?.[0]));
+      if (!variable || !operationAllowed(command, variable)) return false;
+      if (command.type === "move") {
+        const destination = allowedCommands.get(normalizeCommandPath(command?.args?.[1]));
+        return Boolean(destination) && operationAllowed(command, destination);
+      }
+      return true;
+    });
+    commands.splice(0, commands.length, ...accepted);
+  };
+  const onUpdateEnded = (variables, before) => {
+    if (disposed) return;
+    const invalid = validateData(variables);
+    if (invalid.length > 0) {
+      if (before && typeof before === "object") replaceInPlace(variables, before);
+      void emit("rp-card-state-rejected", { reason: "invalid_update", paths: invalid });
+      return;
+    }
+    const becameReady = !ready;
+    lastLegal = cloneValue(variables);
+    ready = true;
+    if (becameReady) void emit("rp-card-runtime-ready", { target: resolveTarget() });
+    void emit("rp-card-state-change", { source: "mvu_update" });
+  };
+  const onBeforeMessageUpdate = (context) => {
+    if (disposed) return;
+    const invalid = validateData(context?.variables);
+    if (invalid.length > 0 && lastLegal && context?.variables) {
+      replaceInPlace(context.variables, lastLegal);
+      void emit("rp-card-state-rejected", { reason: "invalid_before_message_update", paths: invalid });
+    }
+  };
+  const on = (event, handler) => {
+    if (disposed) return;
+    globalThis.eventOn(event, handler);
+    listeners.push([event, handler]);
+  };
   const cleanup = () => {
     disposed = true;
-    for (const [name, handler] of listeners) globalThis.removeEventListener?.(name, handler);
+    for (const [event, handler] of listeners.splice(0)) {
+      try { globalThis.eventRemoveListener(event, handler); } catch { /* Host cleanup must remain best effort. */ }
+    }
     for (const timer of timers) { clearTimeout(timer); clearInterval(timer); }
     timers.clear();
   };
-  globalThis[key] = { cleanup };
-  checkReady();
+  const parseAndCommit = async (message, target = resolveTarget()) => {
+    if (disposed) throw new Error("Runtime guard is disposed");
+    if (!api) throw new Error("MVU is unavailable");
+    const oldData = api.getMvuData(target);
+    if (!oldData?.stat_data || typeof oldData.stat_data !== "object") throw new Error("MVU state is not initialized");
+    const nextData = await api.parseMessage(message, oldData);
+    if (!nextData) return oldData;
+    const invalid = validateData(nextData);
+    if (invalid.length > 0) {
+      await emit("rp-card-state-rejected", { reason: "invalid_manual_update", paths: invalid });
+      return oldData;
+    }
+    await api.replaceMvuData(nextData, target);
+    lastLegal = cloneValue(nextData);
+    await emit("rp-card-state-change", { source: "manual_update" });
+    return nextData;
+  };
+  const handle = { cleanup, parseAndCommit, get ready() { return ready; } };
+  globalThis[key] = handle;
+  try {
+    if (typeof globalThis.waitGlobalInitialized !== "function") throw new Error("waitGlobalInitialized is unavailable");
+    let timeoutTimer = null;
+    const timeout = new Promise((_, reject) => {
+      timeoutTimer = setTimeout(() => reject(new Error("MVU initialization timed out")), config.timeoutMs);
+      timers.add(timeoutTimer);
+    });
+    try {
+      await Promise.race([globalThis.waitGlobalInitialized("Mvu"), timeout]);
+    } finally {
+      if (timeoutTimer !== null) { clearTimeout(timeoutTimer); timers.delete(timeoutTimer); }
+    }
+    api = globalThis.Mvu;
+    if (!api?.getMvuData || !api?.parseMessage || !api?.replaceMvuData || !api?.events) throw new Error("MVU API is incomplete");
+    if (typeof globalThis.eventOn !== "function"
+      || typeof globalThis.eventEmit !== "function"
+      || typeof globalThis.eventRemoveListener !== "function") throw new Error("Tavern Helper event API is unavailable");
+    const eventNames = [
+      api.events.VARIABLE_INITIALIZED,
+      api.events.COMMAND_PARSED,
+      api.events.VARIABLE_UPDATE_ENDED,
+      api.events.BEFORE_MESSAGE_UPDATE,
+    ];
+    if (eventNames.some((event) => typeof event !== "string")) throw new Error("MVU event contract is incomplete");
+    on(api.events.VARIABLE_INITIALIZED, onInitialized);
+    on(api.events.COMMAND_PARSED, onCommandsParsed);
+    on(api.events.VARIABLE_UPDATE_ENDED, onUpdateEnded);
+    on(api.events.BEFORE_MESSAGE_UPDATE, onBeforeMessageUpdate);
+    const snapshot = api.getMvuData(resolveTarget());
+    if (!ready && snapshot?.stat_data && typeof snapshot.stat_data === "object") {
+      await initializeState(snapshot, undefined, "bootstrap", true);
+    }
+  } catch (error) {
+    await emit("rp-card-runtime-unavailable", { reason: error instanceof Error ? error.message : String(error) });
+  }
 })();`;
 }
 
@@ -1723,6 +2553,9 @@ function statusUiScript(ui, runtimeConfig) {
     artifact: ui.delivery?.artifact ?? null,
     waitFor: runtimeConfig.waitFor,
     timeoutMs: runtimeConfig.timeoutMs,
+    target: clone(runtimeConfig.target ?? { type: "message", message_id: "latest" }),
+    snapshotSelector: runtimeConfig.snapshotSelector ?? "current_message",
+    namespace: runtimeConfig.namespace ?? "stat_data",
     refresh: ui.refresh ?? "on_state_change",
     readOnly: ui.read_only !== false,
     responsive: clone(ui.responsive ?? {}),
@@ -1740,12 +2573,12 @@ function statusUiScript(ui, runtimeConfig) {
     degraded: ui.states?.degraded ?? ui.text_template ?? "State unavailable",
     liveUpdates: ui.accessibility?.live_updates ?? "polite"
   }).replaceAll("<", "\\u003c");
-  return `(() => {
+  return `(async () => {
   "use strict";
   const key = Symbol.for("rp_card_studio.status_ui");
   globalThis[key]?.cleanup?.();
   const config = ${config};
-  const listeners = [];
+  const hostListeners = [];
   const observers = [];
   const timers = new Set();
   const seenEvents = new Set();
@@ -1753,16 +2586,48 @@ function statusUiScript(ui, runtimeConfig) {
   let root = null;
   let ownsHost = false;
   let ready = false;
+  let hostReady = false;
+  let mvu = null;
+  let disposed = false;
+  const hostWindow = (() => {
+    try { return globalThis.parent ?? null; }
+    catch { return null; }
+  })();
+  const hostDocument = (() => {
+    try { return hostWindow?.document ?? null; }
+    catch { return null; }
+  })();
+  const HostMutationObserver = hostWindow?.MutationObserver ?? globalThis.MutationObserver;
   const read = (value, state) => value.split(".").reduce((current, segment) => current == null ? undefined : current[segment], state);
-  const state = () => globalThis.stat_data || globalThis.Mvu?.getVariables?.()?.stat_data || globalThis.MVU?.getVariables?.()?.stat_data || null;
+  const resolveTarget = () => {
+    const target = { ...config.target };
+    if (target.type !== "message" || config.snapshotSelector !== "current_message") return target;
+    try {
+      const messageId = typeof globalThis.getCurrentMessageId === "function"
+        ? globalThis.getCurrentMessageId()
+        : undefined;
+      if (Number.isInteger(messageId)) target.message_id = messageId;
+    } catch { /* Character scripts have no message-frame id; latest is the documented fallback. */ }
+    return target;
+  };
+  const state = () => {
+    if (!mvu?.getMvuData) return null;
+    try {
+      const data = mvu.getMvuData(resolveTarget());
+      return data?.[config.namespace] ?? null;
+    } catch { return null; }
+  };
   const readGlobalPath = (expression) => {
     const normalized = String(expression).trim().replace(/^(?:globalThis|window)\./, "");
     if (!/^[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*$/.test(normalized)) return undefined;
     return normalized.split(".").reduce((current, segment) => current == null ? undefined : current[segment], globalThis);
   };
-  const emit = (name, detail) => {
-    if (typeof globalThis.CustomEvent === "function") globalThis.dispatchEvent?.(new CustomEvent(name, { detail }));
-    else globalThis.dispatchEvent?.({ type: name, detail });
+  const emit = async (name, detail) => {
+    if (typeof globalThis.eventEmit !== "function") return false;
+    try {
+      await globalThis.eventEmit(name, detail);
+      return true;
+    } catch { return false; }
   };
   const resolveCallable = (expression) => {
     const normalized = String(expression).trim().replace(/^(?:globalThis|window)\./, "");
@@ -1775,11 +2640,11 @@ function statusUiScript(ui, runtimeConfig) {
   };
   const executeCommand = async (command) => {
     const detail = { id: command.id, channel: command.channel, payload: command.payload, writerId: command.writer_id };
-    emit("rp-card-ui-command", detail);
+    await emit("rp-card-ui-command", detail);
     try {
       let result;
       if (command.channel === "runtime_event") {
-        emit(command.payload, detail);
+        if (!await emit(command.payload, detail)) throw new Error("Tavern Helper event API is unavailable");
         result = true;
       } else if (command.channel === "script_api") {
         const target = resolveCallable(command.payload);
@@ -1799,29 +2664,34 @@ function statusUiScript(ui, runtimeConfig) {
       } else {
         throw new Error("Unsupported UI command channel: " + command.channel);
       }
-      emit("rp-card-ui-command-result", { ...detail, result });
+      await emit("rp-card-ui-command-result", { ...detail, result });
       return result;
     } catch (error) {
-      emit("rp-card-ui-command-error", { ...detail, message: error instanceof Error ? error.message : String(error) });
+      await emit("rp-card-ui-command-error", { ...detail, message: error instanceof Error ? error.message : String(error) });
       throw error;
     }
   };
   const requirementReady = (name) => {
     if (seenEvents.has(name)) return true;
-    if (name === "runtime_state_available" || name === "stat_data") return state() !== null;
-    if (name === "message_rendered") return document.readyState !== "loading";
+    if (name === "runtime_state_available" || name === config.namespace) return state() !== null;
+    if (name === "message_rendered") return state() !== null;
     return Boolean(readGlobalPath(name));
   };
   const ensureRoot = () => {
-    if (!host?.isConnected) { host = document.getElementById(config.mountAnchor); ownsHost = false; }
+    if (!hostDocument?.createElement) return null;
+    if (!host?.isConnected) { host = hostDocument.getElementById(config.mountAnchor); ownsHost = false; }
     if (!host) {
-      host = document.createElement("section");
+      const shell = hostDocument.getElementById("sheld");
+      if (!shell) return null;
+      host = hostDocument.createElement("section");
       host.id = config.mountAnchor;
-      (document.body || document.documentElement).append(host);
+      const form = hostDocument.getElementById("form_sheld");
+      if (shell && form?.parentNode === shell && typeof shell.insertBefore === "function") shell.insertBefore(host, form);
+      else shell.append(host);
       ownsHost = true;
     }
     if (!root?.isConnected || root.parentNode !== host) {
-      root = document.createElement("section");
+      root = hostDocument.createElement("section");
       root.dataset.rpCardStudio = "status_ui";
       root.dataset.density = config.visual.density || "compact";
       root.dataset.narrowLayout = config.responsive.narrow || "single_column";
@@ -1831,7 +2701,10 @@ function statusUiScript(ui, runtimeConfig) {
     }
     return root;
   };
-  const showStatus = (text) => { ensureRoot().textContent = text; };
+  const showStatus = (text) => {
+    const mount = ensureRoot();
+    if (mount) mount.textContent = text;
+  };
   const format = (value, kind) => {
     if (kind === "list" && Array.isArray(value)) return value.join(", ");
     if (kind === "percent" && typeof value === "number") return String(value) + "%";
@@ -1842,19 +2715,19 @@ function statusUiScript(ui, runtimeConfig) {
   };
   const render = () => {
     try {
-      ensureRoot();
+      if (!ensureRoot()) return;
       root.replaceChildren();
       const currentState = state();
       if (!currentState) { root.textContent = config.degraded; return; }
       for (const section of config.sections) {
-        const group = document.createElement(section.collapsed ? "details" : "section");
+        const group = hostDocument.createElement(section.collapsed ? "details" : "section");
         if (section.collapsed) {
-          const heading = document.createElement("summary"); heading.textContent = section.label; group.append(heading);
+          const heading = hostDocument.createElement("summary"); heading.textContent = section.label; group.append(heading);
         } else {
-          const heading = document.createElement("h3"); heading.textContent = section.label; group.append(heading);
+          const heading = hostDocument.createElement("h3"); heading.textContent = section.label; group.append(heading);
         }
         for (const field of section.fields) {
-          const row = document.createElement("div");
+          const row = hostDocument.createElement("div");
           const value = read(field.path, currentState);
           row.textContent = field.label + ": " + (value == null ? field.missing : format(value, field.format));
           group.append(row);
@@ -1862,10 +2735,10 @@ function statusUiScript(ui, runtimeConfig) {
         root.append(group);
       }
       if (!config.readOnly && config.commands.length > 0) {
-        const commands = document.createElement("div");
+        const commands = hostDocument.createElement("div");
         commands.dataset.rpCardStudioCommands = "true";
         for (const command of config.commands) {
-          const button = document.createElement("button");
+          const button = hostDocument.createElement("button");
           button.type = "button";
           button.textContent = command.label;
           button.addEventListener("click", async () => {
@@ -1881,41 +2754,69 @@ function statusUiScript(ui, runtimeConfig) {
       if (!root.childNodes.length) root.textContent = config.empty;
     } catch { if (root) root.textContent = config.error; }
   };
-  const on = (name, handler) => { globalThis.addEventListener?.(name, handler); listeners.push([name, handler]); };
+  const onHost = (name, handler) => {
+    if (typeof name !== "string" || typeof globalThis.eventOn !== "function") return;
+    globalThis.eventOn(name, handler);
+    hostListeners.push([name, handler]);
+  };
+  const clearHostListeners = () => {
+    for (const [name, handler] of hostListeners.splice(0)) {
+      try { globalThis.eventRemoveListener(name, handler); } catch { /* Host cleanup must remain best effort. */ }
+    }
+  };
   let pollTimer = null;
   const markReady = () => {
+    if (!hostReady) return;
     ready = true;
     if (pollTimer !== null) { clearInterval(pollTimer); timers.delete(pollTimer); pollTimer = null; }
   };
   const attemptRender = () => {
+    if (!hostReady) return;
     if (!ready) {
       if (!config.waitFor.every(requirementReady)) return;
       markReady();
     }
     render();
   };
-  on("rp-card-runtime-ready", () => { markReady(); render(); });
-  on("rp-card-state-change", () => {
+  onHost("rp-card-runtime-ready", () => { attemptRender(); });
+  onHost("rp-card-state-change", () => {
     if (!ready) attemptRender();
     else if (["on_state_change", "hybrid"].includes(config.refresh)) render();
   });
-  for (const name of config.waitFor) on(name, () => {
+  onHost("rp-card-runtime-unavailable", () => { if (!ready) showStatus(config.degraded); });
+  for (const name of config.waitFor.filter((candidate) => candidate !== "message_rendered")) onHost(name, () => {
     seenEvents.add(name);
     if (!ready) attemptRender();
-    else if (name === "message_rendered" && ["on_message", "hybrid"].includes(config.refresh)) render();
   });
-  if (typeof MutationObserver === "function") {
-    const observer = new MutationObserver(() => { if (!root?.isConnected || !host?.isConnected) attemptRender(); });
-    observer.observe(document.documentElement, { childList: true, subtree: true }); observers.push(observer);
+  if (config.waitFor.includes("message_rendered") || ["on_message", "hybrid"].includes(config.refresh)) {
+    const messageEvents = [
+      globalThis.tavern_events?.USER_MESSAGE_RENDERED ?? "user_message_rendered",
+      globalThis.tavern_events?.CHARACTER_MESSAGE_RENDERED ?? "character_message_rendered",
+    ];
+    const onMessageRendered = () => {
+      if (disposed) return;
+      seenEvents.add("message_rendered");
+      if (!ready) attemptRender();
+      else if (["on_message", "hybrid"].includes(config.refresh)) render();
+    };
+    for (const eventName of new Set(messageEvents)) onHost(eventName, onMessageRendered);
   }
-  ensureRoot();
-  showStatus(config.loading);
-  pollTimer = setInterval(attemptRender, 100); timers.add(pollTimer);
-  const timeoutTimer = setTimeout(() => { if (!ready) showStatus(config.degraded); }, config.timeoutMs); timers.add(timeoutTimer);
-  const initialTimer = setTimeout(attemptRender, 0); timers.add(initialTimer);
+  if (typeof HostMutationObserver === "function" && hostDocument?.documentElement) {
+    const observer = new HostMutationObserver(() => {
+      if (disposed || (root?.isConnected && host?.isConnected)) return;
+      if (hostReady) attemptRender();
+      else showStatus(config.loading);
+    });
+    observer.observe(hostDocument.documentElement, { childList: true, subtree: true }); observers.push(observer);
+  }
   const cleanup = () => {
-    for (const [name, handler] of listeners) globalThis.removeEventListener?.(name, handler);
-    for (const item of observers) item.disconnect();
+    if (disposed) return;
+    disposed = true;
+    hostReady = false;
+    ready = false;
+    mvu = null;
+    clearHostListeners();
+    for (const item of observers.splice(0)) item.disconnect();
     for (const item of timers) { clearTimeout(item); clearInterval(item); }
     timers.clear();
     root?.remove();
@@ -1923,7 +2824,83 @@ function statusUiScript(ui, runtimeConfig) {
     root = null; host = null; ownsHost = false;
   };
   globalThis[key] = { cleanup, render, executeCommand };
+  try {
+    if (!hostDocument?.createElement) throw new Error("SillyTavern parent document is unavailable");
+    showStatus(config.loading);
+  } catch (error) {
+    cleanup();
+    await emit("rp-card-runtime-unavailable", { reason: error instanceof Error ? error.message : String(error) });
+    return;
+  }
+  pollTimer = setInterval(attemptRender, 100); timers.add(pollTimer);
+  const timeoutTimer = setTimeout(() => { if (!ready) showStatus(config.degraded); }, config.timeoutMs); timers.add(timeoutTimer);
+  const initializeHost = async () => {
+    let waitTimer = null;
+    try {
+      if (typeof globalThis.waitGlobalInitialized !== "function") throw new Error("waitGlobalInitialized is unavailable");
+      const timeout = new Promise((_, reject) => {
+        waitTimer = setTimeout(() => reject(new Error("MVU initialization timed out")), config.timeoutMs);
+        timers.add(waitTimer);
+      });
+      try {
+        await Promise.race([globalThis.waitGlobalInitialized("Mvu"), timeout]);
+      } finally {
+        if (waitTimer !== null) { clearTimeout(waitTimer); timers.delete(waitTimer); waitTimer = null; }
+      }
+      if (disposed) return;
+      mvu = globalThis.Mvu;
+      if (!mvu?.getMvuData || !mvu?.events) throw new Error("MVU API is incomplete");
+      if (typeof globalThis.eventOn !== "function"
+        || typeof globalThis.eventEmit !== "function"
+        || typeof globalThis.eventRemoveListener !== "function") {
+        throw new Error("Tavern Helper event API is unavailable");
+      }
+      const eventNames = [
+        mvu.events.VARIABLE_INITIALIZED,
+        mvu.events.VARIABLE_UPDATE_ENDED,
+        mvu.events.BEFORE_MESSAGE_UPDATE,
+      ];
+      if (eventNames.some((name) => typeof name !== "string")) throw new Error("MVU event contract is incomplete");
+      const refresh = () => {
+        if (disposed || !hostReady) return;
+        if (!ready) attemptRender();
+        else if (["on_state_change", "hybrid"].includes(config.refresh)) render();
+      };
+      hostReady = true;
+      onHost(mvu.events.VARIABLE_INITIALIZED, refresh);
+      onHost(mvu.events.VARIABLE_UPDATE_ENDED, refresh);
+      onHost(mvu.events.BEFORE_MESSAGE_UPDATE, refresh);
+      attemptRender();
+    } catch (error) {
+      hostReady = false;
+      clearHostListeners();
+      if (pollTimer !== null) { clearInterval(pollTimer); timers.delete(pollTimer); pollTimer = null; }
+      clearTimeout(timeoutTimer); timers.delete(timeoutTimer);
+      if (!disposed) {
+        showStatus(config.degraded);
+        await emit("rp-card-runtime-unavailable", { reason: error instanceof Error ? error.message : String(error) });
+      }
+    }
+  };
+  await initializeHost();
 })();`;
+}
+
+// JS-Slash-Runner parses character scripts with a strict Zod object. Keep the
+// host-facing projection deliberately small; project-only adapter metadata
+// belongs in the source contract and reports, not in the card extension.
+function tavernHelperScript({ id, name, content, enabled = true, info = "" }) {
+  return {
+    type: "script",
+    enabled,
+    name,
+    id,
+    content,
+    info,
+    button: { enabled: true, buttons: [] },
+    data: {},
+    export_with: { data: true, button: true }
+  };
 }
 
 export function applyTavernHelperAdapter(payload, { project, sources, target }) {
@@ -1932,32 +2909,48 @@ export function applyTavernHelperAdapter(payload, { project, sources, target }) 
   const uiSources = values(sources, "ui");
   const mvuAdapter = mvuSources.find((source) => source.runtime_contract?.adapter?.id === "tavern_helper" && source.runtime_contract.adapter.delivery === "embedded")?.runtime_contract?.adapter ?? null;
   const uiAdapter = uiSources.some((source) => source.status_ui?.delivery?.adapter === "tavern_helper" && source.status_ui.delivery.level === "embedded");
-  const runtimeEnabled = mvuSources.some((source) => source.mvu?.enabled || source.ejs?.enabled)
-    && (project?.features?.mvu || project?.features?.ejs);
+  const runtimeEnabled = mvuSources.some((source) => source.mvu?.enabled)
+    && project?.features?.mvu;
   const uiSource = uiSources.find((source) => source.status_ui?.enabled
     && ["embedded", "both"].includes(source.status_ui.mode)
     && source.status_ui.delivery?.level === "embedded");
   const uiEnabled = Boolean(project?.features?.status_ui && uiSource);
   const runtimeConfig = tavernHelperRuntimeConfig(mvuSources, uiSources);
   const generated = [];
-  if (runtimeEnabled && mvuAdapter) generated.push({
+  if (runtimeEnabled) {
+    const seenImports = new Set();
+    for (const dependency of runtimeConfig.remoteImports) {
+      if (seenImports.has(dependency.url)) continue;
+      seenImports.add(dependency.url);
+      generated.push(tavernHelperScript({
+        id: `rp_card_studio_dependency_${dependency.id}`,
+        name: `RP Card Studio dependency: ${dependency.id}`,
+        enabled: true,
+        info: `Pinned remote dependency ${dependency.version ?? "unversioned"}`,
+        content: `import ${JSON.stringify(dependency.url)};`
+      }));
+    }
+  }
+  if (runtimeEnabled && mvuAdapter) generated.push(tavernHelperScript({
     id: "rp_card_studio_runtime_guard",
     name: "RP Card Studio Runtime Guard",
     enabled: true,
-    entrypoint: mvuAdapter.entrypoint,
-    load_order: mvuAdapter.load_order ?? 0,
-    fallback: mvuAdapter.fallback,
+    info: "MVU runtime guard; execution order is encoded by the stable script id",
     content: runtimeGuardScript(runtimeConfig)
-  });
-  if (uiEnabled && uiAdapter) generated.push({
+  }));
+  if (uiEnabled && uiAdapter) generated.push(tavernHelperScript({
     id: "rp_card_studio_status_ui",
     name: "RP Card Studio Status UI",
     enabled: true,
-    entrypoint: uiSource.status_ui.delivery.entrypoint,
-    artifact: uiSource.status_ui.delivery.artifact,
+    info: "Read-only status UI; execution order is encoded by the stable script id",
     content: statusUiScript(uiSource.status_ui, runtimeConfig)
-  });
+  }));
   if (generated.length === 0) return { payload, issues: [] };
+
+  // Tavern Helper sorts enabled scripts by id, not by card order or a custom
+  // load_order field. Sort here too so the emitted artifact documents that
+  // deterministic order and remains stable across host versions.
+  generated.sort((left, right) => left.id.localeCompare(right.id));
 
   const output = clone(payload);
   output.data ??= {};

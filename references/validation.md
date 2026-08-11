@@ -34,7 +34,7 @@
 - 项目声称确定性状态持久化，但多轴系统没有绑定 MVU 或等价状态源中的具体路径与生命周期。（系统、运行时实现）
 - 开场文字与其初始化状态冲突。（叙事与开场）
 - opening 的默认呈现不存在、增强呈现缺少纯文本回退、呈现回退成环，或呈现变体改写父 opening 的事实/初始状态/钩子/玩家交接点。（叙事与开场）
-- 已启用或保留的 EJS 读取不存在的字段、无安全默认值、条件分支不完整或语法无效。（MVU/EJS）
+- 已启用或保留的 EJS 读取不存在的字段、纯 EJS 无安全默认值、MVU 联动无明确失败回退、条件分支不完整或语法无效。（MVU/EJS）
 - 状态栏字段无来源、类型不兼容或暴露非玩家字段。（状态栏/UI）
 - `mode` 为 `embedded`/`both` 但 delivery 不完整，或 adapter ID、entrypoint、artifact、mount anchor 与其他运行时交付发生碰撞。（状态栏/UI、整合）
 - 运行时状态 Schema 与 storage、protocol、初始化 profiles、opening bindings 或字段账本不一致。（MVU/EJS、整合）
@@ -60,6 +60,7 @@
 - UI 次要断点、动画或非关键浏览器尚未实测。
 - 远程依赖有回退但可用性尚未在目标网络确认。
 - 媒体资源已登记且有回退，但远程可用性、`none | on_opening | eager | on_demand` 预加载时序或非关键消费者尚未实测。
+- 生成的数字 CharacterBook 稳定 ID 与导入条目碰撞，但 Forge 已确定性探测到另一个空闲数字 ID、完整保留导入条目且所有 source key 仍唯一。
 - 真实 SillyTavern 验收尚未执行，但用户只要求源码或候选产物。
 
 警告必须包含 `id`、影响、证据、建议和用户处置，不接受“有一些小问题”这类模糊描述。
@@ -133,6 +134,11 @@
 - 默认值符合类型、范围和枚举；每个开场覆盖是完整合法状态。
 - writer 唯一，允许操作与字段类型相容，派生字段无竞争写入。
 - readers、EJS 条件和 UI 绑定只引用已存在路径。
+- EJS 条目使用结构化 `condition` 与完整 `branches`，`placement` 和 `insertion_order` 可确定宿主顺序；旧字符串条件或顶层 `fallback` 必须进入迁移错误，不得静默转换。
+- EJS 条目声明 `st_prompt_template` 引擎及 `globalThis.EjsTemplate` 宿主依赖；生成物只出现在 CharacterBook entries，不得伪装成 Tavern Helper script。
+- MVU 联动 EJS 只接受已验证的 `message/stat_data/current|latest message` storage；必须有界等待 `Mvu` 后读取匹配 selector 的 target。`current_message` 在 render 中使用宿主提供的数字 `message_id`，generate 无楼层上下文时明确降级为 latest。快照、namespace 或路径缺失时输出 `branches.fallback`，不得回退 `getvar()` 后误入真假分支。纯 EJS 才使用带账本默认值的精确 `getvar(runtime_path, { defaults })`。
+- 内嵌 Tavern Helper MVU 适配器只允许已验证的 message current/latest 目标和 `Mvu.events.*` 动态事件；必须先订阅再从当前快照 bootstrap。不得使用 `getVariables()`、`globalThis.MVU` 或硬编码 MVU 事件名。
+- 嵌入式状态栏挂载到 `globalThis.parent.document` 的 `#sheld`，跨脚本通知与命令使用共享 `eventOn/eventEmit/eventRemoveListener`；`on_message`/`hybrid` 使用真实 `user_message_rendered`、`character_message_rendered` 事件。隐藏脚本 iframe 内的 DOM 或本地 `CustomEvent` 不能作为通过证据。
 - 更新模式与接收者清单一致；共享条目有明确理由。
 - 清理和迁移规则覆盖改名、类型变化和旧存档缺失。
 - `mvu.initialization.profiles[]` 的 ID 唯一，默认 profile 可解析；`mvu.initialization.opening_bindings[]` 的每个 opening/profile 引用均存在，且同一 opening 不产生歧义绑定。

@@ -93,7 +93,7 @@ mvu:
         kind: update_model
         id: relationship_update
         operations: [set, add, subtract]
-      readers: [plot_model, update_model, status_ui]
+      readers: [plot_model, update_model, ejs, status_ui]
       renderer: status_ui.relationship_trust
       cleanup: retain
       migration: clamp_to_current_range
@@ -136,13 +136,30 @@ ejs:
     - id: low_trust_dialogue
       source_ref: "character:conductor"
       complexity: section_branch
-      condition: "stat_data.relationship.trust < 30"
+      engine: st_prompt_template
+      placement: after
+      insertion_order: 120
+      condition:
+        runtime_path: stat_data.relationship.trust
+        operator: lt
+        value: 30
       reads: [stat_data.relationship.trust]
       target: both
-      fallback: "使用不依赖信任值的中性对话段。"
+      branches:
+        when_true: "使用低信任版本的既有对话段。"
+        when_false: "使用普通版本的既有对话段。"
+        fallback: "使用不依赖信任值的中性对话段。"
+      missing_dependency: omit_dynamic
 runtime_contract:
   adapter: null
-  dependencies: []
+  dependencies:
+    - id: st_prompt_template
+      class: host_required
+      delivery: "SillyTavern ST-Prompt-Template 1.17.6.8"
+      version: 1.17.6.8
+      readiness_probe: globalThis.EjsTemplate
+      timeout_ms: 10000
+      fallback: "EJS 不可用时省略动态条目，保留静态正文。"
   assumptions:
     - "每轮最多只有一个 writer 提交 relationship.trust 的更新。"
   fallbacks:
@@ -168,9 +185,9 @@ runtime_contract:
 - `source_path` 是语义路径，`runtime_path` 是运行时路径，两者通过显式映射连接。
 - `storage` 必须声明单一可信 scope；跨 scope 读取只有在 `merge_policy` 明确时允许，不能依赖宿主的隐式覆盖顺序。
 - `protocol.id + protocol.version` 构成稳定协议身份。新项目使用结构化、可校验的协议；`output_dialect` 仅作为兼容摘要，不能替代 `protocol`。
-- 每次读取必须有与类型一致的默认值或可证明的初始化先序。
+- 纯 EJS 读取必须有与类型一致的默认值；MVU 联动读取必须有可证明的初始化先序和明确 `branches.fallback`，不得用默认值掩盖缺失快照或路径。
 - 每个 profile 有稳定 ID；`opening_bindings` 只引用已存在 opening 与 profile，继承不得成环，合并后必须通过完整运行时 Schema。
-- EJS 条件只读取已登记字段，覆盖所有分支，并给出不满足条件时的内容回退。
+- EJS 条件只读取已登记字段并覆盖所有分支。纯 EJS 通过 `getvar(runtime_path, { defaults })` 读取；MVU 联动当前只允许 `message/stat_data/current|latest message`，有界等待 `Mvu` 后读取快照。`current_message` 的 render 条目使用 ST-Prompt-Template 提供的数字 `message_id`；generate 上下文没有楼层号时明确降级到 latest。宿主、namespace 或路径缺失时进入 `branches.fallback`。
 - 条目路由与条目激活是两个维度；路由不能替代关键词、深度、顺序等激活规则。
 - 未确认的宿主能力进入 `runtime_contract.assumptions`，不得写成已经验证。
 - Tavern Helper adapter 是可选宿主桥接，不是默认依赖。需要时在本阶段锁定契约，实际 adapter 文件、入口装配和碰撞扫描留到 `integration`；不得直接引用未登记的远程运行脚本。
@@ -185,7 +202,7 @@ runtime_contract:
 - 所有更新操作属于锁定的协议版本，更新边界、原子性、修订保护和失败行为已定义。
 - 已启用的变量账本能确定性生成 `reports/runtime-state.schema.json`；跳过本阶段且没有既有实现时不生成该报告。
 - 每个业务状态机映射保持原状态、转换与后果，不新增或改写系统语义。
-- 所有 EJS 读取路径存在；条件具备类型匹配的默认值和完整分支。
+- 所有 EJS 读取路径存在；纯 EJS 条件具备类型匹配的默认值，MVU 联动条件具备安全 fallback，且两者都有完整分支。
 - plot、update、shared 三类接收者有清单，无模糊双写。
 - 依赖被分类为内置、随卡嵌入、宿主必需或远程加载，并写明交付方式。
 - 需要 adapter 时其 ID、版本、entrypoint、readiness probe、timeout 和 fallback 完整；实际文件仍标记为待整合，不能提前声称可运行。

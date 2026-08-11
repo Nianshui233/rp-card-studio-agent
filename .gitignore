@@ -1,0 +1,4 @@
+node_modules/
+*.candidate
+*.backup
+.rp-card-forge.lock

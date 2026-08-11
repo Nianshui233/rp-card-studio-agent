@@ -131,6 +131,17 @@ status_ui:
 - 消息删除：清理该消息注册的 events、observers、timers、DOM、styles 和 stores。
 - 切换聊天或关闭视图：卸载当前聊天的全部实例和订阅；返回时从当前聊天状态重新初始化，不复用其他聊天的 store。
 
+## SillyTavern 宿主读取契约
+
+- 兼容工作只发生在技能生成的适配器与制品中；不得要求修改 SillyTavern 本体、Tavern Helper 或 MVU 扩展源码。
+- 嵌入式状态栏先执行有界的 `await waitGlobalInitialized('Mvu')`，再通过 `Mvu.getMvuData(target)` 读取状态；`target` 由 `mvu.storage.scope` 与 `snapshot_selector` 映射。`latest_message` 固定使用 latest；`current_message` 在宿主能提供数字楼层上下文时使用该 ID，在全局角色脚本 iframe 中明确降级到 latest。
+- 状态栏从 `mvu.storage.namespace` 指定的命名空间读取展示根。内嵌 Tavern Helper MVU 当前只接受真实宿主支持的 `stat_data` 命名空间；其他命名空间必须在验证阶段阻断，不得静默改写。
+- Tavern Helper 的角色脚本运行在独立隐藏 iframe。状态栏 DOM 必须通过 `globalThis.parent.document` 创建，复用指定 `mount_anchor`；不存在时创建在父页 `#sheld` 内、`#form_sheld` 之前，不得挂到脚本 iframe 的 `document.body`。
+- 状态刷新订阅 `Mvu.events.VARIABLE_INITIALIZED`、`Mvu.events.VARIABLE_UPDATE_ENDED`、`Mvu.events.BEFORE_MESSAGE_UPDATE` 等宿主公开事件常量；`on_message` 与 `hybrid` 还订阅 Tavern Helper 的 `user_message_rendered` 和 `character_message_rendered`。运行时通知、UI 命令和用户 `runtime_event` 全部通过共享 `eventOn/eventEmit` 传递，不使用 iframe 本地 `CustomEvent`。
+- 卸载时用原事件名和原处理器调用 `eventRemoveListener`，断开父页 observer，清除 timer，删除自己的 root；仅在自建 anchor 已空时删除该 anchor，复用的外部 anchor 永不删除。
+- 禁止读取或创建 `globalThis.stat_data`，禁止调用不存在的 `getVariables()`，禁止把宿主对象猜成 `globalThis.MVU`，也禁止硬编码 `mag_variable_*` 事件名。
+- 等待超时、Mvu 缺失、API 不完整或状态读取失败时显示 `states.degraded`，不抛出未处理异常，不伪造状态对象，并清理已注册的事件、计时器、观察器和 DOM。
+
 ## NSFW 投影规则
 
 - 项目首轮已经启用 NSFW 时，自动把前序阶段已锁定、允许玩家查看的相关字段纳入角色与状态栏模板；不再询问偏好、限制或单独开关。

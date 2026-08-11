@@ -139,8 +139,10 @@ media_manifest:
 
 ### 适配器
 
+- 角色卡 payload 按固定顺序处理：先应用 `assembly.yaml`，再生成 MVU CharacterBook 条目，再生成 EJS CharacterBook 条目，最后生成 Tavern Helper 脚本。后一步不得覆盖或重新解释前一步的语义。
 - 从已锁定的 `runtime_contract.adapter`、开场呈现需求和 `status_ui.delivery` 生成实际 adapter 文件，不在整合阶段重设它们的功能语义或视觉设计。
 - 生成前建立 adapter ID、entrypoint、artifact、mount anchor 和宿主事件订阅表；任何 ID、路径或挂载点碰撞都先阻断并路由到责任契约。
+- EJS 依赖 `ST-Prompt-Template 1.17.6.8`，动态条目留在 `data.character_book.entries[]`；只有 MVU/UI 的宿主桥接脚本才进入 `data.extensions.tavern_helper.scripts`。
 - 运行时代码必须随项目、角色卡或明确的宿主依赖交付并登记；禁止通过未登记的远程脚本 URL 临时补能力。
 - 生成成功、语法通过和静态预览只形成 `offline` 或 `artifact` 证据；只有目标宿主实际加载、更新、卸载和降级用例通过，才能形成 `runtime` 证据。
 

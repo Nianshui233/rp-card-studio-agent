@@ -1,8 +1,6 @@
 ---
 name: rp-card-studio
 description: "分阶段共创、构建和验证 SillyTavern 角色卡项目。仅供用户显式调用。"
-disable-model-invocation: true
-compatibility: "Node.js 20+；真实运行验收需要用户可用的 SillyTavern 环境。"
 ---
 
 # SillyTavern制卡工坊
@@ -116,7 +114,7 @@ compatibility: "Node.js 20+；真实运行验收需要用户可用的 SillyTaver
 
 ## 内置 Forge
 
-使用 `node scripts/rp-card-forge.bundle.mjs --help` 查看命令。该 bundle 随技能交付且由本技能源码构建，不调用外部制卡工具，也不要求运行时另行安装依赖。
+使用 `node scripts/rp-card-forge.bundle.mjs --help` 查看命令。该 bundle 随技能交付，由仓库内的 `scripts/rp-card-forge.mjs`、`scripts/forge/` 与固定构建脚本生成；它不调用外部制卡工具，也不要求运行时另行安装依赖。维护者只修改源码，不直接编辑 bundle。
 
 主要命令：
 
@@ -155,7 +153,7 @@ doctor     检查运行环境与项目健康
 最终交付应列出：
 
 1. 已完成和跳过的阶段；
-2. 锁定决定及 AI 受权决定的记录位置；
+2. 锁定决定及 AI 授权决定的记录位置；
 3. 源文件与生成物；
 4. `assembly.yaml`、媒体清单和适用的 `runtime-state.schema.json`；
 5. 静态、制品和真实运行时证据；

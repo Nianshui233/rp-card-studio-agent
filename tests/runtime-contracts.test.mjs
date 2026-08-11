@@ -167,6 +167,81 @@ test('registered assembly sources resolve source_ref and JSON Pointer selector',
   assert.equal(result.payload.data.character_book.entries[0].content, 'The station circles a dim star.');
 });
 
+test('embedded host contracts reject unsupported MVU scopes and missing EJS engine dependencies', async () => {
+  const sources = emptySources({
+    mvu: [{
+      relativePath: 'src/mvu/runtime.yaml',
+      value: {
+        mvu: {
+          enabled: true,
+          storage: {
+            scope: 'chat',
+            namespace: 'stat_data',
+            snapshot_selector: 'current_chat',
+            merge_policy: 'scope_only',
+          },
+          variables: [{
+            source_path: 'relationship.trust',
+            runtime_path: 'stat_data.relationship.trust',
+            type: 'integer',
+            default: 10,
+            constraints: { minimum: 0, maximum: 100 },
+            writer: { id: 'relationship_update', operations: ['set'] },
+            readers: ['ejs'],
+            visibility: 'player',
+          }],
+          initialization: { defaults: { relationship: { trust: 10 } } },
+          update_rules: [],
+          routing: { entries: [] },
+        },
+        ejs: {
+          enabled: true,
+          entries: [{
+            id: 'trust_gate',
+            source_ref: 'player',
+            complexity: 'section_branch',
+            engine: 'st_prompt_template',
+            placement: 'after',
+            insertion_order: 10,
+            condition: {
+              runtime_path: 'stat_data.relationship.trust',
+              operator: 'gte',
+              value: 50,
+            },
+            reads: ['stat_data.relationship.trust'],
+            target: 'prompt',
+            branches: { when_true: 'Trusted.', when_false: 'Guarded.', fallback: 'Neutral.' },
+            missing_dependency: 'omit_dynamic',
+          }],
+        },
+        runtime_contract: {
+          adapter: {
+            id: 'tavern_helper',
+            version: '1.0.0',
+            delivery: 'embedded',
+            entrypoint: 'rp_card_studio_runtime_guard',
+            readiness_probe: 'globalThis.Mvu',
+            timeout_ms: 10000,
+            fallback: 'Keep the last legal state.',
+          },
+          dependencies: [],
+          assumptions: [],
+          fallbacks: ['Keep the last legal state.'],
+        },
+      },
+    }],
+  });
+
+  const validation = await validateRuntimeSources({
+    project: { features: { mvu: true, ejs: true, status_ui: false } },
+    sources,
+    projectRoot: process.cwd(),
+  });
+
+  assert.ok(validation.issues.some(issue => issue.rule === 'adapter.storage_scope'));
+  assert.ok(validation.issues.some(issue => issue.rule === 'ejs.dependency'));
+});
+
 test('media asset fallback references must resolve', async () => {
   const sources = emptySources({
     assembly: [{
@@ -262,7 +337,10 @@ test('assembly preserves imported worldbook entries unless replacement is explic
 
   const result = await applyAssemblyManifest(payload, { sources, projectRoot: process.cwd(), target: 'character' });
   assert.deepEqual(result.issues, []);
-  assert.deepEqual(result.payload.data.character_book.entries.map(entry => entry.id), ['imported_entry', 'wb_guide']);
+  const [imported, generated] = result.payload.data.character_book.entries;
+  assert.equal(imported.id, 'imported_entry');
+  assert.equal(generated.extensions.rp_card_studio.source_id, 'guide');
+  assert.ok(Number.isInteger(generated.id) && generated.id >= 0);
 });
 
 test('opening presentation selection keeps one semantic default and alternate variants', () => {
@@ -668,7 +746,9 @@ test('status UI scripts map runtime paths, execute every command channel, and re
   assert.match(script, /emit\(command\.payload, detail\)/);
   assert.match(script, /resolveCallable\(command\.payload\)/);
   assert.doesNotMatch(script, /const attemptRender = \(\) => \{\s*if \(ready\) return/);
-  assert.match(script, /if \(!root\?\.isConnected \|\| !host\?\.isConnected\) attemptRender\(\)/);
+  assert.match(script, /observer\.observe\(hostDocument\.documentElement/);
+  assert.match(script, /if \(disposed \|\| \(root\?\.isConnected && host\?\.isConnected\)\) return/);
+  assert.match(script, /if \(hostReady\) attemptRender\(\)/);
 });
 
 test('non-embedded adapters do not generate executable runtime guards', () => {
