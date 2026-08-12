@@ -2,6 +2,7 @@ schema_version: 1.0.0
 id: project_positioning
 status: draft
 
+card_entry: ""
 premise: ""
 target_users: []
 card_mode: pending

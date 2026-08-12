@@ -10,7 +10,7 @@
     "id": { "$ref": "#/$defs/id" },
     "display_name": { "type": "string", "minLength": 1 },
     "status": { "enum": ["draft", "locked"] },
-    "role": { "enum": ["primary_character", "companion", "antagonist", "npc", "player_template", "ensemble"] },
+    "role": { "enum": ["pending", "primary_character", "companion", "antagonist", "npc", "player_template", "ensemble"] },
     "identity": {
       "type": "object",
       "additionalProperties": false,
@@ -172,6 +172,17 @@
     "nsfw": { "type": "object", "minProperties": 1 },
     "extensions": { "type": "object" }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "status": { "const": "locked" } },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": { "role": { "not": { "const": "pending" } } }
+      }
+    }
+  ],
   "$defs": {
     "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
     "path": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$" },

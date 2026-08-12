@@ -15412,6 +15412,127 @@ function stringifyYaml(value) {
   });
 }
 
+// scripts/forge/projection.mjs
+function isObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+function hasContent(value) {
+  if (value === void 0 || value === null || value === "") return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (isObject(value)) return Object.keys(value).length > 0;
+  return true;
+}
+function compactModelSource(value) {
+  if (Array.isArray(value)) {
+    return value.map(compactModelSource).filter(hasContent);
+  }
+  if (isObject(value)) {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, compactModelSource(item)]).filter(([, item]) => hasContent(item)));
+  }
+  return value;
+}
+function pick(source, keys) {
+  return Object.fromEntries(keys.map((key) => [key, source?.[key]]));
+}
+function withoutMaintenance(source) {
+  if (!isObject(source)) return source;
+  const ignored = /* @__PURE__ */ new Set(["schema_version", "id", "status", "tags", "source_refs", "extensions"]);
+  return Object.fromEntries(Object.entries(source).filter(([key]) => !ignored.has(key)));
+}
+function projectModelSource(group, source) {
+  const normalizedGroup = {
+    characters: "character",
+    systems: "system",
+    scenes: "scene",
+    prompts: "prompt"
+  }[group] ?? group;
+  let projected;
+  if (normalizedGroup === "world") {
+    projected = pick(source, [
+      "id",
+      "display_name",
+      "premise",
+      "fundamental_rules",
+      "society",
+      "geography",
+      "history",
+      "knowledge",
+      "continuity",
+      "hooks"
+    ]);
+  } else if (normalizedGroup === "character") {
+    projected = pick(source, [
+      "id",
+      "display_name",
+      "role",
+      "identity",
+      "narrative_function",
+      "goals",
+      "psychology",
+      "value_priority",
+      "internal_conflicts",
+      "boundaries",
+      "behavioral_rules",
+      "stress_ladder",
+      "ooc_guardrails",
+      "speech",
+      "relationships",
+      "knowledge",
+      "state_bindings",
+      "examples",
+      "nsfw"
+    ]);
+  } else if (normalizedGroup === "system") {
+    projected = pick(source, [
+      "id",
+      "display_name",
+      "purpose",
+      "axes",
+      "rules",
+      "state_machines",
+      "settlement_order",
+      "invariants",
+      "failure_modes"
+    ]);
+  } else if (normalizedGroup === "scene") {
+    projected = pick(source, [
+      "id",
+      "display_name",
+      "purpose",
+      "context",
+      "entrances",
+      "exits",
+      "zones",
+      "player_visible",
+      "gm_only",
+      "risks",
+      "clues",
+      "events",
+      "state_bindings",
+      "media_slots"
+    ]);
+    if (projected.media_slots === void 0 && Array.isArray(source?.extensions?.media_slots)) {
+      projected.media_slots = source.extensions.media_slots;
+    }
+  } else if (normalizedGroup === "prompt") {
+    projected = pick(source, ["narrative", "dialogue_examples"]);
+  } else if (normalizedGroup === "positioning") {
+    projected = pick(source, [
+      "premise",
+      "target_users",
+      "user_role",
+      "experience_pillars",
+      "tone",
+      "expected_span",
+      "scope_notes"
+    ]);
+    if (projected.expected_span === "pending") delete projected.expected_span;
+  } else {
+    projected = withoutMaintenance(source);
+  }
+  return compactModelSource(projected);
+}
+
 // scripts/forge/project.mjs
 import path3 from "node:path";
 import { readFile as readFile4 } from "node:fs/promises";
@@ -15434,6 +15555,23 @@ var STAGES = Object.freeze([
 ]);
 var WORKFLOW_STAGES = Object.freeze(STAGES.slice(1));
 var OPTIONAL_STAGES = Object.freeze(["materials", "systems", "scenes", "mvu_ejs", "status_ui"]);
+var SINGLE_CHARACTER_CARD_MODES = /* @__PURE__ */ new Set(["single_character_card"]);
+var ANCHOR_CHARACTER_CARD_MODES = /* @__PURE__ */ new Set([
+  "world_scenario_with_anchor_character",
+  "gameplay_with_anchor_character"
+]);
+var PROJECT_TITLE_DECISION_IDS = /* @__PURE__ */ new Set([
+  "positioning.project_title",
+  "positioning.card_title"
+]);
+var ADVANCED_DEFINITION_CLEAR_POLICIES = /* @__PURE__ */ new Set([
+  "migrate_to_characterbook",
+  "clear_after_migration"
+]);
+var PLACEHOLDER_PROJECT_TITLES = /* @__PURE__ */ new Set([
+  "\u672A\u547D\u540D\u9879\u76EE",
+  "\u672A\u547D\u540D RP \u9879\u76EE"
+]);
 var STAGE_STATUSES = Object.freeze([
   "not_started",
   "in_progress",
@@ -15492,12 +15630,16 @@ var COMMON_CHARACTER_DATA = Object.freeze({
   character_version: "1.0",
   extensions: {}
 });
-function defaultCharacter(name) {
+function defaultCharacter(name, version = 2) {
   return {
-    spec: "chara_card_v2",
-    spec_version: "2.0",
+    spec: `chara_card_v${version}`,
+    spec_version: `${version}.0`,
     data: { name, ...COMMON_CHARACTER_DATA }
   };
+}
+function projectCharacterCardVersion(project) {
+  const delivery = (project?.decisions ?? []).find((decision) => decision.id === "integration.delivery_format" && decision.status === "active" && decision.locked === true)?.value;
+  return typeof delivery === "string" && /^character_card_v3(?:_|$)/.test(delivery) ? 3 : 2;
 }
 function defaultWorldbook(name) {
   return { name, description: "", entries: {} };
@@ -15507,6 +15649,7 @@ function defaultPositioning() {
     schema_version: "1.0.0",
     id: "project_positioning",
     status: "draft",
+    card_entry: "",
     premise: "",
     target_users: [],
     card_mode: "pending",
@@ -15516,46 +15659,6 @@ function defaultPositioning() {
     expected_span: "pending",
     scope_notes: [],
     source_refs: []
-  };
-}
-function characterSourceFromCard(payload) {
-  const data = payload?.data ?? {};
-  const name = typeof data.name === "string" && data.name.trim() ? data.name : "\u672A\u547D\u540D\u89D2\u8272";
-  return {
-    schema_version: "1.0.0",
-    id: machineId(name),
-    display_name: name,
-    status: "draft",
-    role: "primary_character",
-    identity: {
-      aliases: [],
-      age: null,
-      species: "",
-      occupation: "",
-      appearance: []
-    },
-    narrative_function: {
-      purpose: typeof data.description === "string" ? data.description : "",
-      pressure_on_player: typeof data.scenario === "string" ? data.scenario : ""
-    },
-    goals: { immediate: [], long_term: [], hidden: [] },
-    value_priority: [],
-    internal_conflicts: [],
-    boundaries: [],
-    behavioral_rules: [],
-    speech: {
-      register: typeof data.personality === "string" ? data.personality : "",
-      rhythm: "",
-      habits: [],
-      avoid: []
-    },
-    relationships: [],
-    knowledge: { player_visible: [], gm_only: [], model_only: [] },
-    state_bindings: [],
-    examples: [],
-    tags: Array.isArray(data.tags) ? [...data.tags] : [],
-    source_refs: [],
-    extensions: { character_card: structuredClone(payload) }
   };
 }
 function worldSourceFromBook(payload) {
@@ -15601,10 +15704,11 @@ function makeProject({ name, target = "character_card", nsfw, operation = "creat
   if (typeof nsfw !== "boolean") throw inputError("\u521B\u5EFA\u9879\u76EE\u5FC5\u987B\u660E\u786E\u63D0\u4F9B NSFW enabled \u6216 disabled");
   const projectId = machineId(name);
   const isWorldbook = target === "worldbook";
-  const sourcePath = isWorldbook ? "src/world/worldbook.yaml" : "src/characters/card.yaml";
   const sourceManifest = emptySourceManifest();
   sourceManifest.positioning.push("src/positioning.yaml");
-  sourceManifest[isWorldbook ? "world" : "characters"].push(sourcePath);
+  if (isWorldbook) {
+    sourceManifest.world.push("src/world/worldbook.yaml");
+  }
   return {
     schema_version: PROJECT_SCHEMA_VERSION,
     project: {
@@ -15686,9 +15790,9 @@ async function projectFilesForInit(root, { type = "character", nsfw } = {}) {
     nsfw
   });
   const state = makeState(project);
-  const source = type === "worldbook" ? worldSourceFromBook(defaultWorldbook(name)) : characterSourceFromCard(defaultCharacter(name));
+  const source = type === "worldbook" ? worldSourceFromBook(defaultWorldbook(name)) : null;
   const nsfwSources = await applyNsfwTemplates(project, source);
-  const sourcePath = projectSourcePath(project);
+  const sourcePath = type === "worldbook" ? projectSourcePath(project) : null;
   const positioning = defaultPositioning();
   return {
     project,
@@ -15697,7 +15801,7 @@ async function projectFilesForInit(root, { type = "character", nsfw } = {}) {
       { relativePath: PROJECT_FILE, content: stringifyYaml(project) },
       { relativePath: STATE_FILE, content: prettyJson(state) },
       { relativePath: "src/positioning.yaml", content: stringifyYaml(positioning) },
-      { relativePath: sourcePath, content: stringifyYaml(source) },
+      ...sourcePath ? [{ relativePath: sourcePath, content: stringifyYaml(source) }] : [],
       ...nsfwSources.uiSource ? [{ relativePath: "src/ui/status-ui.yaml", content: stringifyYaml(nsfwSources.uiSource) }] : []
     ],
     source,
@@ -15708,16 +15812,9 @@ async function projectFilesForInit(root, { type = "character", nsfw } = {}) {
 async function initializeProject(root, options = {}) {
   const prepared = await projectFilesForInit(root, options);
   const model = validateProjectModel(prepared.project, prepared.state, path3.resolve(root));
-  const sourceSchema = options.type === "worldbook" ? "world" : "character";
   model.issues.push(...validateNamedSchema("positioning", prepared.positioning, "/src/positioning.yaml"));
-  model.issues.push(...validateNamedSchema(sourceSchema, prepared.source, `/${projectSourcePath(prepared.project)}`));
-  if (sourceSchema === "character") {
-    const embeddedCard = prepared.source.extensions.character_card ?? prepared.source.extensions.character_card_v2;
-    model.issues.push(...validateNamedSchema(
-      "character-card",
-      embeddedCard,
-      "/src/characters/card.yaml/extensions/character_card"
-    ));
+  if (prepared.source) {
+    model.issues.push(...validateNamedSchema("world", prepared.source, `/${projectSourcePath(prepared.project)}`));
   }
   if (prepared.uiSource) model.issues.push(...validateNamedSchema("status-ui", prepared.uiSource, "/src/ui/status-ui.yaml"));
   if (model.issues.length > 0) throw validationError("\u521D\u59CB\u5316\u5019\u9009\u672A\u901A\u8FC7\u5185\u7F6E Schema", model);
@@ -15728,10 +15825,12 @@ async function applyNsfwTemplates(project, characterSource) {
   if (project?.preflight?.nsfw?.enabled !== true || projectTarget(project) !== "character_card") {
     return { uiSource: null };
   }
-  const characterMixin = await readYaml(await templateAssetUrl("nsfw/character.mixin.yaml"));
   const statusUi = await readYaml(await templateAssetUrl("status-ui.yaml"));
   const statusMixin = await readYaml(await templateAssetUrl("nsfw/status-ui.mixin.yaml"));
-  characterSource.nsfw = structuredClone(characterMixin.nsfw);
+  if (characterSource) {
+    const characterMixin = await readYaml(await templateAssetUrl("nsfw/character.mixin.yaml"));
+    characterSource.nsfw = structuredClone(characterMixin.nsfw);
+  }
   statusUi.status_ui.enabled = true;
   statusUi.status_ui.mode = "embedded";
   statusUi.status_ui.delivery = {
@@ -15780,17 +15879,17 @@ function projectTarget(project) {
   return project?.deliverables?.some((item) => item === "character_card_json" || item === "character_card_png") ? "character_card" : "worldbook";
 }
 function projectSourcePath(project) {
-  const group = projectTarget(project) === "worldbook" ? "world" : "characters";
+  const group = projectTarget(project) === "worldbook" ? "world" : "positioning";
   const candidates = project?.source_manifest?.[group];
-  if (!Array.isArray(candidates) || candidates.length === 0) {
-    throw inputError(`project.yaml \u7684 source_manifest.${group} \u6CA1\u6709\u7EF4\u62A4\u6E90`);
-  }
-  const source = candidates.find((entry) => /\.ya?ml$/i.test(entry));
-  if (!source) throw inputError(`source_manifest.${group} \u5FC5\u987B\u5305\u542B YAML \u7EF4\u62A4\u6E90`);
-  return source;
+  const source = Array.isArray(candidates) ? candidates.find((entry) => /\.ya?ml$/i.test(entry)) : null;
+  if (source) return source;
+  throw inputError(`project.yaml \u7684 source_manifest.${group} \u6CA1\u6709 YAML \u7EF4\u62A4\u6E90`);
 }
 function projectPreservedPath(project) {
   return project?.source_manifest?.preserved_imports?.find((entry) => entry.endsWith("/preserved.json")) ?? null;
+}
+function projectOriginalJsonPath(project) {
+  return project?.source_manifest?.preserved_imports?.find((entry) => entry.endsWith("/original.json")) ?? null;
 }
 function projectPngBasePath(project) {
   return project?.source_manifest?.preserved_imports?.find((entry) => /\.png$/i.test(entry)) ?? null;
@@ -15836,6 +15935,14 @@ function validateProjectModel(project, state, root) {
     for (const item of project.deliverables) if (!DELIVERABLES.has(item)) issues.push(modelIssue("/deliverables", "enum", `\u672A\u77E5\u4EA4\u4ED8\u7269: ${item}`));
   }
   if (!isPlainObject(project.source_manifest)) issues.push(modelIssue("/source_manifest", "required", "\u7F3A\u5C11 source_manifest"));
+  const positioningEntries = project?.source_manifest?.positioning;
+  if (Array.isArray(positioningEntries) && positioningEntries.length !== 1) {
+    issues.push(modelIssue(
+      "/source_manifest/positioning",
+      "cardinality",
+      "\u9879\u76EE\u5B9A\u4F4D\u5FC5\u987B\u4E14\u53EA\u80FD\u767B\u8BB0\u4E00\u4E2A canonical YAML \u7EF4\u62A4\u6E90"
+    ));
+  }
   for (const group of SOURCE_GROUPS) {
     const groupEntries = project?.source_manifest?.[group];
     if (group === "assembly" && groupEntries === void 0) continue;
@@ -15852,6 +15959,7 @@ function validateProjectModel(project, state, root) {
     }
   }
   validateDecisions(project.decisions, issues);
+  validateProjectTitleDecisionLocks(project.decisions, issues);
   if (project?.runtime_target?.application !== "SillyTavern") issues.push(modelIssue("/runtime_target/application", "const", "\u8FD0\u884C\u76EE\u6807\u5FC5\u987B\u662F SillyTavern"));
   if (!Array.isArray(project?.runtime_target?.dependencies)) issues.push(modelIssue("/runtime_target/dependencies", "type", "dependencies \u5FC5\u987B\u662F\u6570\u7EC4"));
   if (!Array.isArray(project?.release?.accepted_warnings)) issues.push(modelIssue("/release/accepted_warnings", "type", "accepted_warnings \u5FC5\u987B\u662F\u6570\u7EC4"));
@@ -15882,6 +15990,18 @@ function validateDecisions(decisions, issues) {
     if (!["active", "superseded"].includes(decision?.status)) issues.push(modelIssue(`${base}/status`, "enum", "\u51B3\u5B9A\u72B6\u6001\u65E0\u6548"));
     if (typeof decision?.rationale !== "string" || decision.rationale === "") issues.push(modelIssue(`${base}/rationale`, "required", "\u51B3\u5B9A\u7406\u7531\u4E0D\u80FD\u4E3A\u7A7A"));
     if (!Array.isArray(decision?.history)) issues.push(modelIssue(`${base}/history`, "type", "\u51B3\u5B9A\u5386\u53F2\u5FC5\u987B\u662F\u6570\u7EC4"));
+  }
+}
+function validateProjectTitleDecisionLocks(decisions, issues) {
+  const activeLocks = (decisions ?? []).filter((decision) => PROJECT_TITLE_DECISION_IDS.has(decision?.id) && decision.status === "active" && decision.locked === true);
+  if (activeLocks.length < 2) return;
+  const values = new Set(activeLocks.map((decision) => typeof decision.value === "string" ? decision.value.trim() : JSON.stringify(decision.value)));
+  if (values.size > 1) {
+    issues.push(modelIssue(
+      "/decisions",
+      "positioning.project_title_conflict",
+      "positioning.project_title \u4E0E\u517C\u5BB9\u5B57\u6BB5 positioning.card_title \u4E0D\u80FD\u4FDD\u7559\u4E92\u76F8\u51B2\u7A81\u7684\u6709\u6548\u9501"
+    ));
   }
 }
 function validateState(state, project, issues) {
@@ -15931,16 +16051,16 @@ function validateMvuLifecycle(project, state, issues) {
   const ejsEnabled = project?.features?.ejs === true;
   const anyEnabled = mvuEnabled || ejsEnabled;
   const sourceCount = Array.isArray(project?.source_manifest?.mvu) ? project.source_manifest.mvu.length : 0;
-  const isNewProject = project?.project?.operation === "create";
+  const isCreateRun = project?.project?.operation === "create";
   if (status === "skipped" && (typeof stage?.summary !== "string" || stage.summary.trim() === "")) {
     issues.push(modelIssue("/state/stages/mvu_ejs/summary", "required", "mvu_ejs \u6807\u8BB0\u4E3A skipped \u65F6\u5FC5\u987B\u8BB0\u5F55\u8DF3\u8FC7\u7406\u7531"));
   }
-  if (isNewProject && status === "skipped") {
+  if (isCreateRun && status === "skipped") {
     if (anyEnabled) issues.push(modelIssue("/features", "lifecycle", "\u65B0\u5EFA\u9879\u76EE\u8DF3\u8FC7 mvu_ejs \u65F6\u4E0D\u80FD\u542F\u7528 MVU \u6216 EJS"));
     if (sourceCount > 0) issues.push(modelIssue("/source_manifest/mvu", "lifecycle", "\u65B0\u5EFA\u9879\u76EE\u8DF3\u8FC7 mvu_ejs \u65F6\u4E0D\u80FD\u767B\u8BB0 MVU/EJS \u6E90\u7801"));
     return;
   }
-  if (isNewProject && status === "complete" && !anyEnabled) {
+  if (isCreateRun && status === "complete" && !anyEnabled) {
     issues.push(modelIssue("/state/stages/mvu_ejs/status", "lifecycle", "\u65B0\u5EFA\u9879\u76EE\u672A\u542F\u7528 MVU \u6216 EJS \u65F6\u5E94\u5C06 mvu_ejs \u6807\u8BB0\u4E3A skipped"));
   }
   if (status === "in_progress") return;
@@ -15972,10 +16092,12 @@ async function loadProjectSource(loaded) {
   const relativeSource = projectSourcePath(loaded.project);
   const sourcePath = resolveWithin(loaded.projectRoot, relativeSource);
   const target = projectTarget(loaded.project) === "worldbook" ? "worldbook" : "character";
-  const targetGroup = target === "worldbook" ? "world" : "characters";
-  const semanticSource = sources[targetGroup].find((entry) => entry.relativePath === relativeSource)?.value;
+  const semanticSource = Object.values(sources).flat().find((entry) => entry.relativePath === relativeSource)?.value;
   if (!semanticSource) throw inputError(`\u4E3B\u7EF4\u62A4\u6E90\u672A\u767B\u8BB0\u6216\u65E0\u6CD5\u8BFB\u53D6: ${relativeSource}`);
-  const basePayload = target === "worldbook" ? assembleWorldbook(sources) : assembleCharacterCard(sources);
+  const relativeOriginalJson = target === "character" ? projectOriginalJsonPath(loaded.project) : null;
+  const originalJsonPath = relativeOriginalJson ? resolveWithin(loaded.projectRoot, relativeOriginalJson) : null;
+  const originalPayload = originalJsonPath && await pathExists(originalJsonPath) ? await readJson(originalJsonPath) : null;
+  const basePayload = target === "worldbook" ? assembleWorldbook(sources) : assembleCharacterCard(sources, loaded.project, loaded.state, originalPayload);
   const assembled = await applyAssemblyManifest(basePayload, {
     sources,
     projectRoot: loaded.projectRoot,
@@ -15995,8 +16117,7 @@ async function loadProjectSource(loaded) {
   const preservedPath = relativePreserved ? resolveWithin(loaded.projectRoot, relativePreserved) : null;
   const preserved = preservedPath && await pathExists(preservedPath) ? await readJson(preservedPath) : null;
   const restored = applyPreserved(ejsTemplates.payload, preserved);
-  const worldbookBound = bindEmbeddedCharacterBook(restored.payload, { target });
-  const adapted = applyTavernHelperAdapter(worldbookBound.payload, {
+  const adapted = applyTavernHelperAdapter(restored.payload, {
     project: loaded.project,
     sources,
     target
@@ -16006,26 +16127,27 @@ async function loadProjectSource(loaded) {
     sources,
     target
   });
-  const format = target === "worldbook" ? Format.WORLDBOOK : detectJsonFormat(regexAdapted.payload);
+  const worldbookBound = bindEmbeddedCharacterBook(regexAdapted.payload, { target });
+  const format = target === "worldbook" ? Format.WORLDBOOK : detectJsonFormat(worldbookBound.payload);
   if (!format) throw validationError("\u88C5\u914D\u540E\u7684\u89D2\u8272\u5361\u7248\u672C\u65E0\u6CD5\u8BC6\u522B", {
     issues: [issue("/spec", "unsupported", "\u4EC5\u652F\u6301 Character Card V2 \u6216 V3")]
   });
-  const payloadValidation = validatePayload(regexAdapted.payload, format);
+  const payloadValidation = validatePayload(worldbookBound.payload, format);
   payloadValidation.issues.push(
     ...assembled.issues,
     ...mvuArtifacts.issues,
     ...ejsTemplates.issues,
-    ...worldbookBound.issues,
     ...adapted.issues,
-    ...regexAdapted.issues
+    ...regexAdapted.issues,
+    ...worldbookBound.issues
   );
   payloadValidation.warnings.push(
     ...assembled.warnings ?? [],
     ...mvuArtifacts.warnings ?? [],
     ...ejsTemplates.warnings ?? [],
-    ...worldbookBound.warnings ?? [],
     ...adapted.warnings ?? [],
-    ...regexAdapted.warnings ?? []
+    ...regexAdapted.warnings ?? [],
+    ...worldbookBound.warnings ?? []
   );
   return {
     sourcePath,
@@ -16033,7 +16155,7 @@ async function loadProjectSource(loaded) {
     sources,
     consumedSources: Object.values(sources).flat().map((entry) => entry.relativePath),
     preservedPath,
-    payload: regexAdapted.payload,
+    payload: worldbookBound.payload,
     restoredPaths: restored.restoredPaths,
     validation: payloadValidation,
     runtimeStateSchema: generateRuntimeStateSchema(sources),
@@ -16056,11 +16178,13 @@ async function readRegisteredSources(loaded) {
 async function validateRegisteredSources(loaded) {
   const issues = [];
   const checks = [];
+  const sources = Object.fromEntries(Object.keys(SOURCE_SCHEMA_BY_GROUP).map((group) => [group, []]));
   for (const [group, schema] of Object.entries(SOURCE_SCHEMA_BY_GROUP)) {
     for (const relativePath of loaded.project?.source_manifest?.[group] ?? []) {
       const absolutePath = resolveWithin(loaded.projectRoot, relativePath);
       try {
         const source = await readYaml(absolutePath);
+        sources[group].push({ relativePath, absolutePath, value: source });
         const sourceIssues = validateNamedSchema(schema, source, `/${relativePath}`);
         issues.push(...sourceIssues);
         if (group === "mvu" && loaded.state?.stages?.mvu_ejs?.status !== "in_progress") {
@@ -16077,39 +16201,114 @@ async function validateRegisteredSources(loaded) {
     const absolutePath = resolveWithin(loaded.projectRoot, relativePath);
     if (!await pathExists(absolutePath)) issues.push(modelIssue(`/${relativePath}`, "required", "\u767B\u8BB0\u7684\u4FDD\u7559\u8F93\u5165\u4E0D\u5B58\u5728"));
   }
+  validateCardModelComposition(sources, issues);
+  validatePositioningProjectIdentity(loaded, sources, issues);
   return { issues, checks };
 }
-function assembleCharacterCard(sources) {
+function validatePositioningProjectIdentity(loaded, sources, issues) {
+  if (loaded.state?.stages?.positioning?.status !== "complete") return;
+  const positioningEntry = sources.positioning.find((entry) => entry.value?.status === "locked");
+  if (!positioningEntry) {
+    issues.push(modelIssue(
+      "/source_manifest/positioning",
+      "positioning.project_title",
+      "\u5B9A\u4F4D\u9636\u6BB5\u5DF2\u5B8C\u6210\uFF0C\u4F46\u6CA1\u6709 status=locked \u7684\u5B9A\u4F4D\u6E90\u7801"
+    ));
+    return;
+  }
+  const projectTitle = loaded.project?.project?.display_name?.trim();
+  if (!projectTitle || PLACEHOLDER_PROJECT_TITLES.has(projectTitle)) {
+    issues.push(modelIssue(
+      "/project/display_name",
+      "positioning.project_title",
+      "\u5B9A\u4F4D\u5B8C\u6210\u524D\u5FC5\u987B\u628A\u9879\u76EE\u5360\u4F4D\u540D\u66FF\u6362\u4E3A\u5DF2\u9501\u5B9A\u7684\u4E2D\u6587\u9879\u76EE\u6807\u9898"
+    ));
+  }
+  const titleDecisions = (loaded.project?.decisions ?? []).filter((decision) => PROJECT_TITLE_DECISION_IDS.has(decision.id) && decision.status === "active" && decision.locked === true);
+  const titleDecision = titleDecisions.find((decision) => decision.id === "positioning.project_title") ?? titleDecisions[0];
+  if (!titleDecision) {
+    issues.push(modelIssue(
+      "/decisions",
+      "positioning.project_title",
+      "\u5B9A\u4F4D\u9636\u6BB5\u5DF2\u5B8C\u6210\uFF0C\u4F46\u7F3A\u5C11\u5DF2\u9501\u5B9A\u7684 positioning.project_title \u51B3\u5B9A"
+    ));
+    return;
+  }
+  const conflictingTitleDecisions = titleDecisions.filter((decision) => typeof decision.value !== "string" || decision.value.trim() !== projectTitle);
+  if (conflictingTitleDecisions.length > 0) {
+    issues.push(modelIssue(
+      "/decisions",
+      "positioning.project_title_conflict",
+      `\u6240\u6709\u6709\u6548\u9879\u76EE\u6807\u9898\u9501\u5FC5\u987B\u4E0E project.project.display_name \u4E00\u81F4\uFF1B\u51B2\u7A81\u9501\uFF1A${conflictingTitleDecisions.map((decision) => decision.id).join("\u3001")}`
+    ));
+  }
+}
+function validateCardModelComposition(sources, issues) {
+  const positioning = sources.positioning.find((entry) => entry.value?.status === "locked")?.value ?? sources.positioning[0]?.value;
+  const characters = sources.characters;
+  const primaries = characters.filter((entry) => entry.value?.role === "primary_character");
+  const mode = positioning?.card_mode ?? "pending";
+  const singleCharacterCard = SINGLE_CHARACTER_CARD_MODES.has(mode);
+  const requiresPrimary = singleCharacterCard || ANCHOR_CHARACTER_CARD_MODES.has(mode);
+  if (primaries.length > 1) {
+    for (const entry of primaries.slice(1)) {
+      issues.push(modelIssue(`/${entry.relativePath}/role`, "composition.primary_character", "\u4E00\u4E2A RP \u9879\u76EE\u6700\u591A\u53EA\u80FD\u6709\u4E00\u4E2A primary_character \u53D9\u4E8B\u951A\u70B9"));
+    }
+  }
+  if (requiresPrimary && primaries.length !== 1) {
+    issues.push(modelIssue("/source_manifest/characters", "composition.primary_character", `card_mode=${mode} \u8981\u6C42\u6070\u597D\u4E00\u4E2A primary_character`));
+  }
+  if (singleCharacterCard && characters.length !== 1) {
+    issues.push(modelIssue("/source_manifest/characters", "composition.single_character", "\u771F\u6B63\u7684\u5355\u4EBA\u5361\u5FC5\u987B\u4E14\u53EA\u80FD\u767B\u8BB0\u4E00\u4E2A\u89D2\u8272\u6E90\u7801"));
+  }
+}
+function projectOwnsCardSurface(project, state, positioning) {
+  if (project?.project?.operation === "create") return true;
+  if (positioning?.status !== "locked" || state?.stages?.positioning?.status !== "complete") return false;
+  const projectTitle = project?.project?.display_name?.trim();
+  if (!projectTitle) return false;
+  const titleDecisions = (project?.decisions ?? []).filter((decision) => PROJECT_TITLE_DECISION_IDS.has(decision.id) && decision.status === "active" && decision.locked === true);
+  return titleDecisions.length > 0 && titleDecisions.every((decision) => typeof decision.value === "string" && decision.value.trim() === projectTitle);
+}
+function projectClearsAdvancedDefinitions(project, projectOwnsSurface) {
+  if (project?.project?.operation === "create") return true;
+  if (!projectOwnsSurface) return false;
+  return (project?.decisions ?? []).some((decision) => decision.id === "integration.advanced_definition_policy" && decision.status === "active" && decision.locked === true && ADVANCED_DEFINITION_CLEAR_POLICIES.has(decision.value));
+}
+function assembleCharacterCard(sources, project, state, originalPayload = null) {
   const characters = sources.characters.map((entry) => entry.value);
-  const primary = characters.find((source) => source.role === "primary_character") ?? characters[0];
-  const embedded = primary?.extensions?.character_card ?? primary?.extensions?.character_card_v2;
-  const payload = isPlainObject(embedded) ? structuredClone(embedded) : defaultCharacter(primary?.display_name ?? "\u672A\u547D\u540D\u89D2\u8272");
+  const primary = characters.find((source) => source.role === "primary_character");
+  const positioning = sources.positioning.find((entry) => entry.value?.status === "locked")?.value ?? sources.positioning[0]?.value;
+  const projectTitle = project?.project?.display_name ?? "\u672A\u547D\u540D RP \u9879\u76EE";
+  const singleCharacterCard = SINGLE_CHARACTER_CARD_MODES.has(positioning?.card_mode) && characters.length === 1;
+  const cardName = singleCharacterCard ? primary?.display_name ?? projectTitle : projectTitle;
+  const payload = isPlainObject(originalPayload) ? structuredClone(originalPayload) : defaultCharacter(cardName, projectCharacterCardVersion(project));
+  const projectOwnsSurface = projectOwnsCardSurface(project, state, positioning);
+  const clearAdvancedDefinitions = projectClearsAdvancedDefinitions(project, projectOwnsSurface);
   if (payload.spec !== "chara_card_v2" && payload.spec !== "chara_card_v3") payload.spec = "chara_card_v2";
   if (typeof payload.spec_version !== "string" && typeof payload.spec_version !== "number") {
     payload.spec_version = payload.spec === "chara_card_v3" ? "3.0" : "2.0";
   }
   payload.data = isPlainObject(payload.data) ? payload.data : {};
-  payload.data.name = primary?.display_name ?? payload.data.name ?? "\u672A\u547D\u540D\u89D2\u8272";
-  payload.data.description = combineText(
-    primary?.narrative_function?.purpose ?? payload.data.description ?? "",
-    "\u4E16\u754C\u8BBE\u5B9A",
-    sources.world.map((entry) => renderWorld(entry.value)).filter(Boolean),
-    "\u5176\u4ED6\u89D2\u8272",
-    characters.filter((source) => source !== primary).map(renderCharacter).filter(Boolean)
-  );
-  payload.data.personality = combineText(
-    primary?.speech?.register ?? payload.data.personality ?? "",
-    "\u884C\u4E3A\u4E0E\u4EF7\u503C",
-    primary ? [renderCharacterBehavior(primary)].filter(Boolean) : []
-  );
-  payload.data.scenario = combineText(
-    primary?.narrative_function?.pressure_on_player ?? payload.data.scenario ?? "",
-    "\u9879\u76EE\u5B9A\u4F4D",
-    sources.positioning.map((entry) => entry.value.premise).filter(Boolean),
-    "\u573A\u666F",
-    sources.scenes.map((entry) => renderScene(entry.value)).filter(Boolean)
-  );
-  payload.data.tags = Array.isArray(primary?.tags) ? [...primary.tags] : payload.data.tags ?? [];
+  payload.data.name = projectOwnsSurface ? cardName : payload.data.name ?? cardName;
+  if (projectOwnsSurface) {
+    payload.data.description = typeof positioning?.card_entry === "string" ? positioning.card_entry : "";
+  }
+  if (clearAdvancedDefinitions) {
+    for (const field of [
+      "personality",
+      "scenario",
+      "mes_example",
+      "creator_notes",
+      "system_prompt",
+      "post_history_instructions"
+    ]) payload.data[field] = "";
+  }
+  if (projectOwnsSurface && singleCharacterCard && Array.isArray(primary?.tags)) {
+    payload.data.tags = [...primary.tags];
+  } else if (!Array.isArray(payload.data.tags)) {
+    payload.data.tags = [];
+  }
   const openingSources = sources.prompts.map((entry) => entry.value);
   const openingMessages = selectOpeningMessages(openingSources, sources.mvu.map((entry) => entry.value));
   if (openingMessages) {
@@ -16119,30 +16318,21 @@ function assembleCharacterCard(sources) {
     payload.data.extensions.rp_card_studio = isPlainObject(payload.data.extensions.rp_card_studio) ? payload.data.extensions.rp_card_studio : {};
     payload.data.extensions.rp_card_studio.opening_selection = openingMessages.selection;
   }
-  if (sources.systems.length > 0 || openingSources.length > 0) {
-    payload.data.system_prompt = combineText(
-      payload.data.system_prompt ?? "",
-      "\u7CFB\u7EDF\u89C4\u5219",
-      sources.systems.map((entry) => renderStructured(entry.value)),
-      "\u53D9\u4E8B\u5408\u540C",
-      openingSources.map((source) => renderStructured(source.narrative))
-    );
-  }
-  if (sources.mvu.length > 0) {
-    payload.data.post_history_instructions = combineText(
-      payload.data.post_history_instructions ?? "",
-      "MVU/EJS \u8FD0\u884C\u5408\u540C",
-      sources.mvu.map((entry) => renderStructured(entry.value))
-    );
-  }
   for (const [key, value] of Object.entries(COMMON_CHARACTER_DATA)) {
     if (payload.data[key] === void 0) payload.data[key] = structuredClone(value);
   }
-  const bookSources = [...sources.world.map((entry) => ["world", entry]), ...sources.scenes.map((entry) => ["scene", entry])];
+  const bookSources = [
+    ...sources.positioning.filter((entry) => Object.keys(projectModelSource("positioning", entry.value)).length > 0).map((entry) => ["positioning", entry, projectTitle]),
+    ...sources.world.map((entry) => ["world", entry]),
+    ...sources.characters.map((entry) => ["character", entry]),
+    ...sources.systems.map((entry) => ["system", entry]),
+    ...sources.scenes.map((entry) => ["scene", entry]),
+    ...sources.prompts.map((entry) => ["prompt", entry])
+  ];
   if (bookSources.length > 0 && sources.assembly.length === 0) {
     payload.data.character_book ??= {
       name: `${payload.data.name} \u4E16\u754C\u4E66`,
-      description: "\u7531 RP Card Studio source_manifest \u88C5\u914D",
+      description: "\u7531 SillyTavern\u5236\u5361\u5DE5\u574A\u88C5\u914D\u7684\u6A21\u5757\u5316\u8BBE\u5B9A\u4E0E\u8FD0\u884C\u89C4\u5219",
       scan_depth: null,
       token_budget: null,
       recursive_scanning: false,
@@ -16153,11 +16343,14 @@ function assembleCharacterCard(sources) {
     payload.data.character_book.entries = existingEntries;
     const allocator = createCharacterBookIdAllocator(existingEntries);
     const allocations = allocator.allocateMany(bookSources.map(([group, entry], index) => `character:${group}:${entry.value.id ?? `${group}_${index + 1}`}`));
-    for (const [index, [group, entry]] of bookSources.entries()) {
+    for (const [index, [group, entry, displayNameOverride]] of bookSources.entries()) {
       const sourceId = entry.value.id ?? `${group}_${index + 1}`;
       const sourceKey = `character:${group}:${sourceId}`;
       const existingIndex = existingEntries.findIndex((candidate) => candidate?.extensions?.rp_card_studio?.source_key === sourceKey);
-      const generated = characterBookEntry(group, entry.value, index, allocations.get(sourceKey)?.id);
+      const generated = characterBookEntry(group, entry.value, index, allocations.get(sourceKey)?.id, {
+        cardMode: positioning?.card_mode,
+        displayNameOverride
+      });
       if (existingIndex >= 0 && allocations.get(sourceKey)?.reused) existingEntries[existingIndex] = generated;
       else existingEntries.push(generated);
     }
@@ -16194,55 +16387,8 @@ function assembleWorldbook(sources) {
   }
   return payload;
 }
-function combineText(base, ...sections) {
-  const blocks = [];
-  if (typeof base === "string" && base.trim()) blocks.push(base);
-  for (let index = 0; index < sections.length; index += 2) {
-    const title = sections[index];
-    const values = sections[index + 1] ?? [];
-    const content = values.filter((value) => typeof value === "string" && value.trim()).join("\n\n");
-    if (content) blocks.push(`## ${title}
-${content}`);
-  }
-  return blocks.join("\n\n");
-}
-function renderWorld(source) {
-  const content = {
-    premise: source.premise,
-    fundamental_rules: source.fundamental_rules,
-    society: source.society,
-    geography: source.geography,
-    history: source.history,
-    knowledge: source.knowledge,
-    continuity: source.continuity,
-    hooks: source.hooks
-  };
-  return renderStructured(content);
-}
-function renderCharacter(source) {
-  return renderStructured({
-    id: source.id,
-    display_name: source.display_name,
-    role: source.role,
-    narrative_function: source.narrative_function,
-    goals: source.goals,
-    relationships: source.relationships,
-    knowledge: source.knowledge
-  });
-}
-function renderCharacterBehavior(source) {
-  const hasBehavior = (source.value_priority?.length ?? 0) > 0 || (source.internal_conflicts?.length ?? 0) > 0 || (source.boundaries?.length ?? 0) > 0 || (source.behavioral_rules?.length ?? 0) > 0 || Boolean(source.speech?.rhythm) || (source.speech?.habits?.length ?? 0) > 0 || (source.speech?.avoid?.length ?? 0) > 0;
-  if (!hasBehavior) return "";
-  return renderStructured({
-    value_priority: source.value_priority,
-    internal_conflicts: source.internal_conflicts,
-    boundaries: source.boundaries,
-    behavioral_rules: source.behavioral_rules,
-    speech: source.speech
-  });
-}
 function positioningIsMeaningful(source) {
-  return Boolean(source?.premise) || (source?.target_users?.length ?? 0) > 0 || source?.card_mode !== "pending" || Boolean(source?.user_role?.label || source?.user_role?.agency || source?.user_role?.description) || (source?.experience_pillars?.length ?? 0) > 0 || Boolean(source?.tone?.primary || source?.tone?.secondary) || source?.expected_span !== "pending" || (source?.scope_notes?.length ?? 0) > 0;
+  return Boolean(source?.card_entry) || Boolean(source?.premise) || (source?.target_users?.length ?? 0) > 0 || source?.card_mode !== "pending" || Boolean(source?.user_role?.label || source?.user_role?.agency || source?.user_role?.description) || (source?.experience_pillars?.length ?? 0) > 0 || Boolean(source?.tone?.primary || source?.tone?.secondary) || source?.expected_span !== "pending" || (source?.scope_notes?.length ?? 0) > 0;
 }
 function hasAdditionalAssemblySources(sources, target) {
   if (sources.positioning.some((entry) => positioningIsMeaningful(entry.value))) return true;
@@ -16250,19 +16396,6 @@ function hasAdditionalAssemblySources(sources, target) {
   if (target === "worldbook" && sources.world.length > 1) return true;
   const ignored = new Set(target === "character" ? ["positioning", "characters"] : ["positioning", "world"]);
   return Object.entries(sources).some(([group, entries]) => !ignored.has(group) && entries.length > 0);
-}
-function renderScene(source) {
-  return renderStructured({
-    id: source.id,
-    display_name: source.display_name,
-    purpose: source.purpose,
-    context: source.context,
-    player_visible: source.player_visible,
-    gm_only: source.gm_only,
-    risks: source.risks,
-    clues: source.clues,
-    events: source.events
-  });
 }
 function renderStructured(value) {
   return JSON.stringify(value, null, 2);
@@ -16279,30 +16412,115 @@ function mergeStructuredExtensions(existing, sources) {
   extensions.rp_card_studio = { ...current, sources: structuredSources(sources) };
   return extensions;
 }
-function characterBookEntry(group, source, index, characterBookId = null) {
+function characterBookEntry(group, source, index, characterBookId = null, options = {}) {
   const id = source.id ?? `${group}_${index + 1}`;
-  const displayName = source.display_name ?? id;
+  const displayName = options.displayNameOverride ?? source.display_name ?? source.openings?.[0]?.display_name ?? id;
+  const config = automaticCharacterBookConfig(group, source, index, options.cardMode);
   return {
     id: characterBookId,
-    keys: [displayName, id],
+    keys: config.keys,
     secondary_keys: [],
-    comment: `${group}:${id}`,
-    content: renderStructured(source),
-    constant: true,
+    comment: `${characterBookGroupLabel(group)}\uFF1A${displayName}`,
+    content: renderCharacterBookSource(group, source),
+    constant: config.constant,
     selective: false,
-    insertion_order: index,
+    insertion_order: config.order,
     enabled: true,
-    position: "before_char",
+    position: config.position,
+    use_regex: false,
+    useProbability: true,
+    probability: 100,
+    excludeRecursion: true,
+    preventRecursion: true,
+    delayUntilRecursion: false,
+    depth: null,
+    role: 0,
+    selectiveLogic: 0,
+    caseSensitive: false,
+    matchWholeWords: false,
     extensions: {
+      position: config.position === "after_char" ? 1 : 0,
+      useProbability: true,
+      probability: 100,
+      exclude_recursion: true,
+      prevent_recursion: true,
+      delay_until_recursion: false,
+      depth: null,
+      role: 0,
+      selectiveLogic: 0,
+      case_sensitive: false,
+      match_whole_words: false,
+      scan_depth: config.scanDepth,
+      ignore_budget: config.ignoreBudget,
       rp_card_studio: {
         group,
         source_id: id,
         source_key: `character:${group}:${id}`,
         generated: true,
-        kind: "character_book_source"
+        kind: "character_book_source",
+        activation: {
+          mode: config.constant ? "constant" : "keywords",
+          primary_keys: config.keys,
+          secondary_keys: [],
+          selective: false,
+          logic: "any",
+          case_sensitive: false,
+          match_whole_words: false
+        },
+        insertion: {
+          position: config.position,
+          order: config.order,
+          depth: null,
+          role: "system"
+        },
+        probability: 100,
+        scan_depth: config.scanDepth,
+        ignore_budget: config.ignoreBudget,
+        recursion: {
+          prevent_incoming: true,
+          prevent_outgoing: true,
+          delay_until_recursion: false
+        }
       }
     }
   };
+}
+function characterBookGroupLabel(group) {
+  return {
+    world: "\u4E16\u754C\u8BBE\u5B9A",
+    character: "\u4EBA\u7269\u6863\u6848",
+    characters: "\u4EBA\u7269\u6863\u6848",
+    system: "\u7CFB\u7EDF\u89C4\u5219",
+    systems: "\u7CFB\u7EDF\u89C4\u5219",
+    scene: "\u573A\u666F\u8D44\u6599",
+    scenes: "\u573A\u666F\u8D44\u6599",
+    prompt: "\u53D9\u4E8B\u89C4\u5219",
+    prompts: "\u53D9\u4E8B\u89C4\u5219",
+    positioning: "\u9879\u76EE\u5B9A\u4F4D",
+    mvu: "MVU \u89C4\u5219",
+    ui: "\u72B6\u6001\u680F\u89C4\u5219",
+    assembly: "\u88C5\u914D\u89C4\u5219"
+  }[group] ?? "\u8D44\u6599\u6761\u76EE";
+}
+function automaticCharacterBookConfig(group, source, index, cardMode = "pending") {
+  const displayName = source.display_name ?? source.openings?.[0]?.display_name ?? source.id;
+  const aliases = group === "character" ? source.identity?.aliases ?? [] : [];
+  const keywords = [displayName, ...aliases].filter((value, keyIndex, values) => typeof value === "string" && value.trim() && values.indexOf(value) === keyIndex);
+  const singleCharacter = group === "character" && SINGLE_CHARACTER_CARD_MODES.has(cardMode);
+  const constant = ["positioning", "world", "system", "prompt"].includes(group) || singleCharacter;
+  const ignoreBudget = singleCharacter;
+  const baseOrder = { positioning: 50, world: 100, character: 300, scene: 400, system: 500, prompt: 600 }[group] ?? 900;
+  return {
+    constant,
+    keys: constant ? [] : keywords,
+    order: baseOrder + index,
+    position: ["positioning", "system", "prompt"].includes(group) || singleCharacter ? "after_char" : "before_char",
+    scanDepth: constant ? null : 4,
+    ignoreBudget
+  };
+}
+function renderCharacterBookSource(group, source) {
+  return renderStructured(projectModelSource(group, source));
 }
 function standaloneWorldbookEntry(group, source, index, uid = index) {
   const id = source.id ?? `${group}_${index + 1}`;
@@ -16312,8 +16530,8 @@ function standaloneWorldbookEntry(group, source, index, uid = index) {
     id: `rp_${group}_${id}`,
     key: [displayName, id],
     keysecondary: [],
-    comment: `${group}:${id}`,
-    content: renderStructured(source),
+    comment: `${characterBookGroupLabel(group)}\uFF1A${displayName}`,
+    content: renderStructured(projectModelSource(group, source)),
     constant: true,
     selective: false,
     selectiveLogic: 0,
@@ -16650,7 +16868,7 @@ var HELP_TEXT = `rp-card-forge - \u79BB\u7EBF\u3001\u4E8B\u52A1\u5F0F SillyTaver
   pack <project-dir>                 \u6784\u5EFA JSON\uFF0C\u6216\u5199\u5165 PNG chara/ccv3 \u53CC\u5757
   diff <left> <right>                \u6BD4\u8F83\u8BED\u4E49 JSON
   roundtrip <input>                  \u9A8C\u8BC1 JSON/PNG \u8BED\u4E49\u5F80\u8FD4\u4E0E PNG \u56FE\u50CF\u6570\u636E
-  state <project-dir> [action]       show/migrate/lock/unlock/stage
+  state <project-dir> [action]       show/migrate/operation/lock/unlock/stage
   doctor [project-dir]               \u68C0\u67E5 Node\u3001\u4F9D\u8D56\u4E0E\u9879\u76EE\u5065\u5EB7
 
 \u901A\u7528\u9009\u9879:
@@ -16767,7 +16985,7 @@ async function commandUnpack(args, options) {
   const sourcePath = projectSourcePath(project);
   const preservedPath = "src/import/preserved.json";
   const originalJsonPath = "src/import/original.json";
-  const semanticSource = artifact.format === Format.WORLDBOOK ? worldSourceFromBook(artifact.payload) : characterSourceFromCard(artifact.payload);
+  const semanticSource = artifact.format === Format.WORLDBOOK ? worldSourceFromBook(artifact.payload) : null;
   const nsfwSources = await applyNsfwTemplates(project, semanticSource);
   addPreservedImport(project, preservedPath);
   addPreservedImport(project, originalJsonPath);
@@ -16787,7 +17005,7 @@ async function commandUnpack(args, options) {
     { relativePath: PROJECT_FILE, content: stringifyYaml(project) },
     { relativePath: STATE_FILE, content: prettyJson(state) },
     { relativePath: "src/positioning.yaml", content: stringifyYaml(defaultPositioning()) },
-    { relativePath: sourcePath, content: stringifyYaml(semanticSource) },
+    ...semanticSource ? [{ relativePath: sourcePath, content: stringifyYaml(semanticSource) }] : [],
     ...nsfwSources.uiSource ? [{ relativePath: "src/ui/status-ui.yaml", content: stringifyYaml(nsfwSources.uiSource) }] : [],
     { relativePath: originalJsonPath, content: prettyJson(artifact.payload) },
     { relativePath: preservedPath, content: prettyJson(preserved) }
@@ -16797,11 +17015,9 @@ async function commandUnpack(args, options) {
   }
   const candidateValidation = validateProjectModel(project, state, outputRoot);
   candidateValidation.issues.push(...validateNamedSchema("positioning", defaultPositioning(), "/src/positioning.yaml"));
-  candidateValidation.issues.push(...validateNamedSchema(
-    artifact.format === Format.WORLDBOOK ? "world" : "character",
-    semanticSource,
-    `/${sourcePath}`
-  ));
+  if (semanticSource) {
+    candidateValidation.issues.push(...validateNamedSchema("world", semanticSource, `/${sourcePath}`));
+  }
   if (nsfwSources.uiSource) {
     candidateValidation.issues.push(...validateNamedSchema("status-ui", nsfwSources.uiSource, "/src/ui/status-ui.yaml"));
   }
@@ -17226,11 +17442,30 @@ async function commandState(args, options) {
     const nextProject = structuredClone(loaded.project);
     const nextState = structuredClone(loaded.state);
     let projectChanged = false;
-    if (action === "lock") {
+    if (action === "operation") {
+      exactArgs("state operation", args, 3);
+      const operation = args[2];
+      const resumableOperations = ["continue", "edit", "audit", "ui"];
+      if (!resumableOperations.includes(operation)) {
+        throw inputError(`state operation \u4EC5\u652F\u6301\u5DF2\u6709\u9879\u76EE\u7684 ${resumableOperations.join("\u3001")}\uFF0Ccreate \u7531 init \u5199\u5165\uFF0Cconvert \u7531 unpack \u5199\u5165`);
+      }
+      if (nextProject.project.operation === operation) {
+        return successReport("state", { action, operation, unchanged: true });
+      }
+      nextProject.project.operation = operation;
+      projectChanged = true;
+    } else if (action === "lock") {
       exactArgs("state lock", args, 4, 4);
       const [, , id, rawValue] = args;
       assertDecisionId(id);
-      const value = parseCliValue(rawValue);
+      let value = parseCliValue(rawValue);
+      if (id === "positioning.project_title") {
+        if (typeof value !== "string" || value.trim() === "") {
+          throw inputError("positioning.project_title \u5FC5\u987B\u662F\u975E\u7A7A\u9879\u76EE\u6807\u9898");
+        }
+        value = value.trim();
+        nextProject.project.display_name = value;
+      }
       const source = options.source ?? "user";
       if (!["user", "delegated"].includes(source)) throw inputError(`state lock --source \u4EC5\u652F\u6301 user \u6216 delegated\uFF0C\u6536\u5230: ${source}`);
       if (source === "delegated" && (!options.rationale || options.rationale.trim() === "")) {
@@ -17342,6 +17577,7 @@ async function commandState(args, options) {
     const commit = await (projectChanged ? updateProjectAndState : updateManagedState)(loaded, ...projectChanged ? [nextProject, nextState, { dryRun: Boolean(options["dry-run"]) }] : [nextState, { dryRun: Boolean(options["dry-run"]) }]);
     return successReport("state", {
       action,
+      operation: nextProject.project.operation,
       revision: nextState.revision,
       activeStage: nextState.active_stage,
       stageStatus: nextState.stages[nextState.active_stage].status,

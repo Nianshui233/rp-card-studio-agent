@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import { parse as parseYaml } from 'yaml';
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const forge = process.env.RP_CARD_FORGE ?? path.join(skillRoot, 'scripts', 'rp-card-forge.bundle.mjs');
@@ -53,6 +53,50 @@ function updateProject(root, { features = {}, sources = {} }) {
     }
   }
   writeFileSync(projectPath, project, 'utf8');
+}
+
+const testCharacterPath = 'src/characters/test_anchor.yaml';
+
+function registerTestCharacter(root) {
+  updateProject(root, { sources: { characters: [testCharacterPath] } });
+  write(root, testCharacterPath, `
+schema_version: 1.0.0
+id: test_anchor
+display_name: 项目默认角色
+status: locked
+role: primary_character
+identity:
+  aliases: []
+  age: null
+  species: 人类
+  occupation: 测试叙事锚点
+  appearance: []
+narrative_function:
+  purpose: 为需要人物来源的整合测试提供显式夹具。
+  pressure_on_player: ""
+goals:
+  immediate: []
+  long_term: []
+  hidden: []
+value_priority: []
+internal_conflicts: []
+boundaries: []
+behavioral_rules: []
+speech:
+  register: 中性
+  rhythm: 简洁
+  habits: []
+  avoid: []
+relationships: []
+knowledge:
+  player_visible: []
+  gm_only: []
+  model_only: []
+state_bindings: []
+examples: []
+tags: []
+source_refs: []
+`);
 }
 
 const legacyMvu = `
@@ -270,6 +314,7 @@ test('validate rejects unresolved MVU, UI, and opening references', t => {
 
 test('build applies the worldbook assembly manifest instead of fixed entry defaults', t => {
   const root = createProject(t, 'assembly');
+  registerTestCharacter(root);
   updateProject(root, { sources: { assembly: ['src/integration/assembly.yaml'] } });
   write(root, 'src/prompts/signal-guide.txt', 'Use the signal only after the player discovers it.');
   write(root, 'src/integration/assembly.yaml', `
@@ -278,6 +323,7 @@ status: locked
 worldbook_manifest:
   entries:
     - id: signal_guide
+      display_name: 线索规则：信号指南
       source:
         kind: file
         path: src/prompts/signal-guide.txt
@@ -287,12 +333,16 @@ worldbook_manifest:
         primary_keys: [signal]
         secondary_keys: []
         selective: false
+        logic: any
+        case_sensitive: false
+        match_whole_words: false
       insertion:
         position: before_char
         order: 42
-        depth: 2
+        depth: null
         role: system
       probability: 75
+      scan_depth: 4
       recursion:
         prevent_incoming: true
         prevent_outgoing: true
@@ -301,6 +351,35 @@ worldbook_manifest:
       visibility: model
       token_budget: null
       fallback: skip
+    - id: primary_character
+      display_name: 主叙事锚点：项目默认角色
+      source:
+        kind: registered_source
+        source_ref: ${testCharacterPath}
+      enabled: true
+      activation:
+        mode: constant
+        primary_keys: []
+        secondary_keys: []
+        selective: false
+        logic: any
+        case_sensitive: false
+        match_whole_words: false
+      insertion:
+        position: after_char
+        order: 43
+        depth: null
+        role: system
+      probability: 100
+      scan_depth: null
+      recursion:
+        prevent_incoming: true
+        prevent_outgoing: true
+        delay_until_recursion: false
+      recipient: shared
+      visibility: model
+      ignore_budget: true
+      fallback: block
 media_manifest:
   enabled: false
   assets: []
@@ -585,12 +664,42 @@ test('embedded MVU rejects an entrypoint path without a generated card script', 
 
 test('media manifest accepts an explicit preload strategy', t => {
   const root = createProject(t, 'media-preload');
+  registerTestCharacter(root);
   updateProject(root, { sources: { assembly: ['src/integration/assembly.yaml'] } });
   write(root, 'src/integration/assembly.yaml', `
 schema_version: 1.0.0
 status: locked
 worldbook_manifest:
-  entries: []
+  entries:
+    - id: primary_character
+      display_name: 主叙事锚点：项目默认角色
+      source:
+        kind: registered_source
+        source_ref: ${testCharacterPath}
+      enabled: true
+      activation:
+        mode: constant
+        primary_keys: []
+        secondary_keys: []
+        selective: false
+        logic: any
+        case_sensitive: false
+        match_whole_words: false
+      insertion:
+        position: after_char
+        order: 100
+        depth: null
+        role: system
+      probability: 100
+      scan_depth: null
+      recursion:
+        prevent_incoming: true
+        prevent_outgoing: true
+        delay_until_recursion: false
+      recipient: shared
+      visibility: model
+      ignore_budget: true
+      fallback: block
 media_manifest:
   enabled: true
   assets:
@@ -815,11 +924,11 @@ hostWindow.document.getElementById("form_sheld");`,
   const unpacked = path.join(root, 'adapter-unpacked');
 
   runForge(['unpack', inputPath, '--output', unpacked, '--nsfw', 'disabled'], { expectSuccess: true });
-  const sourcePath = path.join(unpacked, 'src', 'characters', 'card.yaml');
-  const source = parseYaml(readFileSync(sourcePath, 'utf8'));
-  delete source.extensions.character_card.data.extensions.regex_scripts;
-  delete source.extensions.character_card.data.extensions.tavern_helper;
-  writeFileSync(sourcePath, stringifyYaml(source), 'utf8');
+  const unpackedProject = parseYaml(readFileSync(path.join(unpacked, 'project.yaml'), 'utf8'));
+  assert.deepEqual(unpackedProject.source_manifest.characters, []);
+  const originalPayload = JSON.parse(readFileSync(path.join(unpacked, 'src', 'import', 'original.json'), 'utf8'));
+  assert.deepEqual(originalPayload.data.extensions.regex_scripts, userRegex);
+  assert.deepEqual(originalPayload.data.extensions.tavern_helper.scripts, [userTavernScript, legacyStatusScript]);
   updateProject(unpacked, {
     features: { mvu: true },
     sources: { mvu: ['src/mvu/runtime.yaml'] },

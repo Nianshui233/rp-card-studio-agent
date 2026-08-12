@@ -135,6 +135,7 @@
             "required": ["id", "source_ref", "complexity", "condition", "reads", "target", "placement", "insertion_order", "branches"],
             "properties": {
               "id": { "$ref": "#/$defs/id" },
+              "display_name": { "type": "string", "minLength": 1 },
               "source_ref": { "type": "string", "minLength": 1 },
               "complexity": { "enum": ["entry_visibility", "section_branch", "dynamic_text"] },
               "engine": { "const": "st_prompt_template" },

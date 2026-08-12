@@ -110,15 +110,14 @@ state_bindings:
   - source_path: investigation.carriage_13_examined
     access: read_write
     purpose: "控制事故线索是否已取得，并防止重复发放。"
+media_slots:
+  - id: accident_echo_ambient
+    kind_hint: audio
+    purpose: "提示事故残影即将重演，不承载唯一线索。"
+    trigger: "玩家进入观察舱且断电窗口仍有效。"
+    required: false
+    text_fallback: "墙体深处传来逐渐逼近的金属摩擦声。"
 source_refs: []
-extensions:
-  media_slots:
-    - id: accident_echo_ambient
-      kind_hint: audio
-      purpose: "提示事故残影即将重演，不承载唯一线索。"
-      trigger: "玩家进入观察舱且断电窗口仍有效。"
-      required: false
-      text_fallback: "墙体深处传来逐渐逼近的金属摩擦声。"
 ```
 
 片段后固定输出：
@@ -147,7 +146,7 @@ extensions:
 - 线索有发现方式和去向，危险有触发、后果与退路。
 - 引用的角色、世界条目和变量路径均已存在。
 - 场景事件若写变量，使用已经锁定的 writer 与合法操作。
-- 媒体槽位只表达叙事需求，并有稳定英文 ID、消费者语境和无媒体回退；不含文件、URL、预加载或交付参数。
+- 媒体槽位使用正式的 `media_slots[]` 字段表达叙事需求，并有稳定英文 ID、消费者语境和无媒体回退；不要把它藏进不投影的 `extensions`，也不含文件、URL、预加载或交付参数。
 - 未解决的越界问题已经进入跨阶段待办。
 
 ## 阶段总汇

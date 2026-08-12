@@ -2,6 +2,13 @@ schema_version: 1.0.0
 status: draft
 
 worldbook_manifest:
+  id: worldbook_id
+  display_name: 未命名世界书
+  scan_depth: null
+  token_budget: null
+  recursive_scanning: false
+  preserve_imported_entries: true
+  duplicate_policy: error
   entries: []
 
 media_manifest:

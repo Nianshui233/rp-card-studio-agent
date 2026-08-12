@@ -8,6 +8,7 @@
     "schema_version",
     "id",
     "status",
+    "card_entry",
     "premise",
     "target_users",
     "card_mode",
@@ -22,9 +23,25 @@
     "schema_version": { "const": "1.0.0" },
     "id": { "$ref": "#/$defs/id" },
     "status": { "enum": ["draft", "locked"] },
+    "card_entry": { "type": "string" },
     "premise": { "type": "string" },
     "target_users": { "$ref": "#/$defs/stringList" },
-    "card_mode": { "$ref": "#/$defs/id" },
+    "card_mode": {
+      "enum": [
+        "pending",
+        "single_character_card",
+        "world_package",
+        "scenario_package",
+        "gameplay_package",
+        "ensemble_package",
+        "multi_character_package",
+        "narrator_package",
+        "facilitator_package",
+        "world_scenario_with_anchor_character",
+        "gameplay_with_anchor_character",
+        "hybrid_package"
+      ]
+    },
     "user_role": {
       "type": "object",
       "additionalProperties": false,
@@ -61,6 +78,20 @@
     "scope_notes": { "$ref": "#/$defs/stringList" },
     "source_refs": { "$ref": "#/$defs/stringList" }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "status": { "const": "locked" } },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "card_entry": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "card_mode": { "not": { "const": "pending" } }
+        }
+      }
+    }
+  ],
   "$defs": {
     "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
     "stringList": {

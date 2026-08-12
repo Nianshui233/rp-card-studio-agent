@@ -27,6 +27,7 @@ function emptySources(overrides = {}) {
 function worldbookEntry(overrides = {}) {
   return {
     id: 'guide',
+    display_name: '指南条目',
     source: { kind: 'inline', content: 'Guide text.' },
     enabled: true,
     activation: {
@@ -34,9 +35,13 @@ function worldbookEntry(overrides = {}) {
       primary_keys: [],
       secondary_keys: [],
       selective: false,
+      logic: 'any',
+      case_sensitive: false,
+      match_whole_words: false,
     },
-    insertion: { position: 'before_char', order: 1 },
+    insertion: { position: 'before_char', order: 1, depth: null, role: 'system' },
     probability: 100,
+    scan_depth: null,
     recursion: {
       prevent_incoming: false,
       prevent_outgoing: false,
@@ -141,7 +146,11 @@ test('registered assembly sources resolve source_ref and JSON Pointer selector',
   const sources = emptySources({
     world: [{
       relativePath: 'src/world/realm.yaml',
-      value: { id: 'realm', premise: { summary: 'The station circles a dim star.' } },
+      value: {
+        id: 'realm',
+        display_name: 'Dim Star Station',
+        premise: { summary: 'The station circles a dim star.' },
+      },
     }],
     assembly: [{
       relativePath: 'src/integration/assembly.yaml',
@@ -169,7 +178,16 @@ test('registered assembly sources resolve source_ref and JSON Pointer selector',
     target: 'character',
   });
   assert.deepEqual(result.issues, []);
-  assert.equal(result.payload.data.character_book.entries[0].content, 'The station circles a dim star.');
+  assert.deepEqual(JSON.parse(result.payload.data.character_book.entries[0].content), {
+    module: {
+      type: 'world',
+      id: 'realm',
+      display_name: 'Dim Star Station',
+      entry_name: '指南条目',
+      selection: '/premise/summary',
+    },
+    content: 'The station circles a dim star.',
+  });
 });
 
 test('embedded host contracts reject unsupported MVU scopes and missing EJS engine dependencies', async () => {
@@ -742,7 +760,8 @@ test('status UI projects compile message-local macros without a parent-page scri
   });
   assert.deepEqual(result.issues, []);
   const projection = result.payload.data.extensions.regex_scripts.find(candidate => candidate.id === '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d04');
-  assert.match(projection.replaceString, /get_message_variable::stat_data\.runtime\.relationship_score/);
+  assert.match(projection.replaceString, /format_message_variable::stat_data\.runtime\.relationship_score/);
+  assert.doesNotMatch(projection.replaceString, /get_message_variable::/);
   assert.doesNotMatch(projection.replaceString, /<script|<iframe|https?:\/\//i);
 
   const tavernHelper = applyTavernHelperAdapter({ data: { extensions: {} } }, {
@@ -809,6 +828,11 @@ test('host-required generated inline message adapters emit a read-only UI regex'
   });
 
   assert.deepEqual(validation.issues, []);
+  const notRun = validation.warnings.find(candidate => candidate.rule === 'ui.runtime_not_run');
+  assert.ok(notRun);
+  assert.match(notRun.message, /optional advanced candidate/i);
+  assert.match(notRun.message, /iframe navigation or script execution/i);
+  assert.ok(validation.warnings.some(candidate => candidate.rule === 'ui.regex_preferred'));
   const result = applySillyTavernRegexAdapter({ data: { extensions: {} } }, {
     project: { features: { mvu: true, ejs: false, status_ui: true } },
     sources,

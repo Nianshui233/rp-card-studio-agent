@@ -40,9 +40,12 @@ function worldbookEntry(overrides = {}) {
       secondary_keys: [],
       selective: false,
       logic: 'any',
+      case_sensitive: false,
+      match_whole_words: false,
     },
-    insertion: { position: 'before_char', order: 1 },
+    insertion: { position: 'before_char', order: 1, depth: null, role: 'system' },
     probability: 100,
+    scan_depth: null,
     recursion: {
       prevent_incoming: false,
       prevent_outgoing: false,
@@ -55,6 +58,7 @@ function worldbookEntry(overrides = {}) {
   return {
     ...base,
     ...overrides,
+    display_name: overrides.display_name ?? `条目：${overrides.id ?? base.id}`,
     activation: { ...base.activation, ...overrides.activation },
     insertion: { ...base.insertion, ...overrides.insertion },
     recursion: { ...base.recursion, ...overrides.recursion },

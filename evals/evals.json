@@ -3,43 +3,47 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "显式使用 $rp-card-studio，在一个空工作区创建一张启用 MVU 和消息内 HTML 状态栏的 SillyTavern V3 测试卡。本次所有创作决定都交给 AI，不要提问，直接完成源码、构建和验证。",
-      "expected_output": "生成可导入的 V3 角色卡；状态栏位于每条 AI 消息内，变量更新协议不会回送模型，且没有父页面常驻面板代码。",
+      "prompt": "显式使用 $rp-card-studio，在一个空工作区创建完整的世界/玩法型 SillyTavern RP 项目，包含一个叙事锚点、若干 NPC、MVU 和消息内 HTML 状态栏。本次全部创作决定交给 AI，不要提问，直接完成维护源码、角色卡 JSON、验证和交付报告。",
+      "expected_output": "生成可导入的完整 RP 部署包；卡面只是项目入口与开场，全部人物和其他模块由 CharacterBook 独立调度，状态栏位于 AI 消息内。",
       "files": [],
       "expectations": [
-        "data.extensions.regex_scripts 同时包含消息内状态栏、MVU Prompt 过滤、流式折叠和完整折叠规则",
-        "默认开场和所有备选开场末尾各有且仅有一个 <StatusPlaceHolderImpl/>",
-        "post_history_instructions 要求后续助手回复末尾输出且只输出一个状态栏占位符",
-        "消息状态栏规则只作用于 AI_OUTPUT Markdown，并使用楼层级 get_message_variable 宏",
-        "MVU Prompt 过滤规则覆盖完整和未闭合更新块，并保留多个更新块之间的普通正文",
-        "产物不含 globalThis.parent.document、#sheld、#form_sheld 或 rp_card_studio_status_ui 常驻脚本",
+        "data.name 使用概括世界或玩法的项目标题，而不是叙事锚点或任一 NPC 的姓名",
+        "data.description 只包含紧凑的项目级入口，不包含任何人物档案、世界模块正文、系统规则或开场正文",
+        "data.personality、scenario、mes_example、creator_notes、system_prompt、post_history_instructions 全部为空",
+        "项目定位、世界、每个具名人物、系统、场景、叙事规则和对白示例均由中文命名的 CharacterBook 条目覆盖，并显式记录触发、插入、深度、顺序、概率、扫描深度、预算与递归策略",
+        "锚点人物在大型项目中不会因 primary_character 身份被强制常驻或忽略预算",
+        "状态栏使用 embedded + sillytavern_regex，并通过 format_message_variable 宏在 AI 消息内显示；不生成父页面常驻面板或把 Tavern Helper iframe 宣称为可靠默认路径",
+        "MVU 初始化块同时具有 Prompt 与显示隐藏正则，回复格式合同位于 CharacterBook 而不是高级定义字段",
         "项目校验、角色卡制品校验和 roundtrip 均通过"
       ]
     },
     {
       "id": 2,
-      "prompt": "显式使用 $rp-card-studio，修改一张已有的 MVU 角色卡：保留用户自定义角色正则，补齐缺失的变量更新过滤和消息内状态栏交付。用户正则与未知扩展字段不得丢失。",
-      "expected_output": "在不覆盖用户规则的前提下幂等合并技能自有正则；重复构建不会新增重复规则。",
+      "prompt": "显式使用 $rp-card-studio，把一张已有的单人物旧卡重定位成世界/玩法型完整 RP 项目。保留未知扩展和用户正则，把旧高级定义内容迁入维护源码与 CharacterBook；迁移核对完成后清理旧高级定义，再构建两次验证幂等性。",
+      "expected_output": "原始输入保留在项目级导入区；锁定新定位后项目接管卡名和入口，只有明确迁移策略获批后才清空已迁移的高级定义。",
       "files": [],
       "expectations": [
-        "用户已有角色正则保持原内容与相对顺序",
-        "技能自有正则使用稳定 UUID 并按固定顺序出现",
-        "同 UUID 同内容的重建保持单份，同 UUID 不同内容时阻断而不覆盖",
-        "能识别的技能旧版规则在模板或配置变化后刷新，不被误报为用户碰撞",
-        "能精确识别的历史父页面状态脚本会在重建时删除，同 ID 的非技能脚本保留并报冲突",
-        "未知扩展字段在 unpack、build 和 roundtrip 后仍存在",
-        "状态栏只显示在消息内"
+        "unpack 后不会仅凭 data.name 或角色形状字段虚构 primary_character，原始卡保存在 src/import/original.json",
+        "定位尚未锁定时往返构建保留旧 name、description、高级定义、用户正则和未知扩展",
+        "定位完成并锁定项目标题后，convert、continue 和 edit 都用项目标题与 positioning.card_entry 接管 name/description",
+        "锁定标题本身不会删除高级定义；只有 integration.advanced_definition_policy 明确为 clear_after_migration 或 migrate_to_characterbook 后才清空",
+        "每个确认存在的人物都成为独立 CharacterBook 模块，人物扩展中的伪 character_card payload 不能接管项目容器",
+        "用户正则与未知扩展保持原内容和相对顺序，技能自有规则按稳定 UUID 幂等合并",
+        "显式 assembly 漏掉任何项目模块时，所有项目 operation 都会因 coverage blocker 失败",
+        "重复构建不会新增重复世界书条目、正则或回复合同"
       ]
     },
     {
       "id": 3,
-      "prompt": "显式使用 $rp-card-studio，创建一张启用 MVU、但明确不需要状态栏/UI 的角色卡。全部决定交给 AI，并完成构建验证。",
-      "expected_output": "生成 MVU 更新过滤与显示折叠规则，但不生成状态栏占位符、状态栏正则或页面 UI。",
+      "prompt": "显式使用 $rp-card-studio，创建一个真正的单人物 RP 项目：只预先创作一个角色，启用 MVU，但明确不需要状态栏/UI。全部决定交给 AI，并完成构建验证。",
+      "expected_output": "生成以唯一人物名命名的单人部署包；唯一人物定义稳定常驻，存在 MVU 过滤与更新合同，但不存在任何状态栏投影。",
       "files": [],
       "expectations": [
-        "MVU Prompt 过滤、流式折叠和完整折叠规则存在",
-        "不存在消息状态栏正则和 <StatusPlaceHolderImpl/> 占位符",
-        "不存在父页面常驻面板脚本",
+        "只有 card_mode=single_character_card 且恰好一个角色源码、一个 primary_character 时才使用人物名作为 data.name",
+        "data.description 仍是项目入口而不是人物档案，人物完整定义位于独立 CharacterBook 条目",
+        "唯一人物条目为启用、常驻、100% 概率且 ignore_budget=true",
+        "MVU Prompt 过滤、初始化隐藏和变量更新显示折叠规则存在",
+        "不存在消息状态栏正则、StatusPlaceHolderImpl 占位符、状态栏回复合同或父页面常驻面板脚本",
         "项目与制品验证通过"
       ]
     }

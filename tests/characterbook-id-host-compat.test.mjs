@@ -41,11 +41,13 @@ function assemblySources(ids = ['guide', 'signal']) {
         worldbook_manifest: {
           entries: ids.map((id, index) => ({
             id,
+            display_name: `条目：${id}`,
             source: { kind: 'inline', content: `${id} content` },
             enabled: true,
-            activation: { mode: 'constant', primary_keys: [], secondary_keys: [], selective: false, logic: 'any' },
-            insertion: { position: 'before_char', order: index },
+            activation: { mode: 'constant', primary_keys: [], secondary_keys: [], selective: false, logic: 'any', case_sensitive: false, match_whole_words: false },
+            insertion: { position: 'before_char', order: index, depth: null, role: 'system' },
             probability: 100,
+            scan_depth: null,
             recursion: { prevent_incoming: false, prevent_outgoing: false, delay_until_recursion: false },
             recipient: 'shared',
             visibility: 'model',

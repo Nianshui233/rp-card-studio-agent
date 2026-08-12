@@ -132,7 +132,7 @@
       "additionalProperties": false,
       "required": ["positioning", "world", "characters", "systems", "scenes", "mvu", "prompts", "ui", "preserved_imports"],
       "properties": {
-        "positioning": { "$ref": "#/$defs/pathList" },
+        "positioning": { "$ref": "#/$defs/singlePathList" },
         "world": { "$ref": "#/$defs/pathList" },
         "characters": { "$ref": "#/$defs/pathList" },
         "systems": { "$ref": "#/$defs/pathList" },
@@ -236,6 +236,13 @@
       "type": "array",
       "items": { "type": "string", "minLength": 1 },
       "uniqueItems": true
+    },
+    "singlePathList": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true,
+      "minItems": 1,
+      "maxItems": 1
     }
   }
 }

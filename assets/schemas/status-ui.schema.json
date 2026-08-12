@@ -242,7 +242,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["level", "adapter", "surface", "entrypoint", "artifact", "placeholder"],
-      "description": "Message-only delivery. Generated inline artifacts are either SillyTavern character regexes or self-contained Tavern Helper message iframes; host-managed Tavern Helper specifications remain explicitly marked host_managed.",
+      "description": "Message-only delivery. SillyTavern character regex is the basic embedded default. A generated Tavern Helper message iframe is an opt-in host_required candidate and remains runtime:not_run until target-host execution is proven; host-managed Tavern Helper specifications remain explicitly marked host_managed.",
       "properties": {
         "level": { "enum": ["specification", "embedded", "host_required"] },
         "adapter": { "enum": ["sillytavern_regex", "tavern_helper_message"] },

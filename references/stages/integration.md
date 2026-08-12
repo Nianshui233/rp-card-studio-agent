@@ -1,6 +1,6 @@
 # 整合交付阶段
 
-本阶段把已锁定源文件装配为可导入产物，维护 `src/integration/assembly.yaml`，并完成静态、产物和真实运行证据的分级报告。它负责把内容 ID 映射为世界书宿主参数、把媒体叙事槽位映射为实际资源、按契约生成适配器；不是最后一轮临时创作。
+本阶段把已锁定的完整 RP 包装配为 SillyTavern 可导入产物，维护 `src/integration/assembly.yaml`，并完成静态、产物和真实运行证据的分级报告。它负责卡面字段投影、把内容 ID 映射为世界书宿主参数、把媒体叙事槽位映射为实际资源、按契约生成适配器；不是最后一轮临时创作，也不把项目重新收缩成某个角色的人设卡。
 
 ## 进入条件
 
@@ -12,11 +12,11 @@
 
 ### 允许询问
 
-- 本次构建哪些产物：JSON、PNG、世界书、源项目和报告。
+- 仅询问预检交付目标尚未覆盖的打包参数；已锁定的 JSON、PNG、世界书、源项目和报告组合直接读取，不重复选择。用户要改变交付范围时先更新预检锁定。
 - 世界书条目的激活、插入位置与顺序、条目级扫描深度、概率、递归和失败策略；独立世界书是否需要按角色头像主干或目标实例标签 ID 过滤。
 - 媒体槽位采用本地文件还是 HTTPS 资源、由谁消费、是否预加载、如何校验以及失败时使用何种回退。
-- 已锁定 MVU/UI/呈现契约需要生成哪些 adapter，入口和产物路径如何避免碰撞。
-- PNG 使用哪张头像、输出文件名、是否保留候选构建。
+- 如何把已锁定 MVU/UI/呈现 adapter 契约实例化为文件、卡内脚本或正则，以及入口和产物路径如何避免碰撞；不重新选择 adapter 能力或 UI 交付语义。
+- 预检已锁定 PNG 时使用哪张卡图、输出文件名、是否保留候选构建；卡图可以是标题画面、场景图、群像或角色肖像，不默认要求头像。
 - 目标 SillyTavern 环境与可执行的真实验收范围。
 - 对警告采用修复、接受或延期哪种处理。
 - 最终版本号、发布说明和交付清单。
@@ -38,7 +38,7 @@
 ### 本轮目标：交付组合
 | 问题 | 方向 | 影响 | 推荐 |
 |---|---|---|---|
-| 本轮交付什么？ | JSON / PNG / JSON+PNG+源码 | 影响头像需求和往返测试 | 推荐 JSON+PNG+源码，便于导入与维护 |
+| 世界书条目怎样分层调度？ | 基础常驻 + 人物/场景关键词 / 全部常驻 / 深度触发 | 影响上下文预算、可达性和误触发 | 推荐只让整包基础合同常驻，其余按内容边界精确触发 |
 | 警告如何处理？ | 全修 / 接受指定项 / 延期 | 影响报告状态 | 推荐修复玩家可见问题，记录纯风格警告 |
 ```
 
@@ -118,10 +118,19 @@ media_manifest:
 
 ## 装配职责
 
+### 卡面投影与源码覆盖
+
+- 新卡只把已锁定的非空 `positioning.card_entry` 投影到 `data.description`。它是完整 RP 包的用途、用户入口与模块路由意图的简短常驻合同，不是任何角色的人设，也不能假装 SillyTavern 会据此执行动态路由。默认开场投影到 `data.first_mes`，备选开场按锁定顺序投影到 `data.alternate_greetings`；开场正文不得重复装入世界书。
+- 卡名按已锁定承载类型决定：只有 `single_character_card` 且角色源码确实只有一个时使用该角色中文显示名；世界、场景、玩法、群像、叙事者、锚点角色项目或任何多角色模式都使用 `project.project.display_name` 的项目标题。不得因为存在一个锚点角色就把完整项目误命名为人名，也不得默认用某个单一地区名代替概括世界、玩法、主题或体验的项目标题。
+- 新卡的 `data.personality`、`data.scenario`、`data.mes_example`、`data.creator_notes`、`data.system_prompt`、`data.post_history_instructions` 默认为空。导入旧卡时，定位完成和标题锁定只接管 `data.name` 与 `data.description`，用户已有或未知的高级定义值继续原样保留。只有逐项确认其语义已进入维护源码和 CharacterBook，并锁定 `integration.advanced_definition_policy` 为 `clear_after_migration` 或 `migrate_to_characterbook`，才允许清空这些字段；不得把锁定标题解释成删除授权。
+- `project.yaml.source_manifest` 登记的所有可装配源码都必须有唯一去向：项目级入口与 openings 按上两条进入卡面；每个角色（包括 `primary_character`）、world、system、scene、叙事规则、对白示例、MVU/EJS 合同及状态栏回复合同由启用的 CharacterBook 条目完整覆盖。具名角色默认一人一条。不能用一个泛化条目声称覆盖实际未引用的源码，也不能把包含 openings 的整份 prompt 源直接塞入世界书。
+- 无显式 assembly 的新项目可由 Forge 生成保守的中文命名条目；存在显式 assembly 时，任何漏掉的可装配源码都是 blocker，必须补齐来源映射和宿主调度，不能靠高级定义字段兜底。
+- 一个条目用 `selector` 拆取注册源码时，Forge 会在选中内容外包裹模块身份：模块类型、源码稳定 ID/显示名（如有）、中文条目名和 selector。这样分片仍能说明自己属于哪个 RP 模块，不需要制造孤立的 `/id` 或 `/display_name` 小条目；任何丢失身份包络的分片都视为投影不完整。
+
 ### 世界书
 
 - 读取前序阶段给出的稳定内容 ID 和可见性，不在这里扩写内容语义。
-- Forge 生成或管理的内嵌 CharacterBook 只要含有条目，就必须绑定为角色主世界书。有名书写入同名的 `data.extensions.world`；无名书先按 SillyTavern 的 `<角色名>'s Lorebook` 规则固化名称。导入旧卡已有不同主世界书时保留原值并阻断，当前阶段必须明确选择，不得静默覆盖。不能把“条目已嵌入”当作“宿主已导入并加载”。
+- Forge 生成或管理的内嵌 CharacterBook 只要含有条目，就必须绑定为卡的主世界书。有名书写入同名的 `data.extensions.world`；无名书先按 SillyTavern 基于 `<data.name>` 形成的 `<data.name>'s Lorebook` 规则固化名称，非单人项目中的 `data.name` 就是项目标题。导入旧卡已有不同主世界书时保留原值并阻断，当前阶段必须明确选择，不得静默覆盖。不能把“条目已嵌入”当作“宿主已导入并加载”。
 - 在 `worldbook_manifest.entries[]` 中决定 `activation`、`insertion`、条目级 `scan_depth`、`probability`、`recursion` 与 `fallback`。当前 SillyTavern 原生路径固定使用 `recipient: shared` 和 `visibility: model`；其他路由或隔离语义需要另有已验证的外部 router，Forge 默认阻断，不能把它们当作普通选项询问。
 - `worldbook_manifest.scan_depth`、`token_budget` 与 `recursive_scanning` 只保留宿主默认值 `null`、`null`、`false`。当前宿主实际读取全局世界书设置；扫描范围需要逐条控制时使用 `entries[].scan_depth`，范围为 `0..1000`，其中 `0` 是真实的零深度，只有 `null` 表示继承全局。
 - `fallback` 只允许 `skip` 或 `block`。`skip` 会在来源缺失时跳过并报告警告，`block` 会终止构建；不要写 `include`，因为没有可确定注入的替代内容。
@@ -132,7 +141,7 @@ media_manifest:
 
 ### 媒体
 
-- 把场景、开场或 UI 的叙事槽位映射到 `media_manifest.assets[]`；每个 consumer 的 `ref + slot` 必须唯一且可解析。
+- 把场景顶层 `media_slots`、开场或 UI 的叙事槽位映射到 `media_manifest.assets[]`；每个 consumer 的 `ref + slot` 必须唯一且可解析。`scene:{id}` consumer 的 `slot` 必须精确匹配该场景的 `media_slots[].id`，所有 `required: true` 槽位必须有资产；可选槽位没有资产时保留 `text_fallback`。旧项目的 `extensions.media_slots` 只作为迁移输入读取，新片段不得继续写入不透明扩展袋。
 - 本地资源检查文件存在、MIME、摘要和交付路径；远程资源只允许 HTTPS，并记录可用性证据。
 - 需要显式预加载策略时使用可选字段 `preload`，值只允许 `none | on_opening | eager | on_demand`；不得用自由文本或适配器私有参数绕过 media manifest。
 - 远程媒体可以使用，但不能成为无回退的唯一关键路径。回退为另一媒体时，目标必须存在且回退图不能成环；无法加载时仍要保留纯文本语义。
@@ -140,15 +149,16 @@ media_manifest:
 
 ### 适配器
 
-- 角色卡 payload 按固定顺序处理：先应用 `assembly.yaml`，再生成 MVU CharacterBook 条目，再生成 EJS CharacterBook 条目，恢复保留字段后把非空内嵌 CharacterBook 绑定为角色主世界书，再生成必要的 Tavern Helper 运行时脚本，最后合并 SillyTavern 角色正则。后一步不得覆盖或重新解释前一步的语义。
+- 角色卡 payload 按固定顺序处理：先应用 `assembly.yaml`，再生成 MVU CharacterBook 条目，再生成 EJS CharacterBook 条目，恢复保留字段，随后生成必要的 Tavern Helper 运行时脚本并合并 SillyTavern 角色正则，最后把非空内嵌 CharacterBook 绑定为角色主世界书。后一步不得覆盖或重新解释前一步的语义。
 - 从已锁定的 `runtime_contract.adapter`、开场呈现需求和 `status_ui.delivery` 生成实际 adapter 文件，不在整合阶段重设它们的功能语义或视觉设计。
 - 生成前建立 adapter ID、entrypoint、artifact、角色正则 UUID、消息占位符和宿主依赖表；任何 ID、路径、正则或占位符碰撞都先阻断并路由到责任契约。
 - EJS 依赖 `ST-Prompt-Template 1.17.6.8`，动态条目留在 `data.character_book.entries[]`；MVU 运行时桥接脚本进入 `data.extensions.tavern_helper.scripts`，消息状态栏进入 `data.extensions.regex_scripts`。
 - 当前 MVU 更新模式只装配 `same_generation`。`extra_pass` 或 `both` 若没有独立请求触发、路由、解析、校验、提交、失败回退与宿主测试全链路，必须阻断；不能把手工解析/提交入口列作自动更新证据。
-- 启用 MVU 时必须生成完整 `<initvar>...</initvar>` 的 Prompt/显示双隐藏规则、更新块 Prompt 过滤及完整/流式显示规则；初始化块与更新块都保留在原始消息中。启用状态栏时必须生成 AI_OUTPUT 消息正则、为全部开场追加唯一占位符，并写入后续助手回复合同。
-- 状态栏交付只有角色正则和 Tavern Helper 消息级 JS/iframe。`embedded + sillytavern_regex` 只用于 `refresh: on_message`、只读、无命令、无 tabs 的文字或简单静态 HTML，且不保证重载历史快照；动态刷新、命令、tabs、条件缺失/错误状态或逐楼层快照必须使用 `tavern_helper_message + host_required`。后者由角色正则生成自包含 fenced HTML，Tavern Helper 在消息内创建 iframe；iframe 必须取得严格整数 `getCurrentMessageId()`，再持续低频调用 `getVariables({ type: "message", message_id })` 复查同一楼层，不能因首个合法旧快照而停止，只在可见值变化时重绘，并在卸载时清理。失败时不得回退 latest。任何消息 UI 都不得访问父页面或加载远程 UI。没有已验证消息级实现时不得冒充 embedded 或 runtime pass。
+- 启用 MVU 时必须生成完整 `<initvar>...</initvar>` 的 Prompt/显示双隐藏规则、更新块 Prompt 过滤及完整/流式显示规则；初始化块与更新块都保留在原始消息中。启用状态栏时必须生成 AI_OUTPUT 消息正则、为全部开场追加唯一占位符，并把后续助手回复合同写入 CharacterBook：启用 MVU 时合入 MVU 回复格式条目，否则创建中文命名的专用常驻条目。新卡不得把该合同写入 `post_history_instructions`。
+- 状态栏交付只有角色正则和 Tavern Helper 消息级 JS/iframe。`embedded + sillytavern_regex` 是 `refresh: on_message`、只读、无命令、无 tabs 的文字或简单静态 HTML 默认路径，且不保证重载历史快照；动态刷新、命令、tabs、条件缺失/错误状态或逐楼层快照只能登记为 `tavern_helper_message + host_required` 的可选高级候选，不能因选中适配器就宣称能力存在。后者由角色正则生成自包含 fenced HTML，再由 Tavern Helper 尝试在消息内创建 iframe；只有 iframe 文档真实导航并执行后，才继续验证严格整数 `getCurrentMessageId()`、同楼层低频 `getVariables({ type: "message", message_id })` 复查、可见值变化重绘与卸载清理。失败时不得回退 latest。任何消息 UI 都不得访问父页面、加载远程 UI 或要求修改 SillyTavern 本体。没有已验证消息级实现时不得冒充 embedded、可靠或 runtime pass。
 - 运行时代码必须随项目、角色卡或明确的宿主依赖交付并登记；禁止通过未登记的远程脚本 URL 临时补能力。
 - 生成成功、语法通过和静态预览只形成 `offline` 或 `artifact` 证据；只有目标宿主实际加载、更新、卸载和降级用例通过，才能形成 `runtime` 证据。
+- 对随卡嵌入 Tavern Helper MVU 角色脚本的制品，真实验收前先确认 `酒馆助手 -> 渲染 -> 启用 Blob URL 渲染` 已关闭，并在变更后刷新 SillyTavern。开启状态是宿主兼容 blocker，不是卡片结构 blocker；不要为此修改 SillyTavern 或扩展源码。
 
 ## 构建纪律
 
@@ -165,7 +175,7 @@ media_manifest:
 
 - 语法、Schema、ID、引用、字段生命周期、可见性和占位符检查通过。
 - 目标 JSON 可重新读取，PNG 负载可提取，世界书条目顺序稳定。
-- Forge 管理的角色制品含内嵌 CharacterBook 条目时，JSON、PNG 内负载和 roundtrip 候选均满足 `data.extensions.world === data.character_book.name`，且名称非空；首次宿主导入已确认 **Import Card Lore**，目标世界书中能找到本次构建的受管条目。同名旧书必须核对内容，不能只凭名字判通过。
+- Forge 管理的角色卡投影制品含内嵌 CharacterBook 条目时，JSON、PNG 内负载和 roundtrip 候选均满足 `data.extensions.world === data.character_book.name`，且名称非空；首次宿主导入已确认 **Import Card Lore**，目标世界书中能找到本次构建的受管条目。同名旧书必须核对内容，不能只凭名字判通过。
 - `unpack -> build` 往返不会丢失已知或未知字段。
 - 每个产物记录来源修订、构建参数、哈希和验证结果。
 - 阻断项为零；警告都有处置记录。

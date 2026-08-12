@@ -1,164 +1,184 @@
 ---
 name: rp-card-studio
-description: "分阶段共创、构建和验证 SillyTavern 角色卡项目。仅供用户显式调用。"
+description: "Explicitly invoked, stage-gated workflow to build, revise, project, and validate complete SillyTavern RP packages/projects, with character-card JSON/PNG treated as portable deployment artifacts. Never invoke from natural-language topic matches alone."
 ---
 
-# SillyTavern制卡工坊
+# SillyTavern Card Studio
 
-把角色卡创作当作可恢复、可验证的分阶段工程。用户掌握选择权；技能负责提问、给出方向、产出片段、维护状态并构建最终制品。
+Use two compatible perspectives. From the SillyTavern host and user perspective, an imported character-card JSON/PNG artifact is a complete RP package in portable deployment form, not an empty shell or a dossier for one person. World, authored or dynamic characters, systems, scenes, narrative, runtime, regex/scripts, and message UI are peer project modules; none is nested under or owned by a character. The package may contain one character, many characters, dynamically generated characters, or no fixed character at all.
 
-## 入口门
+Treat this as the domain model, not a loose metaphor. The top-level thing being designed is always the RP project/package; a character is one optional content module, and the SillyTavern "character card" is one host deployment format. Never invent a "card character", make every project choose a person as owner, or describe world/system/scene modules as attachments to a person. Only a locked true single-character project narrows the package around its sole actor, without changing the project-first source structure.
 
-仅在用户通过技能选择器或 `$rp-card-studio` 显式调用时执行。若本文件被间接加载，而当前请求没有显式调用证据，停止本技能流程并按普通请求处理；不要因为“创建”“角色”“世界观”“SillyTavern”等自然语言自行启动。
+From the maintenance perspective, `project.yaml + src/` is the project: the maintained source project and domain model; card JSON/PNG is a deployment container that constitutes its complete host-facing projection into SillyTavern, not an empty shell or reduced summary. Never derive the source ontology from SillyTavern's character-shaped host fields. A host field is an adapter slot, not proof that its label owns the content. Preserve the user's decision authority; ask focused questions, present materially different directions, generate merge-ready fragments after each choice, maintain project state, and build the final artifacts only from maintained sources.
 
-若当前项目尚无已完成的预检记录，首次回复只做项目预检。读取 [project-preflight.md](references/project-preflight.md)，只收集当前请求尚未给出的以下信息：
+## Invocation Gate
 
-1. 用户明确指定的项目工作区；
-2. 是否启用 NSFW；
-3. 新建、续作、材料转换、修改或审查；
-4. 已有材料的位置；
-5. 目标交付物。
+Run this workflow only when the user selects the skill or explicitly invokes `$rp-card-studio`. If this file is loaded indirectly without explicit invocation evidence, stop this workflow and handle the request normally. Words such as "create", "character", "worldbuilding", or "SillyTavern" are never sufficient triggers.
 
-不要在首轮询问题材、世界规则、角色、数值系统、剧情或界面内容。工作区未明确时，要求用户指定并停止；不得自选目录。续作项目若已有完整预检记录，只读核验后直接恢复记录中的当前阶段，不重复盘问。
+If the workspace has no completed preflight record, the first reply is preflight only. Read [project-preflight.md](references/project-preflight.md) and collect only missing values for:
 
-## 事实源与状态
+1. the exact project workspace chosen by the user;
+2. whether NSFW is enabled;
+3. operation type: new, resume, material conversion, revision, or audit;
+4. paths to existing materials, if any;
+5. target deliverables.
 
-每个项目维护两类事实：
+Do not ask about premise, world rules, characters, systems, plot, or UI during preflight. If no workspace is specified, ask the user to choose one and stop; never choose a write location on the user's behalf. For a resumed project with a valid preflight record, verify it and resume the recorded current stage without repeating questions.
 
-- `project.yaml` 是用户确认内容、创作规划和语义决定的事实源。
-- `.rp-card-state.json` 是当前阶段、锁定记录、跨阶段待办、文件清单和验证证据的技术状态。
+Treat `project.project.operation` as the current work run, not immutable project origin. Before validating, building, or changing stages in an existing workspace, run `state <workspace> operation continue|edit|audit|ui` to match the locked preflight operation. `init` alone writes `create`, and `unpack` alone writes `convert`; do not hand-edit those values or leave a resumed project mislabeled as a new run. This distinction protects optional-stage lifecycle rules: a resumed run may preserve an existing MVU/EJS implementation while skipping changes to it, whereas a genuinely new run may not create an enabled implementation behind a skipped stage.
 
-不要把关键状态只保存在对话记忆里。使用内置 Forge 更新技术状态；内容变更先更新语义源，再构建 `dist/`。生成物不是编辑入口。
+## Sources of Truth
 
-创建、续作或修改项目前，读取 [artifact-contracts.md](references/artifact-contracts.md)。内容语义、运行时实现、呈现设计和最终装配分层维护：前序阶段只产出稳定 ID 与需求，`integration` 才决定世界书激活参数、媒体实际来源、适配器和交付路径。
+Maintain two complementary sources of truth:
 
-## 阶段路线
+- `project.yaml` stores confirmed creative decisions, project planning, feature choices, and semantic locks.
+- `.rp-card-state.json` stores the current stage, lock records, cross-stage todos, source inventory, and validation evidence.
 
-预检完成后按默认路线推进：
+Do not rely on conversation memory for durable state. Use the bundled Forge to update technical state. Change semantic sources first and rebuild `dist/`; generated artifacts are never editing inputs.
+
+Before creating, resuming, or revising a project, read [artifact-contracts.md](references/artifact-contracts.md). Keep semantic content, runtime implementation, presentation design, and final host assembly separate. Earlier stages define content, stable IDs, runtime capability contracts, and presentation-delivery semantics. Only `integration` decides CharacterBook activation, insertion, depth, order, probability, scan depth, recursion, media materialization, collision-free output paths, and final host assembly; it materializes upstream adapter contracts instead of asking the user to choose them again.
+
+## RP Package Projection Contract
+
+Project the maintained RP package into SillyTavern with a CharacterBook-first design. Think in this direction only: project modules -> scheduling and runtime adapters -> portable card artifact. Never reverse that dependency by designing the project around the card schema. SillyTavern injects `data.description` as an always-present character-description block, but the host field name does not make a character the package owner. Treat it as a compact package-level entry contract rather than pretending it is a host-side dynamic router. A new card's visible card fields have deliberately narrow ownership:
+
+- `data.description`: the locked non-empty `positioning.card_entry`, describing the RP package's purpose, interaction entry, and module-routing intent without any character dossier.
+- `data.first_mes`: the selected default opening.
+- `data.alternate_greetings`: alternate openings in their locked order.
+- `data.name`: the sole character's display name only when the locked mode is exactly `single_character_card` and exactly one authored character exists; otherwise the project title for world, scenario, gameplay, ensemble, narrator, anchor-character, or any other project-shaped card.
+- ordinary card metadata: packaging identity only.
+
+For new cards, keep the advanced-definition fields empty by default: `data.personality`, `data.scenario`, `data.mes_example`, `data.creator_notes`, `data.system_prompt`, and `data.post_history_instructions`. Do not duplicate content into them for convenience. When revising an imported card, preserve unknown or user-authored legacy values unless the user explicitly authorizes migration; do not silently erase them. A locked project title and positioning stage transfer ownership of `data.name` and `data.description`, but do not authorize deletion of advanced-definition fields. Clear those fields only after their semantics have been migrated into maintained sources/CharacterBook and the locked `integration.advanced_definition_policy` is `clear_after_migration` or `migrate_to_characterbook`.
+
+Put every independently addressable content module into the bound CharacterBook whenever SillyTavern can consume it there. This includes every authored character, regardless of whether one is marked `primary_character`, plus world facts, named NPCs, systems, scenes, narrative rules, dialogue examples, MVU/EJS contracts, and status-bar reply-format contracts. A primary character is only a narrative anchor; it never owns `data.description` or determines the card name outside a true single-character project. Create one entry per named character by default. Split other material at the smallest boundary that produces a useful activation or insertion policy; do not create one giant catch-all entry or fragment material so finely that its dependencies become incoherent.
+
+Every generated or managed non-empty CharacterBook must become the card's main worldbook. With an explicit book name, require `data.extensions.world === data.character_book.name`; otherwise solidify SillyTavern's `<data.name>'s Lorebook` fallback name before binding. For non-single projects, `data.name` is the project title. If an imported card already binds a different main worldbook, block and resolve the conflict during integration rather than silently replacing it.
+
+Prefer Simplified Chinese for user-visible card text, CharacterBook titles and entry comments, regex names, script names, UI labels, and reports. Keep stable machine IDs, UUIDs, variable paths, schema keys, and internal references in English.
+
+## Stage Route
+
+After preflight, use this default route:
 
 ```text
-项目定位
--> 材料整理（可选）
--> 世界观
--> 角色
--> 系统（可选）
--> 场景（可选）
--> MVU/EJS（可选）
--> 叙事与开场
--> 状态栏/UI（可选）
--> 整合交付
+positioning
+-> materials (optional)
+-> worldbuilding
+-> character inventory and design
+-> systems (optional)
+-> scenes (optional)
+-> MVU/EJS (optional)
+-> narrative and openings
+-> status bar/UI (optional)
+-> integration and delivery
 ```
 
-用户可以跳过或调整阶段。切换前检查依赖并说明影响；普通模式等待用户选择，AI 只在获得覆盖该路线的明确授权后代为决定、报告理由并锁定。`MVU/EJS` 是可选阶段：前一阶段的收尾只决定“进入或跳过”，不提前询问 MVU、EJS 或组合等阶段内部问题。新建项目且没有既有实现时，跳过会保持两个 feature 为 `false`，在 `.rp-card-state.json` 写入 `stages.mvu_ejs.status: skipped` 和简短理由，不进入访谈、不生成禁用片段、依赖说明或阶段总汇，直接把 `narrative_opening` 作为下一阶段。续作、转换、修改或审查项目本轮跳过时要保留既有 feature、源码和依赖；若要修改、禁用或移除既有实现，必须进入该阶段完成迁移与验证，不能把“本轮跳过”当作关闭功能。
+The user may skip or reorder optional stages. The character stage remains a required inventory checkpoint, but it may lock zero authored characters for world, narrator, facilitator, or dynamic-character projects; in that case create no placeholder character source and complete the stage immediately. Check dependencies and explain the impact before switching. In normal mode, wait for the user's choice. When the user explicitly delegates a scope to AI, decide all remaining items in that scope, report what was decided and why, lock it immediately, and never ask about it again unless the user reopens it.
 
-开始阶段式对话前，读取：
+Initialize an RP project targeting character-card delivery with project/state/positioning sources only, plus the NSFW status-UI mix-in when that project switch is enabled. Do not create `src/characters/card.yaml` until the character inventory confirms an authored character. Unpacking a legacy card keeps its complete artifact at project scope in `src/import/original.json`; `data.name` and character-shaped host fields are not evidence that a fixed authored character exists. Create and register character sources only after the character checkpoint classifies actual people. Legacy projects that already contain a draft `role: pending` candidate remain readable, but must resolve or remove it before locking the stage.
 
-- [stage-engine.md](references/stage-engine.md)：轮次结构、完成门和阶段总汇；
-- [stage-boundaries.md](references/stage-boundaries.md)：问题归属、越界处理和回退；
-- [delegation-and-locking.md](references/delegation-and-locking.md)：用户选择、AI 放权和锁定规则。
+`MVU/EJS` is optional. At the preceding stage's close, ask only whether to enter or skip it, not its internal design questions. A new project that skips it keeps both features `false`, records `stages.mvu_ejs.status: skipped` with a short reason, creates no disabled placeholders or pseudo-implementation, and proceeds to `narrative_opening`. A resumed, converted, revised, or audited project that skips the stage for this run preserves existing features and artifacts; disabling or removing an existing implementation requires opening the stage and completing migration plus validation.
 
-## 阶段内循环
+Before stage-based conversation, read:
 
-每个阶段重复以下循环，直到完成门成立：
+- [stage-engine.md](references/stage-engine.md) for turn structure, completion gates, and summaries;
+- [stage-boundaries.md](references/stage-boundaries.md) for question ownership and rollback;
+- [delegation-and-locking.md](references/delegation-and-locking.md) for user choice, AI delegation, and locks.
 
-1. 汇总本阶段已经确认的信息。
-2. 一次提出多项本阶段问题，并为每项给出有实际差异的方向、影响和一个有理由的推荐。
-3. 等待用户选定或补充，不替普通未授权决定拍板。
-4. 用户回复后，先列出本轮新锁定内容，再给出可进入最终产物的片段。
-5. 报告本阶段剩余缺口，只继续询问属于本阶段的问题。
-6. 达到完成门后，给出完整阶段总汇、查缺补漏、风险、跨阶段待办和下一阶段方向。
-7. 等待用户确认本阶段完成并选择下一阶段。
+## Per-Stage Conversation Loop
 
-用户在同一条消息中回答多个问题时一次性吸收，不重复询问。用户主动提供其他阶段的信息时记录到跨阶段待办，不在当前阶段展开。
+Repeat this loop until the current stage's completion gate is satisfied:
 
-## AI 放权
+1. Summarize already confirmed information for this stage.
+2. Ask multiple questions belonging only to this stage. For each, provide materially different directions, consequences, and one reasoned recommendation.
+3. Wait for the user to select or supplement; do not lock undelegated choices by assumption.
+4. After the reply, list newly locked decisions and generate a fragment suitable for the maintained source files.
+5. Report remaining gaps and continue with questions from this stage only.
+6. At the completion gate, provide a complete stage summary, omission check, risks, cross-stage todos, and recommended next-stage directions.
+7. Wait for the user to confirm completion and choose the route unless delegation already covers it.
 
-用户明确说“你决定”“全部交给你”或同等表达时，授权范围内不再逐项询问：
+Absorb multiple answers from one message in one pass. If the user volunteers information owned by another stage, record it as a cross-stage todo without expanding it now.
 
-1. 直接完成剩余决定；
-2. 一次报告决定内容及理由；
-3. 立即写入锁定记录；
-4. 后续不再询问，也不把这些决定列为待确认项。
+## NSFW Switch
 
-只有用户后来主动修改，才重新打开对应决定。不要把模糊的“你看着办”扩大到未提及的阶段；按其上下文确定授权范围。
+Preflight must obtain an explicit `enabled` or `disabled` value unless one is already locked.
 
-## NSFW 开关
+- `disabled`: after recording the project switch, omit related questions, templates, runtime fields, and player artifacts entirely.
+- `enabled`: treat it as project-level delegation for that dimension, apply the relevant character and status-UI mix-ins automatically, and do not ask further preference or boundary questionnaires.
 
-预检时必须得到明确的 `enabled` 或 `disabled`，已提供则不重复问。
+Always respect non-overridable platform requirements. Do not add a separate restriction card or repeatedly remind the user about the switch.
 
-- `disabled`：除项目级开关记录外，后续创作问题、内容模板、运行字段和玩家制品中完全不出现相关内容。
-- `enabled`：后续不再询问额外偏好或边界；角色与状态栏阶段自动加载相应结构，不创建独立阶段。
+## Load References on Demand
 
-无论开关如何，都遵守当前平台不可取消的安全要求。不要额外创建限制卡或反复提醒。
+Read only the current stage file:
 
-## 按需加载阶段资料
-
-一次只读取当前阶段的文件：
-
-| 当前阶段 | 必读资料 |
+| Current stage | Required reference |
 | --- | --- |
-| 项目定位 | [positioning.md](references/stages/positioning.md) |
-| 材料整理 | [materials.md](references/stages/materials.md) |
-| 世界观 | [worldbuilding.md](references/stages/worldbuilding.md) |
-| 角色 | [character.md](references/stages/character.md) |
-| 系统 | [systems.md](references/stages/systems.md) |
-| 场景 | [scenes.md](references/stages/scenes.md) |
-| MVU/EJS（可选） | [mvu-ejs.md](references/stages/mvu-ejs.md) |
-| 叙事与开场 | [narrative-opening.md](references/stages/narrative-opening.md) |
-| 状态栏/UI | [status-ui.md](references/stages/status-ui.md) |
-| 整合交付 | [integration.md](references/stages/integration.md) |
+| Positioning | [positioning.md](references/stages/positioning.md) |
+| Materials | [materials.md](references/stages/materials.md) |
+| Worldbuilding | [worldbuilding.md](references/stages/worldbuilding.md) |
+| Character | [character.md](references/stages/character.md) |
+| Systems | [systems.md](references/stages/systems.md) |
+| Scenes | [scenes.md](references/stages/scenes.md) |
+| MVU/EJS (optional) | [mvu-ejs.md](references/stages/mvu-ejs.md) |
+| Narrative and openings | [narrative-opening.md](references/stages/narrative-opening.md) |
+| Status bar/UI | [status-ui.md](references/stages/status-ui.md) |
+| Integration and delivery | [integration.md](references/stages/integration.md) |
 
-不要为了“全面”提前读取后续阶段。需要落盘、构建或交付时再读取 [artifact-contracts.md](references/artifact-contracts.md)；进入质量门时读取 [validation.md](references/validation.md)。
+Do not read later-stage files merely to appear comprehensive. Read [artifact-contracts.md](references/artifact-contracts.md) when writing, building, or delivering artifacts, and [validation.md](references/validation.md) when entering a quality gate.
 
-任何标为“可合并”“完整合并稿”或准备写入 `src/` 的 YAML/JSON 片段，都属于真实产物而不是示意伪代码。首次生成当前阶段的结构化片段前，读取该阶段资料指定的 `assets/templates/` 模板与 `assets/schemas/` Schema，沿用准确字段名、层级和枚举；生成后先做 Schema 校验。未通过时修正片段，不要把语义正确但结构无效的内容交给用户，也不要声称可由 Forge 直接合并。
+Any fragment described as merge-ready or intended for `src/` is a real artifact, not illustrative pseudocode. Before generating the first structured fragment for a stage, read the templates and schemas named by that stage reference. Use their exact keys, nesting, and enums, then validate the fragment before presenting it. If it fails, repair it first; do not claim Forge can merge a structurally invalid fragment.
 
-## 内置 Forge
+## Bundled Forge
 
-使用 `node scripts/rp-card-forge.bundle.mjs --help` 查看命令。该 bundle 随技能交付，由仓库内的 `scripts/rp-card-forge.mjs`、`scripts/forge/` 与固定构建脚本生成；它不调用外部制卡工具，也不要求运行时另行安装依赖。维护者只修改源码，不直接编辑 bundle。
-
-主要命令：
+Run `node scripts/rp-card-forge.bundle.mjs --help` for command details. The bundle ships with the skill and does not call external card-making tools or require runtime dependency installation. Maintainers edit `scripts/rp-card-forge.mjs`, `scripts/forge/`, and `scripts/rp-card-runtime.mjs`, then rebuild the bundle; never edit the generated bundle directly.
 
 ```text
-init       创建项目结构
-inspect    识别材料和制品
-unpack     将 JSON/PNG/世界书拆为维护源码
-validate   检查结构、引用和生命周期
-build      从源码构建 JSON 制品
-pack       把角色卡数据写入 PNG
-diff       比较语义差异
-roundtrip  验证拆包与重建一致性
-state      查询、锁定和切换阶段
-doctor     检查运行环境与项目健康
+init       create a project structure
+inspect    identify materials and artifacts
+unpack     decompose JSON, PNG, or worldbooks into maintained sources
+validate   check structure, references, lifecycle, and projection contracts
+build      build JSON artifacts from sources
+pack       embed character-card data into a PNG
+diff       compare semantic differences
+roundtrip  verify unpack/rebuild consistency
+state      inspect, lock, and transition stage state
+doctor     check environment and project health
 ```
 
-写入前优先使用 `--dry-run`。不覆盖输入原件；没有用户明确提供 `--force` 时拒绝覆盖。命令失败时报告真实错误，不用手工修补 `dist/` 伪造成功。
+Prefer `--dry-run` before writes. Never overwrite the input artifact. Without explicit `--force`, refuse to overwrite an existing output. If a command fails, report the real error; do not hand-edit `dist/` to simulate success.
 
-## 稳定规则
+## Stable Rules
 
-- 只问会改变当前阶段结果的问题；已知信息不重复问。
-- 机器 ID、变量路径和引用使用稳定英文；显示名和创作正文使用简体中文。
-- 每个运行时状态字段都要有类型、默认值、写入者、读取者、展示者和边界行为；仅用于语义判定、由模型尽力维护的字段只要求稳定 ID、含义和行为后果，不假装具备确定性持久化。
-- 同一开场的事实、初始状态、钩子和玩家交接点只定义一次；`prose`、`chat`、`galgame` 等呈现变体不得改写这些共享语义，增强呈现必须有纯文本回退。
-- 世界书激活、插入、概率、媒体文件、预加载和适配器属于整合装配，不得提前混入世界观、场景或叙事阶段的问题。
-- Forge 生成或管理的非空内嵌 CharacterBook 必须在最终装配中成为角色主世界书；有显式书名时满足 `data.extensions.world === data.character_book.name`，无名书则先固化为 SillyTavern 的 `<角色名>'s Lorebook` 回退名再绑定。这是 MVU 发现 `[initvar]` 等条目的必要条件。修改旧卡时若已有另一个主世界书，停止构建并要求在整合阶段明确选择，不能静默覆盖原绑定。
-- 多轴系统把阈值、计算、上限和示例绑定到具体 `axis_id`。
-- 玩家可见信息与 GM 秘密分层，秘密不得泄漏到玩家制品。
-- 修改旧卡时保留未知字段和原始输入；先解包到工作区，再改源码。
-- 版本敏感行为以用户实际工作区和运行环境为准，不猜测 API 或扩展能力。
-- 状态栏只交付到 AI 聊天消息。纯文字或简单静态 HTML 可由 SillyTavern 角色正则直接替换消息末尾占位符，但这条路径不保证重载后的逐楼历史快照；复杂、动态或要求逐楼快照的状态栏必须由角色正则生成自包含 fenced HTML，再由 Tavern Helper 在该消息中创建 iframe。消息 iframe 只接受 `getCurrentMessageId()` 返回的整数，并始终用 `getVariables({ type: "message", message_id })` 复查自身楼层；首个合法对象可能仍是继承的旧快照，不能据此停止。初次获取后转为低频同步，仅在可见值变化时重绘，并在 `pagehide`/`unload` 清理；取不到整数就报告失败，任何时候都不回退 `latest`。任何路径都不得访问父页面、创建常驻面板或加载远程 UI。
-- 当前 Forge 的 MVU 更新链只实现 `same_generation`：叙事回复在同一次生成中给出更新块，由宿主解析并提交。`extra_pass` 或 `both` 只有在项目实际交付并验证了独立请求、路由、解析、校验、提交与失败处理全链路时才允许；缺少任一环节即阻断，不能因存在一个解析/提交辅助函数而声称已经实现。
-- 启用 MVU 时，角色卡必须包含两条严格匹配完整 `<initvar>...</initvar>` 的隐藏正则，分别从送模副本和玩家显示副本移除初始化块，同时保留原始消息供 MVU 初始化；还必须包含不回送变量更新块的 Prompt-only 正则。启用状态栏时，默认与备选开场、后续回复合同和消息内状态栏正则必须同时闭合。
-- 离线通过不代表真实 SillyTavern 已验收；分开报告静态、制品和运行时证据。
+- Ask only questions that can change the current stage's result; never repeat known information.
+- During positioning, lock the project title as `positioning.project_title`, synchronize the same value into `project.project.display_name`, choose one schema-enumerated card mode, and write a non-empty, non-whitespace, actor-free `card_entry`. Only `single_character_card` with exactly one authored character uses that character's name at build time; every other mode uses the project title. A non-single project title must express the package's world, gameplay, theme, or experience rather than defaulting to one character or one location name.
+- During the character stage, identify zero or one primary narrative anchor as required by the locked card mode and classify every authored character as an independent CharacterBook content module. Do not ask CharacterBook activation or insertion questions there.
+- Treat procedurally created inhabitants as project behavior, not authored character files: worldbuilding owns their population archetypes and shared constraints, systems owns identity generation and continuity when needed, and narrative owns their portrayal contract. Register a character source only for a pre-authored individual that needs stable independent scheduling.
+- During narrative/opening, write opening text and narrative semantics only. Do not place narrative contracts or dialogue examples into advanced card fields.
+- During integration, ensure every authored character and every other eligible module is represented by an enabled CharacterBook entry. Design each entry's activation mode and keys, insertion position and depth, order, probability, scan depth, and recursion behavior from that module's actual runtime need, not from a character hierarchy. A true single-character card keeps its sole character definition reliably available; an anchor character in a larger project may be constant or routed by topic/scene. Explain each choice and whether the entry may trigger or be triggered recursively.
+- Preserve module identity when integration splits a registered source with selectors. Each selected fragment must carry an identity envelope with module type, stable source ID/display name when available, the Chinese entry name, and selector; do not create disconnected `/id` or `/display_name` entries merely to satisfy coverage.
+- Store scene media needs in the typed top-level `media_slots` contract and preserve every text fallback in the model projection. Read legacy `extensions.media_slots` only for migration; never discard it or expose the entire opaque extensions bag to the model.
+- Use stable English for machine IDs, variable paths, and references; use Simplified Chinese for visible names and creative prose.
+- Give every runtime field a type, default, writer, readers, renderer, and boundary behavior. Model-maintained semantic fields that do not claim deterministic persistence need only a stable ID, meaning, and behavioral consequences.
+- Define one opening's facts, initial state, hook, and player handoff once. Presentation variants such as `prose`, `chat`, and `galgame` may change expression but not those shared semantics; enhanced variants require a plain-text fallback.
+- Keep player-visible and GM-only information separate; never leak secrets into player artifacts.
+- Preserve unknown fields and original inputs when revising imported cards. Unpack first, then edit maintained sources.
+- Treat version-sensitive behavior as evidence-driven. Inspect the user's actual workspace and runtime; never guess an API or extension capability.
+- Deliver status bars only inside AI chat messages. Default to a SillyTavern character regex for read-only, on-message plain text or simple static HTML with no commands or tabs. Treat a self-contained fenced-HTML Tavern Helper message iframe only as an opt-in advanced `host_required` candidate: it is not reliable until the target host proves that the iframe document navigates, its script executes, and every claimed behavior passes runtime acceptance. Never access the parent page, create a persistent panel, load remote UI, or ask to modify SillyTavern itself to accommodate a card.
+- The status-bar reply-format contract belongs in CharacterBook. When MVU is enabled, fold it into the MVU reply-format entry; otherwise create a dedicated Chinese-named constant entry. Never write that contract into `post_history_instructions` for a new card.
+- When MVU is enabled, include two strict regexes that hide complete `<initvar>...</initvar>` blocks from prompt and display copies while preserving the raw message, plus a prompt-only update-block filter. Close the default opening, alternate openings, later reply contract, and message status regex as one system.
+- Before diagnosing missing MVU initialization as a card-script defect, inspect the target host at `酒馆助手 -> 渲染 -> 启用 Blob URL 渲染` and require it to be `关闭` for cards that embed the MVU role script. On the verified SillyTavern 1.18.0 + Tavern Helper 4.9.1 host, enabling that renderer transport prevented the embedded MVU script from starting even though the card, CharacterBook, and `[initvar]` entry were correct. After changing the setting, refresh or reload SillyTavern before testing MVU initialization. Treat this as a user-level host compatibility precondition; never patch SillyTavern or Tavern Helper source code.
+- Offline success is not SillyTavern runtime acceptance. Report offline, artifact, and runtime evidence separately.
 
-## 交付门
+## Delivery Gate
 
-整合交付前运行 Forge 的 `validate` 和 `roundtrip`，并按 [validation.md](references/validation.md) 区分阻断错误与警告。只有维护源码、生成制品、状态记录和验证报告一致时，才称为完成。
+Before final delivery, run Forge `validate` and `roundtrip`, then apply [validation.md](references/validation.md). Claim completion only when maintained sources, generated artifacts, state records, and evidence agree.
 
-最终交付应列出：
+The final handoff must list:
 
-1. 已完成和跳过的阶段；
-2. 锁定决定及 AI 授权决定的记录位置；
-3. 源文件与生成物；
-4. `assembly.yaml`、媒体清单和适用的 `runtime-state.schema.json`；
-5. 静态、制品和真实运行时证据；
-6. 尚需用户在 SillyTavern 中确认的事项。
+1. completed and skipped stages;
+2. locations of user-locked and AI-delegated decisions;
+3. maintained sources and generated artifacts;
+4. `assembly.yaml`, media inventory, and applicable `runtime-state.schema.json`;
+5. offline, artifact, and real runtime evidence separately;
+6. remaining actions the user must confirm in SillyTavern.

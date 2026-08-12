@@ -16,7 +16,6 @@ import {
   applyNsfwTemplates,
   assertDecisionId,
   assertValidSource,
-  characterSourceFromCard,
   collectPreserved,
   compareLockValue,
   decisionLock,
@@ -65,7 +64,7 @@ export var HELP_TEXT = `rp-card-forge - 离线、事务式 SillyTavern 制卡工
   pack <project-dir>                 构建 JSON，或写入 PNG chara/ccv3 双块
   diff <left> <right>                比较语义 JSON
   roundtrip <input>                  验证 JSON/PNG 语义往返与 PNG 图像数据
-  state <project-dir> [action]       show/migrate/lock/unlock/stage
+  state <project-dir> [action]       show/migrate/operation/lock/unlock/stage
   doctor [project-dir]               检查 Node、依赖与项目健康
 
 通用选项:
@@ -182,7 +181,9 @@ async function commandUnpack(args, options) {
   const sourcePath = projectSourcePath(project);
   const preservedPath = "src/import/preserved.json";
   const originalJsonPath = "src/import/original.json";
-  const semanticSource = artifact.format === Format.WORLDBOOK ? worldSourceFromBook(artifact.payload) : characterSourceFromCard(artifact.payload);
+  // A character-card artifact is a project container, not proof that data.name
+  // identifies an authored character. Keep it at project scope until inventory.
+  const semanticSource = artifact.format === Format.WORLDBOOK ? worldSourceFromBook(artifact.payload) : null;
   const nsfwSources = await applyNsfwTemplates(project, semanticSource);
   addPreservedImport(project, preservedPath);
   addPreservedImport(project, originalJsonPath);
@@ -202,7 +203,7 @@ async function commandUnpack(args, options) {
     { relativePath: PROJECT_FILE, content: stringifyYaml(project) },
     { relativePath: STATE_FILE, content: prettyJson(state) },
     { relativePath: "src/positioning.yaml", content: stringifyYaml(defaultPositioning()) },
-    { relativePath: sourcePath, content: stringifyYaml(semanticSource) },
+    ...semanticSource ? [{ relativePath: sourcePath, content: stringifyYaml(semanticSource) }] : [],
     ...nsfwSources.uiSource ? [{ relativePath: "src/ui/status-ui.yaml", content: stringifyYaml(nsfwSources.uiSource) }] : [],
     { relativePath: originalJsonPath, content: prettyJson(artifact.payload) },
     { relativePath: preservedPath, content: prettyJson(preserved) }
@@ -212,11 +213,9 @@ async function commandUnpack(args, options) {
   }
   const candidateValidation = validateProjectModel(project, state, outputRoot);
   candidateValidation.issues.push(...validateNamedSchema("positioning", defaultPositioning(), "/src/positioning.yaml"));
-  candidateValidation.issues.push(...validateNamedSchema(
-    artifact.format === Format.WORLDBOOK ? "world" : "character",
-    semanticSource,
-    `/${sourcePath}`
-  ));
+  if (semanticSource) {
+    candidateValidation.issues.push(...validateNamedSchema("world", semanticSource, `/${sourcePath}`));
+  }
   if (nsfwSources.uiSource) {
     candidateValidation.issues.push(...validateNamedSchema("status-ui", nsfwSources.uiSource, "/src/ui/status-ui.yaml"));
   }
@@ -643,11 +642,30 @@ async function commandState(args, options) {
     const nextProject = structuredClone(loaded.project);
     const nextState = structuredClone(loaded.state);
     let projectChanged = false;
-    if (action === "lock") {
+    if (action === "operation") {
+      exactArgs("state operation", args, 3);
+      const operation = args[2];
+      const resumableOperations = ["continue", "edit", "audit", "ui"];
+      if (!resumableOperations.includes(operation)) {
+        throw inputError(`state operation 仅支持已有项目的 ${resumableOperations.join("、")}，create 由 init 写入，convert 由 unpack 写入`);
+      }
+      if (nextProject.project.operation === operation) {
+        return successReport("state", { action, operation, unchanged: true });
+      }
+      nextProject.project.operation = operation;
+      projectChanged = true;
+    } else if (action === "lock") {
       exactArgs("state lock", args, 4, 4);
       const [, , id, rawValue] = args;
       assertDecisionId(id);
-      const value = parseCliValue(rawValue);
+      let value = parseCliValue(rawValue);
+      if (id === "positioning.project_title") {
+        if (typeof value !== "string" || value.trim() === "") {
+          throw inputError("positioning.project_title 必须是非空项目标题");
+        }
+        value = value.trim();
+        nextProject.project.display_name = value;
+      }
       const source = options.source ?? "user";
       if (!["user", "delegated"].includes(source)) throw inputError(`state lock --source 仅支持 user 或 delegated，收到: ${source}`);
       if (source === "delegated" && (!options.rationale || options.rationale.trim() === "")) {
@@ -759,6 +777,7 @@ async function commandState(args, options) {
     const commit = await (projectChanged ? updateProjectAndState : updateManagedState)(loaded, ...projectChanged ? [nextProject, nextState, { dryRun: Boolean(options["dry-run"]) }] : [nextState, { dryRun: Boolean(options["dry-run"]) }]);
     return successReport("state", {
       action,
+      operation: nextProject.project.operation,
       revision: nextState.revision,
       activeStage: nextState.active_stage,
       stageStatus: nextState.stages[nextState.active_stage].status,

@@ -427,8 +427,12 @@ test('MVU artifacts emit native initvar, update-rule, and output-format Characte
   const entries = result.payload.data.character_book.entries;
   assert.ok(entries.every(entry => Number.isInteger(entry.id) && entry.id >= 0), 'MVU CharacterBook ids must be non-negative integers');
   assert.ok(entries.every(entry => entry.extensions?.rp_card_studio?.generated === true), 'MVU entries must be marked as generated');
-  const initvar = entries.find(entry => /\[initvar\]/i.test(entry.comment));
-  assert.ok(initvar, `missing [initvar] entry: ${JSON.stringify(entries)}`);
+  const bySourceKey = sourceKey => entries.find(entry => (
+    entry.extensions?.rp_card_studio?.source_key === sourceKey
+  ));
+  const initvar = bySourceKey('mvu:initvar');
+  assert.ok(initvar, `missing mvu:initvar entry: ${JSON.stringify(entries)}`);
+  assert.equal(initvar.comment, '初始化变量（保持禁用）[initvar]');
   assert.equal(initvar.enabled, false);
   assert.equal(initvar.constant, true);
   assert.deepEqual(initvar.keys, []);
@@ -437,18 +441,19 @@ test('MVU artifacts emit native initvar, update-rule, and output-format Characte
   assert.match(initvar.content, /["']?trust["']?\s*:\s*10/);
   assert.match(initvar.content, /["']?mood["']?\s*:\s*["']?calm["']?/);
 
-  const updateEntries = entries.filter(entry => /\[mvu_update\]/i.test(entry.comment));
-  assert.equal(updateEntries.length, 2, `expected update rules and output format: ${JSON.stringify(entries)}`);
+  const updateEntries = [bySourceKey('mvu:update_rules'), bySourceKey('mvu:update_format')];
+  assert.ok(updateEntries.every(Boolean), `expected update rules and output format: ${JSON.stringify(entries)}`);
+  assert.deepEqual(updateEntries.map(entry => entry.comment), ['变量更新规则', '回复输出格式']);
   assert.ok(updateEntries.every(entry => entry.enabled === true));
   assert.ok(updateEntries.every(entry => entry.constant === true));
   assert.ok(updateEntries.every(entry => Array.isArray(entry.keys) && entry.keys.length === 0));
 
   const rules = updateEntries.find(entry => !entry.content.includes('<UpdateVariable>'));
   const output = updateEntries.find(entry => entry.content.includes('<UpdateVariable>'));
-  assert.ok(rules, 'missing [mvu_update] variable rules entry');
+  assert.ok(rules, 'missing mvu:update_rules entry');
   assert.match(rules.content, /relationship\.trust|relationship:\s*[\s\S]*trust/);
   assert.match(rules.content, /witnessed action changes trust/i);
-  assert.ok(output, 'missing [mvu_update] output format entry');
+  assert.ok(output, 'missing mvu:update_format entry');
   assert.match(output.content, /<UpdateVariable>/);
   assert.match(output.content, /<Analysis>/);
   assert.match(output.content, /<JSONPatch>/);

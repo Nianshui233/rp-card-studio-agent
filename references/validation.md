@@ -30,6 +30,18 @@
 - 稳定 ID 重复、引用目标不存在、引用类型不匹配。（对应内容阶段）
 - 已锁定决定互相矛盾，或源文件与 `project.yaml` 冲突。（所有阶段）
 - 玩家可见投影包含 `gm_only` 或 `model_only` 内容。（内容、UI、整合）
+- 新卡的 `positioning.card_entry` 为空、空白或仍是占位符，`data.description` 不是该已锁定成稿，或入口混入任一角色档案及其他应独立调度的模块正文。（项目定位、整合）
+- 卡名与 RP 包承载类型不一致：定位为 `single_character_card` 且确实只有一个角色源码的真正单人卡没有使用唯一角色名；或世界/场景/玩法/群像/叙事者/锚点角色/多角色项目没有使用已锁定项目标题，而被误命名为某个角色或单一地点。（项目定位、整合）
+- 新卡的 `data.personality`、`data.scenario`、`data.mes_example`、`data.creator_notes`、`data.system_prompt` 或 `data.post_history_instructions` 非空；导入旧卡的既有值不适用本条，但必须按保留/迁移策略处理。（角色、叙事与开场、整合）
+- 默认或备选开场没有一一映射到 `data.first_mes` / `data.alternate_greetings`，顺序错误，或开场正文又被重复装入世界书。（叙事与开场、整合）
+- `project.yaml.source_manifest` 中除 `positioning.card_entry` 和 openings 外的可装配源码没有被启用的 CharacterBook 条目完整覆盖，包括任一角色（含 `primary_character`）、world、system、scene、叙事规则、对白示例、MVU/EJS 合同或状态栏回复合同；具名角色被无理由混为一条。（整合）
+- 注册源码的 selector 分片在制品中丢失模块类型、稳定 ID/显示名、中文条目名或 selector 身份包络，导致分片无法归属到原 RP 模块。（整合）
+- 场景的媒体叙事槽位仍只存在于不透明 `extensions`、未进入场景模型投影，或丢失无媒体时的 `text_fallback`；`scene:{id}` 资产 consumer 指向未声明的 slot，或 `required: true` 槽位没有装配资产。（场景、整合）
+- 以角色卡制品为部署目标的 RP 项目在角色盘点前根据交付格式或 `data.name` 虚构人物源码；或旧项目中的解包候选在 `status: locked` 时仍保留 `role: pending`。（角色）
+- 定位完成后 `positioning.project_title` 缺失、仍为占位标题，或与 `project.project.display_name` 不一致。（定位）
+- 动态人物被伪造成固定角色清单，或缺少分别归属世界观、系统和叙事阶段的居民约束、连续性规则与表现合同。（世界观/系统/叙事）
+- 状态栏回复合同仍写入新卡高级定义字段，而不是 MVU 回复格式条目或专用中文常驻 CharacterBook 条目。（状态栏/UI、整合）
+- 世界书条目缺少任一显式宿主调度决定：中文显示名、激活模式与适用关键词、插入位置与显式深度、顺序、概率、条目级扫描深度、递归三项或失败策略；或存在常驻条目混用关键词、关键词条目无主关键词、selective/二级关键词矛盾、`at_depth` 无整数深度、名称/顺序重复、递归延迟与禁止入站同时启用等策略矛盾。（整合）
 - 已启用或保留的运行时变量缺少默认值、唯一 writer、合法 reader，或类型与更新操作不符。（MVU/EJS 或等价状态源）
 - 项目声称确定性状态持久化，但多轴系统没有绑定 MVU 或等价状态源中的具体路径与生命周期。（系统、运行时实现）
 - 开场文字与其初始化状态冲突。（叙事与开场）
@@ -38,13 +50,13 @@
 - 状态栏字段无来源、类型不兼容或暴露非玩家字段。（状态栏/UI）
 - 状态栏启用但 delivery 不是 `surface: message`，角色正则/占位符/助手输出合同缺失，或 adapter ID、entrypoint、artifact、正则 UUID 与其他运行时交付发生碰撞。（状态栏/UI、整合）
 - `embedded + sillytavern_regex` 未固定为 `refresh: on_message`、`read_only: true`、`commands: []`，使用 tabs，或把条件缺失值、动态状态切换、命令、可靠逐楼层快照声明为已实现。（状态栏/UI、整合）
-- 项目需要动态刷新、命令、tabs、条件缺失值、运行时状态切换或可靠逐楼层快照，却没有使用 `adapter: tavern_helper_message`、`level: host_required` 和消息自身的 iframe 上下文。（状态栏/UI、整合）
+- 项目声称动态刷新、命令、tabs、条件缺失值、运行时状态切换或可靠逐楼层快照已经可用，却没有显式选择 `adapter: tavern_helper_message`、`level: host_required`，也没有消息自身 iframe 的真实宿主运行证据；仅选择适配器或生成 fenced HTML 不能解除此 blocker。（状态栏/UI、整合）
 - `tavern_helper_message` 状态栏不是自包含 fenced HTML，未严格校验整数 `getCurrentMessageId()`，未按该 ID 低频复查 `getVariables({ type: "message", message_id })`，在首个合法旧快照后过早停止，未在卸载时清理，存在 latest 回退、父页面访问或远程 UI 加载。（状态栏/UI、整合）
 - MVU 声明 `extra_pass` 或 `both`，但没有可执行且已验证的独立请求触发、路由、响应解析、协议校验、原子提交和失败回退全链路。（MVU/EJS、整合）
 - 运行时状态 Schema 与 storage、protocol、初始化 profiles、opening bindings 或字段账本不一致。（MVU/EJS、整合）
 - `assembly.yaml` 未登记、世界书/媒体 consumer 引用悬空、媒体回退成环，或关键远程媒体没有可用回退。（整合）
 - 独立世界书使用数组或非规范 UID 对象键，键与 `uid` 不一致，或把裸 CharacterBook 当作独立世界书导入。（整合）
-- Forge 管理的角色制品含有非空内嵌 CharacterBook，但没有按显式名称或 SillyTavern 回退名建立 `data.extensions.world` 绑定；或导入旧卡已有不同主世界书却未显式解决冲突。（整合）
+- Forge 管理的角色卡投影制品含有非空内嵌 CharacterBook，但没有按显式名称或 SillyTavern 回退名建立 `data.extensions.world` 绑定；或导入旧卡已有不同主世界书却未显式解决冲突。（整合）
 - 世界书使用宿主不执行的书级扫描/预算/递归值、非 `shared/model` 路由、`include` 回退，或把角色过滤写入内嵌 CharacterBook。（整合）
 - 运行时代码通过未登记远程脚本加载；远程媒体不在此禁令内，但必须登记到 `media_manifest` 并提供回退。（整合）
 - NSFW 未启用但产物仍含相关专用字段、分组、条件或模板占位。（所有投影）
@@ -105,11 +117,11 @@
 - 默认与覆盖初始化、变量更新、保存后重载和旧聊天迁移。
 - EJS 条目显隐、分支、回退及 plot/update 路由。
 - 角色正则授权后，状态栏在默认/备选开场及后续 AI 消息内部加载。变量取值另行记录：默认宏方案允许宿主回退到最近一条带变量的消息，不得据此宣称历史楼层快照隔离。
-- 启用 MVU 的角色制品在新建聊天的开场楼层立即产生预期 `stat_data`；若消息 iframe 已加载但变量为空，先核对角色主世界书绑定与 Tavern Helper 角色脚本启用状态，不能把空变量误判为状态栏渲染故障。
+- 启用 MVU 的角色卡投影制品在新建聊天的开场楼层立即产生预期 `stat_data`；若消息 iframe 已加载但变量为空，先核对角色主世界书绑定与 Tavern Helper 角色脚本启用状态，不能把空变量误判为状态栏渲染故障。
 - 纯 Regex 项目只验证消息内投影、静态布局、原生折叠、ARIA 标记和宿主原值显示；`missing_value`、`states.*`、命令、tabs、动态刷新与逐楼层快照不得顺带标记为通过。
 - Tavern Helper 消息级项目按实际实现验证完整/流式、缺失、加载、错误、依赖不可用、消息编辑/重新生成、加载历史和切换聊天；只有 iframe 脚本实际执行、`getCurrentMessageId()` 返回自身整数 ID，并由 `getVariables({ type: "message", message_id })` 反复读出该楼变量时才记录逐楼层快照通过。必须制造首读合法旧值、随后同楼提交新值的时序，确认新值出现且未读取 latest；读取失败不得以 latest 数据冒充成功。
 - 控制台错误、网络失败与宿主依赖状态。
-- iframe 元素或 Blob 内容存在不等于子文档已运行。若子 frame 没有导航、运行哨兵未出现或脚本未执行，记录 `runtime: not_run`；Blob URL 在当前内置浏览器中不发生导航时把原因记为 `host_incompatible`，而不是卡片通过或失败。
+- iframe 元素或 Blob 内容存在不等于子文档已运行。若子 frame 没有导航、运行哨兵未出现或脚本未执行，记录 `runtime: not_run`。对随卡嵌入 Tavern Helper MVU 角色脚本的项目，若 `酒馆助手 -> 渲染 -> 启用 Blob URL 渲染` 仍开启，记录宿主 blocker `tavern_helper_blob_url_rendering`；关闭并刷新 SillyTavern 后才重新验收，不能把该环境阻断误报为卡片结构失败。
 
 浏览器外静态 HTML、截图、Schema 校验或模拟对象不能标记为 `runtime: pass`。
 
@@ -149,7 +161,7 @@
 - 状态栏只有两种消息内投影：默认由 `placement: [2]`、`markdownOnly: true`、`promptOnly: false` 的角色正则替换唯一占位符；复杂交互由同类正则生成自包含 fenced HTML，再由 Tavern Helper 创建消息 iframe。源码和制品中出现 `globalThis.parent`、`parent.document`、`#sheld` 或 `#form_sheld` 状态栏挂载，或消息 UI 加载远程页面/脚本，即为 blocker。
 - `embedded + sillytavern_regex` 只接受 `refresh: on_message`、`read_only: true`、空命令和非 tabs 响应式布局。任一动态刷新模式、非只读、命令或 tabs 都必须映射到 `tavern_helper_message + host_required`。
 - 纯 Regex 的 `field.missing_value` 与 `states.loading/empty/error/degraded` 只是设计元数据；离线或制品检查只能确认文案存在，不能确认条件判断、最近合法值保留或视图切换。`percent` 也只允许对必有且已归一为 0..100 的上游值追加字面 `%`。
-- 默认角色正则中的 `get_message_variable`/`format_message_variable` 宏只证明变量能被宿主解析，不证明它绑定当前 DOM 楼层。当前验证的 Tavern Helper 4.9.1 在普通消息重绘时未向宏传 `message_id`，会回退到最近一条带变量的消息。只有消息级 iframe 的脚本实际执行、取得自身整数 `getCurrentMessageId()`、低频使用 `getVariables({ type: "message", message_id })` 复查变量，并通过“合法旧快照后出现本楼新值”、历史重载和卸载清理测试时，才允许报告“逐楼层快照：通过”；严禁 latest 回退。
+- 默认角色正则使用 Tavern Helper macro-like 层提供的 `format_message_variable`；宏被宿主解析只证明当前可用值能够显示，不证明它绑定当前 DOM 楼层。当前验证的 Tavern Helper 4.9.1 在普通消息重绘时未向宏传 `message_id`，会回退到最近一条带变量的消息。只有消息级 iframe 的文档真实导航、脚本实际执行、取得自身整数 `getCurrentMessageId()`、低频使用 `getVariables({ type: "message", message_id })` 复查变量，并通过“合法旧快照后出现本楼新值”、历史重载和卸载清理测试时，才允许报告“逐楼层快照：通过”；严禁 latest 回退。
 - 启用 MVU 时必须存在两条完整 `<initvar>...</initvar>` 隐藏规则，分别作用于 Prompt 副本和 Markdown 显示副本，原始消息保持不变；未闭合初始化块不能被吞掉。还必须存在 Prompt-only 更新块过滤规则，并覆盖完整块、大小写变体和流式未闭合块；显示折叠规则不得吞掉多个更新块之间的正文或末尾状态栏占位符。
 - 当前更新模式只接受 `same_generation`，并验证叙事、更新块与状态栏占位符来自同一次助手生成。`extra_pass`/`both` 只有在独立请求全链路与宿主证据齐全时才允许；解析或提交辅助入口、接收者清单或手工调用记录都不能单独证明该能力。
 - 清理和迁移规则覆盖改名、类型变化和旧存档缺失。
@@ -185,7 +197,7 @@
 - 未提供显式覆盖参数时拒绝覆盖已有产物。
 - 中途失败不提交候选目录，也不留下半成品状态。
 - JSON、PNG 和世界书中的共享语义相同。
-- Forge 管理的角色制品内嵌 CharacterBook 含有条目时，JSON、PNG 负载和 roundtrip 候选中的 `data.extensions.world` 均严格等于固化后的非空 `data.character_book.name`；真实宿主中的同名书还包含本次构建的受管条目。
+- Forge 管理的角色卡投影制品内嵌 CharacterBook 含有条目时，JSON、PNG 负载和 roundtrip 候选中的 `data.extensions.world` 均严格等于固化后的非空 `data.character_book.name`；真实宿主中的同名书还包含本次构建的受管条目。
 - `assembly.yaml` 与生成世界书、媒体清单和 adapter 文件语义一致；`source_manifest.assembly` 指向实际装配源。
 - 独立世界书的对象键、数字 `uid` 和条目身份一致；条目级 `scan_depth` 在独立世界书映射为 `scanDepth`，在内嵌 CharacterBook 映射为 `extensions.scan_depth`，并保持 `0`、`null` 和 `1000` 的含义。
 - 独立世界书角色过滤的 `avatar_stems` 不带扩展名且大小写准确；`tag_ids` 有目标实例证据，不使用显示标签名。内嵌 CharacterBook 不携带该过滤器。

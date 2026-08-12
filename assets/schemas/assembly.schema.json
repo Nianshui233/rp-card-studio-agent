@@ -86,7 +86,7 @@
     "worldbookEntry": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "source", "enabled", "activation", "insertion", "probability", "recursion", "recipient", "visibility", "fallback"],
+      "required": ["id", "display_name", "source", "enabled", "activation", "insertion", "probability", "scan_depth", "recursion", "recipient", "visibility", "fallback"],
       "properties": {
         "id": { "$ref": "#/$defs/id" },
         "display_name": { "type": "string", "minLength": 1 },
@@ -95,7 +95,7 @@
         "activation": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["mode", "primary_keys", "secondary_keys", "selective"],
+          "required": ["mode", "primary_keys", "secondary_keys", "selective", "logic", "case_sensitive", "match_whole_words"],
           "properties": {
             "mode": { "enum": ["constant", "keywords"] },
             "primary_keys": { "$ref": "#/$defs/stringList" },
@@ -109,7 +109,7 @@
         "insertion": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["position", "order"],
+          "required": ["position", "order", "depth", "role"],
           "properties": {
             "position": { "enum": ["before_char", "after_char", "before_example", "after_example", "at_depth"] },
             "order": { "type": "integer" },
@@ -126,11 +126,17 @@
           "properties": {
             "prevent_incoming": { "type": "boolean" },
             "prevent_outgoing": { "type": "boolean" },
-            "delay_until_recursion": { "type": "boolean" }
+            "delay_until_recursion": {
+              "oneOf": [
+                { "type": "boolean" },
+                { "type": "integer", "minimum": 1, "maximum": 10000 }
+              ]
+            }
           }
         },
         "recipient": { "const": "shared" },
         "visibility": { "const": "model" },
+        "ignore_budget": { "type": "boolean" },
         "token_budget": { "type": "null" },
         "fallback": { "enum": ["skip", "block"] },
         "character_filter": {

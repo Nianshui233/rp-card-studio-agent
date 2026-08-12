@@ -50,6 +50,63 @@ function updateProject(root, { features = {}, sources = {} }) {
   writeFileSync(projectPath, project, 'utf8');
 }
 
+const testCharacterPath = 'src/characters/card.yaml';
+const testCharacterId = 'pipeline_anchor';
+const testCharacterSource = `
+schema_version: 1.0.0
+id: ${testCharacterId}
+display_name: 管线测试锚点
+status: locked
+role: primary_character
+identity:
+  aliases: []
+  age: null
+  species: ""
+  occupation: ""
+  appearance: []
+narrative_function:
+  purpose: 为管线测试提供显式人物源。
+  pressure_on_player: ""
+goals:
+  immediate: []
+  long_term: []
+  hidden: []
+psychology:
+  needs: []
+  fears: []
+  weaknesses: []
+  biases: []
+  self_deceptions: []
+value_priority: []
+internal_conflicts: []
+boundaries: []
+behavioral_rules: []
+stress_ladder: []
+ooc_guardrails: []
+speech:
+  register: ""
+  rhythm: ""
+  habits: []
+  avoid: []
+relationships: []
+knowledge:
+  player_visible: []
+  gm_only: []
+  model_only: []
+  mistaken: []
+  forbidden: []
+state_bindings: []
+examples: []
+tags: []
+source_refs: []
+`;
+
+function addTestCharacter(root) {
+  write(root, testCharacterPath, testCharacterSource);
+  updateProject(root, { sources: { characters: [testCharacterPath] } });
+  return testCharacterId;
+}
+
 const mvuSource = `
 schema_version: 1.0.0
 status: locked
@@ -117,6 +174,7 @@ worldbook_manifest:
   display_name: Pipeline Worldbook
   entries:
     - id: pipeline_guide
+      display_name: 管线测试：内联装配内容
       source:
         kind: inline
         content: Assembly content survives the full Forge pipeline.
@@ -126,10 +184,16 @@ worldbook_manifest:
         primary_keys: []
         secondary_keys: []
         selective: false
+        logic: any
+        case_sensitive: false
+        match_whole_words: false
       insertion:
         position: before_char
         order: 10
+        depth: null
+        role: system
       probability: 100
+      scan_depth: null
       recursion:
         prevent_incoming: false
         prevent_outgoing: false
@@ -137,6 +201,35 @@ worldbook_manifest:
       recipient: shared
       visibility: model
       fallback: skip
+    - id: primary_character
+      display_name: 主叙事锚点：项目默认角色
+      source:
+        kind: registered_source
+        source_ref: src/characters/card.yaml
+      enabled: true
+      activation:
+        mode: constant
+        primary_keys: []
+        secondary_keys: []
+        selective: false
+        logic: any
+        case_sensitive: false
+        match_whole_words: false
+      insertion:
+        position: after_char
+        order: 20
+        depth: null
+        role: system
+      probability: 100
+      scan_depth: null
+      recursion:
+        prevent_incoming: true
+        prevent_outgoing: true
+        delay_until_recursion: false
+      recipient: shared
+      visibility: model
+      ignore_budget: true
+      fallback: block
 media_manifest:
   enabled: false
   assets: []
@@ -236,6 +329,7 @@ function characterBookEntries(card) {
 
 test('Forge build carries Assembly, MVU artifacts, and Tavern Helper guard through the character target', t => {
   const root = createProject(t, 'mvu');
+  addTestCharacter(root);
   updateProject(root, {
     features: { mvu: true },
     sources: {
@@ -256,8 +350,11 @@ test('Forge build carries Assembly, MVU artifacts, and Tavern Helper guard throu
   const assemblyEntry = entries.find(entry => entry.extensions?.rp_card_studio?.source_id === 'pipeline_guide');
   assert.ok(assemblyEntry, 'Assembly entry is missing');
   assert.ok(Number.isInteger(assemblyEntry.id) && assemblyEntry.id >= 0, `invalid CharacterBook id: ${assemblyEntry.id}`);
-  assert.ok(entries.some(entry => /\[initvar\]/i.test(entry.comment) && entry.enabled === false), 'MVU initvar entry is missing');
-  assert.equal(entries.filter(entry => /\[mvu_update\]/i.test(entry.comment)).length, 2, 'MVU update entries are missing');
+  const managedEntry = sourceKey => entries.find(entry => entry.extensions?.rp_card_studio?.source_key === sourceKey);
+  assert.equal(managedEntry('mvu:initvar')?.enabled, false, 'MVU initvar entry is missing');
+  assert.match(managedEntry('mvu:initvar')?.comment ?? '', /\[initvar\]/i, 'MVU host marker is missing');
+  assert.equal(managedEntry('mvu:update_rules')?.comment, '变量更新规则');
+  assert.equal(managedEntry('mvu:update_format')?.comment, '回复输出格式');
   assert.ok(scripts.some(script => script.id === 'rp_card_studio_runtime_guard'), 'Tavern Helper runtime guard is missing');
   assert.deepEqual(regexScripts.map(script => script.id), [
     '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d05',
@@ -271,6 +368,7 @@ test('Forge build carries Assembly, MVU artifacts, and Tavern Helper guard throu
 
 test('Forge binds an embedded MVU worldbook for SillyTavern build and roundtrip artifacts', t => {
   const root = createProject(t, 'mvu-worldbook-binding');
+  addTestCharacter(root);
   updateProject(root, {
     features: { mvu: true },
     sources: {
@@ -311,9 +409,7 @@ test('Forge build omits optional MVU, EJS, and adapter artifacts when no runtime
 
 test('Forge accepts the structured EJS source contract and emits executable CharacterBook entries', t => {
   const root = createProject(t, 'ejs');
-  const characterSource = readTextFile(path.join(root, 'src', 'characters', 'card.yaml'), 'utf8');
-  const characterId = /^id:\s*([^\s#]+)/m.exec(characterSource)?.[1];
-  assert.ok(characterId, 'init did not create a stable character source id');
+  const characterId = addTestCharacter(root);
   updateProject(root, {
     features: { ejs: true },
     sources: { mvu: ['src/mvu/runtime.yaml'] },
@@ -344,9 +440,9 @@ test('Forge source locks the character pipeline order through Tavern Helper and 
     'applyMvuArtifacts',
     'applyEjsTemplates',
     'applyPreserved',
-    'bindEmbeddedCharacterBook',
     'applyTavernHelperAdapter',
     'applySillyTavernRegexAdapter',
+    'bindEmbeddedCharacterBook',
   ];
   const positions = requiredCalls.map(name => pipeline.indexOf(`${name}(`));
 

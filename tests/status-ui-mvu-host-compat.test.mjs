@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import vm from 'node:vm';
-import { TextDecoder } from 'node:util';
 
 import {
   applyMvuArtifacts,
   applySillyTavernRegexAdapter,
   applyTavernHelperAdapter,
+  validateRuntimeSources,
 } from '../scripts/rp-card-runtime.mjs';
 
 const IDS = Object.freeze({
@@ -169,6 +169,25 @@ function simulateSillyTavernReplacement(script, rawString) {
   });
 }
 
+function simulateTavernHelperFormatMessageVariable(text, variables) {
+  const macro = /^(.*)\{\{format_message_variable::(.*?)\}\}/gim;
+  const nestedMacro = /^(.*)\{\{format_message_variable::(.*?)\}\}/im;
+  const readPath = path => String(path).split('.').reduce(
+    (current, key) => current == null ? undefined : current[key],
+    variables,
+  );
+  const apply = (prefix, path) => {
+    const nested = prefix.match(nestedMacro);
+    if (nested) {
+      prefix = apply(nested[1], nested[2]) + prefix.slice(nested[0].length);
+    }
+    const value = readPath(path);
+    const formatted = value === undefined ? 'null' : String(value);
+    return prefix + formatted.replaceAll('\n', `\n${' '.repeat(prefix.length)}`);
+  };
+  return text.replace(macro, (_substring, prefix, path) => apply(prefix, path));
+}
+
 function datasetAttribute(property) {
   return `data-${String(property).replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)}`;
 }
@@ -306,12 +325,13 @@ async function evaluateInlineStatus(replaceString, { messageId, getVariables }) 
   for (const attribute of bodyAttributes.matchAll(/([\w:-]+)(?:="([^"]*)")?/g)) {
     body.setAttribute(attribute[1], attribute[2] ?? '');
   }
-  const mainMarkup = /<main([^>]*)><\/main>/.exec(bodyMarkup);
+  const mainMarkup = /<main([^>]*)>([\s\S]*?)<\/main>/.exec(bodyMarkup);
   assert.ok(mainMarkup, `missing status root: ${bodyMarkup}`);
   const main = new FakeElement('main', innerHtmlWrites);
   for (const attribute of mainMarkup[1].matchAll(/([\w:-]+)(?:="([^"]*)")?/g)) {
     main.setAttribute(attribute[1], attribute[2] ?? '');
   }
+  main.textContent = mainMarkup[2].replace(/<[^>]+>/g, '').trim();
   body.appendChild(main);
   const findById = (node, id) => {
     if (node instanceof FakeElement && node.getAttribute('id') === id) return node;
@@ -339,9 +359,6 @@ async function evaluateInlineStatus(replaceString, { messageId, getVariables }) 
   const lifecycleListeners = new Map();
   let nextTimerId = 1;
   const sandbox = {
-    TextDecoder,
-    Uint8Array,
-    atob: value => Buffer.from(String(value), 'base64').toString('binary'),
     clearTimeout(id) {
       timers.delete(id);
     },
@@ -413,7 +430,7 @@ test('MVU emits init hiding, prompt filtering, and display folds in stable order
   ]);
   assert.deepEqual(scripts[0], {
     id: IDS.initPrompt,
-    scriptName: '[MVU] Filter initialization from prompts',
+    scriptName: 'MVU：从提示词移除初始化数据',
     findRegex: '/<initvar>\\s*[\\s\\S]*?\\s*<\\/initvar>/gi',
     replaceString: '',
     trimStrings: [],
@@ -428,7 +445,7 @@ test('MVU emits init hiding, prompt filtering, and display folds in stable order
   });
   assert.deepEqual(scripts[1], {
     id: IDS.prompt,
-    scriptName: '[MVU] Filter variable updates from prompts',
+    scriptName: 'MVU：从提示词移除变量更新',
     findRegex: '/<update(?:variable)?>[\\s\\S]*?(?:<\\/update(?:variable)?>|$)/gi',
     replaceString: '',
     trimStrings: [],
@@ -439,11 +456,11 @@ test('MVU emits init hiding, prompt filtering, and display folds in stable order
     runOnEdit: false,
     substituteRegex: 0,
     minDepth: null,
-    maxDepth: 3,
+    maxDepth: null,
   });
   assert.deepEqual(scripts[2], {
     id: IDS.initDisplay,
-    scriptName: '[MVU] Hide initialization from messages',
+    scriptName: 'MVU：隐藏初始化数据',
     findRegex: scripts[0].findRegex,
     replaceString: '',
     trimStrings: [],
@@ -520,10 +537,16 @@ test('message status projection compiles full MVU paths and normalizes every ope
     IDS.status,
   ]);
   const status = scripts.at(-1);
+  assert.equal(status.findRegex, '/<StatusPlaceHolderImpl\\s*\\/>/g');
   assert.deepEqual(status.placement, [2]);
   assert.equal(status.markdownOnly, true);
   assert.equal(status.promptOnly, false);
-  assert.match(status.replaceString, /\{\{get_message_variable::stat_data\.runtime\.relationship_score\}\}/);
+  assert.equal(status.runOnEdit, false);
+  assert.equal(status.substituteRegex, 0);
+  assert.equal(status.minDepth, null);
+  assert.equal(status.maxDepth, null);
+  assert.match(status.replaceString, /\{\{format_message_variable::stat_data\.runtime\.relationship_score\}\}/);
+  assert.doesNotMatch(status.replaceString, /\{\{get_message_variable::/);
   assert.match(status.replaceString, /role="status" aria-live="polite" aria-atomic="true"/);
   assert.match(status.replaceString, /grid-template-columns:repeat\(auto-fit,minmax\(min\(100%,220px\),1fr\)\)/);
   assert.match(status.replaceString, /<details open[\s\S]*<dl[\s\S]*<dt[\s\S]*<dd/);
@@ -535,7 +558,45 @@ test('message status projection compiles full MVU paths and normalizes every ope
     assert.equal(greeting.match(/<StatusPlaceHolderImpl\/>/g)?.length, 1);
     assert.ok(greeting.endsWith(PLACEHOLDER));
   }
-  assert.equal(result.payload.data.post_history_instructions.match(/RP Card Studio status placeholder contract/g)?.length, 1);
+  assert.equal(result.payload.data.post_history_instructions, 'Existing instructions.');
+
+  const projected = simulateSillyTavernReplacement(status, PLACEHOLDER);
+  const formatted = simulateTavernHelperFormatMessageVariable(projected, {
+    stat_data: { runtime: { relationship_score: 42 } },
+  });
+  assert.doesNotMatch(formatted, /\{\{(?:format|get)_message_variable::/);
+  assert.match(formatted, />Trust: 42</);
+  assert.match(formatted, />42<\/dd>/);
+});
+
+test('status-only projects store the reply contract in a Chinese CharacterBook entry', () => {
+  const result = applyRegex({
+    mvu: false,
+    sources: runtimeSources({ mvu: false }),
+  });
+  const entry = result.payload.data.character_book.entries.find(candidate => (
+    candidate.extensions?.rp_card_studio?.source_key === 'status:reply_contract'
+  ));
+
+  assert.deepEqual(result.issues, []);
+  assert.equal(result.payload.data.post_history_instructions, 'Existing instructions.');
+  assert.equal(entry.comment, '状态栏：回复输出约定');
+  assert.equal(entry.constant, true);
+  assert.equal(entry.enabled, true);
+  assert.equal(entry.position, 'after_char');
+  assert.equal(entry.extensions.depth, 0);
+  assert.match(entry.content, /每条助手回复/);
+  assert.match(entry.content, /<StatusPlaceHolderImpl\/>/);
+
+  const disabled = applyRegex({
+    payload: result.payload,
+    mvu: false,
+    status: false,
+    sources: emptySources(),
+  });
+  assert.equal(disabled.payload.data.character_book.entries.some(candidate => (
+    candidate.extensions?.rp_card_studio?.source_key === 'status:reply_contract'
+  )), false);
 });
 
 test('Tavern Helper message status emits a self-contained iframe program with a strict message id', () => {
@@ -550,7 +611,9 @@ test('Tavern Helper message status emits a self-contained iframe program with a 
   assert.match(status.replaceString, /message_id\s*:/);
   assert.match(status.replaceString, /data-rp-runtime-state/);
   assert.match(status.replaceString, /data-rp-status-path/);
-  assert.doesNotMatch(status.replaceString, /get_message_variable|getMvuData|\bMvu\b|message_id\s*:\s*["']latest["']/);
+  assert.match(status.replaceString, /<main[^>]*>[\s\S]*\S[\s\S]*<\/main>/);
+  assert.doesNotMatch(status.replaceString, /\batob\b|TextDecoder|Uint8Array|JSON\.parse/);
+  assert.doesNotMatch(status.replaceString, /(?:get|format)_message_variable|getMvuData|\bMvu\b|message_id\s*:\s*["']latest["']/);
   assert.doesNotMatch(status.replaceString, /globalThis\.parent|parent\.document|https?:\/\//i);
 });
 
@@ -692,7 +755,7 @@ test('text mode emits a message-local text projection instead of HTML markup', (
   const result = applyRegex({ sources: runtimeSources({ statusMode: 'text' }) });
   const status = result.payload.data.extensions.regex_scripts.find(script => script.id === IDS.status);
 
-  assert.equal(status.replaceString, 'Trust: {{get_message_variable::stat_data.runtime.relationship_score}}');
+  assert.equal(status.replaceString, 'Trust: {{format_message_variable::stat_data.runtime.relationship_score}}');
   assert.doesNotMatch(status.replaceString, /<div|<style|<script/i);
 });
 
@@ -717,10 +780,41 @@ test('message status projection uses native collapse state and only formats perc
 
   assert.match(status.replaceString, /<details style=/);
   assert.doesNotMatch(status.replaceString, /<details open/);
-  assert.match(status.replaceString, /\{\{get_message_variable::stat_data\.runtime\.relationship_score\}\}%<\/dd>/);
+  assert.match(status.replaceString, /\{\{format_message_variable::stat_data\.runtime\.relationship_score\}\}%<\/dd>/);
 });
 
-test('reapplying the adapter is idempotent for scripts, placeholders, and reply contract', () => {
+test('percent format owns its suffix in summaries and duplicate literal percent signs are rejected', async () => {
+  const sources = runtimeSources({ statusAdapter: 'tavern_helper_message' });
+  const ui = sources.ui[0].value.status_ui;
+  ui.sections[0].fields[0].format = 'percent';
+  ui.text_template = 'Integrity: {{relationship.trust}}%';
+
+  const validation = await validateRuntimeSources({
+    project: { features: { mvu: true, ejs: false, status_ui: true } },
+    sources,
+    projectRoot: process.cwd(),
+  });
+  assert.ok(validation.issues.some(issue => issue.rule === 'ui.percent_suffix'));
+
+  ui.text_template = 'Integrity: {{relationship.trust}}';
+  const valid = await validateRuntimeSources({
+    project: { features: { mvu: true, ejs: false, status_ui: true } },
+    sources,
+    projectRoot: process.cwd(),
+  });
+  assert.equal(valid.issues.some(issue => issue.rule === 'ui.percent_suffix'), false);
+
+  const result = applyRegex({ sources });
+  const status = result.payload.data.extensions.regex_scripts.find(script => script.id === IDS.status);
+  const harness = await evaluateInlineStatus(status.replaceString, {
+    messageId: 10,
+    getVariables: () => ({ stat_data: { runtime: { relationship_score: 80 } } }),
+  });
+  assert.equal(statusValueNodes(harness).map(node => node.textContent).filter(value => value === '80%').length, 2);
+  assert.equal(statusValueNodes(harness).some(node => node.textContent.includes('%%')), false);
+});
+
+test('reapplying the adapter is idempotent for scripts and placeholders', () => {
   const once = applyRegex();
   const twice = applyRegex({ payload: once.payload });
 
@@ -739,6 +833,26 @@ test('a recognizable managed status rule refreshes when its generated template c
   assert.equal(statusRules.length, 1);
   assert.match(statusRules[0].replaceString, /Updated trust:/);
   assert.doesNotMatch(statusRules[0].replaceString, />Trust:/);
+});
+
+test('legacy English managed regex names migrate to Chinese without collisions', () => {
+  const legacyNames = new Map([
+    [IDS.initPrompt, '[MVU] Filter initialization from prompts'],
+    [IDS.prompt, '[MVU] Filter variable updates from prompts'],
+    [IDS.initDisplay, '[MVU] Hide initialization from messages'],
+    [IDS.pending, '[MVU] Fold pending variable update'],
+    [IDS.complete, '[MVU] Fold complete variable update'],
+    [IDS.status, '[Status] Project message status bar'],
+  ]);
+  const generated = applyRegex().payload;
+  for (const script of generated.data.extensions.regex_scripts) {
+    script.scriptName = legacyNames.get(script.id);
+  }
+
+  const migrated = applyRegex({ payload: generated });
+  assert.deepEqual(migrated.issues, []);
+  assert.equal(migrated.payload.data.extensions.regex_scripts.length, 6);
+  assert.ok(migrated.payload.data.extensions.regex_scripts.every(script => /[\u4e00-\u9fff]/.test(script.scriptName)));
 });
 
 test('user regex scripts retain relative order before managed scripts', () => {

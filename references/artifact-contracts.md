@@ -1,187 +1,301 @@
-# 产物契约
+# Artifact Contracts
 
-本文件规定项目中的事实归属、目录职责、引用方式和变更传播。创作对话可以灵活，落盘结构必须稳定，否则无法可靠地继续创作、修改旧卡或验证往返一致性。
+This reference defines fact ownership, directory responsibilities, references, and change propagation. Conversation may be flexible; persisted project structure must remain deterministic enough to resume work, revise imported cards, and prove round-trip fidelity.
 
-## 1. 项目目录
+## 1. Project Layout
 
 ```text
 project-workspace/
-├── project.yaml
-├── .rp-card-state.json
-├── src/
-│   ├── world/
-│   ├── positioning/
-│   ├── characters/
-│   ├── systems/
-│   ├── scenes/
-│   ├── mvu/
-│   ├── prompts/
-│   ├── ui/
-│   ├── integration/
-│   │   └── assembly.yaml
-│   └── import/                 # 仅旧卡导入时存在
-├── dist/
-│   ├── character-card.json
-│   ├── character-card.png
-│   └── worldbook.json
-└── reports/
-    ├── build-manifest.json
-    ├── runtime-state.schema.json  # 仅启用运行时状态时生成
-    ├── validation.json
-    └── handoff.md
+|-- project.yaml
+|-- .rp-card-state.json
+|-- src/
+|   |-- world/
+|   |-- positioning/
+|   |-- characters/
+|   |-- systems/
+|   |-- scenes/
+|   |-- mvu/
+|   |-- prompts/
+|   |-- ui/
+|   |-- integration/
+|   |   `-- assembly.yaml
+|   `-- import/                 # imported-card projects only
+|-- dist/
+|   |-- character-card.json
+|   |-- character-card.png
+|   `-- worldbook.json
+`-- reports/
+    |-- build-manifest.json
+    |-- runtime-state.schema.json  # only when runtime state is enabled
+    |-- validation.json
+    `-- handoff.md
 ```
 
-模板位于技能的 `assets/templates/`；初始化项目时复制到对应目标位置并填入预检阶段已经锁定的值。模板文件名 `state.json` 在项目中必须写为 `.rp-card-state.json`。
+Templates live under `assets/templates/`. During initialization, copy only the templates justified by information already locked in preflight. An RP project targeting character-card delivery starts with `project.yaml`, `.rp-card-state.json`, and `src/positioning.yaml`; it must not create a character source merely because the delivery format is named a character card. When NSFW is enabled, initialization may also create the status-UI source, but it still creates no placeholder character. The character template is copied only after the required character inventory checkpoint confirms a pre-authored character. Unpacking keeps the complete legacy card at project scope in `src/import/original.json`; it must not turn `data.name` into a draft person. Existing older projects with `role: pending` candidates remain compatible, but inventory must classify or remove them before locking. The template named `state.json` must become `.rp-card-state.json` in the project.
 
-## 2. 两种真源
+## 2. Two Sources of Truth
 
-### `project.yaml`：语义真源
+### `project.yaml`: semantic source of truth
 
-它记录用户和 AI 已经作出的创作决定，包括：
+Record decisions that change what the work is:
 
-- 项目标识、工作区、交付目标和固定阶段顺序。
-- NSFW 启用值及其锁定来源。
-- 功能开关、启用或跳过的可选阶段。
-- 已锁定决定、跨阶段待办和输入材料引用。
-- 源文件清单（包括 `source_manifest.assembly`）、目标运行环境与交付约束。
+- project identity, workspace, deliverables, and stage route;
+- the current work-run operation (`create`, `continue`, `convert`, `edit`, `audit`, or `ui`), refreshed transactionally when an existing workspace is resumed;
+- the locked NSFW switch;
+- feature switches and optional-stage decisions;
+- locked decisions, cross-stage todos, and input-material references;
+- the source manifest, including `source_manifest.assembly`, target runtime, and delivery constraints.
 
-任何会改变“作品是什么”的决定都写入这里，随后传播到 `src/`。构建工具不能从 `.rp-card-state.json` 反向发明语义。
+Propagate these decisions into `src/`. A build tool must never invent semantic content from `.rp-card-state.json`.
 
-### `.rp-card-state.json`：技术状态真源
+`project.project.operation` describes the current work run, not immutable project provenance. Forge `init` owns `create`, `unpack` owns `convert`, and `state <workspace> operation ...` owns transitions for existing projects. Lifecycle validation may use this explicit value; it must not infer a run type from revision counts, stage rounds, or prior build records.
 
-它记录流程与工具状态，包括：
+### `.rp-card-state.json`: technical source of truth
 
-- 当前阶段、阶段轮次、等待用户或已完成状态。
-- 决定锁的哈希、授权方式和时间。
-- 源文件脏标记、最近构建、验证运行和事务状态。
-- 跨阶段待办的技术索引，不存放待办正文的唯一副本。
+Record workflow and tool state:
 
-该文件由 Forge 管理。人工编辑后必须运行 `state` 与 `validate` 修复一致性。删除它不应删除创作内容，但会丢失流程进度和证据索引。
+- current stage, turn number, waiting/completed state;
+- lock hashes, delegation source, and timestamps;
+- dirty-source flags, latest build, validation runs, and transaction state;
+- technical indexes for cross-stage todos, never the only copy of their content.
 
-### 冲突处理
+Forge owns this file. After a manual change, run `state` and `validate` to restore consistency. Deleting it must not delete creative content, but it does discard progress and evidence indexes.
 
-- 语义值冲突时，以 `project.yaml` 和其锁定决定为准，技术状态标记失效并要求重建。
-- 阶段状态冲突时，以存在的阶段总汇、锁定哈希和验证证据共同判断，不静默宣称完成。
-- `project.yaml` 已禁用某功能时，`src/` 或 `dist/` 中出现该功能配置属于阻断错误。
+### Conflict resolution
 
-## 3. `src`、`dist` 与 `reports`
+- For semantic conflicts, `project.yaml` and its locks win; invalidate stale technical state and rebuild.
+- For stage-state conflicts, inspect stage summaries, lock hashes, and validation evidence together; never silently claim completion.
+- If `project.yaml` disables a feature but `src/` or `dist/` still contains that feature in a new project, treat it as a blocker. A retained imported implementation must be explicitly recorded.
 
-| 层 | 职责 | 禁止事项 |
-|---|---|---|
-| `src/` | 人类可维护的设定、角色、系统、场景、MVU、提示词、UI 和装配源 | 不存构建缓存，不依赖 `dist/` 反向补全 |
-| `dist/` | 可导入 JSON、PNG、世界书等确定性生成物 | 不直接手改，不作为下一轮创作真源 |
-| `reports/` | 构建参数、差异、验证证据、未验证项与交接说明 | 不把报告里的建议当作已锁定决定 |
+## 3. `src`, `dist`, and `reports`
 
-构建必须从 `project.yaml + src/` 开始，先写候选目录，验证通过后再提交到 `dist/`。同一语义输入和参数应生成语义一致的产物；时间戳、绝对路径等非语义值不参与一致性比较。
+| Layer | Responsibility | Prohibited use |
+| --- | --- | --- |
+| `src/` | Human-maintained world, character, system, scene, MVU, prompt, UI, and assembly sources | Build caches; reverse-filling content from `dist/` |
+| `dist/` | Deterministically generated JSON, PNG, worldbook, and related importable artifacts | Direct editing; source for the next creative iteration |
+| `reports/` | Build inputs, differences, validation evidence, unverified items, and handoff records | Treating recommendations as locked decisions |
 
-## 4. ID、路径与引用
+Build from `project.yaml + src/` into a candidate directory, validate it, then commit the candidate into `dist/`. Equivalent semantic inputs and parameters must produce semantically equivalent artifacts. Timestamps and absolute paths are non-semantic and must not affect comparison.
 
-- 机器 ID、文件夹和字段路径使用稳定英文 `snake_case`；中文仅用于显示名和正文。
-- ID 一旦进入产物或存档，不因显示名变化而改名。
-- 引用使用 `{kind}:{id}` 或约定字段中的明确 ID，不用中文标题做隐式关联。
-- 变量的语义路径使用点路径，如 `relationship.trust`；运行时路径单独登记，如 `stat_data.relationship.trust`。
-- JSON Pointer 只在补丁协议层出现，不与点路径混用。
-- 数组顺序有语义时保留显式 `order`；无语义对象使用稳定键排序生成。
+## 4. IDs, Paths, and Visible Names
 
-## 5. 玩家层与 GM 层
+- Use stable English `snake_case` for machine IDs, directories, schema keys, and field paths.
+- Use Simplified Chinese for user-visible project titles, CharacterBook names and entry comments, regex names, script names, UI labels, and creative prose whenever practical.
+- Keep an ID stable after it enters an artifact or saved state, even if its Chinese display name changes.
+- Use explicit references such as `{kind}:{id}` or schema-defined ID fields; never rely on a translated title as an implicit join key.
+- Use dot paths such as `relationship.trust` for semantic fields and separately register runtime paths such as `stat_data.relationship.trust`.
+- Use JSON Pointer only in patch protocols; do not mix it with dot paths.
+- Preserve explicit `order` when array order carries meaning. Canonically sort unordered object keys during generation.
 
-每份世界、角色和场景源都要能区分：
+## 5. Player, GM, and Model Layers
 
-- `player_visible`：可以直接进入开场、状态栏或玩家可见说明的信息。
-- `gm_only`：可供叙事模型使用，但不能直接展示给玩家的真相、隐藏动机和未发现线索。
-- `model_only`：运行规则、路由和写作约束，不作为世界内事实展示。
+Every world, character, system, scene, and narrative source must distinguish:
 
-构建时按接收者投影，而不是简单把整个源文件串联。状态栏只能绑定玩家可见字段；EJS 动态显示也不能绕过可见性。若一段内容同时含公开与秘密信息，应在源中拆分，而不是依赖模型自行删减。
+- `player_visible`: may appear directly in openings, status UI, or player-facing explanations;
+- `gm_only`: may guide narration but must never be directly revealed before discovery;
+- `model_only`: routing, writing, and execution rules that are not in-world facts.
 
-## 6. 字段生命周期账本
+Project by audience rather than concatenating whole source files. Status UI may bind only player-visible values, and EJS must not bypass visibility. Split mixed public/secret content at the source instead of expecting the model to redact it during projection.
 
-每个持久状态字段至少登记：
+## 6. RP Package, Card-Front, and CharacterBook Ownership
 
-| 项 | 含义 |
-|---|---|
-| `source_path` | 语义层稳定路径 |
-| `runtime_path` | 实际运行时读取路径 |
-| `type` | 数据类型和容器形态 |
-| `default` | 默认初始化值 |
-| `constraints` | 范围、枚举、长度或结构约束 |
-| `writer` | 唯一写入者及允许操作 |
-| `readers` | 剧情模型、更新模型、EJS、脚本或 UI |
-| `renderer` | 展示绑定；不展示时写明理由 |
-| `cleanup` | 保留、归档、截断或删除策略 |
-| `migration` | 旧版本缺失、改名和类型变化的处理 |
-| `visibility` | `player`、`gm` 或 `model` |
+From the host and user perspective, treat the imported SillyTavern character-card JSON/PNG artifact as the complete portable deployment package of an RP project, not an empty shell or a dossier for one person. World, authored or dynamic characters, systems, scenes, narrative contracts, regex/scripts, runtime adapters, and message UI are peer modules; none is nested under or owned by a character. Use the card front as a small, stable project-entry surface and CharacterBook as the modular instruction/content layer.
 
-字段不能只有 Schema 而无初始值，也不能只有状态栏引用而无来源。派生字段由确定性脚本计算时，模型不得成为第二 writer。
+The maintained RP project is the source domain model; card JSON, card PNG, and standalone worldbook files are delivery projections. Dependency direction is one-way: maintained project modules are scheduled and adapted into a host artifact. Never reshape source ownership around the host schema. A host projection may expose character-shaped field names without changing ownership in the source model.
 
-### 变更传播
+Artifact format is project-level packaging metadata. For a new card, the locked `integration.delivery_format` decision selects Character Card V2 or V3; never store a whole card payload under one character merely to choose the host version. Imported artifacts retain their original spec unless the integration stage explicitly migrates it.
 
-- 新增：同步默认值、writer、reader、更新规则、展示和迁移。
-- 改名：保留迁移别名或迁移函数，并更新初始化、EJS、开场覆盖、UI 和测试。
-- 改类型/范围：验证所有默认值、条件比较、格式化和旧存档。
-- 删除：先移除 writer 与 readers，再决定旧值清理；不能留下孤立路径。
+Use the sole character's name only when the locked mode is truly single-character and exactly one authored character exists. World, scenario, gameplay, ensemble, narrator, anchor-character, and all multi-character projects use the locked project title. A non-single project title should identify the package's world, gameplay, theme, or experience rather than defaulting to one character or one isolated location.
 
-## 7. 装配、媒体与运行时产物
+### Card-front fields for a new card
 
-`src/integration/assembly.yaml` 是整合阶段维护的装配真源，并登记到 `project.yaml.source_manifest.assembly`。它包含两部分：
+| Field | Allowed content |
+| --- | --- |
+| `data.name` | Sole character's visible name only for a true single-character card with exactly one authored character; otherwise the locked project title |
+| `data.description` | Compact actor-free package entry from the non-empty `positioning.card_entry`: purpose, user entry, interaction mode, and routing intent only |
+| `data.first_mes` | The selected default opening text |
+| `data.alternate_greetings` | Alternate opening texts in locked order |
+| metadata fields | Packaging identity such as tags, creator, and version; not world or behavior modules |
 
-- `worldbook_manifest`：把已锁定内容引用映射为世界书条目，并在此决定 `activation`、`insertion`、条目级 `scan_depth`、`probability`、`recursion` 与失败策略。当前 SillyTavern 原生世界书固定为 `recipient: shared`、`visibility: model`，其他路由或隔离语义需要另有已验证的外部 router，Forge 默认阻断。书级扫描、预算和递归字段只保留宿主默认值；角色过滤只用于独立世界书，头像使用区分大小写且不带扩展名的 `avatar_stems`，标签使用目标实例内部且不可移植的 `tag_ids`。世界观、角色、系统和场景阶段只提供内容与稳定 ID，不提前决定这些宿主参数。
-- `media_manifest`：登记媒体 ID、种类、文件或 HTTPS 地址、交付方式、消费者、可选的 `preload` 策略和失败回退；`preload` 只允许 `none | on_opening | eager | on_demand`。实际文件存在性、远程可用性、摘要与消费者引用在整合阶段验证；远程媒体不能成为无回退的唯一关键路径。
+Keep these advanced-definition fields empty for a newly authored card:
 
-媒体清单不设置许可或来源署名字段。导入项目若已有同类未知字段，按未知字段保留规则往返保存，但技能不主动创建或询问这些字段。
+```text
+data.personality
+data.scenario
+data.mes_example
+data.creator_notes
+data.system_prompt
+data.post_history_instructions
+```
 
-启用 MVU 或等价确定性状态源时，Forge 从 `mvu.yaml` 的 storage、变量账本、初始化 profiles 与 opening bindings 生成 `reports/runtime-state.schema.json`。它是可重复生成的验证产物，不是新的语义真源；跳过 MVU/EJS 且没有既有实现时不得生成。
+SillyTavern injects `description` as an always-present prompt block; it does not dynamically route content on its own. Keep the entry compact and do not place any character dossier, independently scheduled world module, system rules, narrative contracts, or status-output contracts there. Imported legacy values are different: preserve user-authored or unknown values losslessly unless a deliberate migration is authorized, and report rather than silently deleting them. Completing positioning transfers `name`/`description` ownership to the project, not deletion authority over advanced-definition fields. Clear those fields only after migration is complete and `integration.advanced_definition_policy` is locked to `clear_after_migration` or `migrate_to_characterbook`.
 
-### MVU/EJS 与消息 UI 宿主投影
+### CharacterBook-first modularization
 
-- 角色卡构建按 `assembly -> MVU -> EJS -> preserved imports -> CharacterBook binding -> Tavern Helper -> SillyTavern Regex` 的顺序投影。每一步只接收上一步的 payload，并把自己的 issues/warnings 合并到构建报告；不能用后续适配器掩盖前序契约错误。
-- Forge 生成或管理的非空内嵌 CharacterBook 必须成为角色主世界书。有显式书名时最终 payload 满足 `data.extensions.world === data.character_book.name`；无名书先固化为 SillyTavern 的 `<角色名>'s Lorebook` 回退名。Forge 在恢复保留字段后建立绑定；若导入旧卡已经指向另一主世界书，则保留原值并报 `character_book.binding_conflict` blocker，等待整合阶段明确解决。SillyTavern 只会从已导入且绑定的角色主世界书或全局世界书扫描 MVU 的 `[initvar]` 条目；仅嵌入 CharacterBook 时，即使消息正则和 iframe 正常运行，开场变量仍可能完全不初始化。
-- `data.extensions.world` 相等只证明“指向这个名字”，不证明卡内条目已经导入。干净宿主首次导入要确认 **Import Card Lore**；宿主已有同名书时会跳过提示并直接使用旧文件，所以真实验收还要核对目标世界书包含本制品的受管条目。
-- MVU 的内嵌适配器面向 Tavern Helper 的 `Mvu` API：有界等待 `waitGlobalInitialized("Mvu")`，读取 `getMvuData(options)`，并使用宿主的解析、校验和替换能力守护状态。必须先用 `eventOn` 订阅全部 `Mvu.events.*`，再读取当前快照补做 bootstrap，避免初始化事件已经发生后永远无法 ready；清理时把原始 `(event, handler)` 交给 `eventRemoveListener`。MVU 适配器不得退回 `getVariables()`、`globalThis.MVU` 或自造 MVU 事件名；消息状态栏 iframe 使用 `getVariables()` 是另一条只读投影链，不得与这里混用。
-- 当前内嵌 MVU 存储契约固定为 message 目标。`latest_message` 使用 `{ type: "message", message_id: "latest" }`；`current_message` 在宿主提供数字楼层上下文时使用该 ID，否则明确降级到 latest。初始化事件只在宿主事件对象内补缺省值，不二次调用 `replaceMvuData`；bootstrap 发现旧快照缺少默认字段时允许一次 `replaceMvuData` 持久化修复。非法更新按整批回滚。
-- 当前自动更新模式固定为 `same_generation`：同一条助手原始消息携带叙事与变量更新块，由宿主解析并提交。`extra_pass` 与 `both` 必须有独立请求触发、路由、响应解析、协议校验、原子提交、失败回退和真实宿主证据；缺少完整链路就阻断。单独存在解析或提交入口不构成自动 extra-pass 实现。
-- EJS 使用 SillyTavern 的 `ST-Prompt-Template 1.17.6.8` 引擎（探针 `globalThis.EjsTemplate`）。条目只投影到 `data.character_book.entries[]`，不写入 Tavern Helper scripts；宿主条目使用 `enabled: false`、`constant: true`、空 `keys`，内容首行保留连续 `@@always_enabled` 与 generate/render 装饰器。`target: both` 必须拆成 generate 与 render 两条条目。
-- EJS 条件必须是结构化 `condition.runtime_path/operator/value`，并提供 `branches.when_true/when_false/fallback`。纯 EJS 使用字段账本中的类型匹配默认值调用 `getvar()`；与 MVU 联动时只接受 `message/stat_data/current|latest message` 契约，有界等待后读取 `Mvu.getMvuData()`。`current_message` 的 render 条目使用 ST-Prompt-Template 提供的数字 `message_id`；generate 条目没有楼层上下文时降级为 latest。快照或路径缺失直接进入 `branches.fallback`，不得用默认值掩盖缺失状态。缺少引擎时按 `missing_dependency` 选择省略动态条目或阻断构建。旧的字符串条件和顶层 `fallback` 不自动迁移，应报告为迁移错误。
-- 状态栏只投影到 AI 消息内部，交付路径只有 SillyTavern 角色正则或 Tavern Helper 消息级 JS/iframe。内嵌 Regex 使用 `data.extensions.regex_scripts` 把 `<StatusPlaceHolderImpl/>` 替换为自包含文字或简单静态 HTML，并用 `{{get_message_variable::stat_data.path}}` 读取宿主可解析的消息变量；该契约固定为 `refresh: on_message`、`read_only: true`、`commands: []` 和非 tabs 布局。`field.missing_value` 与 `states.loading/empty/error/degraded` 在 Regex 路径中只保存设计文案，不能据此声明条件判断、最近合法值保留或自动视图切换。消息内位置也不等于历史快照隔离：当前验证的 Tavern Helper 4.9.1 在普通 DOM 宏重绘时会因缺少 `message_id` 回退到最近变量消息。
-- 动态刷新、命令、tabs、条件状态或逐楼层快照必须使用 `tavern_helper_message + host_required`。角色正则把占位符替换为自包含 fenced HTML，Tavern Helper 在该条消息内创建 iframe；脚本严格验证 `getCurrentMessageId()` 是整数，然后始终调用 `getVariables({ type: "message", message_id })`。首次合法快照不能被当作本楼提交完成的信号：初次快速获取后转为默认 2 秒低频同步，只在可见值变化时重绘，暂时读取失败时保留最近合法值，并在 `pagehide`/`unload` 清理。无效 ID 进入可见错误态并停止，任何路径都绝不回退 `latest`。iframe 不访问父页面、不创建页面级节点、不加载远程 UI；只有脚本确实运行且历史重载测试通过后，才能声明对应能力通过。
-- Forge 会在默认与备选开场末尾幂等追加唯一状态栏占位符，并向助手输出合同加入“每条回复末尾恰好一次”。状态栏禁用时不得残留占位符或对应角色正则。
-- 启用 MVU 时，Forge 同时生成两条严格匹配完整 `<initvar>...</initvar>` 的隐藏正则，以及更新块 Prompt 过滤、流式折叠和完整更新折叠正则。初始化隐藏分别只改变送模副本和显示副本；更新 Prompt 过滤只改变送模副本，Markdown 规则只改变显示副本，原始聊天中的初始化块与更新块保持不变。所有自有正则使用稳定 UUID、非贪婪多块匹配和固定顺序，不能覆盖用户规则；未闭合的 `<initvar>` 不得被隐藏规则吞掉。
-- SillyTavern 对角色内嵌正则的首次授权属于宿主安全机制。交付报告必须说明需要用户确认，技能和制品不得绕过授权。
+Every eligible module other than the card-entry and greeting projections should be represented by an enabled CharacterBook entry:
 
-## 8. NSFW 投影
+- every authored character, including any `primary_character`, one named character per entry by default;
+- world facts and continuity rules;
+- each system or coherent system module;
+- each independently triggerable scene or location module;
+- narrative rules and dialogue examples;
+- MVU initialization/update/output contracts and EJS templates;
+- the status-bar reply-format contract when status UI is enabled without MVU.
 
-`project.yaml` 中的 NSFW 值只在项目预检阶段由用户明确锁定。
+Openings remain in greeting fields because SillyTavern selects them as chat entry points. All authored characters belong in CharacterBook. A `primary_character` marker means narrative anchor only; it does not grant ownership of `data.description`, priority over unrelated modules, or the card name outside a true single-character project. A true single-character card keeps its sole character in a compact constant 100% entry because that definition is the entire interaction's stable actor contract. In a world, gameplay, scenario, or ensemble project, even an anchor character may use constant, keyword, or scene routing according to whether that character is actually needed every turn.
 
-- `enabled: false`：角色、系统、开场、MVU、EJS 和 UI 中的相关专用字段、分组、规则与占位必须完全省略。
-- `enabled: true`：将前序阶段已经确认的相关内容自动融入角色和状态栏等正常结构，不另建边界问卷，也不重复询问开关。
-- 无论开关如何，产物始终受平台硬约束；工具不能用配置绕过平台限制。
-- GM 可见性仍独立生效，启用不等于向玩家公开所有字段。
+Do not create a single catch-all entry when different content needs different triggers or insertion positions. Do not split one coherent rule so finely that a triggered fragment becomes misleading without its dependencies. Character and narrative stages classify the modules and assign stable IDs; the integration stage performs host scheduling.
 
-条件结构来自 `assets/templates/nsfw/` 下的两个 mix-in。初始化或进入对应阶段时只在启用状态下合并；禁用状态不得读取、复制或生成这些键。
+When an assembly entry selects only part of a registered source, materialize an identity envelope around that fragment. The envelope records the normalized module type, stable `id` and `display_name` when the source defines them, the Chinese entry name, and the selected pointer. This keeps independently scheduled fragments attributable to their RP module without creating tiny standalone identity entries. A selected fragment is complete only when both the envelope and the selected semantics reach the CharacterBook artifact.
 
-## 9. 旧卡导入与未知字段
+Scene media needs are model-facing semantics, not opaque authoring metadata. Store `media_slots` as a typed top-level scene field with a stable ID, media kind hint, narrative purpose, trigger, required flag, and non-media text fallback. Integration may bind that contract to `media_manifest`, but it must not discard the text fallback when no asset is delivered. Legacy `extensions.media_slots` remains readable only as a migration path.
 
-- 原始输入只读，默认输出到本次工作区。
-- 已识别字段规范化到 `src/`；无法解释但可保留的字段写入 `src/import/preserved.json`，附原始 JSON 路径。
-- 重新构建时把保留字段合回原位置；若与新源冲突，列出差异并要求显式策略。
-- 导入顺序、世界书条目 ID、扩展启用状态和未知扩展对象必须往返保留。
-- 任何不可逆丢失都属于阻断错误，不能以“当前技能不使用该字段”为理由删除。
+Procedurally generated inhabitants are not authored character modules unless a particular generated identity is deliberately promoted into a stable, pre-authored project asset. Keep population archetypes and shared social constraints in world sources, generation/uniqueness/continuity/lifecycle rules in system sources, and portrayal constraints in narrative sources. This prevents a generated crowd from becoming a fake list of fixed NPC files.
 
-## 10. 角色卡与 PNG
+## 7. Field Lifecycle Ledger
 
-- JSON 产物遵守 `character-card.schema.json`，未知扩展字段允许保留。
-- JSON 字符串使用 UTF-8，保留多行文本语义，不把换行转成可见转义文本。
-- PNG 内只新增或替换声明的角色卡数据块，保留原始图像数据；数据块关键字和编码写入构建清单。
-- `pack -> unpack` 后的角色卡对象必须通过语义比较，不能只比较文件字节。
-- 遇到损坏、重复或无法判定优先级的数据块时停止并报告，不猜测覆盖。
+For every persistent runtime field, record:
 
-## 11. 依赖分类
+| Item | Meaning |
+| --- | --- |
+| `source_path` | Stable semantic path |
+| `runtime_path` | Actual runtime path |
+| `type` | Data type and container shape |
+| `default` | Initialization value |
+| `constraints` | Range, enum, length, or shape constraints |
+| `writer` | Sole writer and allowed operations |
+| `readers` | Narration, updater, EJS, scripts, or UI consumers |
+| `renderer` | Display binding, or an explicit reason for no display |
+| `cleanup` | Retain, archive, truncate, or delete behavior |
+| `migration` | Missing, renamed, or type-changed legacy values |
+| `visibility` | `player`, `gm`, or `model` |
 
-每项依赖只能属于一种主要类别：
+A field may not have a schema without an initial value or a status binding without a source. When a derived field is calculated deterministically, the model must not become a second writer.
 
-- `builtin`：SillyTavern 标准能力。
-- `embedded`：随卡或世界书嵌入。
-- `host_required`：用户必须在宿主安装并启用。
-- `remote`：运行时远程加载，必须记录 URL、版本与失败回退。
-- `development_only`：只用于构建或验证，不进入玩家交付说明。
+Change propagation:
 
-构建成功不代表宿主依赖可用。依赖是否安装只能由真实运行证据确认。运行时代码和适配器默认随项目或宿主交付，不允许用未登记的远程脚本导入绕过装配清单；远程媒体仍按 `media_manifest` 单独管理。
+- Add: update defaults, writer, readers, update rules, renderers, and migration.
+- Rename: preserve an alias or migration and update initialization, EJS, opening overrides, UI, and tests.
+- Change type/range: validate defaults, comparisons, formatting, and legacy saves.
+- Delete: remove writer and readers before choosing how to clean old values; leave no orphan paths.
+
+## 8. Integration Assembly
+
+`src/integration/assembly.yaml` is the assembly source of truth and must be registered at `project.yaml.source_manifest.assembly`.
+
+### `worldbook_manifest`
+
+Map every locked source other than the card entry and openings to one or more CharacterBook entries. For every entry, explicitly design and record:
+
+- `activation.mode`, primary/secondary keys, selectivity, key logic, case sensitivity, and whole-word behavior;
+- `insertion.position`, explicit `insertion.depth` (`null` for every non-`at_depth` position; a non-negative integer for `at_depth`), role, and `insertion.order`;
+- `probability`;
+- entry-level `scan_depth`;
+- `recursion.prevent_incoming`, `prevent_outgoing`, and `delay_until_recursion`;
+- `fallback`.
+
+When several selector entries split one maintained module, Forge wraps every selected fragment with a `module` envelope containing the module type, stable source ID and display name when available, the Chinese entry name, and the selector path. This keeps every fragment attributable after scheduling; do not create separate always-on `/id` or `/display_name` entries merely to preserve identity.
+
+Explain the design, not only the values:
+
+- Use `constant` for compact rules that must govern every generation, such as core world invariants, narrative contracts, or output protocols. Keep this set small because every constant entry consumes context every turn.
+- Use `keywords` for an NPC, location, faction, object, scene, or specialized rule whose relevance can be identified from names, aliases, and unambiguous domain terms.
+- Permit incoming recursion only when other entries must be able to summon this entry through generated keys. Permit outgoing recursion only when this entry's injected content should intentionally activate dependent entries. Disable both for self-contained rules and contracts. Use delayed activation only when a rule should appear solely through a recursive chain, never from the initial chat scan.
+- Use probability below 100 only for deliberate stochastic variation. Never use it to hide an unresolved trigger design.
+- Choose scan depth from the expected distance between the current turn and relevant mention. `null` inherits the host global setting; `0` is a real zero-depth value.
+- Choose insertion position and order by instruction authority and dependency. Stable order is mandatory when entries share a position.
+
+Current native SillyTavern delivery fixes `recipient: shared` and `visibility: model`. Other routing or isolation semantics require a separately verified router and otherwise block. Book-level scan depth, budget, and recursive scanning remain at host defaults; use entry-level controls. Character filters apply only to standalone worldbooks: `avatar_stems` are case-sensitive avatar filenames without the final extension, and `tag_ids` are opaque IDs from the target SillyTavern instance, never display labels.
+
+The worldbuilding, character, systems, scenes, and narrative stages provide content and stable IDs only. They must not ask for or lock these host parameters.
+
+### `media_manifest`
+
+Register media IDs, type, local file or HTTPS URL, delivery, consumers, optional `preload`, integrity, and failure fallback. `preload` accepts only `none | on_opening | eager | on_demand`. Validate local existence, remote reachability when possible, digest, and every consumer reference during integration. Remote media cannot be the only path for critical semantic content.
+
+Scene-authored media requirements live in the typed `scene.media_slots[]` contract and remain model-visible with their purpose, trigger, necessity, and text fallback. Integration assets that target `scene:{id}` must name one of those declared slot IDs; every `required: true` slot must have exactly one assembled asset. Older `extensions.media_slots` remains readable for migration, but new fragments must use the first-class field.
+
+Do not create or ask for license or source-attribution fields. When an imported project contains unknown fields of that kind, preserve them under the unknown-field round-trip policy.
+
+### Binding the main CharacterBook
+
+A generated or managed non-empty embedded CharacterBook must be the card's main worldbook:
+
+- with an explicit name, require `data.extensions.world === data.character_book.name`;
+- without a name, solidify SillyTavern's `<data.name>'s Lorebook` fallback, then bind it; for a non-single project, `data.name` is the project title;
+- if an imported card already binds another worldbook, preserve it and report `character_book.binding_conflict` until integration explicitly resolves the choice.
+
+Equality proves only that the card points at a name. On first import into a clean host, confirm **Import Card Lore**. If the host already owns a worldbook with that name, the automatic prompt is skipped and SillyTavern initially uses the old file. Run **Import Card Lore** manually and confirm the explicit overwrite prompt, then inspect every managed `source_key` and its content. Name equality alone never proves runtime readiness.
+
+## 9. Runtime Projection Order
+
+Build a character payload in this order:
+
+```text
+assembly
+-> MVU CharacterBook entries
+-> EJS CharacterBook entries
+-> preserved imports
+-> Tavern Helper scripts
+-> SillyTavern character regexes
+-> main CharacterBook binding
+```
+
+Each projector consumes the previous payload and merges its issues/warnings. A later adapter may not conceal an earlier contract failure.
+
+### MVU and EJS
+
+- The embedded MVU adapter targets Tavern Helper's `Mvu` API, waits boundedly for `waitGlobalInitialized("Mvu")`, subscribes to all public `Mvu.events.*` before bootstrapping from `getMvuData(options)`, and removes the exact `(event, handler)` pairs on cleanup. It must not fall back to `getVariables()`, `globalThis.MVU`, or invented event names.
+- Embedded MVU storage currently supports message targets. `latest_message` maps to `{ type: "message", message_id: "latest" }`; `current_message` uses a numeric host message context and otherwise explicitly degrades to latest. Initialization fills defaults in the host event object without a second write; bootstrap may persist missing defaults once. Reject an invalid update atomically.
+- Automatic updates currently support `same_generation`. `extra_pass` or `both` requires a verified independent request, routing, response parser, protocol validation, atomic commit, and failure handling. A parser or commit helper alone does not implement this chain.
+- EJS uses SillyTavern's `ST-Prompt-Template 1.17.6.8` (`globalThis.EjsTemplate`). EJS projects only to `data.character_book.entries[]`, never Tavern Helper scripts. Host entries stay disabled and constant with empty keys and preserve adjacent `@@always_enabled` plus generate/render decorators. Split `target: both` into generate and render entries.
+- EJS conditions are structured `condition.runtime_path/operator/value` with `branches.when_true/when_false/fallback`. Pure EJS uses a ledger-typed default with `getvar()`. MVU-linked EJS accepts only the verified message/stat_data/current-or-latest contract and reads `Mvu.getMvuData()` after a bounded wait. Missing snapshots, namespace, or paths use `branches.fallback`; never disguise missing state with a default that selects true or false.
+
+### Status UI
+
+- Status UI appears only inside AI messages. The delivery paths are SillyTavern character regex or Tavern Helper message-level JS/iframe.
+- A simple embedded regex replaces `<StatusPlaceHolderImpl/>` with self-contained text/static HTML. It is fixed to `refresh: on_message`, `read_only: true`, `commands: []`, and a non-tab layout. Its missing/loading/error/degraded strings are design metadata, not proof of runtime branching or reliable per-message history.
+- Dynamic refresh, commands, tabs, conditional states, or reliable historical snapshots require `tavern_helper_message + host_required`. The regex emits self-contained fenced HTML; Tavern Helper creates an iframe in that same message. The script validates an integer `getCurrentMessageId()`, repeatedly reads `getVariables({ type: "message", message_id })` for that exact floor, does not stop at an inherited first snapshot, redraws only on visible changes, and cleans up on `pagehide`/`unload`. It must never read `latest`, access the parent page, create page-level nodes, or load remote UI.
+- Cards that embed the Tavern Helper MVU role script require the target host setting `酒馆助手 -> 渲染 -> 启用 Blob URL 渲染` to be off on the verified SillyTavern 1.18.0 + Tavern Helper 4.9.1 combination. Record the setting in runtime evidence and refresh SillyTavern after changing it. This is not a requirement to patch host or extension source, and it does not apply to pure EJS projects that do not use the embedded MVU role script.
+- Forge appends one placeholder idempotently to the default and alternate openings. The later assistant-output contract lives in CharacterBook: merge it into the MVU reply-format entry when MVU is enabled, otherwise generate a dedicated constant entry named in Chinese. Remove the old managed marker from `post_history_instructions` and never write the new contract there.
+- With MVU, generate separate prompt/display regexes that hide only complete `<initvar>...</initvar>` blocks and preserve the raw message, plus prompt filtering and stream/final display handling for update blocks. Use stable UUIDs, non-greedy multi-block matching, fixed managed order, and collision protection.
+- SillyTavern's first-use regex authorization is a host security mechanism. Report it in handoff; never bypass or fake it.
+
+## 10. NSFW Projection
+
+Lock NSFW only during project preflight.
+
+- `enabled: false`: omit specialized fields, groups, rules, conditions, and placeholders from character, system, openings, MVU, EJS, and UI.
+- `enabled: true`: merge already confirmed relevant content into normal character and status structures without a separate questionnaire or repeated switch prompt.
+- Platform-level constraints always apply.
+- GM visibility remains independent; enabling the feature does not make private fields player-visible.
+
+Load the two mix-ins under `assets/templates/nsfw/` only when enabled. Do not create empty keys when disabled.
+
+## 11. Imported Cards and Unknown Fields
+
+- Keep the input artifact read-only and output into the project workspace by default.
+- Normalize recognized fields into `src/`. Store explainable-but-unknown fields in `src/import/preserved.json` with their original JSON paths.
+- Merge preserved fields back during rebuild. If they conflict with maintained sources, report the exact difference and require an explicit policy.
+- Preserve import order, CharacterBook entry IDs, extension enabled state, legacy advanced definitions, and unknown extension objects.
+- Any unexplained irreversible loss is a blocker; "this skill does not use that field" is not a valid deletion reason.
+
+## 12. Character Cards and PNG
+
+- JSON artifacts follow `character-card.schema.json`; preserve unknown extension fields.
+- Encode JSON as UTF-8 and preserve multiline meaning without turning line breaks into visible escape text.
+- Add or replace only declared character-card chunks in PNG and preserve original image pixels. Record chunk keys and encoding in the build manifest.
+- `pack -> unpack` must pass semantic comparison, not merely byte comparison.
+- Stop on corrupt, duplicate, or priority-ambiguous chunks; never guess which payload to overwrite.
+
+## 13. Dependency Classes
+
+Assign one primary class to every dependency:
+
+- `builtin`: standard SillyTavern capability;
+- `embedded`: delivered with the card or worldbook;
+- `host_required`: must be installed and enabled in the target host;
+- `remote`: loaded remotely at runtime, with URL, version, and fallback;
+- `development_only`: build or validation dependency absent from player handoff.
+
+A successful build does not prove a host dependency exists. Only real runtime evidence may confirm installation and compatibility. Deliver runtime code with the project/card or an explicit host dependency; do not use an unregistered remote script as an assembly shortcut. Remote media remains governed by `media_manifest`.

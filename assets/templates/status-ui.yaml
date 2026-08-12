@@ -28,8 +28,10 @@ status_ui:
     live_updates: polite
     color_independent: true
   dependencies: []
-  # A generated self-contained message iframe uses level: host_required,
-  # adapter: tavern_helper_message, entrypoint: generated, artifact: inline.
+  # The default basic delivery is embedded + sillytavern_regex. An explicitly
+  # selected, unverified message iframe candidate uses level: host_required,
+  # adapter: tavern_helper_message, entrypoint: generated, artifact: inline;
+  # keep runtime evidence at not_run until its target host executes it.
   # Generated inline delivery is read-only, on_message, command-free, and
   # non-tabbed. A separately implemented host specification must instead use
   # entrypoint: host_managed and artifact: host_managed.

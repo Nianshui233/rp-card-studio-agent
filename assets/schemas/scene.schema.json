@@ -100,6 +100,10 @@
         }
       }
     },
+    "media_slots": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/mediaSlot" }
+    },
     "source_refs": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
     "extensions": { "type": "object" }
   },
@@ -147,6 +151,19 @@
         "path": { "$ref": "#/$defs/path" },
         "operation": { "enum": ["set", "add", "subtract", "append", "remove"] },
         "value": {}
+      }
+    },
+    "mediaSlot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind_hint", "purpose", "trigger", "required", "text_fallback"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind_hint": { "enum": ["image", "portrait", "background", "sprite", "audio", "video", "other"] },
+        "purpose": { "type": "string", "minLength": 1 },
+        "trigger": { "type": "string", "minLength": 1 },
+        "required": { "type": "boolean" },
+        "text_fallback": { "type": "string", "minLength": 1 }
       }
     }
   }

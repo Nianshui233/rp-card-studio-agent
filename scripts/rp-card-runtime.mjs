@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 
+import { projectModelSource, semanticLeafPointers } from "./forge/projection.mjs";
+
 const OPERATION_TYPES = Object.freeze({
   set: new Set(["string", "integer", "number", "boolean", "enum", "object", "array"]),
   add: new Set(["integer", "number"]),
@@ -676,6 +678,24 @@ function validateMediaConsumers(sources, issues) {
     ["system", new Set(values(sources, "systems").map((source) => source.id))],
     ["ui", new Set(values(sources, "ui").flatMap((source) => source.status_ui?.sections ?? []).map((section) => section.id))]
   ]);
+  const sceneSlots = new Map();
+  for (const [sceneIndex, scene] of values(sources, "scenes").entries()) {
+    const slots = Array.isArray(scene.media_slots)
+      ? scene.media_slots
+      : Array.isArray(scene.extensions?.media_slots) ? scene.extensions.media_slots : [];
+    const byId = new Map();
+    for (const [slotIndex, slot] of slots.entries()) {
+      if (byId.has(slot.id)) {
+        issues.push(issue(`/runtime/scenes/${sceneIndex}/media_slots/${slotIndex}/id`, "media.slot", `Duplicate scene media slot: ${scene.id} / ${slot.id}`));
+      } else {
+        byId.set(slot.id, {
+          ...slot,
+          path: `/runtime/scenes/${sceneIndex}/media_slots/${slotIndex}`,
+        });
+      }
+    }
+    sceneSlots.set(scene.id, byId);
+  }
   const claimedSlots = new Map();
   for (const [assemblyIndex, assembly] of assemblySources(sources).entries()) {
     if (!assembly.media_manifest?.enabled) continue;
@@ -690,7 +710,19 @@ function validateMediaConsumers(sources, issues) {
         const match = /^([a-z_]+):([a-z][a-z0-9_]*)$/.exec(consumer.ref ?? "");
         if (!match || !targets.get(match[1])?.has(match[2])) {
           issues.push(issue(`/runtime/assembly/${assemblyIndex}/media_manifest/assets/${assetIndex}/consumers/${consumerIndex}/ref`, "media.reference", `Media consumer does not resolve: ${consumer.ref}`));
+        } else if (match[1] === "scene") {
+          const declaredSlots = sceneSlots.get(match[2]) ?? new Map();
+          if (!declaredSlots.has(consumer.slot)) {
+            issues.push(issue(`/runtime/assembly/${assemblyIndex}/media_manifest/assets/${assetIndex}/consumers/${consumerIndex}/slot`, "media.slot", `Scene media consumer does not resolve to a declared slot: ${consumer.ref} / ${consumer.slot}`));
+          }
         }
+      }
+    }
+  }
+  for (const [sceneId, slots] of sceneSlots.entries()) {
+    for (const slot of slots.values()) {
+      if (slot.required === true && !claimedSlots.has(`scene:${sceneId}\u0000${slot.id}`)) {
+        issues.push(issue(slot.path, "media.required", `Required scene media slot has no assembled asset: scene:${sceneId} / ${slot.id}`));
       }
     }
   }
@@ -739,14 +771,40 @@ function validateUi(uiSources, bySource, project, issues, warnings) {
       issues.push(issue(`/runtime/ui/${sourceIndex}/status_ui/delivery`, "ui.runtime_missing", "Enabled UI requires a message delivery contract"));
     } else if (enabledMode && ui.delivery?.level !== "embedded") {
       const message = completeUiDelivery(ui)
-        ? "The message iframe is generated, but its Tavern Helper host runtime has not been verified by offline validation"
+        ? "The generated Tavern Helper message iframe is an optional advanced candidate only. Offline validation cannot prove iframe navigation or script execution; keep runtime evidence at not_run until the target host verifies its configured renderer transport and requested behavior"
         : `UI delivery level ${ui.delivery?.level} is a specification or unverified host dependency`;
       warnings.push(issue(`/runtime/ui/${sourceIndex}/status_ui/delivery/level`, "ui.runtime_not_run", message));
     }
-    const boundUiPaths = new Set((ui.sections ?? []).flatMap((section) => (section.fields ?? []).map((field) => field.source_path)));
-    for (const match of String(ui.text_template ?? "").matchAll(/\{\{\s*([A-Za-z_][A-Za-z0-9_-]*(?:\.[A-Za-z_][A-Za-z0-9_-]*)*)\s*\}\}/g)) {
-      if (!boundUiPaths.has(match[1])) {
+    const baselineRegexCapability = ui.read_only === true
+      && ui.refresh === "on_message"
+      && (ui.commands ?? []).length === 0
+      && ui.responsive?.narrow !== "tabs"
+      && ui.responsive?.wide !== "tabs";
+    if (enabledMode
+      && completeUiDelivery(ui)
+      && ui.delivery?.adapter === "tavern_helper_message"
+      && baselineRegexCapability) {
+      warnings.push(issue(
+        `/runtime/ui/${sourceIndex}/status_ui/delivery/adapter`,
+        "ui.regex_preferred",
+        "This read-only on-message status UI fits the verified baseline contract; prefer embedded sillytavern_regex. Keep tavern_helper_message as an opt-in advanced host dependency",
+      ));
+    }
+    const boundUiFields = new Map((ui.sections ?? []).flatMap((section) => (
+      (section.fields ?? []).map((field) => [field.source_path, field])
+    )));
+    const textTemplate = String(ui.text_template ?? "");
+    for (const match of textTemplate.matchAll(/\{\{\s*([A-Za-z_][A-Za-z0-9_-]*(?:\.[A-Za-z_][A-Za-z0-9_-]*)*)\s*\}\}/g)) {
+      const field = boundUiFields.get(match[1]);
+      if (!field) {
         issues.push(issue(`/runtime/ui/${sourceIndex}/status_ui/text_template`, "ui.summary_path", `Status summary path must also be a player-visible UI field: ${match[1]}`));
+      } else if (field.format === "percent"
+        && /^\s*%/.test(textTemplate.slice(match.index + match[0].length))) {
+        issues.push(issue(
+          `/runtime/ui/${sourceIndex}/status_ui/text_template`,
+          "ui.percent_suffix",
+          `format=percent already supplies the % suffix; remove the literal % after {{${match[1]}}}`,
+        ));
       }
     }
     for (const [sectionIndex, section] of (ui.sections ?? []).entries()) {
@@ -1093,6 +1151,126 @@ function assemblySources(sources) {
   return values(sources, "assembly");
 }
 
+function normalizeAssemblySelector(value) {
+  if (typeof value !== "string" || value === "") return "";
+  return value.startsWith("/") ? value : `/${value}`;
+}
+
+function resolveRegisteredAssemblySource(source, sources) {
+  if (!isObject(source) || !["registered_source", "path"].includes(source.kind)) return null;
+  const rawReference = source.ref ?? source.source_ref ?? source.path;
+  if (typeof rawReference !== "string") return null;
+  const [reference, inlinePointer] = rawReference.split("#/");
+  const selector = normalizeAssemblySelector(source.selector ?? (inlinePointer === undefined ? "" : inlinePointer));
+  for (const [group, sourceEntries] of Object.entries(sources ?? {})) {
+    const direct = sourceEntries.find((entry) => entry.relativePath === reference);
+    if (direct) return { relativePath: direct.relativePath, group, selector, sourceEntry: direct };
+  }
+  const match = /^([a-z_]+):([a-z][a-z0-9_]*)$/.exec(reference);
+  if (!match) return null;
+  const [, rawGroup, id] = match;
+  const groupAliases = { character: "characters", system: "systems", scene: "scenes", prompt: "prompts" };
+  const group = groupAliases[rawGroup] ?? rawGroup;
+  const sourceEntry = entries(sources, group).find((entry) => entry.value?.id === id);
+  return sourceEntry ? { relativePath: sourceEntry.relativePath, group, selector, sourceEntry } : null;
+}
+
+function requiredCharacterBookSources(sources, project) {
+  const records = [];
+  const add = (group, label, sourceEntries, displayNameOverride = null) => {
+    for (const sourceEntry of sourceEntries) {
+      const displayName = displayNameOverride
+        ?? sourceEntry.value?.display_name
+        ?? sourceEntry.value?.openings?.[0]?.display_name
+        ?? sourceEntry.value?.id
+        ?? sourceEntry.relativePath;
+      const projection = projectModelSource(group, sourceEntry.value);
+      const semanticPointers = semanticLeafPointers(projection);
+      if (semanticPointers.length === 0) continue;
+      records.push({
+        relativePath: sourceEntry.relativePath,
+        label: `${label}：${displayName}`,
+        group,
+        semanticPointers,
+      });
+    }
+  };
+  add("positioning", "项目定位", entries(sources, "positioning"), project?.project?.display_name ?? null);
+  add("world", "世界设定", entries(sources, "world"));
+  add("character", "人物档案", entries(sources, "characters"));
+  add("system", "系统规则", entries(sources, "systems"));
+  add("scene", "场景资料", entries(sources, "scenes"));
+  add("prompt", "叙事与对白", entries(sources, "prompts"));
+  return records;
+}
+
+function selectorCoversPointer(selector, pointer) {
+  // Selected fragments are wrapped with their module identity when materialized,
+  // so any reachable selector also carries these root identity fields.
+  if (pointer === "/id" || pointer === "/display_name") return true;
+  return selector === "" || selector === pointer || pointer.startsWith(`${selector}/`);
+}
+
+function assemblyRegistrations(manifest, sources) {
+  return (manifest?.entries ?? []).map((entry, entryIndex) => ({
+    entry,
+    entryIndex,
+    resolved: resolveRegisteredAssemblySource(entry.source, sources),
+  })).filter((record) => record.resolved);
+}
+
+function validateCharacterBookCoverage(manifest, sources, base, issues, project) {
+  const registrations = assemblyRegistrations(manifest, sources)
+    .filter(({ entry }) => entry.enabled === true && entry.probability > 0);
+  for (const required of requiredCharacterBookSources(sources, project)) {
+    const selectors = registrations
+      .filter(({ resolved }) => resolved.relativePath === required.relativePath)
+      .map(({ resolved }) => resolved.selector);
+    const missingPointers = required.semanticPointers
+      .filter((pointer) => !selectors.some((selector) => selectorCoversPointer(selector, pointer)));
+    const covered = missingPointers.length === 0;
+    if (covered) continue;
+    const missingHint = [...new Set(missingPointers.map((pointer) => pointer.split("/").slice(0, 3).join("/")))]
+      .slice(0, 8)
+      .join("、");
+    const firstMissingRoot = missingPointers[0]?.split("/").slice(0, 2).join("/") ?? "";
+    const sourceHint = `${required.relativePath}${firstMissingRoot ? `#${firstMissingRoot}` : ""}`;
+    issues.push(issue(
+      `${base}/worldbook_manifest/entries`,
+      "assembly.coverage",
+      `世界书装配未完整覆盖 ${required.label}（${sourceHint}；缺少 ${missingHint}）；可用一个整源条目或多个 selector 条目联合覆盖，并分别明确触发、插入、深度、顺序、概率与递归策略`,
+    ));
+  }
+}
+
+function validateSingleCharacterEntry(manifest, sources, base, issues) {
+  const positioning = entries(sources, "positioning")
+    .find((sourceEntry) => sourceEntry.value?.status === "locked")?.value
+    ?? entries(sources, "positioning")[0]?.value;
+  if (positioning?.card_mode !== "single_character_card") return;
+  const registrations = assemblyRegistrations(manifest, sources);
+  const primaries = entries(sources, "characters")
+    .filter((sourceEntry) => sourceEntry.value?.role === "primary_character");
+  for (const primary of primaries) {
+    const roots = registrations.filter(({ resolved }) => (
+      resolved.relativePath === primary.relativePath && resolved.selector === ""
+    ));
+    const stable = roots.find(({ entry }) => (
+      entry.enabled === true
+      && entry.activation?.mode === "constant"
+      && entry.probability === 100
+      && entry.ignore_budget === true
+    ));
+    if (stable) continue;
+    const displayName = primary.value?.display_name ?? primary.value?.id ?? primary.relativePath;
+    issues.push(issue(
+      `${base}/worldbook_manifest/entries`,
+      "assembly.single_character",
+      `真正单人卡的唯一角色“${displayName}”必须由一个整源、启用、常驻、100% 概率且 ignore_budget=true 的独立条目承载，避免每轮唯一角色定义被关键词、随机概率或世界书预算丢弃`,
+    ));
+  }
+}
+
 function fallbackAssetId(asset) {
   const raw = asset.fallback_ref ?? asset.fallback?.asset_ref ?? asset.fallback?.ref ?? asset.fallback;
   if (typeof raw !== "string" || ["skip", "none", "text", "omit", "block", "include"].includes(raw)) return null;
@@ -1252,8 +1430,80 @@ function worldbookHostIssues(manifest, target, basePath = "/runtime/assembly") {
   if (manifest?.recursive_scanning === true) {
     issues.push(issue(`${basePath}/worldbook_manifest/recursive_scanning`, "assembly.host.unsupported", "SillyTavern does not consume per-book recursive_scanning; configure the host global setting instead"));
   }
+  const displayNames = new Map();
+  const insertionOrders = new Map();
   for (const [entryIndex, entry] of (manifest?.entries ?? []).entries()) {
     const entryPath = `${basePath}/worldbook_manifest/entries/${entryIndex}`;
+    const requireFields = (value, fields, pathValue, rule) => {
+      for (const field of fields) {
+        if (!isObject(value) || !Object.hasOwn(value, field)) {
+          issues.push(issue(`${pathValue}/${field}`, rule, `世界书条目必须显式决定 ${field}`));
+        }
+      }
+    };
+    requireFields(entry.activation, ["mode", "primary_keys", "secondary_keys", "selective", "logic", "case_sensitive", "match_whole_words"], `${entryPath}/activation`, "assembly.activation");
+    requireFields(entry.insertion, ["position", "order", "depth", "role"], `${entryPath}/insertion`, "assembly.insertion");
+    requireFields(entry.recursion, ["prevent_incoming", "prevent_outgoing", "delay_until_recursion"], `${entryPath}/recursion`, "assembly.recursion");
+    if (!Object.hasOwn(entry, "probability")) {
+      issues.push(issue(`${entryPath}/probability`, "assembly.probability", "世界书条目必须显式决定触发概率"));
+    }
+    if (!Object.hasOwn(entry, "scan_depth")) {
+      issues.push(issue(`${entryPath}/scan_depth`, "assembly.scan_depth", "世界书条目必须显式决定扫描深度；继承宿主全局值时填写 null"));
+    }
+    if (entry.ignore_budget !== undefined && typeof entry.ignore_budget !== "boolean") {
+      issues.push(issue(`${entryPath}/ignore_budget`, "assembly.ignore_budget", "ignore_budget 必须是布尔值"));
+    }
+    const displayName = typeof entry.display_name === "string" ? entry.display_name.trim() : "";
+    if (!displayName) {
+      issues.push(issue(`${entryPath}/display_name`, "assembly.entry_name", "每个世界书条目都必须有明确的用户可见名称"));
+    } else if (displayNames.has(displayName)) {
+      issues.push(issue(`${entryPath}/display_name`, "assembly.entry_name", `世界书条目名称重复：${displayName}`));
+    } else {
+      displayNames.set(displayName, entryIndex);
+    }
+    const activation = entry.activation ?? {};
+    const primaryKeys = activation.primary_keys ?? [];
+    const secondaryKeys = activation.secondary_keys ?? [];
+    if (activation.mode === "constant" && (primaryKeys.length > 0 || secondaryKeys.length > 0 || activation.selective === true)) {
+      issues.push(issue(`${entryPath}/activation`, "assembly.activation", "常驻条目不得同时声明关键词或二级筛选；请明确选择常驻或关键词触发"));
+    }
+    if (activation.mode === "keywords" && primaryKeys.length === 0) {
+      issues.push(issue(`${entryPath}/activation/primary_keys`, "assembly.activation", "关键词条目至少需要一个主关键词"));
+    }
+    if (activation.selective === true && secondaryKeys.length === 0) {
+      issues.push(issue(`${entryPath}/activation/secondary_keys`, "assembly.activation", "启用二级筛选时至少需要一个二级关键词"));
+    }
+    if (activation.selective !== true && secondaryKeys.length > 0) {
+      issues.push(issue(`${entryPath}/activation/selective`, "assembly.activation", "存在二级关键词时必须显式启用 selective"));
+    }
+    const insertion = entry.insertion ?? {};
+    if (insertion.position === "at_depth") {
+      if (!Number.isInteger(insertion.depth)) {
+        issues.push(issue(`${entryPath}/insertion/depth`, "assembly.insertion", "at_depth 条目必须明确非负整数深度"));
+      }
+      if (!insertion.role) {
+        issues.push(issue(`${entryPath}/insertion/role`, "assembly.insertion", "at_depth 条目必须明确 system、user 或 assistant 角色"));
+      }
+    } else if (insertion.depth !== null && insertion.depth !== undefined) {
+      issues.push(issue(`${entryPath}/insertion/depth`, "assembly.insertion", "非 at_depth 条目的 depth 应显式设为 null"));
+    }
+    if (Number.isInteger(insertion.order)) {
+      if (insertionOrders.has(insertion.order)) {
+        issues.push(issue(`${entryPath}/insertion/order`, "assembly.order", `世界书插入顺序重复：${insertion.order}`));
+      } else {
+        insertionOrders.set(insertion.order, entryIndex);
+      }
+    }
+    const recursion = entry.recursion ?? {};
+    const delay = recursion.delay_until_recursion;
+    const validDelay = typeof delay === "boolean"
+      || (Number.isInteger(delay) && delay >= 1 && delay <= 10000);
+    if (delay !== undefined && !validDelay) {
+      issues.push(issue(`${entryPath}/recursion/delay_until_recursion`, "assembly.recursion", "delay_until_recursion 必须是布尔值或 1..10000 的递归层级"));
+    }
+    if (delay !== false && delay !== undefined && recursion.prevent_incoming === true) {
+      issues.push(issue(`${entryPath}/recursion`, "assembly.recursion", "条目同时延迟到递归阶段并禁止递归进入，将永远无法触发"));
+    }
     if (entry.recipient !== undefined && entry.recipient !== "shared") {
       issues.push(issue(`${entryPath}/recipient`, "assembly.host.unsupported", "SillyTavern worldbook entries do not route to plot/update recipients; use shared"));
     }
@@ -1276,7 +1526,7 @@ function worldbookHostIssues(manifest, target, basePath = "/runtime/assembly") {
   return issues;
 }
 
-async function validateAssembly(sources, projectRoot, issues, warnings, target) {
+async function validateAssembly(sources, projectRoot, issues, warnings, target, project) {
   const assemblies = assemblySources(sources);
   if (assemblies.length > 1) {
     issues.push(issue("/runtime/assembly", "assembly.configuration", "Exactly one assembly source may own the integration manifest"));
@@ -1284,12 +1534,16 @@ async function validateAssembly(sources, projectRoot, issues, warnings, target) 
   for (const [sourceIndex, assembly] of assemblies.entries()) {
     const manifest = assembly.worldbook_manifest;
     issues.push(...worldbookHostIssues(manifest, target, `/runtime/assembly/${sourceIndex}`));
+    validateCharacterBookCoverage(manifest, sources, `/runtime/assembly/${sourceIndex}`, issues, project);
+    if (target === "character") {
+      validateSingleCharacterEntry(manifest, sources, `/runtime/assembly/${sourceIndex}`, issues);
+    }
     const ids = new Set();
     for (const [entryIndex, entry] of (manifest?.entries ?? []).entries()) {
       if (ids.has(entry.id)) issues.push(issue(`/runtime/assembly/${sourceIndex}/worldbook_manifest/entries/${entryIndex}/id`, "assembly.reference", `Duplicate worldbook entry id: ${entry.id}`));
       ids.add(entry.id);
       try {
-        await resolveAssemblyContent(entry.source, sources, projectRoot);
+        await resolveWorldbookContent(entry.source, sources, projectRoot);
       } catch (error) {
         const sourceIssue = issue(`/runtime/assembly/${sourceIndex}/worldbook_manifest/entries/${entryIndex}/source`, entry.fallback === "skip" ? "assembly.source.skipped" : "assembly.source", error.message);
         (entry.fallback === "skip" ? warnings : issues).push(sourceIssue);
@@ -1385,7 +1639,7 @@ export async function validateRuntimeSources({ project, sources, projectRoot }) 
   validateMediaConsumers(sources, issues);
   validateStateMachines(values(sources, "systems"), project, sources, issues);
   const projectTarget = runtimeAssemblyTarget(project);
-  await validateAssembly(sources, projectRoot, issues, warnings, projectTarget);
+  await validateAssembly(sources, projectRoot, issues, warnings, projectTarget, project);
   return { issues, warnings };
 }
 
@@ -1420,6 +1674,44 @@ async function resolveAssemblyContent(source, sources, projectRoot) {
   throw new Error(`Unsupported worldbook source kind: ${source.kind ?? "missing"}`);
 }
 
+function modelSelectionEnvelope(group, projected, selector, selected, entryDisplayName) {
+  if (!selector) return selected;
+  const normalizedGroup = ({
+    characters: "character",
+    systems: "system",
+    scenes: "scene",
+    prompts: "prompt",
+  })[group] ?? group;
+  const module = {
+    type: normalizedGroup,
+    ...(typeof projected?.id === "string" ? { id: projected.id } : {}),
+    ...(typeof projected?.display_name === "string" ? { display_name: projected.display_name } : {}),
+    ...(typeof entryDisplayName === "string" && entryDisplayName ? { entry_name: entryDisplayName } : {}),
+    selection: selector,
+  };
+  return { module, content: selected };
+}
+
+async function resolveWorldbookContent(source, sources, projectRoot, entryDisplayName = null) {
+  if (!isObject(source)) throw new Error("Worldbook entry source must be an object");
+  if (!["registered_source", "path"].includes(source.kind)) {
+    return resolveAssemblyContent(source, sources, projectRoot);
+  }
+  const resolved = resolveRegisteredAssemblySource(source, sources);
+  const reference = source.ref ?? source.source_ref ?? source.path;
+  if (!resolved) throw new Error(`Unknown structured source path: ${reference}`);
+  const projected = projectModelSource(resolved.group, resolved.sourceEntry.value);
+  const selected = selectPointer(projected, resolved.selector, reference);
+  const content = modelSelectionEnvelope(
+    resolved.group,
+    projected,
+    resolved.selector,
+    selected,
+    entryDisplayName,
+  );
+  return typeof content === "string" ? content : JSON.stringify(content, null, 2);
+}
+
 function selectPointer(value, pointer, reference) {
   let selected = value;
   const normalized = typeof pointer === "string" ? pointer.replace(/^\//, "") : "";
@@ -1435,8 +1727,8 @@ function worldbookEntriesContainer(payload, target, manifest) {
   if (target === "character") {
     payload.data ??= {};
     payload.data.character_book ??= {
-      name: `${payload.data.name ?? "Character"} Worldbook`,
-      description: "Assembled by RP Card Studio",
+      name: `${payload.data.name ?? "未命名角色"} 世界书`,
+      description: "由 SillyTavern制卡工坊装配",
       scan_depth: null,
       token_budget: null,
       recursive_scanning: false,
@@ -1556,6 +1848,7 @@ function manifestEntry(entry, content, target, characterBookId = null) {
   const recursion = entry.recursion ?? {};
   const probability = entry.probability ?? 100;
   const scanDepth = entry.scan_depth ?? null;
+  const ignoreBudget = entry.ignore_budget ?? entry.extensions?.ignore_budget ?? false;
   const selectiveLogic = ({ any: 0, not_all: 1, not_any: 2, all: 3 })[activation.logic ?? "any"];
   const rawPosition = ({ before_char: 0, after_char: 1, before_example: 5, after_example: 6, at_depth: 4 })[insertion.position ?? "before_char"];
   const rawRole = ({ system: 0, user: 1, assistant: 2 })[insertion.role] ?? null;
@@ -1564,7 +1857,8 @@ function manifestEntry(entry, content, target, characterBookId = null) {
     probability,
     excludeRecursion: Boolean(recursion.prevent_incoming),
     preventRecursion: Boolean(recursion.prevent_outgoing),
-    delayUntilRecursion: Boolean(recursion.delay_until_recursion),
+    delayUntilRecursion: recursion.delay_until_recursion ?? false,
+    ignoreBudget,
     depth: insertion.depth ?? null,
     role: rawRole,
     selectiveLogic,
@@ -1588,6 +1882,7 @@ function manifestEntry(entry, content, target, characterBookId = null) {
     recipient: entry.recipient ?? "shared",
     visibility: entry.visibility ?? "model",
     token_budget: entry.token_budget ?? null,
+    ignore_budget: ignoreBudget,
     scan_depth: scanDepth,
     fallback: clone(entry.fallback ?? "skip")
   };
@@ -1599,6 +1894,7 @@ function manifestEntry(entry, content, target, characterBookId = null) {
     exclude_recursion: rawHostFields.excludeRecursion,
     prevent_recursion: rawHostFields.preventRecursion,
     delay_until_recursion: rawHostFields.delayUntilRecursion,
+    ignore_budget: ignoreBudget,
     depth: rawHostFields.depth,
     role: rawRole,
     selectiveLogic,
@@ -1617,7 +1913,7 @@ function manifestEntry(entry, content, target, characterBookId = null) {
       id: `wb_${entry.id}`,
       key: clone(activation.primary_keys ?? []),
       keysecondary: clone(activation.secondary_keys ?? []),
-      comment: entry.display_name ?? entry.id,
+      comment: entry.display_name ?? `世界书条目：${entry.id}`,
       content,
       constant: activation.mode === "constant",
       selective: Boolean(activation.selective),
@@ -1628,14 +1924,14 @@ function manifestEntry(entry, content, target, characterBookId = null) {
       scanDepth,
       ...rawHostFields,
       ...characterFilter ? { characterFilter } : {},
-      extensions: { ...customExtensions, rp_card_studio: tracking }
+      extensions: { ...customExtensions, ignore_budget: ignoreBudget, rp_card_studio: tracking }
     };
   }
   return {
     id: characterBookId,
     keys: clone(activation.primary_keys ?? []),
     secondary_keys: clone(activation.secondary_keys ?? []),
-    comment: entry.display_name ?? entry.id,
+    comment: entry.display_name ?? `世界书条目：${entry.id}`,
     content,
     constant: activation.mode === "constant",
     selective: Boolean(activation.selective),
@@ -1674,7 +1970,12 @@ export async function applyAssemblyManifest(payload, { sources, projectRoot, tar
   const resolvedRecords = [];
   for (const record of records) {
     try {
-      const content = await resolveAssemblyContent(record.entry.source, sources, projectRoot);
+      const content = await resolveWorldbookContent(
+        record.entry.source,
+        sources,
+        projectRoot,
+        record.entry.display_name,
+      );
       const legacyId = `wb_${record.entry.id}`;
       const legacyCollision = target === "character" && container.some((entry) => entry?.id === legacyId);
       if (legacyCollision && manifest.duplicate_policy !== "replace_imported") {
@@ -1814,14 +2115,16 @@ export function applyMvuArtifacts(payload, { project, sources, target }) {
   const statusEnabled = Boolean(activeStatusUi(project, sources));
   const generated = [
     mvuCharacterBookEntry({
-      comment: "[initvar] RP Card Studio defaults - keep disabled",
+      // MVU v0.179.0 discovers initialization entries by searching comment
+      // for the literal [initvar] marker. Keep the visible title Chinese-first.
+      comment: "初始化变量（保持禁用）[initvar]",
       content: JSON.stringify(defaults, null, 2),
       enabled: false,
       kind: "mvu_initvar",
       order: 14720
     }),
     mvuCharacterBookEntry({
-      comment: "[mvu_update] RP Card Studio variable rules",
+      comment: "变量更新规则",
       content: mvuUpdateRulesContent(mvuSources),
       enabled: true,
       kind: "mvu_update_rules",
@@ -1829,7 +2132,7 @@ export function applyMvuArtifacts(payload, { project, sources, target }) {
       atDepth: true
     }),
     mvuCharacterBookEntry({
-      comment: "[mvu_update] RP Card Studio output format",
+      comment: statusEnabled ? "回复输出格式（含状态栏）" : "回复输出格式",
       content: mvuOutputFormatContent(mvuSources, { statusEnabled }),
       enabled: true,
       kind: "mvu_update_format",
@@ -1877,8 +2180,8 @@ export function applyMvuArtifacts(payload, { project, sources, target }) {
   if (accepted.length === 0) return { payload: output, issues, warnings };
   output.data ??= {};
   output.data.character_book ??= {
-    name: `${output.data.name ?? "Character"} MVU`,
-    description: "RP Card Studio MVU runtime entries",
+    name: `${output.data.name ?? "未命名角色"} 世界书`,
+    description: "SillyTavern制卡工坊 MVU 运行规则",
     scan_depth: null,
     token_budget: null,
     recursive_scanning: false,
@@ -1998,12 +2301,12 @@ function ejsTemplateContent(entry, channel, variable, bridge = null) {
 }
 
 function ejsHostEntry(entry, channel, variable, characterBookId = null, bridge = null) {
-  const suffix = channel === "generate" ? "generate" : "render";
+  const channelLabel = channel === "generate" ? "生成" : "渲染";
   return {
     id: characterBookId,
     keys: [],
     secondary_keys: [],
-    comment: `[${channel.toUpperCase()}] ${entry.id}`,
+    comment: `条件模板（${channelLabel}）：${entry.display_name ?? entry.id}`,
     content: ejsTemplateContent(entry, channel, variable, bridge),
     constant: true,
     selective: false,
@@ -2146,8 +2449,8 @@ export function applyEjsTemplates(payload, { project, sources, target }) {
   if (generated.length === 0) return { payload: output, issues, warnings };
   output.data ??= {};
   output.data.character_book ??= {
-    name: `${output.data.name ?? "Character"} EJS`,
-    description: "RP Card Studio executable EJS templates",
+    name: `${output.data.name ?? "未命名角色"} 世界书`,
+    description: "SillyTavern制卡工坊 EJS 条件模板",
     scan_depth: null,
     token_budget: null,
     recursive_scanning: false,
@@ -2611,10 +2914,15 @@ const DEPRECATED_PARENT_STATUS_SCRIPT_FINGERPRINT = Object.freeze({
   name: "RP Card Studio Status UI",
   info: "Read-only status UI; execution order is encoded by the stable script id"
 });
-const RUNTIME_GUARD_SCRIPT = Object.freeze({
+const LEGACY_RUNTIME_GUARD_SCRIPT = Object.freeze({
   id: "rp_card_studio_runtime_guard",
   name: "RP Card Studio Runtime Guard",
   info: "MVU runtime guard; execution order is encoded by the stable script id"
+});
+const RUNTIME_GUARD_SCRIPT = Object.freeze({
+  id: "rp_card_studio_runtime_guard",
+  name: "SillyTavern制卡工坊：MVU 运行守卫",
+  info: "MVU 运行守卫；执行顺序由稳定脚本 ID 确定"
 });
 const DEPENDENCY_SCRIPT_PREFIX = "rp_card_studio_dependency_";
 
@@ -2639,8 +2947,9 @@ function isDeprecatedParentStatusScript(script) {
 function isRuntimeGuardScript(script) {
   const content = script?.content;
   return script?.id === RUNTIME_GUARD_SCRIPT.id
-    && script?.name === RUNTIME_GUARD_SCRIPT.name
-    && script?.info === RUNTIME_GUARD_SCRIPT.info
+    && [RUNTIME_GUARD_SCRIPT, LEGACY_RUNTIME_GUARD_SCRIPT].some((fingerprint) => (
+      script?.name === fingerprint.name && script?.info === fingerprint.info
+    ))
     && typeof content === "string"
     && content.includes('Symbol.for("rp_card_studio.runtime_guard")')
     && content.includes('waitGlobalInitialized("Mvu")')
@@ -2652,8 +2961,11 @@ function isDependencyScript(script) {
   const id = script?.id;
   if (typeof id !== "string" || !id.startsWith(DEPENDENCY_SCRIPT_PREFIX)) return false;
   const dependencyId = id.slice(DEPENDENCY_SCRIPT_PREFIX.length);
-  if (!dependencyId || script?.name !== `RP Card Studio dependency: ${dependencyId}`) return false;
-  if (typeof script?.info !== "string" || !script.info.startsWith("Pinned remote dependency ")) return false;
+  const currentName = `SillyTavern制卡工坊依赖：${dependencyId}`;
+  const legacyName = `RP Card Studio dependency: ${dependencyId}`;
+  if (!dependencyId || ![currentName, legacyName].includes(script?.name)) return false;
+  if (typeof script?.info !== "string"
+    || !(script.info.startsWith("固定版本远程依赖：") || script.info.startsWith("Pinned remote dependency "))) return false;
   const match = /^import\s+([\s\S]+);$/.exec(script?.content ?? "");
   if (!match) return false;
   try {
@@ -2684,18 +2996,18 @@ export function applyTavernHelperAdapter(payload, { project, sources, target }) 
       seenImports.add(dependency.url);
       generated.push(tavernHelperScript({
         id: `rp_card_studio_dependency_${dependency.id}`,
-        name: `RP Card Studio dependency: ${dependency.id}`,
+        name: `SillyTavern制卡工坊依赖：${dependency.id}`,
         enabled: true,
-        info: `Pinned remote dependency ${dependency.version ?? "unversioned"}`,
+        info: `固定版本远程依赖：${dependency.version ?? "未标版本"}`,
         content: `import ${JSON.stringify(dependency.url)};`
       }));
     }
   }
   if (runtimeEnabled && mvuAdapter) generated.push(tavernHelperScript({
     id: "rp_card_studio_runtime_guard",
-    name: "RP Card Studio Runtime Guard",
+    name: RUNTIME_GUARD_SCRIPT.name,
     enabled: true,
-    info: "MVU runtime guard; execution order is encoded by the stable script id",
+    info: RUNTIME_GUARD_SCRIPT.info,
     content: runtimeGuardScript(runtimeConfig)
   }));
   const existingScripts = payload?.data?.extensions?.tavern_helper?.scripts;
@@ -2764,7 +3076,7 @@ export function applyTavernHelperAdapter(payload, { project, sources, target }) 
 
 const STATUS_PLACEHOLDER = "<StatusPlaceHolderImpl/>";
 const STATUS_REPLY_CONTRACT_MARKER = "[RP Card Studio status placeholder contract]";
-const STATUS_REPLY_CONTRACT = `${STATUS_REPLY_CONTRACT_MARKER}\nEnd every assistant reply with exactly one ${STATUS_PLACEHOLDER}. Emit it after any variable update block, place it at the very end, and do not emit content after it or another copy elsewhere.`;
+const STATUS_REPLY_CONTRACT_CONTENT = `每条助手回复都必须以且仅以一个 ${STATUS_PLACEHOLDER} 结束。若回复包含变量更新块，先输出变量更新块，再输出占位符。占位符之后不得追加正文，也不得在其他位置重复输出。`;
 const MANAGED_REGEX_IDS = Object.freeze({
   mvuInitPromptFilter: "0e4c7a2c-5c51-4a15-8f8e-f2a81f831d05",
   mvuInitDisplayFilter: "0e4c7a2c-5c51-4a15-8f8e-f2a81f831d06",
@@ -2772,6 +3084,22 @@ const MANAGED_REGEX_IDS = Object.freeze({
   mvuPendingFold: "0e4c7a2c-5c51-4a15-8f8e-f2a81f831d02",
   mvuCompleteFold: "0e4c7a2c-5c51-4a15-8f8e-f2a81f831d03",
   statusProjection: "0e4c7a2c-5c51-4a15-8f8e-f2a81f831d04"
+});
+const MANAGED_REGEX_NAMES = Object.freeze({
+  [MANAGED_REGEX_IDS.mvuInitPromptFilter]: "MVU：从提示词移除初始化数据",
+  [MANAGED_REGEX_IDS.mvuInitDisplayFilter]: "MVU：隐藏初始化数据",
+  [MANAGED_REGEX_IDS.mvuPromptFilter]: "MVU：从提示词移除变量更新",
+  [MANAGED_REGEX_IDS.mvuPendingFold]: "MVU：折叠未完成的变量更新",
+  [MANAGED_REGEX_IDS.mvuCompleteFold]: "MVU：折叠变量更新",
+  [MANAGED_REGEX_IDS.statusProjection]: "状态栏：消息内状态显示",
+});
+const LEGACY_MANAGED_REGEX_NAMES = Object.freeze({
+  [MANAGED_REGEX_IDS.mvuInitPromptFilter]: "[MVU] Filter initialization from prompts",
+  [MANAGED_REGEX_IDS.mvuInitDisplayFilter]: "[MVU] Hide initialization from messages",
+  [MANAGED_REGEX_IDS.mvuPromptFilter]: "[MVU] Filter variable updates from prompts",
+  [MANAGED_REGEX_IDS.mvuPendingFold]: "[MVU] Fold pending variable update",
+  [MANAGED_REGEX_IDS.mvuCompleteFold]: "[MVU] Fold complete variable update",
+  [MANAGED_REGEX_IDS.statusProjection]: "[Status] Project message status bar",
 });
 
 function sillyTavernRegexScript({
@@ -2805,7 +3133,7 @@ function mvuRegexScripts() {
   return [
     sillyTavernRegexScript({
       id: MANAGED_REGEX_IDS.mvuInitPromptFilter,
-      scriptName: "[MVU] Filter initialization from prompts",
+      scriptName: MANAGED_REGEX_NAMES[MANAGED_REGEX_IDS.mvuInitPromptFilter],
       findRegex: "/<initvar>\\s*[\\s\\S]*?\\s*<\\/initvar>/gi",
       replaceString: "",
       placement: [1, 2],
@@ -2814,17 +3142,17 @@ function mvuRegexScripts() {
     }),
     sillyTavernRegexScript({
       id: MANAGED_REGEX_IDS.mvuPromptFilter,
-      scriptName: "[MVU] Filter variable updates from prompts",
+      scriptName: MANAGED_REGEX_NAMES[MANAGED_REGEX_IDS.mvuPromptFilter],
       findRegex: "/<update(?:variable)?>[\\s\\S]*?(?:<\\/update(?:variable)?>|$)/gi",
       replaceString: "",
       placement: [1, 2],
       markdownOnly: false,
       promptOnly: true,
-      maxDepth: 3
+      maxDepth: null
     }),
     sillyTavernRegexScript({
       id: MANAGED_REGEX_IDS.mvuInitDisplayFilter,
-      scriptName: "[MVU] Hide initialization from messages",
+      scriptName: MANAGED_REGEX_NAMES[MANAGED_REGEX_IDS.mvuInitDisplayFilter],
       findRegex: "/<initvar>\\s*[\\s\\S]*?\\s*<\\/initvar>/gi",
       replaceString: "",
       placement: [2],
@@ -2833,18 +3161,18 @@ function mvuRegexScripts() {
     }),
     sillyTavernRegexScript({
       id: MANAGED_REGEX_IDS.mvuPendingFold,
-      scriptName: "[MVU] Fold pending variable update",
+      scriptName: MANAGED_REGEX_NAMES[MANAGED_REGEX_IDS.mvuPendingFold],
       findRegex: "/<update(?:variable)?>(?![\\s\\S]*?<\\/update(?:variable)?>)\\s*([\\s\\S]*?)\\s*(?=<StatusPlaceHolderImpl\\s*\\/>\\s*$|$)/i",
-      replaceString: '<details data-rp-card-studio="mvu-update-pending"><summary>Variable update (pending)</summary><pre>$1</pre></details>',
+      replaceString: '<details data-rp-card-studio="mvu-update-pending"><summary>变量更新（未完成）</summary><pre>$1</pre></details>',
       placement: [2],
       markdownOnly: true,
       promptOnly: false
     }),
     sillyTavernRegexScript({
       id: MANAGED_REGEX_IDS.mvuCompleteFold,
-      scriptName: "[MVU] Fold complete variable update",
+      scriptName: MANAGED_REGEX_NAMES[MANAGED_REGEX_IDS.mvuCompleteFold],
       findRegex: "/<update(?:variable)?>\\s*([\\s\\S]*?)\\s*<\\/update(?:variable)?>/gi",
-      replaceString: '<details data-rp-card-studio="mvu-update"><summary>Variable update</summary><pre>$1</pre></details>',
+      replaceString: '<details data-rp-card-studio="mvu-update"><summary>变量更新</summary><pre>$1</pre></details>',
       placement: [2],
       markdownOnly: true,
       promptOnly: false
@@ -2863,26 +3191,32 @@ function statusRuntimePath(sourcePath, runtimeConfig) {
   return mapped.startsWith(`${namespace}.`) ? mapped : `${namespace}.${mapped}`;
 }
 
-function compileStatusText(template, runtimeConfig) {
+function compileStatusText(template, runtimeConfig, fieldsBySourcePath = new Map()) {
   return escapeHtml(template).replace(
     /\{\{\s*([A-Za-z_][A-Za-z0-9_-]*(?:\.[A-Za-z_][A-Za-z0-9_-]*)*)\s*\}\}/g,
-    (_match, sourcePath) => `{{get_message_variable::${statusRuntimePath(sourcePath, runtimeConfig)}}}`
+    (_match, sourcePath) => {
+      const suffix = fieldsBySourcePath.get(sourcePath)?.format === "percent" ? "%" : "";
+      return `{{format_message_variable::${statusRuntimePath(sourcePath, runtimeConfig)}}}${suffix}`;
+    }
   );
 }
 
 function statusProjectionHtml(ui, runtimeConfig) {
   const hierarchy = new Map((ui.visual?.hierarchy ?? []).map((id, index) => [id, index]));
+  const fieldsBySourcePath = new Map((ui.sections ?? []).flatMap((section) => (
+    (section.fields ?? []).map((field) => [field.source_path, field])
+  )));
   const sections = [...ui.sections ?? []].sort((left, right) => {
     const leftRank = hierarchy.get(left.id) ?? Number.MAX_SAFE_INTEGER;
     const rightRank = hierarchy.get(right.id) ?? Number.MAX_SAFE_INTEGER;
     return leftRank - rightRank || (left.priority ?? 0) - (right.priority ?? 0);
   });
   const summary = typeof ui.text_template === "string" && ui.text_template.trim().length > 0
-    ? `<div style="grid-column:1/-1;font-weight:650;color:#f4f4f5">${compileStatusText(ui.text_template, runtimeConfig)}</div>`
+    ? `<div style="grid-column:1/-1;font-weight:650;color:#f4f4f5">${compileStatusText(ui.text_template, runtimeConfig, fieldsBySourcePath)}</div>`
     : "";
   const sectionMarkup = sections.map((section) => {
     const fields = (section.fields ?? []).map((field) => {
-      const macro = `{{get_message_variable::${statusRuntimePath(field.source_path, runtimeConfig)}}}`;
+      const macro = `{{format_message_variable::${statusRuntimePath(field.source_path, runtimeConfig)}}}`;
       const suffix = field.format === "percent" ? "%" : "";
       return `<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:baseline"><dt style="min-width:0;color:#a1a1aa">${escapeHtml(field.label ?? field.id)}</dt><dd style="margin:0;color:#fafafa;font-weight:650;overflow-wrap:anywhere">${macro}${suffix}</dd></div>`;
     }).join("");
@@ -2974,10 +3308,18 @@ function statusMessageConfig(ui, runtimeConfig) {
 
 const STATUS_MESSAGE_RUNTIME = `(function () {
   "use strict";
-  var encoded = "__RP_STATUS_CONFIG_BASE64__";
-  var bytes = Uint8Array.from(atob(encoded), function (character) { return character.charCodeAt(0); });
-  var config = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
   var root = document.getElementById("rp-card-status");
+  function showFatalState() {
+    if (!root) return;
+    root.setAttribute("data-rp-runtime-state", "error");
+    root.replaceChildren();
+    var message = document.createElement("p");
+    message.className = "rp-status-state";
+    message.textContent = "状态栏暂时无法读取。";
+    root.appendChild(message);
+  }
+  try {
+  var config = __RP_STATUS_CONFIG__;
   var timer = null;
   var attempts = 0;
   var disposed = false;
@@ -3087,7 +3429,7 @@ const STATUS_MESSAGE_RUNTIME = `(function () {
   function schedule(delay) {
     if (disposed) return;
     clearTimer();
-    timer = setTimeout(attempt, delay);
+    timer = setTimeout(safeAttempt, delay);
   }
   function retry(finalState) {
     if (disposed) return;
@@ -3141,6 +3483,13 @@ const STATUS_MESSAGE_RUNTIME = `(function () {
     attempts = 0;
     schedule(config.steadyPollIntervalMs);
   }
+  function safeAttempt() {
+    try {
+      attempt();
+    } catch (_error) {
+      showFatalState();
+    }
+  }
   if (root) {
     root.setAttribute("aria-live", config.liveMode);
     showState("loading");
@@ -3149,15 +3498,26 @@ const STATUS_MESSAGE_RUNTIME = `(function () {
     globalThis.addEventListener("pagehide", cleanup, { once: true });
     globalThis.addEventListener("unload", cleanup, { once: true });
   }
-  attempt();
+  safeAttempt();
+  } catch (_error) {
+    showFatalState();
+  }
 })();`;
 
+function inlineScriptJson(value) {
+  return JSON.stringify(value).replace(/[<>&$\u2028\u2029]/g, (character) => (
+    `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`
+  ));
+}
+
 function statusMessageFrontend(ui, runtimeConfig) {
-  const encoded = Buffer.from(JSON.stringify(statusMessageConfig(ui, runtimeConfig)), "utf8").toString("base64");
-  const runtime = STATUS_MESSAGE_RUNTIME.replace("__RP_STATUS_CONFIG_BASE64__", encoded);
+  const config = statusMessageConfig(ui, runtimeConfig);
+  const runtime = STATUS_MESSAGE_RUNTIME.replace("__RP_STATUS_CONFIG__", inlineScriptJson(config));
+  const loadingText = escapeHtml(config.states.loading).replace(/\$/g, "&#36;");
   return [
     "```",
     '<body data-rp-card-studio="status-frame">',
+    "<title>消息状态栏</title>",
     "<style>",
     'body[data-rp-card-studio="status-frame"]{margin:0;padding:0;background:transparent;color:#e4e4e7;font:12px/1.45 system-ui,sans-serif}',
     '#rp-card-status{box-sizing:border-box;margin:8px 0;padding:10px 12px;border:1px solid #3f3f46;border-left:3px solid #22d3ee;border-radius:6px;background:#18181b;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:8px}',
@@ -3171,7 +3531,7 @@ function statusMessageFrontend(ui, runtimeConfig) {
     '.rp-status-state{grid-column:1/-1;margin:0;color:#a1a1aa;overflow-wrap:anywhere}',
     '@media(max-width:520px){#rp-card-status{grid-template-columns:minmax(0,1fr)}.rp-status-row{grid-template-columns:minmax(0,1fr)}}',
     "</style>",
-    '<main id="rp-card-status" data-rp-runtime-state="loading" role="status" aria-atomic="true"></main>',
+    `<main id="rp-card-status" data-rp-runtime-state="loading" role="status" aria-atomic="true"><p class="rp-status-state">${loadingText}</p></main>`,
     "<script>",
     runtime,
     "</script>",
@@ -3182,14 +3542,17 @@ function statusMessageFrontend(ui, runtimeConfig) {
 
 function statusRegexScript(ui, runtimeConfig) {
   const messageRuntime = ui.delivery?.adapter === "tavern_helper_message";
+  const fieldsBySourcePath = new Map((ui.sections ?? []).flatMap((section) => (
+    (section.fields ?? []).map((field) => [field.source_path, field])
+  )));
   const projection = messageRuntime
     ? statusMessageFrontend(ui, runtimeConfig)
     : ui.mode === "text"
-      ? compileStatusText(ui.text_template || ui.states?.degraded || "Status unavailable", runtimeConfig)
+      ? compileStatusText(ui.text_template || ui.states?.degraded || "Status unavailable", runtimeConfig, fieldsBySourcePath)
       : statusProjectionHtml(ui, runtimeConfig);
   return sillyTavernRegexScript({
     id: MANAGED_REGEX_IDS.statusProjection,
-    scriptName: "[Status] Project message status bar",
+    scriptName: MANAGED_REGEX_NAMES[MANAGED_REGEX_IDS.statusProjection],
     findRegex: "/<StatusPlaceHolderImpl\\s*\\/>/g",
     // SillyTavern interprets every $n in replaceString as a capture reference,
     // even though it uses a replacement callback. An HTML entity is the only
@@ -3222,17 +3585,56 @@ function removeStatusPlaceholders(value) {
     .trimEnd();
 }
 
-function appendStatusReplyContract(value) {
-  const existing = String(value ?? "").trimEnd();
-  if (existing.includes(STATUS_REPLY_CONTRACT_MARKER)) return existing;
-  return `${existing}${existing ? "\n\n" : ""}${STATUS_REPLY_CONTRACT}`;
-}
-
 function removeStatusReplyContract(value) {
-  return String(value ?? "")
+  const existing = String(value ?? "");
+  if (!existing.includes(STATUS_REPLY_CONTRACT_MARKER)) return existing;
+  return existing
     .replace(/\[RP Card Studio status placeholder contract\]\r?\n[^\r\n]*(?:\r?\n)?/g, "")
     .replace(/\n{3,}/g, "\n\n")
     .trimEnd();
+}
+
+function syncStatusReplyContract(output, enabled) {
+  output.data ??= {};
+  const book = output.data.character_book;
+  const existingEntries = Array.isArray(book?.entries)
+    ? book.entries
+    : isObject(book?.entries) ? Object.values(book.entries) : [];
+  const sourceKey = "status:reply_contract";
+  const existingIndex = existingEntries.findIndex((entry) => characterBookTrackingKey(entry) === sourceKey);
+  if (!enabled) {
+    if (existingIndex >= 0) existingEntries.splice(existingIndex, 1);
+    if (book) book.entries = existingEntries;
+    return [];
+  }
+  const allocator = createCharacterBookIdAllocator(existingEntries);
+  const allocation = allocator.allocateMany([sourceKey]).get(sourceKey);
+  const generated = mvuCharacterBookEntry({
+    id: allocation.id,
+    sourceId: "reply_contract",
+    sourceKey,
+    comment: "状态栏：回复输出约定",
+    content: STATUS_REPLY_CONTRACT_CONTENT,
+    enabled: true,
+    kind: "status_reply_contract",
+    order: 14723,
+    atDepth: true,
+  });
+  output.data.character_book ??= {
+    name: `${output.data.name ?? "未命名角色"} 世界书`,
+    description: "SillyTavern制卡工坊状态栏输出规则",
+    scan_depth: null,
+    token_budget: null,
+    recursive_scanning: false,
+    extensions: {},
+    entries: [],
+  };
+  if (existingIndex >= 0 && allocation.reused) existingEntries[existingIndex] = generated;
+  else existingEntries.push(generated);
+  output.data.character_book.entries = existingEntries;
+  return allocation.collision
+    ? [issue(`/data/character_book/entries/${generated.id}`, "status.id_collision", `Stable CharacterBook id ${allocation.candidate} was occupied; assigned ${allocation.id} to ${sourceKey}`)]
+    : [];
 }
 
 function activeStatusUi(project, sources) {
@@ -3260,9 +3662,9 @@ function managedRegexFingerprint(script) {
 
 function isRecognizableManagedRegexScript(script) {
   if (!Object.values(MANAGED_REGEX_IDS).includes(script?.id)) return false;
-  if (script.id === MANAGED_REGEX_IDS.statusProjection) {
-    return managedRegexFingerprint(script) === managedRegexFingerprint({
-      scriptName: "[Status] Project message status bar",
+  const expected = script.id === MANAGED_REGEX_IDS.statusProjection
+    ? {
+      scriptName: MANAGED_REGEX_NAMES[MANAGED_REGEX_IDS.statusProjection],
       findRegex: "/<StatusPlaceHolderImpl\\s*\\/>/g",
       trimStrings: [],
       placement: [2],
@@ -3273,10 +3675,14 @@ function isRecognizableManagedRegexScript(script) {
       substituteRegex: 0,
       minDepth: null,
       maxDepth: null
-    });
-  }
-  const expected = mvuRegexScripts().find((candidate) => candidate.id === script.id);
-  return Boolean(expected) && managedRegexFingerprint(script) === managedRegexFingerprint(expected);
+    }
+    : mvuRegexScripts().find((candidate) => candidate.id === script.id);
+  if (!expected) return false;
+  const actualFingerprint = managedRegexFingerprint(script);
+  if (actualFingerprint === managedRegexFingerprint(expected)) return true;
+  const legacyName = LEGACY_MANAGED_REGEX_NAMES[script.id];
+  return Boolean(legacyName)
+    && actualFingerprint === managedRegexFingerprint({ ...expected, scriptName: legacyName });
 }
 
 function mergeManagedRegexScripts(output, generated) {
@@ -3326,15 +3732,18 @@ export function applySillyTavernRegexAdapter(payload, { project, sources, target
 
   const output = clone(payload);
   const generated = mvuEnabled ? mvuRegexScripts() : [];
+  output.data ??= {};
+  if (typeof output.data.post_history_instructions === "string") {
+    output.data.post_history_instructions = removeStatusReplyContract(output.data.post_history_instructions);
+  }
+  const contractWarnings = syncStatusReplyContract(output, Boolean(ui) && !mvuEnabled);
   if (ui) {
     const runtimeConfig = tavernHelperRuntimeConfig(mvuSources);
     generated.push(statusRegexScript(ui, runtimeConfig));
-    output.data ??= {};
     output.data.first_mes = normalizeStatusPlaceholder(output.data.first_mes);
     output.data.alternate_greetings = Array.isArray(output.data.alternate_greetings)
       ? output.data.alternate_greetings.map(normalizeStatusPlaceholder)
       : [];
-    output.data.post_history_instructions = appendStatusReplyContract(output.data.post_history_instructions);
   } else if (isObject(output.data)) {
     if (typeof output.data.first_mes === "string") {
       output.data.first_mes = removeStatusPlaceholders(output.data.first_mes);
@@ -3342,10 +3751,101 @@ export function applySillyTavernRegexAdapter(payload, { project, sources, target
     if (Array.isArray(output.data.alternate_greetings)) {
       output.data.alternate_greetings = output.data.alternate_greetings.map(removeStatusPlaceholders);
     }
-    if (typeof output.data.post_history_instructions === "string") {
-      output.data.post_history_instructions = removeStatusReplyContract(output.data.post_history_instructions);
-    }
   }
   const issues = mergeManagedRegexScripts(output, generated);
-  return { payload: output, issues, warnings: [] };
+  return { payload: output, issues, warnings: contractWarnings };
+}
+
+function hostWorldbookLookup(registry, name) {
+  if (!name) return null;
+  if (registry instanceof Map) return registry.get(name) ?? null;
+  if (isObject(registry) && !Array.isArray(registry)) return registry[name] ?? null;
+  return null;
+}
+
+function hostWorldbookEntries(book) {
+  const container = book?.entries;
+  if (Array.isArray(container)) return container;
+  if (isObject(container) && !Array.isArray(container)) return Object.values(container);
+  return [];
+}
+
+function managedHostEntries(book) {
+  return hostWorldbookEntries(book).filter((entry) => {
+    const tracking = entry?.extensions?.rp_card_studio;
+    return tracking?.generated === true
+      && typeof tracking.source_key === "string"
+      && tracking.source_key.length > 0;
+  });
+}
+
+function parseHostInitvar(entry) {
+  if (!entry || !/\[initvar\]/i.test(entry.comment ?? "")) return null;
+  try {
+    const value = JSON.parse(entry.content);
+    return isObject(value) && !Array.isArray(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export function auditSillyTavernMvuLifecycle(payload, worldbookRegistry = {}, hostSettings = {}) {
+  const embedded = payload?.data?.character_book;
+  const bookName = typeof embedded?.name === "string" ? embedded.name : null;
+  const binding = payload?.data?.extensions?.world;
+  const hostBook = hostWorldbookLookup(worldbookRegistry, bookName);
+  const embeddedManaged = managedHostEntries(embedded);
+  const hostManaged = new Map(managedHostEntries(hostBook).map((entry) => [
+    entry.extensions.rp_card_studio.source_key,
+    entry,
+  ]));
+  const managedEntries = embeddedManaged.map((entry) => {
+    const sourceKey = entry.extensions.rp_card_studio.source_key;
+    const hostEntry = hostManaged.get(sourceKey);
+    return {
+      source_key: sourceKey,
+      present: Boolean(hostEntry),
+      content_matches: Boolean(hostEntry) && hostEntry.content === entry.content,
+    };
+  });
+  const embeddedInitvar = embeddedManaged.find((entry) => (
+    entry.extensions.rp_card_studio.source_key === "mvu:initvar"
+  ));
+  const hostInitvar = hostManaged.get("mvu:initvar");
+  const statData = parseHostInitvar(hostInitvar);
+  const bindingMatches = Boolean(bookName) && binding === bookName;
+  const registryPresent = Boolean(hostBook);
+  const managedContentMatches = embeddedManaged.length > 0
+    && managedEntries.every((entry) => entry.present && entry.content_matches);
+  const initvarRecognizable = Boolean(embeddedInitvar)
+    && /\[initvar\]/i.test(embeddedInitvar.comment ?? "")
+    && Boolean(statData);
+  const blobUrlRendering = typeof hostSettings?.tavern_helper?.render?.use_blob_url === "boolean"
+    ? hostSettings.tavern_helper.render.use_blob_url
+    : null;
+  const embeddedMvuScriptCompatible = blobUrlRendering === null ? null : !blobUrlRendering;
+  const hostBlockers = blobUrlRendering === true ? ["tavern_helper_blob_url_rendering"] : [];
+  const ready = bindingMatches && registryPresent && managedContentMatches && initvarRecognizable;
+  return {
+    ready,
+    runtime_ready: !ready ? false : embeddedMvuScriptCompatible,
+    book_name: bookName,
+    binding,
+    binding_matches: bindingMatches,
+    registry_present: registryPresent,
+    managed_entries: managedEntries,
+    managed_content_matches: managedContentMatches,
+    initvar: {
+      present: Boolean(hostInitvar),
+      recognizable: initvarRecognizable,
+    },
+    host_compatibility: {
+      sillytavern_version: hostSettings?.sillytavern_version ?? null,
+      tavern_helper_version: hostSettings?.tavern_helper_version ?? null,
+      tavern_helper_blob_url_rendering: blobUrlRendering,
+      embedded_mvu_script_compatible: embeddedMvuScriptCompatible,
+      blockers: hostBlockers,
+    },
+    stat_data: statData,
+  };
 }

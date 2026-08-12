@@ -6,6 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { deflateSync } from 'node:zlib';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const forge = process.env.RP_CARD_FORGE ?? path.join(skillRoot, 'scripts', 'rp-card-forge.bundle.mjs');
@@ -238,10 +239,31 @@ test('V3 PNG pack rewrites synchronized chara and ccv3 payloads', t => {
 
   runForge(['unpack', input, '--output', unpacked, '--nsfw', 'disabled'], { expectSuccess: true });
   const sourcePath = path.join(unpacked, 'src', 'characters', 'card.yaml');
-  const source = readFileSync(sourcePath, 'utf8');
-  const edited = source.replace(/^display_name:.*$/m, 'display_name: Edited V3 PNG card');
-  assert.notEqual(edited, source, 'unpacked character source did not contain display_name');
+  mkdirSync(path.dirname(sourcePath), { recursive: true });
+  const source = readFileSync(path.join(skillRoot, 'assets', 'templates', 'character.yaml'), 'utf8');
+  const edited = source
+    .replace(/^display_name:.*$/m, 'display_name: Edited V3 PNG card')
+    .replace(/^role:.*$/m, 'role: primary_character');
+  assert.notEqual(edited, source, 'character template did not contain editable identity fields');
   writeFileSync(sourcePath, edited, 'utf8');
+  const projectPath = path.join(unpacked, 'project.yaml');
+  const project = parseYaml(readFileSync(projectPath, 'utf8'));
+  project.source_manifest.characters = ['src/characters/card.yaml'];
+  writeFileSync(projectPath, stringifyYaml(project), 'utf8');
+  const positioningPath = path.join(unpacked, 'src', 'positioning.yaml');
+  const positioning = parseYaml(readFileSync(positioningPath, 'utf8'));
+  positioning.status = 'locked';
+  positioning.card_entry = '进入这张卡后，按项目规则展开当前叙事。';
+  positioning.card_mode = 'single_character_card';
+  writeFileSync(positioningPath, stringifyYaml(positioning), 'utf8');
+  runForge([
+    'state', unpacked, 'lock', 'positioning.project_title', 'Edited V3 PNG card',
+    '--source', 'user',
+  ], { expectSuccess: true });
+  runForge([
+    'state', unpacked, 'stage', 'positioning', 'complete',
+    '--summary', 'PNG 格式兼容测试已完成项目定位。',
+  ], { expectSuccess: true });
   runForge(['pack', unpacked, '--output', repackedPath], { expectSuccess: true });
 
   const textEntries = readTextChunks(readFileSync(repackedPath));

@@ -159,7 +159,7 @@ test('generated EJS entries use disabled constant CharacterBook host fields and 
   assert.ok(Number.isInteger(entry.id) && entry.id >= 0);
   assert.equal(entry.extensions.rp_card_studio.source_id, 'trust_gate');
   assert.equal(entry.extensions.rp_card_studio.source_key, 'ejs:trust_gate:generate');
-  assert.equal(entry.comment, '[GENERATE] trust_gate');
+  assert.equal(entry.comment, '条件模板（生成）：trust_gate');
   assert.equal(entry.enabled, false);
   assert.equal(entry.constant, true);
   assert.deepEqual(entry.keys, []);
@@ -184,14 +184,14 @@ test('prompt, render, and both targets map to generate/render entries and both s
     'ejs:shared_gate:render',
   ]);
 
-  assert.equal(bySourceKey.get('ejs:prompt_gate:generate').comment, '[GENERATE] prompt_gate');
+  assert.equal(bySourceKey.get('ejs:prompt_gate:generate').comment, '条件模板（生成）：prompt_gate');
   assertDecoratorPrefix(bySourceKey.get('ejs:prompt_gate:generate').content, [
     '@@always_enabled',
     '@@private',
     '@@generate_before',
   ]);
 
-  assert.equal(bySourceKey.get('ejs:render_gate:render').comment, '[RENDER] render_gate');
+  assert.equal(bySourceKey.get('ejs:render_gate:render').comment, '条件模板（渲染）：render_gate');
   assertDecoratorPrefix(bySourceKey.get('ejs:render_gate:render').content, [
     '@@always_enabled',
     '@@private',
