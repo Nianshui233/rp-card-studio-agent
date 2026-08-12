@@ -179,7 +179,7 @@ git -C "$skillDir" pull --ff-only
 2. **NSFW 开关**：明确回答“启用”或“不启用”。
 3. **任务类型**：新建、续作、材料转换、修改或审查。
 4. **已有材料**：有就给路径，没有就回答“无”。
-5. **目标交付物**：例如维护源码、角色卡 JSON、PNG、世界书或 UI 工程。
+5. **附加交付物**：默认最终只交付一个角色卡 `.json`；PNG、独立世界书等只有你明确需要时才加入。
 
 一个可以直接照着改的回答：
 
@@ -188,7 +188,7 @@ git -C "$skillDir" pull --ff-only
 NSFW：不启用
 任务类型：新建
 已有材料：无
-交付物：维护源码 + 角色卡 JSON
+交付物：一个角色卡 JSON（默认）
 ```
 
 工作区可以是尚未创建的目录，但必须写清楚。不要只回答“你随便找个地方”。
@@ -363,6 +363,8 @@ SillyTavern 会把 `description` 当作常驻提示块注入，它本身没有�
 
 当前 Forge 真正实现的是 `same_generation`：角色在一次回复中同时给出叙事和变量更新块，MVU 从这条原始消息解析并提交。它不会自动再请求一次“更新模型”。配置里的 `writer.kind: update_model` 只是说明字段由哪个逻辑角色负责，不等于已经存在第二次 API 请求。
 
+启用 MVU 时，Forge 会自动随卡生成三条按稳定 ID 排序的 Tavern Helper 角色脚本：固定版本的 MVU 引擎、根据变量账本生成并调用 `registerMvuSchema` 的 Zod 变量结构、运行守卫。还会在 CharacterBook 生成“变量列表（当前状态）”“变量更新规则”“回复输出格式”。`reports/runtime-state.schema.json` 只是离线检查报告，不能代替卡里的变量结构脚本。
+
 `extra_pass` 和 `both` 只有在项目确实实现了独立请求触发、提示词/接收者路由、响应解析、协议校验、原子提交、失败回退和真实宿主测试整条链时才成立。当前技能没有这条独立请求链，因此新项目默认并只允许 `same_generation`；旧项目声明另外两种模式会被阻断，而不会因为存在一个可手工调用的解析/提交函数就假装可用。
 
 ### EJS
@@ -408,7 +410,7 @@ EJS 还需要在 `runtime_contract.dependencies` 登记宿主依赖，并把 `gl
 
 ### Tavern Helper 适配器
 
-它是可选的 MVU 宿主桥接层。只有项目明确选择内嵌交付并满足契约时，Forge 才会生成 Runtime Guard；它会有界等待 `Mvu`、先订阅公开的 `Mvu.events.*`，再用现有快照补做初始化。MVU Runtime Guard 不会读取 `globalThis.stat_data`、调用 `getVariables()` 或猜测 `globalThis.MVU`。消息状态栏 iframe 是另一条只读链路，会使用 Tavern Helper 的 `getVariables()` 读取自己的消息快照；EJS 条目本身仍留在 CharacterBook 中。
+它是 MVU 角色脚本的宿主层。启用本技能的 MVU 交付时，Forge 会生成完整的“引擎 + 变量结构 + Runtime Guard”链；Guard 会有界等待 `Mvu`、先订阅公开的 `Mvu.events.*`，再用现有快照补做初始化。Guard 不会读取 `globalThis.stat_data`、调用 `getVariables()` 或猜测 `globalThis.MVU`。消息状态栏 iframe 是另一条只读链路，会使用 Tavern Helper 的 `getVariables()` 读取自己的消息快照；EJS 条目本身仍留在 CharacterBook 中。
 
 消息状态栏只有两条交付路径：普通文字或 HTML 使用 SillyTavern 角色正则，复杂交互使用 Tavern Helper 消息级 JS/iframe。两者都把状态栏留在产生它的 AI 消息中。
 
@@ -440,7 +442,7 @@ data.extensions.world == data.character_book.name
 | 两种需求都有 | MVU + EJS |
 | 需要消息内文字或简单静态 HTML 状态栏 | 使用 SillyTavern 角色正则直接投影 |
 | 状态栏需要动态逻辑、复杂交互或逐楼快照 | 先登记为高级宿主需求；只有明确选择并通过真实宿主验收后才使用 Tavern Helper 消息 iframe |
-| MVU 需要宿主事件桥接 | 再评估 Tavern Helper Runtime Guard |
+| 使用本技能的 MVU | 安装 Tavern Helper；Forge 自动携带引擎、变量结构和 Runtime Guard |
 
 你不需要在项目首轮决定这些。到达 MVU/EJS 阶段前，只需要选择“进入”还是“跳过”。
 
@@ -618,7 +620,7 @@ node $forge roundtrip "D:\AI\RP创作\项目\夜班列车"
 | 延迟到递归 | 是否禁止首轮扫描，只允许递归链触发 | 很少使用；不能和“禁止入站递归”同时开启 |
 | 失败策略 | 来源缺失时继续还是停止构建 | 关键规则用 `block`；可省略的附加内容才用 `skip` |
 
-一个实用判断顺序是：先问“是否每轮必需”，再定常驻或关键词；再问“应该在哪里影响模型”，定插入位置、深度和顺序；最后判断关键词需要看多远、条目之间是否真的需要互相触发。没有明确依赖关系时，递归默认双向关闭更容易排查。
+一个实用判断顺序是：先问“是否每轮必需”，再定常驻或关键词；再问“应该在哪里影响模型”，定插入位置、深度和顺序；最后把人物、地点、势力、场景和线索之间的引用画成依赖关系，再逐条决定递归方向。协议与输出格式等控制条目通常可以封闭递归；内容条目没有依赖时可以封闭，但开放世界不能把所有内容条目一刀切成双向封闭，否则它们只会在聊天正文直接出现关键词时才激活。
 
 同一份基础装配信息既可以用于角色卡内嵌世界书，也可以用于独立世界书制品，但两种宿主格式并不相同。独立世界书可以按角色过滤：角色名实际填写头像文件名去掉扩展名后的部分，并区分大小写；标签必须填写目标 SillyTavern 实例内部的标签 ID，不是界面上看到的标签名称，换一个实例通常不能直接沿用。内嵌 CharacterBook 不支持可靠往返这类角色过滤，技能会明确阻断。单独导出的 CharacterBook 也不能冒充独立世界书导入。
 
@@ -643,12 +645,12 @@ AI 原始消息末尾的 <StatusPlaceHolderImpl/>
         ↓ SillyTavern 角色正则（AI_OUTPUT + Markdown）
 消息内文字或简单静态 HTML 状态栏
         ↓ Tavern Helper 消息变量宏
-显示宿主当前可解析的 stat_data
+按字段语义显示宿主当前可解析的 stat_data 或 display_data
 ```
 
-Forge 为这条基础路径生成 `{{format_message_variable::stat_data.path}}`，与已在真实卡中工作的角色正则用法一致。这个宏由 Tavern Helper 的 macro-like 渲染层提供，不是 SillyTavern 原生变量宏；因此交付检查既要确认角色正则获准，也要确认 Tavern Helper 的宏替换功能已启用。
+Forge 默认生成 `{{format_message_variable::stat_data.path}}`；字段显式声明 `data_source: display_data` 时则生成对应的 `display_data.path`。`stat_data` 表示当前状态，`display_data` 表示本轮更新展示信息，不能一律混用。这个宏由 Tavern Helper 的 macro-like 渲染层提供，不是 SillyTavern 原生变量宏；因此交付检查既要确认角色正则获准，也要确认酒馆助手的“禁用酒馆助手宏”没有开启。
 
-如果项目启用了随卡内嵌的 MVU 角色脚本，还要检查 `酒馆助手 -> 渲染 -> 启用 Blob URL 渲染`。在已验证的 SillyTavern 1.18.0 + Tavern Helper 4.9.1 环境中，这个开关开启时，卡、世界书和 `[initvar]` 都正确也可能完全没有 MVU 启动事件，状态栏会显示 `null`；关闭开关并刷新 SillyTavern 后，初始化即可恢复。技能会把它视为宿主兼容前置条件，不会修改 SillyTavern 本体或扩展源码。纯 EJS 项目若没有使用该 MVU 角色脚本，不受此项约束。
+如果项目启用了随卡内嵌的 MVU 角色脚本，验收必须观察 MVU 是否实际启动，不能只看开关或脚本是否存在。在已验证的 SillyTavern 1.18.0 + Tavern Helper 4.9.1 环境中，曾观察到 Blob URL 渲染开启时 MVU 未启动、关闭并刷新后恢复；这是一项宿主兼容排障经验，不是所有环境的通用前置条件。只有同时满足“观察到 `mvu_started: false`”和“Blob URL 渲染开启”时才推荐关闭、刷新并重新观察。
 
 Forge 会为默认开场和每个备选开场各追加一次占位符，并给后续助手回复加入“末尾恰好一次”的合同。状态栏正则写入角色卡的 `data.extensions.regex_scripts`，不会修改聊天原文；消息重新渲染时，SillyTavern 会重新执行它。
 
@@ -660,9 +662,9 @@ Forge 会为默认开场和每个备选开场各追加一次占位符，并给�
 
 消息 iframe 必须调用 `getCurrentMessageId()`，并且只有 `Number.isInteger(message_id)` 为真时才调用 `getVariables({ type: "message", message_id })`。新楼第一次读到的合法 `stat_data` 可能仍是继承自上一楼的旧快照，因此不能在首次成功后停止；Forge 会先快速获取，再默认每 2 秒低频复查同一个整数楼层，只在可见值变化时重绘，并在 `pagehide`/`unload` 清理计时器。拿不到整数 ID 时会在当前消息内显示明确错误并停止；初次读取持续失败时有界重试后显示错误。已经显示合法状态后遇到暂时读取失败，则保留最近合法值并继续低频复查。所有路径都不会改读 `"latest"`，因为 latest 会让旧楼层在重载后串到新状态。没有生成并在真实宿主验收前，这项能力只能记录为规格或 `not_run`，不能写成 `embedded` 或 `runtime: pass`。
 
-启用 MVU 时还会生成五条配套规则。两条分别从送模副本和玩家显示副本中隐藏完整 `<initvar>...</initvar>`；一条只从送模历史副本移除完整或未闭合的变量更新块；两条只处理玩家看到的 Markdown，把流式和完整更新折叠起来。初始化隐藏规则只接受成对闭合的完整块，不能吞掉未闭合正文。原始初始化块和更新块都留在聊天记录中供 MVU 使用。
+启用 MVU 时会生成五条变量处理规则：两条分别从送模副本和玩家显示副本隐藏完整 `<initvar>...</initvar>`；一条从送模历史副本移除完整或未闭合的变量更新块，并默认保留最近两层；两条从玩家看到的 Markdown 隐藏流式和完整更新块。状态栏另有两条规则：`[不发送]界面占位符` 从送模副本删除占位符，`[界面]状态栏` 在消息显示中把占位符替换为文字或 fenced HTML。初始化隐藏规则只接受成对闭合的完整块，不能吞掉未闭合正文；原始初始化块和更新块仍保留在聊天记录中供 MVU 使用。
 
-角色内嵌正则第一次运行时，SillyTavern 会弹出授权确认。这是正常的安全机制，技能不会绕过。未授权时卡片正文仍可阅读，但消息状态栏和更新折叠不会生效。
+角色内嵌正则第一次运行时，SillyTavern 会弹出授权确认。这是正常的安全机制，技能不会绕过。未授权时卡片正文仍可阅读，但占位符隐藏、状态栏投影和变量更新隐藏不会生效。
 
 UI 的**交付形态**由 `delivery.level` 表示：
 
@@ -700,7 +702,7 @@ UI 的**交付形态**由 `delivery.level` 表示：
 NSFW：不启用
 任务类型：修改
 已有材料：D:\Downloads\old-card.json
-交付物：维护源码 + 新角色卡 JSON
+交付物：一个新角色卡 JSON（默认）
 ```
 
 技能会先识别并解包输入，再从维护源码修改。未知字段和原始输入会按保留规则处理，不会因为工具暂时不理解某个扩展字段就直接丢掉。
@@ -799,7 +801,7 @@ node $forge state "D:\AI\RP创作\项目\夜班列车" operation continue
 
 消息 iframe 也不能只看“页面里出现了 iframe 元素”。验收会确认子文档真的导航并执行脚本；如果 Blob URL 在当前内置浏览器中不导航，即使 Blob 内容可以读取，也会准确记录为 `runtime: not_run`、`host_incompatible`，而不是把没有运行的 UI 判为成功。
 
-如果 MVU 状态栏全部是 `null`，但世界书绑定、Import Card Lore、`[initvar]` 和角色脚本都已核对，先检查 `酒馆助手 -> 渲染 -> 启用 Blob URL 渲染`。将它关闭，刷新 SillyTavern，再重新进入聊天。这个步骤已经在真实宿主中把 `null / null / null / null%` 恢复为正确的初始化值。
+如果 MVU 状态栏全部是 `null`，依次核对 Import Card Lore 与主世界书绑定、角色局部正则授权、Tavern Helper 角色脚本启用、酒馆助手宏启用以及真实 MVU 启动事件。只有确认 `mvu_started: false` 且 Blob URL 渲染开启时，才将“关闭该选项、刷新 SillyTavern、重新进入聊天并再次观察”作为兼容性排障步骤；开关本身不能证明 MVU 成功或失败。
 
 ### 技能为什么不会被自然语言误触？
 
@@ -817,7 +819,7 @@ Codex 的实际调用策略写在 `agents/openai.yaml` 中：`policy.allow_impli
 
 ### 能不能直接生成角色卡 PNG？
 
-只有在项目已有并登记了 PNG 底图时才能打包。技能不会凭空生成头像或立绘，也不会为了得到 PNG 而改动原图像素。
+可以作为附加交付物，但必须由你明确提出，并且项目已有并登记 PNG 底图。技能默认最终只生成一个角色卡 `.json`；即使输入材料本身是 PNG，也不会自动把 PNG 加进最终交付。技能不会凭空生成头像或立绘，也不会为了得到 PNG 而改动原图像素。
 
 ## 仓库结构
 

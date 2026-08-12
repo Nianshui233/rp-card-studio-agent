@@ -16,6 +16,7 @@ const IDS = Object.freeze({
   pending: '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d02',
   complete: '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d03',
   status: '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d04',
+  statusPrompt: '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d07',
 });
 const PLACEHOLDER = '<StatusPlaceHolderImpl/>';
 
@@ -455,7 +456,7 @@ test('MVU emits init hiding, prompt filtering, and display folds in stable order
     promptOnly: true,
     runOnEdit: false,
     substituteRegex: 0,
-    minDepth: null,
+    minDepth: 2,
     maxDepth: null,
   });
   assert.deepEqual(scripts[2], {
@@ -501,13 +502,13 @@ test('prompt filter removes multiple update blocks without swallowing prose betw
   assert.equal(message.replace(filter, ''), 'Before  middle  after');
 });
 
-test('pending update fold leaves the message status placeholder outside the folded block', () => {
+test('pending update display filter hides the update and leaves the status placeholder', () => {
   const result = applyRegex({ status: false, sources: runtimeSources({ status: false }) });
   const pending = result.payload.data.extensions.regex_scripts.find(script => script.id === IDS.pending);
   const rendered = `<UpdateVariable>\n<JSONPatch>[]</JSONPatch>\n${PLACEHOLDER}`
     .replace(regexFromLiteral(pending.findRegex), pending.replaceString);
 
-  assert.match(rendered, /^<details[\s\S]*<\/details>\s*<StatusPlaceHolderImpl\/>$/);
+  assert.equal(rendered, '<StatusPlaceHolderImpl/>');
   assert.equal((rendered.match(/<StatusPlaceHolderImpl\/>/g) ?? []).length, 1);
 });
 
@@ -534,9 +535,15 @@ test('message status projection compiles full MVU paths and normalizes every ope
     IDS.initDisplay,
     IDS.pending,
     IDS.complete,
+    IDS.statusPrompt,
     IDS.status,
   ]);
   const status = scripts.at(-1);
+  const statusPrompt = scripts.find(script => script.id === IDS.statusPrompt);
+  assert.equal(statusPrompt.scriptName, '[不发送]界面占位符');
+  assert.equal(statusPrompt.replaceString, '');
+  assert.equal(statusPrompt.promptOnly, true);
+  assert.equal(statusPrompt.markdownOnly, false);
   assert.equal(status.findRegex, '/<StatusPlaceHolderImpl\\s*\\/>/g');
   assert.deepEqual(status.placement, [2]);
   assert.equal(status.markdownOnly, true);
@@ -569,6 +576,29 @@ test('message status projection compiles full MVU paths and normalizes every ope
   assert.match(formatted, />42<\/dd>/);
 });
 
+test('status fields can project display_data independently from stat_data', async () => {
+  for (const statusAdapter of ['sillytavern_regex', 'tavern_helper_message']) {
+    const sources = runtimeSources({ statusAdapter });
+    sources.ui[0].value.status_ui.sections[0].fields[0].data_source = 'display_data';
+    const result = applyRegex({ sources });
+    const status = result.payload.data.extensions.regex_scripts.find(script => script.id === IDS.status);
+
+    if (statusAdapter === 'sillytavern_regex') {
+      assert.match(status.replaceString, /format_message_variable::display_data\.runtime\.relationship_score/);
+      assert.doesNotMatch(status.replaceString, /format_message_variable::stat_data\.runtime\.relationship_score/);
+    } else {
+      const harness = await evaluateInlineStatus(status.replaceString, {
+        messageId: 17,
+        getVariables: () => ({
+          stat_data: { runtime: { relationship_score: 10 } },
+          display_data: { runtime: { relationship_score: 27 } },
+        }),
+      });
+      assert.ok(harness.document.querySelectorAll('[data-rp-status-path="display_data.runtime.relationship_score"]')
+        .every(node => node.textContent === '27'));
+    }
+  }
+});
 test('status-only projects store the reply contract in a Chinese CharacterBook entry', () => {
   const result = applyRegex({
     mvu: false,
@@ -842,6 +872,7 @@ test('legacy English managed regex names migrate to Chinese without collisions',
     [IDS.initDisplay, '[MVU] Hide initialization from messages'],
     [IDS.pending, '[MVU] Fold pending variable update'],
     [IDS.complete, '[MVU] Fold complete variable update'],
+    [IDS.statusPrompt, '[Status] Remove placeholder from prompts'],
     [IDS.status, '[Status] Project message status bar'],
   ]);
   const generated = applyRegex().payload;
@@ -851,7 +882,7 @@ test('legacy English managed regex names migrate to Chinese without collisions',
 
   const migrated = applyRegex({ payload: generated });
   assert.deepEqual(migrated.issues, []);
-  assert.equal(migrated.payload.data.extensions.regex_scripts.length, 6);
+  assert.equal(migrated.payload.data.extensions.regex_scripts.length, 7);
   assert.ok(migrated.payload.data.extensions.regex_scripts.every(script => /[\u4e00-\u9fff]/.test(script.scriptName)));
 });
 
@@ -862,7 +893,7 @@ test('user regex scripts retain relative order before managed scripts', () => {
 
   assert.deepEqual(result.issues, []);
   assert.deepEqual(result.payload.data.extensions.regex_scripts.map(script => script.id), [
-    'user-a', 'user-b', IDS.initPrompt, IDS.prompt, IDS.initDisplay, IDS.pending, IDS.complete, IDS.status,
+    'user-a', 'user-b', IDS.initPrompt, IDS.prompt, IDS.initDisplay, IDS.pending, IDS.complete, IDS.statusPrompt, IDS.status,
   ]);
   assert.deepEqual(result.payload.data.extensions.regex_scripts[0], userA);
   assert.deepEqual(result.payload.data.extensions.regex_scripts[1], userB);
@@ -950,7 +981,7 @@ test('feature disablement removes only recognizable managed regexes and all stat
   });
   assert.deepEqual(mvuOff.issues, []);
   assert.deepEqual(mvuOff.payload.data.extensions.regex_scripts.map(script => script.id), [
-    'user-a', 'user-b', IDS.status,
+    'user-a', 'user-b', IDS.statusPrompt, IDS.status,
   ]);
 
   const allOff = applyRegex({
@@ -1020,7 +1051,7 @@ test('MVU output contract orders narrative then update block then status placeho
   assert.doesNotMatch(output.content, /End each reply that changes state with one update block/);
 });
 
-test('Tavern Helper retains only MVU dependency and guard scripts', () => {
+test('Tavern Helper retains only the managed MVU runtime chain', () => {
   const sources = runtimeSources();
   const result = applyTavernHelperAdapter(cardPayload(), {
     project: { features: { mvu: true, ejs: false, status_ui: true } },
@@ -1030,7 +1061,11 @@ test('Tavern Helper retains only MVU dependency and guard scripts', () => {
 
   assert.deepEqual(result.issues, []);
   const scripts = result.payload.data.extensions.tavern_helper.scripts;
-  assert.deepEqual(scripts.map(script => script.id), ['rp_card_studio_runtime_guard']);
+  assert.deepEqual(scripts.map(script => script.id), [
+    'rp_card_studio_00_mvu_runtime',
+    'rp_card_studio_10_mvu_schema',
+    'rp_card_studio_runtime_guard',
+  ]);
 
   const reapplied = applyTavernHelperAdapter(result.payload, {
     project: { features: { mvu: true, ejs: false, status_ui: true } },
@@ -1149,12 +1184,13 @@ test('Tavern Helper refreshes recognized managed scripts when runtime configurat
   assert.deepEqual(updated.issues, []);
   const scripts = updated.payload.data.extensions.tavern_helper.scripts;
   assert.deepEqual(scripts.map(script => script.id), [
-    'rp_card_studio_dependency_mvu',
+    'rp_card_studio_00_mvu_runtime',
+    'rp_card_studio_10_mvu_schema',
     'rp_card_studio_runtime_guard',
   ]);
-  assert.match(scripts[0].content, /mvu-v2\.js/);
-  assert.match(scripts[0].info, /2\.0\.0/);
-  assert.notEqual(scripts[1].content, initialGuard.content);
+  assert.match(scripts[0].content, /MagVarUpdate@v0\.179\.0/);
+  assert.match(scripts[1].content, /registerMvuSchema/);
+  assert.notEqual(scripts[2].content, initialGuard.content);
 });
 
 test('Tavern Helper preserves and reports unrecognized current managed-id collisions', () => {

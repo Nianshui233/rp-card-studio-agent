@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["schema_version", "status", "status_ui"],
   "properties": {
-    "schema_version": { "const": "1.2.0" },
+    "schema_version": { "enum": ["1.2.0", "1.3.0"] },
     "status": { "enum": ["draft", "locked"] },
     "status_ui": {
       "type": "object",
@@ -323,6 +323,11 @@
       "properties": {
         "id": { "$ref": "#/$defs/id" },
         "source_path": { "$ref": "#/$defs/sourcePath" },
+        "data_source": {
+          "enum": ["stat_data", "display_data"],
+          "default": "stat_data",
+          "description": "MVU message data root. stat_data is the current state; display_data contains update-display data for the current turn."
+        },
         "label": { "type": "string", "minLength": 1 },
         "format": {
           "enum": ["string", "integer", "number", "boolean", "percent", "enum", "list", "object"],

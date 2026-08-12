@@ -307,8 +307,44 @@ test('truthy and falsy conditions without a comparison value compile safely', as
 
   assert.deepEqual(result.issues, []);
   const contents = result.payload.data.character_book.entries.map(entry => entry.content).join('\n');
-  assert.match(contents, /Boolean\(__rp_value\)/);
-  assert.match(contents, /!__rp_value/);
+  assert.match(contents, /Array\.isArray\(__rp_value\)/);
+  assert.match(contents, /Object\.keys\(__rp_value\)\.length/);
+  assert.match(contents, /__rp_collection_truthy/);
+});
+
+test('truthy and falsy treat empty arrays and objects as empty collections', async () => {
+  const variables = [
+    runtimeVariable({
+      source_path: 'state.items',
+      runtime_path: 'stat_data.state.items',
+      type: 'array',
+      default: [],
+    }),
+    runtimeVariable({
+      source_path: 'state.flags',
+      runtime_path: 'stat_data.state.flags',
+      type: 'object',
+      default: {},
+    }),
+  ];
+  const result = await compile([
+    ejsEntry({
+      id: 'items_gate',
+      reads: ['stat_data.state.items'],
+      condition: { runtime_path: 'stat_data.state.items', operator: 'truthy' },
+    }),
+    ejsEntry({
+      id: 'flags_gate',
+      reads: ['stat_data.state.flags'],
+      condition: { runtime_path: 'stat_data.state.flags', operator: 'falsy' },
+    }),
+  ], { variables });
+
+  assert.deepEqual(result.issues, []);
+  for (const entry of result.payload.data.character_book.entries) {
+    assert.match(entry.content, /Array\.isArray\(__rp_value\)\s*\?\s*__rp_value\.length\s*>\s*0/);
+    assert.match(entry.content, /Object\.keys\(__rp_value\)\.length\s*>\s*0/);
+  }
 });
 
 test('branch text is encoded as data and cannot terminate the generated EJS scriptlet', async () => {

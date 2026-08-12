@@ -5,14 +5,14 @@ mvu:
   enabled: false
   implementation: unverified
   update_mode: disabled
-  output_dialect: unverified
+  output_dialect: mvu_json_patch
   storage:
     scope: message
     namespace: stat_data
     snapshot_selector: current_message
     merge_policy: message_over_chat
   protocol:
-    id: rp_json_patch
+    id: mvu_json_patch
     version: 1.0.0
     envelope: UpdateVariable
     path_syntax: json_pointer
@@ -39,6 +39,9 @@ ejs:
 
 runtime_contract:
   adapter: null
+  # mvu.enabled=true 且交付角色卡时，改为 tavern_helper/embedded；
+  # Forge 会自动生成固定版本 MVU 引擎、变量结构注册和运行守卫三条脚本。
+  # 不要自行添加 main/latest MVU 或 mvu_zod 远程依赖。
   # EJS 启用时登记 id=st_prompt_template、version=1.17.6.8、
   # readiness_probe=globalThis.EjsTemplate 的 host_required 依赖。
   dependencies: []

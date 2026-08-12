@@ -92,6 +92,9 @@
 - ID、引用、可见性、字段生命周期和占位符符合静态契约。
 - EJS/脚本通过可用的语法解析器或规则检查。
 - `reports/runtime-state.schema.json` 可解析，且与 storage、protocol、字段账本、初始化 profiles 和 opening bindings 的生成输入一致。
+- MVU 构建产物缺少固定版本引擎脚本、账本生成的 `registerMvuSchema` 变量结构脚本或运行守卫；三者顺序不正确；或 CharacterBook 缺少变量列表、更新规则、输出格式任一项。（MVU/EJS、整合）
+- 不同场景的开场共用初始化却未证明地点、时间、在途状态和既定事实一致；初始化用空数组/对象覆盖非空变量默认值。（MVU/EJS、叙事与开场）
+- 开放世界或多场景项目把所有关键词内容条目同时设为禁止入站与禁止出站递归，导致人物、地点、势力、场景和线索无法相互激活。（整合）
 - 跨文件引用图、呈现回退图和媒体回退图通过静态闭环检查。
 - 构建在相同语义输入下保持确定性。
 
@@ -102,7 +105,7 @@
 可证明：
 
 - JSON 可重新解析且符合角色卡结构。
-- PNG 可提取声明的数据负载，JSON 与 PNG 语义一致。
+- 仅当用户明确把 PNG 加入交付清单时，PNG 可提取声明的数据负载且 JSON 与 PNG 语义一致；默认单 JSON 交付不要求或生成 PNG。
 - 解包重打包保留条目、扩展、Unicode、多行文本和未知字段。
 - 构建清单中的哈希、版本、输入修订与实际文件匹配。
 - 生成的 adapter 与已锁定契约中的 ID、entrypoint、artifact、消息占位符和角色正则 UUID 一致且无碰撞。
@@ -121,7 +124,7 @@
 - 纯 Regex 项目只验证消息内投影、静态布局、原生折叠、ARIA 标记和宿主原值显示；`missing_value`、`states.*`、命令、tabs、动态刷新与逐楼层快照不得顺带标记为通过。
 - Tavern Helper 消息级项目按实际实现验证完整/流式、缺失、加载、错误、依赖不可用、消息编辑/重新生成、加载历史和切换聊天；只有 iframe 脚本实际执行、`getCurrentMessageId()` 返回自身整数 ID，并由 `getVariables({ type: "message", message_id })` 反复读出该楼变量时才记录逐楼层快照通过。必须制造首读合法旧值、随后同楼提交新值的时序，确认新值出现且未读取 latest；读取失败不得以 latest 数据冒充成功。
 - 控制台错误、网络失败与宿主依赖状态。
-- iframe 元素或 Blob 内容存在不等于子文档已运行。若子 frame 没有导航、运行哨兵未出现或脚本未执行，记录 `runtime: not_run`。对随卡嵌入 Tavern Helper MVU 角色脚本的项目，若 `酒馆助手 -> 渲染 -> 启用 Blob URL 渲染` 仍开启，记录宿主 blocker `tavern_helper_blob_url_rendering`；关闭并刷新 SillyTavern 后才重新验收，不能把该环境阻断误报为卡片结构失败。
+- iframe 元素或 Blob 内容存在不等于子文档已运行。若子 frame 没有导航、运行哨兵未出现或脚本未执行，记录 `runtime: not_run`。分别记录主世界书绑定、局部正则授权、角色脚本、宏、EJS 插件与 MVU 启动观察；只有 `mvu_started: false` 且 Blob URL 渲染开启时记录 `tavern_helper_blob_url_rendering_observed_failure`，关闭并刷新后仍需重新观察。
 
 浏览器外静态 HTML、截图、Schema 校验或模拟对象不能标记为 `runtime: pass`。
 
@@ -162,12 +165,13 @@
 - `embedded + sillytavern_regex` 只接受 `refresh: on_message`、`read_only: true`、空命令和非 tabs 响应式布局。任一动态刷新模式、非只读、命令或 tabs 都必须映射到 `tavern_helper_message + host_required`。
 - 纯 Regex 的 `field.missing_value` 与 `states.loading/empty/error/degraded` 只是设计元数据；离线或制品检查只能确认文案存在，不能确认条件判断、最近合法值保留或视图切换。`percent` 也只允许对必有且已归一为 0..100 的上游值追加字面 `%`。
 - 默认角色正则使用 Tavern Helper macro-like 层提供的 `format_message_variable`；宏被宿主解析只证明当前可用值能够显示，不证明它绑定当前 DOM 楼层。当前验证的 Tavern Helper 4.9.1 在普通消息重绘时未向宏传 `message_id`，会回退到最近一条带变量的消息。只有消息级 iframe 的文档真实导航、脚本实际执行、取得自身整数 `getCurrentMessageId()`、低频使用 `getVariables({ type: "message", message_id })` 复查变量，并通过“合法旧快照后出现本楼新值”、历史重载和卸载清理测试时，才允许报告“逐楼层快照：通过”；严禁 latest 回退。
-- 启用 MVU 时必须存在两条完整 `<initvar>...</initvar>` 隐藏规则，分别作用于 Prompt 副本和 Markdown 显示副本，原始消息保持不变；未闭合初始化块不能被吞掉。还必须存在 Prompt-only 更新块过滤规则，并覆盖完整块、大小写变体和流式未闭合块；显示折叠规则不得吞掉多个更新块之间的正文或末尾状态栏占位符。
+- 启用 MVU 时必须存在两条完整 `<initvar>...</initvar>` 隐藏规则，分别作用于 Prompt 副本和 Markdown 显示副本，原始消息保持不变；未闭合初始化块不能被吞掉。还必须存在 Prompt-only 更新块过滤规则，默认以 `minDepth: 2` 保留最近两层，并覆盖完整块、大小写变体和流式未闭合块；显示隐藏规则不得吞掉多个更新块之间的正文或末尾状态栏占位符。状态栏必须另有 `[不发送]界面占位符` 与 `[界面]状态栏` 两条规则。
 - 当前更新模式只接受 `same_generation`，并验证叙事、更新块与状态栏占位符来自同一次助手生成。`extra_pass`/`both` 只有在独立请求全链路与宿主证据齐全时才允许；解析或提交辅助入口、接收者清单或手工调用记录都不能单独证明该能力。
 - 清理和迁移规则覆盖改名、类型变化和旧存档缺失。
 - `mvu.initialization.profiles[]` 的 ID 唯一，默认 profile 可解析；`mvu.initialization.opening_bindings[]` 的每个 opening/profile 引用均存在，且同一 opening 不产生歧义绑定。
 - 每条实际开场都能解析到唯一初始化结果；未启用 MVU 时 `initial_state_ref` 为 `null`，也不生成伪造 profile。
 - `reports/runtime-state.schema.json` 对默认 profile 与每个 opening 覆盖后的完整状态分别校验，不能只验证空骨架。
+- `reports/runtime-state.schema.json` 仅是离线证据；真实卡内还必须存在运行时 Zod 注册脚本，并在日志出现“变量结构注册成功”。
 
 ### 叙事、开场与 UI
 
@@ -188,7 +192,7 @@
 - 世界书 entry 的 source、呈现/场景/UI 的媒体 consumer、EJS reader、状态栏 source path 和 adapter 契约都进入同一份引用图报告。
 - 媒体 `fallback.asset_ref` 构成的图必须无环并到达存在的资产；`skip`/`text`/`block` 为终点。
 - adapter ID、entrypoint、artifact、角色正则 UUID 和占位符消费者分别去重；同一文件或同一占位符不得由两个不兼容契约生成。
-- 远程运行脚本一律拒绝，除非未来平台契约明确新增并登记相应类别；远程媒体允许 HTTPS，但必须在 media manifest 登记 consumer、证据和失败回退。
+- 未登记远程运行脚本一律拒绝。唯一默认例外是 Forge 内建、固定版本、受测试覆盖的 MVU 引擎与 Schema 注册器白名单；禁止 `main`、`latest` 和创作阶段临时 URL。远程媒体允许 HTTPS，但必须在 media manifest 登记 consumer、证据和失败回退。
 - UI 只有设计规格而没有适用运行时交付物时，记录 `ui.runtime_missing`。当项目承诺嵌入式 UI 成品时它是 blocker；仅交付规格时是明确 warning，不能标记 `runtime: pass`。
 
 ## 7. 产物与往返检查
@@ -196,7 +200,7 @@
 - `build` 前源工作区干净或已记录变更；`--dry-run` 不产生文件变化。
 - 未提供显式覆盖参数时拒绝覆盖已有产物。
 - 中途失败不提交候选目录，也不留下半成品状态。
-- JSON、PNG 和世界书中的共享语义相同。
+- 用户明确选择的 JSON、PNG 和独立世界书制品之间共享语义相同；未选择的附加格式不生成也不验收。
 - Forge 管理的角色卡投影制品内嵌 CharacterBook 含有条目时，JSON、PNG 负载和 roundtrip 候选中的 `data.extensions.world` 均严格等于固化后的非空 `data.character_book.name`；真实宿主中的同名书还包含本次构建的受管条目。
 - `assembly.yaml` 与生成世界书、媒体清单和 adapter 文件语义一致；`source_manifest.assembly` 指向实际装配源。
 - 独立世界书的对象键、数字 `uid` 和条目身份一致；条目级 `scan_depth` 在独立世界书映射为 `scanDepth`，在内嵌 CharacterBook 映射为 `extensions.scan_depth`，并保持 `0`、`null` 和 `1000` 的含义。
@@ -209,7 +213,7 @@
 
 按实际启用和交付的能力裁剪，至少覆盖适用项：
 
-1. 导入 JSON 与 PNG，各自新建聊天。
+1. 导入默认 JSON 并新建聊天；仅当用户明确选择 PNG 时再导入 PNG 做同项测试。
 2. 默认开场和每个备选开场。
 3. 一次无变化回合、一次合法更新、一次边界更新和一次错误输入回退。
 4. EJS 条件的真、假、缺值和依赖不可用分支。

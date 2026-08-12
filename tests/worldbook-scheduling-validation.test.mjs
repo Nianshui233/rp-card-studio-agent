@@ -129,6 +129,14 @@ async function runtimeIssues(assembly) {
   return result.issues;
 }
 
+async function runtimeValidation(assembly, project = { features: {}, target: 'worldbook' }) {
+  return validateRuntimeSources({
+    project,
+    sources: sourcesFor(assembly),
+    projectRoot: process.cwd(),
+  });
+}
+
 function deleteAt(object, path) {
   const segments = path.split('.');
   const key = segments.pop();
@@ -305,4 +313,28 @@ test('numeric recursion delay levels survive assembly without boolean coercion',
   const [entry] = result.payload.data.character_book.entries;
   assert.equal(entry.delayUntilRecursion, 3);
   assert.equal(entry.extensions.delay_until_recursion, 3);
+});
+
+test('content-rich worldbooks warn when every entry blocks recursion in both directions', async () => {
+  const entries = Array.from({ length: 5 }, (_, index) => worldbookEntry({
+    id: `content_${index}`,
+    displayName: `内容条目 ${index}`,
+    activation: {
+      mode: 'keywords',
+      primary_keys: [`关键词${index}`],
+      secondary_keys: [],
+      selective: false,
+    },
+    insertion: { order: 100 + index },
+    recursion: { prevent_incoming: true, prevent_outgoing: true },
+  }));
+  const validation = await runtimeValidation(completeAssembly(entries), {
+    features: { world: true, scenes: true },
+    target: 'character_card',
+  });
+
+  assert.ok(
+    validation.warnings.some(issue => issue.rule === 'assembly.recursion_network'),
+    `missing closed recursion network warning:\n${JSON.stringify(validation, null, 2)}`,
+  );
 });

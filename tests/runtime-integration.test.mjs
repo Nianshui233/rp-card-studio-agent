@@ -106,7 +106,7 @@ mvu:
   enabled: true
   implementation: tavern_helper_mvu
   update_mode: same_generation
-  output_dialect: json_patch_subset
+  output_dialect: mvu_json_patch
   variables:
     - source_path: relationship.trust
       runtime_path: stat_data.relationship.trust
@@ -422,14 +422,14 @@ mvu:
   enabled: true
   implementation: tavern_helper_mvu
   update_mode: same_generation
-  output_dialect: rp_json_patch_v1
+  output_dialect: mvu_json_patch
   storage:
     scope: message
     namespace: stat_data
     snapshot_selector: current_message
     merge_policy: message_over_chat
   protocol:
-    id: rp_json_patch
+    id: mvu_json_patch
     version: 1.0.0
     envelope: UpdateVariable
     path_syntax: json_pointer
@@ -563,12 +563,16 @@ status_ui:
   assert.deepEqual(card.data.extensions.rp_card_studio.opening_selection.default.state, { relationship: { trust: 10 } });
   const scripts = card.data.extensions.tavern_helper.scripts;
   const regexScripts = card.data.extensions.regex_scripts;
-  assert.deepEqual(scripts.map(script => script.id), ['rp_card_studio_runtime_guard']);
+  assert.deepEqual(scripts.map(script => script.id), [
+    'rp_card_studio_00_mvu_runtime',
+    'rp_card_studio_10_mvu_schema',
+    'rp_card_studio_runtime_guard',
+  ]);
   assert.ok(regexScripts.some(script => script.id === '0e4c7a2c-5c51-4a15-8f8e-f2a81f831d04'));
   assert.ok(card.data.first_mes.endsWith('<StatusPlaceHolderImpl/>'));
-  for (const script of scripts) {
-    assert.doesNotMatch(script.content, /https?:\/\//, `${script.id} contains a remote runtime dependency`);
-  }
+  assert.match(scripts[0].content, /MagVarUpdate@v0\.179\.0/);
+  assert.match(scripts[1].content, /tavern_resource@v0\.3\.449/);
+  assert.doesNotMatch(scripts.map(script => script.content).join('\n'), /@(?:main|master|latest)\b/);
   for (const script of regexScripts) {
     assert.doesNotMatch(script.replaceString, /https?:\/\//, `${script.id} contains a remote runtime dependency`);
   }
@@ -959,6 +963,8 @@ hostWindow.document.getElementById("form_sheld");`,
   assert.deepEqual(firstBuild.data.extensions.tavern_helper.scripts[0], userTavernScript);
   assert.deepEqual(firstBuild.data.extensions.tavern_helper.scripts.map(script => script.id), [
     'user_runtime_script',
+    'rp_card_studio_00_mvu_runtime',
+    'rp_card_studio_10_mvu_schema',
     'rp_card_studio_runtime_guard',
   ]);
   assert.deepEqual(firstBuild.data.extensions.tavern_helper.user_metadata, { retained: true });

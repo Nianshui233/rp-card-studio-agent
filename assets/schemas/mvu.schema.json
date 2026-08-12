@@ -35,7 +35,7 @@
                 "properties": {
                   "opening_ref": { "type": "string", "pattern": "^opening:[a-z][a-z0-9_]*$" },
                   "values": { "type": "object" },
-                  "strategy": { "enum": ["complete_replace", "validated_merge"] }
+                  "strategy": { "const": "complete_replace" }
                 }
               }
             },
@@ -107,7 +107,18 @@
             "required": ["enabled"]
           },
           "then": {
-            "properties": { "update_mode": { "const": "same_generation" } }
+            "properties": {
+              "update_mode": { "const": "same_generation" },
+              "output_dialect": { "const": "mvu_json_patch" },
+              "protocol": {
+                "type": "object",
+                "properties": {
+                  "id": { "const": "mvu_json_patch" },
+                  "operations": { "const": ["replace", "delta", "insert", "remove", "move"] }
+                },
+                "required": ["id", "operations"]
+              }
+            }
           }
         },
         {
@@ -270,7 +281,7 @@
       "properties": {
         "id": { "$ref": "#/$defs/id" },
         "extends": { "type": ["string", "null"], "pattern": "^mvu_init:[a-z][a-z0-9_]*$" },
-        "strategy": { "enum": ["complete_replace", "validated_merge"] },
+        "strategy": { "const": "complete_replace" },
         "values": { "type": "object" }
       }
     },
@@ -281,7 +292,7 @@
       "properties": {
         "opening_ref": { "type": "string", "pattern": "^opening:[a-z][a-z0-9_]*$" },
         "profile_ref": { "type": "string", "pattern": "^mvu_init:[a-z][a-z0-9_]*$" },
-        "strategy": { "enum": ["complete_replace", "validated_merge"] }
+        "strategy": { "const": "complete_replace" }
       }
     },
     "adapter": {

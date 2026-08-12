@@ -445,6 +445,83 @@ test('complete_replace initialization profiles contain every declared variable',
   assert.ok(validation.issues.some(issue => issue.rule === 'initialization.value' && issue.message.includes('relationship.respect')));
 });
 
+test('initialization defaults cannot erase a non-empty variable default with an empty container', async () => {
+  const variables = [{
+    source_path: 'regional.states',
+    runtime_path: 'stat_data.regional.states',
+    type: 'object',
+    default: { harbor: { alert: 1 } },
+    constraints: {},
+    writer: { id: 'regional_update', operations: ['set'] },
+    readers: ['plot_model'],
+    visibility: 'model',
+  }];
+  const sources = emptySources({
+    mvu: [{
+      relativePath: 'src/mvu/runtime.yaml',
+      value: {
+        mvu: {
+          enabled: true,
+          variables,
+          initialization: { defaults: { regional: { states: {} } }, opening_overrides: [] },
+          update_rules: [],
+          routing: { entries: [] },
+        },
+        ejs: { enabled: false, entries: [] },
+      },
+    }],
+  });
+
+  const validation = await validateRuntimeSources({ project: { features: { mvu: true } }, sources, projectRoot: process.cwd() });
+  assert.ok(validation.issues.some(issue => issue.rule === 'initialization.default_override'));
+});
+
+test('openings in different scenes sharing one initialization profile receive a semantic warning', async () => {
+  const sources = emptySources({
+    scenes: [
+      { relativePath: 'src/scenes/north.yaml', value: { id: 'north' } },
+      { relativePath: 'src/scenes/south.yaml', value: { id: 'south' } },
+    ],
+    mvu: [{
+      relativePath: 'src/mvu/runtime.yaml',
+      value: {
+        mvu: {
+          enabled: true,
+          variables: [{
+            source_path: 'location.current',
+            runtime_path: 'stat_data.location.current',
+            type: 'string',
+            default: 'north',
+            constraints: {},
+            writer: { id: 'location_update', operations: ['set'] },
+            readers: ['plot_model'],
+            visibility: 'player',
+          }],
+          initialization: {
+            defaults: { location: { current: 'north' } },
+            profiles: [{ id: 'shared', strategy: 'complete_replace', values: { location: { current: 'north' } } }],
+            opening_bindings: [],
+            opening_overrides: [],
+          },
+          update_rules: [],
+          routing: { entries: [] },
+        },
+        ejs: { enabled: false, entries: [] },
+      },
+    }],
+    prompts: [{
+      relativePath: 'src/prompts/opening.yaml',
+      value: { openings: [
+        { id: 'north_start', scene_ref: 'scene:north', initial_state_ref: 'mvu_init:shared' },
+        { id: 'south_start', scene_ref: 'scene:south', initial_state_ref: 'mvu_init:shared' },
+      ] },
+    }],
+  });
+
+  const validation = await validateRuntimeSources({ project: { features: { mvu: true } }, sources, projectRoot: process.cwd() });
+  assert.ok(validation.warnings.some(issue => issue.rule === 'initialization.shared_profile'));
+});
+
 test('initialization profile inheritance rejects cycles', async () => {
   const sources = emptySources({
     mvu: [{
@@ -456,8 +533,8 @@ test('initialization profile inheritance rejects cycles', async () => {
           initialization: {
             defaults: {},
             profiles: [
-              { id: 'alpha', extends: 'mvu_init:beta', strategy: 'validated_merge', values: {} },
-              { id: 'beta', extends: 'mvu_init:alpha', strategy: 'validated_merge', values: {} },
+              { id: 'alpha', extends: 'mvu_init:beta', strategy: 'complete_replace', values: {} },
+              { id: 'beta', extends: 'mvu_init:alpha', strategy: 'complete_replace', values: {} },
             ],
             opening_bindings: [],
           },
@@ -771,7 +848,7 @@ test('status UI projects compile message-local macros without a parent-page scri
   });
   assert.deepEqual(
     tavernHelper.payload.data.extensions.tavern_helper.scripts.map(candidate => candidate.id),
-    ['rp_card_studio_runtime_guard'],
+    ['rp_card_studio_00_mvu_runtime', 'rp_card_studio_10_mvu_schema', 'rp_card_studio_runtime_guard'],
   );
 });
 
@@ -783,6 +860,17 @@ test('non-embedded adapters do not generate executable runtime guards', () => {
   });
   assert.deepEqual(result.issues, []);
   assert.equal(result.payload.data.extensions.tavern_helper, undefined);
+});
+
+test('character-card MVU validation blocks adapters that cannot deliver the managed runtime chain', async () => {
+  const sources = runtimeUiSources({ adapterDelivery: 'host_required' });
+  const validation = await validateRuntimeSources({
+    project: { target: 'character_card', features: { mvu: true, ejs: false, status_ui: false } },
+    sources,
+    projectRoot: process.cwd(),
+  });
+
+  assert.ok(validation.issues.some(issue => issue.rule === 'mvu.runtime_delivery'));
 });
 
 test('embedded adapters reject undeployed entrypoint and artifact paths', async () => {

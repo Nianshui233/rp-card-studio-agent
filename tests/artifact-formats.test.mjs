@@ -200,6 +200,13 @@ test('PNG unpack prefers ccv3 over a conflicting chara payload', t => {
   const selected = JSON.parse(readFileSync(path.join(unpacked, 'src', 'import', 'original.json'), 'utf8'));
   assert.equal(selected.spec, 'chara_card_v3');
   assert.equal(selected.data.name, 'Preferred ccv3 payload');
+  const project = parseYaml(readFileSync(path.join(unpacked, 'project.yaml'), 'utf8'));
+  assert.deepEqual(project.deliverables, ['character_card_json']);
+  assert.ok(project.materials.some(material => (
+    material.kind === 'character_card_png'
+    && material.path === 'src/import/original.png'
+    && material.read_only === true
+  )));
 });
 
 test('V3 JSON can be unpacked and packed without semantic loss', t => {

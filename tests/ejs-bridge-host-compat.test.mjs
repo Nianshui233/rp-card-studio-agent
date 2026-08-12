@@ -173,7 +173,7 @@ test('truthy and falsy conditions compile without a value field', async () => {
 
     assert.deepEqual(result.issues, []);
     const content = generatedContent(result, `${operator}_gate`);
-    assert.match(content, operator === 'truthy' ? /Boolean\(__rp_value\)/ : /!__rp_value/);
+    assert.match(content, /__rp_collection_truthy/);
     assert.doesNotMatch(content, /\bundefined\b/);
   }
 });

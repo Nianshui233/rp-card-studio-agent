@@ -12,7 +12,7 @@
 
 ### 允许询问
 
-- 仅询问预检交付目标尚未覆盖的打包参数；已锁定的 JSON、PNG、世界书、源项目和报告组合直接读取，不重复选择。用户要改变交付范围时先更新预检锁定。
+- 仅询问预检交付目标尚未覆盖的打包参数；新建角色卡默认最终只生成一个 `.json`。PNG、独立世界书、源码归档或其他附加制品只有在用户明确锁定后才生成。已有项目已锁定的组合直接读取，不重复选择；用户要改变范围时先更新预检锁定。
 - 世界书条目的激活、插入位置与顺序、条目级扫描深度、概率、递归和失败策略；独立世界书是否需要按角色头像主干或目标实例标签 ID 过滤。
 - 媒体槽位采用本地文件还是 HTTPS 资源、由谁消费、是否预加载、如何校验以及失败时使用何种回退。
 - 如何把已锁定 MVU/UI/呈现 adapter 契约实例化为文件、卡内脚本或正则，以及入口和产物路径如何避免碰撞；不重新选择 adapter 能力或 UI 交付语义。
@@ -136,6 +136,8 @@ media_manifest:
 - `fallback` 只允许 `skip` 或 `block`。`skip` 会在来源缺失时跳过并报告警告，`block` 会终止构建；不要写 `include`，因为没有可确定注入的替代内容。
 - `character_filter` 只用于独立世界书。`avatar_stems` 是头像文件名去掉末尾扩展名后的值，严格区分大小写；`tag_ids` 是目标 SillyTavern 实例内部的不透明标签 ID，不是显示名称，也不可跨实例照搬。未从目标实例核实时保持 `tag_ids: []` 或登记宿主绑定阻断项，不得猜造。角色卡内嵌 CharacterBook 无法可靠保留该过滤器，Forge 会阻断。
 - 检查常驻条目、关键词条目、递归入口和宿主全局 token 预算之间是否形成重复注入、不可达条目或无限触发。
+- 把递归当作内容依赖图逐条设计：协议、输出格式等控制条目通常封闭递归；人物、地点、势力、场景和线索条目按真实引用保留必要的入站/出站边。开放世界或多场景项目若所有关键词内容条目都双向封闭，必须至少产生警告并整改，不能以“便于排查”为由整体切断。
+- MVU 启用时核对 Tavern Helper 角色脚本恰好包含受管的固定版本引擎、自动生成变量结构和运行守卫，且变量列表、更新规则、输出格式均存在于 CharacterBook。缺任一项即为 blocker。
 - 导入旧卡时按 `preserve_imported_entries` 与 `duplicate_policy` 处理碰撞；任何替换都进入差异报告。
 - 独立世界书 `entries` 必须是以规范非负整数 UID 为键的对象；键、条目 `uid` 和编辑身份必须一致。裸 CharacterBook 的 `keys/enabled/insertion_order` 数组形状不能作为独立世界书导入。
 
@@ -158,7 +160,7 @@ media_manifest:
 - 状态栏交付只有角色正则和 Tavern Helper 消息级 JS/iframe。`embedded + sillytavern_regex` 是 `refresh: on_message`、只读、无命令、无 tabs 的文字或简单静态 HTML 默认路径，且不保证重载历史快照；动态刷新、命令、tabs、条件缺失/错误状态或逐楼层快照只能登记为 `tavern_helper_message + host_required` 的可选高级候选，不能因选中适配器就宣称能力存在。后者由角色正则生成自包含 fenced HTML，再由 Tavern Helper 尝试在消息内创建 iframe；只有 iframe 文档真实导航并执行后，才继续验证严格整数 `getCurrentMessageId()`、同楼层低频 `getVariables({ type: "message", message_id })` 复查、可见值变化重绘与卸载清理。失败时不得回退 latest。任何消息 UI 都不得访问父页面、加载远程 UI 或要求修改 SillyTavern 本体。没有已验证消息级实现时不得冒充 embedded、可靠或 runtime pass。
 - 运行时代码必须随项目、角色卡或明确的宿主依赖交付并登记；禁止通过未登记的远程脚本 URL 临时补能力。
 - 生成成功、语法通过和静态预览只形成 `offline` 或 `artifact` 证据；只有目标宿主实际加载、更新、卸载和降级用例通过，才能形成 `runtime` 证据。
-- 对随卡嵌入 Tavern Helper MVU 角色脚本的制品，真实验收前先确认 `酒馆助手 -> 渲染 -> 启用 Blob URL 渲染` 已关闭，并在变更后刷新 SillyTavern。开启状态是宿主兼容 blocker，不是卡片结构 blocker；不要为此修改 SillyTavern 或扩展源码。
+- 对随卡嵌入 Tavern Helper MVU 角色脚本的制品，真实验收分别确认主 Character Lore 已导入绑定、局部正则已授权、角色脚本已启用、宏未禁用，并观察 MVU 是否启动。Blob URL 渲染仅在“已观察未启动且开关开启”时成为兼容性排障 blocker；关闭并刷新后仍需重新观察。不要为此修改 SillyTavern 或扩展源码。
 
 ## 构建纪律
 
@@ -174,7 +176,7 @@ media_manifest:
 ## 完成门槛
 
 - 语法、Schema、ID、引用、字段生命周期、可见性和占位符检查通过。
-- 目标 JSON 可重新读取，PNG 负载可提取，世界书条目顺序稳定。
+- 目标 JSON 可重新读取；仅当交付清单明确包含 PNG 时才要求其负载可提取，仅当明确包含独立世界书时才要求其条目顺序稳定。
 - Forge 管理的角色卡投影制品含内嵌 CharacterBook 条目时，JSON、PNG 内负载和 roundtrip 候选均满足 `data.extensions.world === data.character_book.name`，且名称非空；首次宿主导入已确认 **Import Card Lore**，目标世界书中能找到本次构建的受管条目。同名旧书必须核对内容，不能只凭名字判通过。
 - `unpack -> build` 往返不会丢失已知或未知字段。
 - 每个产物记录来源修订、构建参数、哈希和验证结果。
@@ -182,7 +184,7 @@ media_manifest:
 - 真实运行测试已执行，或明确列为 `not_run`/`blocked` 并说明原因。iframe 元素存在但子文档未导航或脚本未执行仍算 `not_run`；Blob URL 在当前宿主浏览器不导航时记录原因 `host_incompatible`。
 - `reports/handoff.md` 能区分已证实、未证实、需宿主设置和用户验收。
 - `assembly.yaml` 已登记到 `source_manifest.assembly`；世界书、媒体 consumer、adapter 入口、角色正则和消息占位符均无悬空引用或碰撞。
-- 所有适用的本地/远程媒体和运行时代码都已登记；远程媒体有回退，且没有未登记远程运行脚本。
+- 所有适用的本地/远程媒体和运行时代码都已登记；远程媒体有回退。运行代码只允许 Forge 内建白名单中的固定版本 MVU/Schema 注册器以及项目明确登记并通过策略校验的依赖，不允许临时 URL。
 
 ## 阶段总汇
 

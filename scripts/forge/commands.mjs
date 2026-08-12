@@ -195,7 +195,6 @@ async function commandUnpack(args, options) {
   });
   if (isPngCharacterFormat(artifact.format)) {
     addPreservedImport(project, "src/import/original.png");
-    project.deliverables = ["character_card_json", "character_card_png"];
   }
   const state = makeState(project, { revision: 1 });
   state.dirty_sources = [sourcePath];

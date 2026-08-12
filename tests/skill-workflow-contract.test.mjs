@@ -21,13 +21,20 @@ test('skill remains explicit-only and rejects natural-language auto invocation',
 test('first turn is restricted to the five project preflight decisions', () => {
   const entryGate = skill.match(/## Invocation Gate(?<body>[\s\S]*?)## Sources of Truth/)?.groups?.body;
   assert.ok(entryGate, 'SKILL.md entry gate section is missing');
-  for (const required of ['project workspace', 'NSFW', 'operation type', 'existing materials', 'target deliverables']) {
+  for (const required of ['project workspace', 'NSFW', 'operation type', 'existing materials', 'default single character-card `.json`']) {
     assert.ok(entryGate.includes(required), `entry gate is missing: ${required}`);
   }
   assert.match(entryGate, /Do not ask about premise, world rules, characters, systems, plot, or UI during preflight/);
   assert.match(preflight, /项目预检是每次调用的第一阶段/);
   assert.match(preflight, /只允许询问以下事项/);
   assert.match(preflight, /工作区.*NSFW.*任务类型.*已有材料.*交付目标/s);
+});
+
+test('new character-card projects default to one JSON artifact and require explicit opt-in for PNG', () => {
+  assert.match(skill, /lock exactly one `character_card_json` deliverable by default/);
+  assert.match(skill, /include or generate any of them only after the user explicitly requests it/);
+  assert.match(preflight, /默认锁定且最终只交付一个角色卡 `\.json`/);
+  assert.match(preflight, /工具支持 PNG 不等于默认生成 PNG/);
 });
 
 test('stage loop requires questions, recommendations, user choice, fragments, and a closing summary', () => {
@@ -85,9 +92,17 @@ test('basic status UI defaults to character regex and advanced message iframes s
   assert.match(statusUi, /开启酒馆助手 `渲染 -> 启用 Blob URL 渲染` 时，消息 iframe 可能为空/);
 });
 
-test('MVU host acceptance checks Tavern Helper Blob URL rendering before diagnosing card scripts', () => {
-  assert.match(skill, /酒馆助手.*渲染.*启用 Blob URL 渲染.*关闭/s);
-  assert.match(skill, /refresh or reload SillyTavern before testing MVU initialization/i);
-  assert.match(statusUi, /开启.*MVU.*角色脚本.*无法启动/s);
-  assert.match(statusUi, /关闭.*启用 Blob URL 渲染.*刷新/s);
+test('MVU host acceptance treats Blob URL rendering as observation-based diagnosis', () => {
+  assert.match(skill, /observed MVU start\/initialization event/);
+  assert.match(skill, /never infer failure or success from that switch alone/);
+  assert.match(statusUi, /只有观察到 MVU 未启动且 Blob URL 渲染开启时/);
+  assert.match(statusUi, /不得仅凭开关.*判定通过或失败/s);
+});
+
+test('MVU and status contracts require complete replacement, five operations, and dual placeholder regexes', () => {
+  assert.match(skill, /complete replacement.*never a merge/);
+  assert.match(skill, /mvu_json_patch.*five-operation protocol/);
+  assert.match(skill, /\[不发送\]界面占位符/);
+  assert.match(skill, /\[界面\]状态栏/);
+  assert.match(statusUi, /minDepth: 2/);
 });

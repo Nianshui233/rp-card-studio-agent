@@ -37,6 +37,16 @@ const KNOWN_REFERENCE_PREFIXES = new Set([
   "axis"
 ]);
 
+const MANAGED_MVU_RUNTIME = Object.freeze({
+  version: "0.179.0",
+  url: "https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate@v0.179.0/artifact/bundle.js"
+});
+
+const MANAGED_MVU_SCHEMA_RUNTIME = Object.freeze({
+  version: "0.3.449",
+  url: "https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource@v0.3.449/dist/util/mvu_zod.js"
+});
+
 function issue(pathValue, rule, message) {
   return { path: pathValue || "/", rule, message };
 }
@@ -466,7 +476,7 @@ function validateVariables(mvuSources, issues) {
   return { variables, bySource, byRuntime };
 }
 
-function validateInitializations(mvuSources, openingSources, bySource, issues) {
+function validateInitializations(mvuSources, openingSources, bySource, issues, warnings = []) {
   const openings = new Map();
   for (const source of openingSources) {
     for (const opening of source.openings ?? []) openings.set(opening.id, opening);
@@ -491,6 +501,20 @@ function validateInitializations(mvuSources, openingSources, bySource, issues) {
       } else {
         profiles.set("default", initialization.defaults);
         profileDefinitions.set("default", { id: "default", values: initialization.defaults, extends: null });
+      }
+      for (const [sourcePath, variable] of bySource) {
+        const candidate = getPath(initialization.defaults, sourcePath);
+        const emptyContainer = (Array.isArray(candidate.value) && candidate.value.length === 0)
+          || (isObject(candidate.value) && Object.keys(candidate.value).length === 0);
+        const nonEmptyDefault = (Array.isArray(variable.default) && variable.default.length > 0)
+          || (isObject(variable.default) && Object.keys(variable.default).length > 0);
+        if (candidate.found && emptyContainer && nonEmptyDefault) {
+          issues.push(issue(
+            `/runtime/mvu/${sourceIndex}/initialization/defaults`,
+            "initialization.default_override",
+            `Initialization replaces non-empty variable default with an empty container: ${sourcePath}`
+          ));
+        }
       }
     }
     for (const [profileIndex, profile] of (initialization.profiles ?? []).entries()) {
@@ -576,7 +600,7 @@ function validateInitializations(mvuSources, openingSources, bySource, issues) {
     if (!openings.has(openingId)) issues.push(issue(`${pathValue}/opening_ref`, "initialization.reference", `Opening override references an unknown opening: ${override.opening_ref}`));
     if (overrideByOpening.has(openingId)) issues.push(issue(pathValue, "initialization.reference", `Opening has more than one initialization override: ${override.opening_ref}`));
     overrideByOpening.set(openingId, override);
-    const resolved = override.strategy === "validated_merge" ? mergeValues(defaults, override.values ?? {}) : override.values ?? {};
+    const resolved = override.values ?? {};
     validateInitializationPaths(pathValue, `Opening override ${override.opening_ref}`, resolved, bySource, issues);
     for (const [sourcePath, variable] of bySource) {
       const candidate = getPath(resolved, sourcePath);
@@ -601,6 +625,26 @@ function validateInitializations(mvuSources, openingSources, bySource, issues) {
     }
     if (mvuSources.some((source) => source.mvu?.enabled) && !profileId && !binding && !override) {
       issues.push(issue(`/runtime/openings/${openingId}/initial_state_ref`, "initialization.reference", "MVU-enabled openings require an explicit initialization profile, binding, or override"));
+    }
+  }
+  const selections = new Map();
+  for (const [openingId, opening] of openings) {
+    const binding = bindingByOpening.get(openingId);
+    const profileId = normalizeRefId(opening.initial_state_ref, "mvu_init:")
+      ?? normalizeRefId(binding?.profile_ref, "mvu_init:");
+    if (!profileId || overrideByOpening.has(openingId)) continue;
+    const group = selections.get(profileId) ?? [];
+    group.push(opening);
+    selections.set(profileId, group);
+  }
+  for (const [profileId, selectedOpenings] of selections) {
+    const scenes = new Set(selectedOpenings.map((opening) => opening.scene_ref).filter(Boolean));
+    if (selectedOpenings.length > 1 && scenes.size > 1) {
+      warnings.push(issue(
+        "/runtime/openings",
+        "initialization.shared_profile",
+        `Openings in different scenes share initialization profile ${profileId}; verify location, time, transit state, and established facts for each opening`
+      ));
     }
   }
 }
@@ -1534,6 +1578,17 @@ async function validateAssembly(sources, projectRoot, issues, warnings, target, 
   for (const [sourceIndex, assembly] of assemblies.entries()) {
     const manifest = assembly.worldbook_manifest;
     issues.push(...worldbookHostIssues(manifest, target, `/runtime/assembly/${sourceIndex}`));
+    const enabledEntries = (manifest?.entries ?? []).filter((entry) => entry?.enabled !== false);
+    const contentEntries = enabledEntries.filter((entry) => entry?.activation?.mode === "keywords");
+    if (contentEntries.length >= 3 && contentEntries.every((entry) => (
+      entry?.recursion?.prevent_incoming === true && entry?.recursion?.prevent_outgoing === true
+    ))) {
+      warnings.push(issue(
+        `/runtime/assembly/${sourceIndex}/worldbook_manifest/entries`,
+        "assembly.recursion_network",
+        "Every keyword-driven content entry blocks recursion in both directions; related people, places, factions, and clues cannot activate one another"
+      ));
+    }
     validateCharacterBookCoverage(manifest, sources, `/runtime/assembly/${sourceIndex}`, issues, project);
     if (target === "character") {
       validateSingleCharacterEntry(manifest, sources, `/runtime/assembly/${sourceIndex}`, issues);
@@ -1626,7 +1681,7 @@ export async function validateRuntimeSources({ project, sources, projectRoot }) 
   const anyRuntimeSource = mvuSources.length > 0 || openingSources.length > 0 || uiSources.length > 0;
   if (anyRuntimeSource || project?.features?.mvu || project?.features?.ejs || project?.features?.status_ui) {
     const graph = validateVariables(mvuSources, issues);
-    validateInitializations(mvuSources, openingSources, graph.bySource, issues);
+    validateInitializations(mvuSources, openingSources, graph.bySource, issues, warnings);
     validateUi(uiSources, graph.bySource, project, issues, warnings);
     validateRuntimeDeliveries(mvuSources, uiSources, issues);
     validateHostRuntimeContracts(mvuSources, issues);
@@ -1639,6 +1694,19 @@ export async function validateRuntimeSources({ project, sources, projectRoot }) 
   validateMediaConsumers(sources, issues);
   validateStateMachines(values(sources, "systems"), project, sources, issues);
   const projectTarget = runtimeAssemblyTarget(project);
+  if (projectTarget === "character" && project?.features?.mvu === true) {
+    for (const [sourceIndex, source] of mvuSources.entries()) {
+      if (!source.mvu?.enabled) continue;
+      const adapter = source.runtime_contract?.adapter;
+      if (adapter?.id !== "tavern_helper" || adapter.delivery !== "embedded") {
+        issues.push(issue(
+          `/runtime/mvu/${sourceIndex}/runtime_contract/adapter`,
+          "mvu.runtime_delivery",
+          "MVU character-card delivery requires the embedded Tavern Helper adapter so Forge can include the pinned engine, generated schema registrar, and runtime guard"
+        ));
+      }
+    }
+  }
   await validateAssembly(sources, projectRoot, issues, warnings, projectTarget, project);
   return { issues, warnings };
 }
@@ -2029,7 +2097,8 @@ export async function applyAssemblyManifest(payload, { sources, projectRoot, tar
   return { payload: output, issues, warnings };
 }
 
-function mvuCharacterBookEntry({ id, sourceId, sourceKey, comment, content, enabled, kind, order, atDepth = false }) {
+function mvuCharacterBookEntry({ id, sourceId, sourceKey, comment, content, enabled, kind, order, depth = null }) {
+  const atDepth = Number.isInteger(depth);
   return {
     id,
     keys: [],
@@ -2049,7 +2118,7 @@ function mvuCharacterBookEntry({ id, sourceId, sourceKey, comment, content, enab
       exclude_recursion: true,
       prevent_recursion: true,
       delay_until_recursion: false,
-      depth: atDepth ? 0 : 4,
+      depth: atDepth ? depth : 4,
       role: 0,
       selectiveLogic: 0,
       scan_depth: null,
@@ -2085,6 +2154,13 @@ function mvuUpdateRulesContent(mvuSources) {
   return lines.join("\n");
 }
 
+function mvuVariableListContent() {
+  return `---
+<status_current_variable>
+{{format_message_variable::stat_data}}
+</status_current_variable>`;
+}
+
 function mvuOutputFormatContent(mvuSources, { statusEnabled = false } = {}) {
   const protocol = mvuSources.find((source) => source.mvu?.protocol)?.mvu.protocol ?? {};
   const operations = protocol.operations ?? ["replace", "delta", "insert", "remove", "move"];
@@ -2093,6 +2169,13 @@ function mvuOutputFormatContent(mvuSources, { statusEnabled = false } = {}) {
 The status placeholder must be the final content. Never put a variable update block after it.`
     : "End each reply that changes state with one variable update block.";
   const statusSuffix = statusEnabled ? `\n${STATUS_PLACEHOLDER}` : "";
+  const examplePath = mvuSources
+    .flatMap((source) => source.mvu?.variables ?? [])
+    .map((variable) => variable.source_path)
+    .find((pathValue) => typeof pathValue === "string")
+    ?.split(".")
+    .map((segment) => segment.replaceAll("~", "~0").replaceAll("/", "~1"))
+    .join("/") ?? "state/value";
   return `${responseOrder}
 Use only these operations: ${operations.join(", ")}.
 Paths use JSON Pointer syntax and must name a declared variable. Return an empty JSON array when no state changes.
@@ -2101,7 +2184,7 @@ Paths use JSON Pointer syntax and must name a declared variable. Return an empty
 <Analysis>Briefly justify every change from facts in the current reply.</Analysis>
 <JSONPatch>
 [
-  { "op": "replace", "path": "/declared/path", "value": "new value" }
+  { "op": "replace", "path": "/${examplePath}", "value": "new value" }
 ]
 </JSONPatch>
 </UpdateVariable>${statusSuffix}`;
@@ -2124,20 +2207,28 @@ export function applyMvuArtifacts(payload, { project, sources, target }) {
       order: 14720
     }),
     mvuCharacterBookEntry({
+      comment: "变量列表（当前状态）",
+      content: mvuVariableListContent(),
+      enabled: true,
+      kind: "mvu_variable_list",
+      order: 14721,
+      depth: 1
+    }),
+    mvuCharacterBookEntry({
       comment: "变量更新规则",
       content: mvuUpdateRulesContent(mvuSources),
       enabled: true,
       kind: "mvu_update_rules",
-      order: 14721,
-      atDepth: true
+      order: 14722,
+      depth: 0
     }),
     mvuCharacterBookEntry({
       comment: statusEnabled ? "回复输出格式（含状态栏）" : "回复输出格式",
       content: mvuOutputFormatContent(mvuSources, { statusEnabled }),
       enabled: true,
       kind: "mvu_update_format",
-      order: 14722,
-      atDepth: true
+      order: 14723,
+      depth: 0
     })
   ];
   const output = clone(payload);
@@ -2213,8 +2304,8 @@ function ejsConditionExpression(condition) {
     case "lte": return `__rp_value <= ${ejsLiteral(condition.value)}`;
     case "gt": return `__rp_value > ${ejsLiteral(condition.value)}`;
     case "gte": return `__rp_value >= ${ejsLiteral(condition.value)}`;
-    case "truthy": return "Boolean(__rp_value)";
-    case "falsy": return "!__rp_value";
+    case "truthy": return "__rp_collection_truthy";
+    case "falsy": return "!__rp_collection_truthy";
     case "includes": return `(typeof __rp_value === "string" || Array.isArray(__rp_value)) && __rp_value.includes(${ejsLiteral(condition.value)})`;
     default: return "false";
   }
@@ -2238,6 +2329,14 @@ function ejsTemplateContent(entry, channel, variable, bridge = null) {
   const falseBranch = ejsLiteral(entry.branches.when_false);
   const fallbackBranch = ejsLiteral(entry.branches.fallback);
   const expression = ejsConditionExpression(entry.condition);
+  const collectionTruthiness = ["truthy", "falsy"].includes(entry.condition.operator)
+    ? `
+    const __rp_collection_truthy = Array.isArray(__rp_value)
+      ? __rp_value.length > 0
+      : (__rp_value !== null && typeof __rp_value === "object")
+        ? Object.keys(__rp_value).length > 0
+        : Boolean(__rp_value);`
+    : "";
   const header = `${decorators.join("\n")}
 <% {
   const __rp_when_true = ${trueBranch};
@@ -2247,6 +2346,7 @@ function ejsTemplateContent(entry, channel, variable, bridge = null) {
   if (!bridge?.enabled) {
     return `${header}
     const __rp_value = getvar(${runtimePath}, { defaults: ${defaultValue} });
+    ${collectionTruthiness}
     if (${expression}) { %><%- __rp_when_true %><% } else { %><%- __rp_when_false %><% }
   } catch (__rp_error) { %><%- __rp_fallback %><% }
 } %>`;
@@ -2294,6 +2394,7 @@ function ejsTemplateContent(entry, channel, variable, bridge = null) {
       if (__rp_found) __rp_value = __rp_cursor;
     }
     if (!__rp_found) { %><%- __rp_fallback %><% } else {
+      ${collectionTruthiness}
       if (${expression}) { %><%- __rp_when_true %><% } else { %><%- __rp_when_false %><% }
     }
   } catch (__rp_error) { %><%- __rp_fallback %><% }
@@ -2488,7 +2589,7 @@ function initializationLookup(mvuSources) {
     for (const profile of initialization.profiles ?? []) if (!definitions.has(profile.id)) definitions.set(profile.id, profile);
     for (const binding of initialization.opening_bindings ?? []) bindings.set(normalizeRefId(binding.opening_ref, "opening:"), binding);
     for (const override of initialization.opening_overrides ?? []) {
-      const values = override.strategy === "validated_merge" ? mergeValues(initialization.defaults ?? {}, override.values ?? {}) : clone(override.values ?? {});
+      const values = clone(override.values ?? {});
       overrides.set(normalizeRefId(override.opening_ref, "opening:"), values);
     }
   }
@@ -2925,10 +3026,106 @@ const RUNTIME_GUARD_SCRIPT = Object.freeze({
   info: "MVU 运行守卫；执行顺序由稳定脚本 ID 确定"
 });
 const DEPENDENCY_SCRIPT_PREFIX = "rp_card_studio_dependency_";
+const MVU_RUNTIME_SCRIPT = Object.freeze({
+  id: "rp_card_studio_00_mvu_runtime",
+  name: "MVU：运行引擎",
+  info: `固定版本 MVU 运行引擎：${MANAGED_MVU_RUNTIME.version}`
+});
+const MVU_SCHEMA_SCRIPT = Object.freeze({
+  id: "rp_card_studio_10_mvu_schema",
+  name: "MVU：变量结构",
+  info: `由变量账本生成；注册器版本：${MANAGED_MVU_SCHEMA_RUNTIME.version}`
+});
+
+function zodLiteral(value) {
+  const serialized = JSON.stringify(value);
+  return serialized === undefined ? "undefined" : serialized.replaceAll("<", "\\u003c");
+}
+
+function zodVariableExpression(variable) {
+  const constraints = variable.constraints ?? {};
+  let expression;
+  switch (variable.type) {
+    case "integer":
+      expression = "z.coerce.number().int()";
+      break;
+    case "number":
+      expression = "z.coerce.number()";
+      break;
+    case "boolean":
+      expression = "z.boolean()";
+      break;
+    case "enum": {
+      const values = Array.isArray(constraints.values) ? constraints.values : [];
+      if (values.length > 0 && values.every((value) => typeof value === "string")) {
+        expression = `z.enum(${zodLiteral(values)})`;
+      } else if (values.length === 1) {
+        expression = `z.literal(${zodLiteral(values[0])})`;
+      } else if (values.length > 1) {
+        expression = `z.union([${values.map((value) => `z.literal(${zodLiteral(value)})`).join(",")}])`;
+      } else {
+        expression = "z.union([z.string(),z.number(),z.boolean()])";
+      }
+      break;
+    }
+    case "array":
+      expression = "z.array(z.unknown())";
+      break;
+    case "object":
+      expression = "z.record(z.string(), z.unknown())";
+      break;
+    default:
+      expression = "z.string()";
+      break;
+  }
+  if (typeof constraints.minimum === "number" && ["integer", "number"].includes(variable.type)) {
+    expression += `.min(${zodLiteral(constraints.minimum)})`;
+  }
+  if (typeof constraints.maximum === "number" && ["integer", "number"].includes(variable.type)) {
+    expression += `.max(${zodLiteral(constraints.maximum)})`;
+  }
+  if (typeof constraints.pattern === "string" && variable.type === "string") {
+    expression += `.regex(new RegExp(${zodLiteral(constraints.pattern)}))`;
+  }
+  if (Number.isInteger(constraints.max_items) && variable.type === "array") {
+    expression += `.max(${constraints.max_items})`;
+  }
+  return expression;
+}
+
+function mvuSchemaScript(mvuSources) {
+  const root = { children: new Map(), expression: null };
+  const variables = mvuSources.flatMap((source) => source.mvu?.enabled ? source.mvu.variables ?? [] : []);
+  for (const variable of variables) {
+    let cursor = root;
+    for (const segment of variable.source_path.split(".")) {
+      if (!cursor.children.has(segment)) cursor.children.set(segment, { children: new Map(), expression: null });
+      cursor = cursor.children.get(segment);
+    }
+    cursor.expression = zodVariableExpression(variable);
+  }
+  const compileNode = (node) => {
+    if (node.expression) return node.expression;
+    const fields = [...node.children.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, child]) => `${JSON.stringify(key)}:${compileNode(child)}`);
+    return `z.object({${fields.join(",")}})`;
+  };
+  return `import { registerMvuSchema } from ${JSON.stringify(MANAGED_MVU_SCHEMA_RUNTIME.url)};
+
+const Schema = ${compileNode(root)};
+
+$(() => {
+  registerMvuSchema(Schema);
+  console.info("[SillyTavern制卡工坊] MVU 变量结构已注册：MVU 更新约束与 Tavern Helper 消息变量校验均已接入");
+});`;
+}
 
 function isReservedTavernHelperScriptId(id) {
   return id === DEPRECATED_PARENT_STATUS_SCRIPT_FINGERPRINT.id
     || id === RUNTIME_GUARD_SCRIPT.id
+    || id === MVU_RUNTIME_SCRIPT.id
+    || id === MVU_SCHEMA_SCRIPT.id
     || (typeof id === "string" && id.startsWith(DEPENDENCY_SCRIPT_PREFIX));
 }
 
@@ -2975,9 +3172,27 @@ function isDependencyScript(script) {
   }
 }
 
+function isManagedMvuRuntimeScript(script) {
+  return script?.id === MVU_RUNTIME_SCRIPT.id
+    && script?.name === MVU_RUNTIME_SCRIPT.name
+    && script?.info === MVU_RUNTIME_SCRIPT.info
+    && script?.content === `import ${JSON.stringify(MANAGED_MVU_RUNTIME.url)};`;
+}
+
+function isManagedMvuSchemaScript(script) {
+  return script?.id === MVU_SCHEMA_SCRIPT.id
+    && script?.name === MVU_SCHEMA_SCRIPT.name
+    && script?.info === MVU_SCHEMA_SCRIPT.info
+    && typeof script?.content === "string"
+    && script.content.includes(`from ${JSON.stringify(MANAGED_MVU_SCHEMA_RUNTIME.url)}`)
+    && script.content.includes("registerMvuSchema(Schema)");
+}
+
 function isRecognizableTavernHelperScript(script) {
   return isDeprecatedParentStatusScript(script)
     || isRuntimeGuardScript(script)
+    || isManagedMvuRuntimeScript(script)
+    || isManagedMvuSchemaScript(script)
     || isDependencyScript(script);
 }
 
@@ -2989,9 +3204,20 @@ export function applyTavernHelperAdapter(payload, { project, sources, target }) 
     && project?.features?.mvu;
   const runtimeConfig = tavernHelperRuntimeConfig(mvuSources, payload?.data?.name);
   const generated = [];
-  if (runtimeEnabled) {
+  if (runtimeEnabled && mvuAdapter) {
+    generated.push(tavernHelperScript({
+      ...MVU_RUNTIME_SCRIPT,
+      enabled: true,
+      content: `import ${JSON.stringify(MANAGED_MVU_RUNTIME.url)};`
+    }));
+    generated.push(tavernHelperScript({
+      ...MVU_SCHEMA_SCRIPT,
+      enabled: true,
+      content: mvuSchemaScript(mvuSources)
+    }));
     const seenImports = new Set();
     for (const dependency of runtimeConfig.remoteImports) {
+      if (dependency.id === "mvu") continue;
       if (seenImports.has(dependency.url)) continue;
       seenImports.add(dependency.url);
       generated.push(tavernHelperScript({
@@ -3083,15 +3309,17 @@ const MANAGED_REGEX_IDS = Object.freeze({
   mvuPromptFilter: "0e4c7a2c-5c51-4a15-8f8e-f2a81f831d01",
   mvuPendingFold: "0e4c7a2c-5c51-4a15-8f8e-f2a81f831d02",
   mvuCompleteFold: "0e4c7a2c-5c51-4a15-8f8e-f2a81f831d03",
-  statusProjection: "0e4c7a2c-5c51-4a15-8f8e-f2a81f831d04"
+  statusProjection: "0e4c7a2c-5c51-4a15-8f8e-f2a81f831d04",
+  statusPromptFilter: "0e4c7a2c-5c51-4a15-8f8e-f2a81f831d07"
 });
 const MANAGED_REGEX_NAMES = Object.freeze({
   [MANAGED_REGEX_IDS.mvuInitPromptFilter]: "MVU：从提示词移除初始化数据",
   [MANAGED_REGEX_IDS.mvuInitDisplayFilter]: "MVU：隐藏初始化数据",
   [MANAGED_REGEX_IDS.mvuPromptFilter]: "MVU：从提示词移除变量更新",
-  [MANAGED_REGEX_IDS.mvuPendingFold]: "MVU：折叠未完成的变量更新",
-  [MANAGED_REGEX_IDS.mvuCompleteFold]: "MVU：折叠变量更新",
-  [MANAGED_REGEX_IDS.statusProjection]: "状态栏：消息内状态显示",
+  [MANAGED_REGEX_IDS.mvuPendingFold]: "[隐藏]未完成的变量更新",
+  [MANAGED_REGEX_IDS.mvuCompleteFold]: "[隐藏]变量更新",
+  [MANAGED_REGEX_IDS.statusProjection]: "[界面]状态栏",
+  [MANAGED_REGEX_IDS.statusPromptFilter]: "[不发送]界面占位符",
 });
 const LEGACY_MANAGED_REGEX_NAMES = Object.freeze({
   [MANAGED_REGEX_IDS.mvuInitPromptFilter]: "[MVU] Filter initialization from prompts",
@@ -3100,6 +3328,7 @@ const LEGACY_MANAGED_REGEX_NAMES = Object.freeze({
   [MANAGED_REGEX_IDS.mvuPendingFold]: "[MVU] Fold pending variable update",
   [MANAGED_REGEX_IDS.mvuCompleteFold]: "[MVU] Fold complete variable update",
   [MANAGED_REGEX_IDS.statusProjection]: "[Status] Project message status bar",
+  [MANAGED_REGEX_IDS.statusPromptFilter]: "[Status] Remove placeholder from prompts",
 });
 
 function sillyTavernRegexScript({
@@ -3110,6 +3339,7 @@ function sillyTavernRegexScript({
   placement,
   markdownOnly,
   promptOnly,
+  minDepth = null,
   maxDepth = null
 }) {
   return {
@@ -3124,7 +3354,7 @@ function sillyTavernRegexScript({
     promptOnly,
     runOnEdit: false,
     substituteRegex: 0,
-    minDepth: null,
+    minDepth,
     maxDepth
   };
 }
@@ -3148,6 +3378,7 @@ function mvuRegexScripts() {
       placement: [1, 2],
       markdownOnly: false,
       promptOnly: true,
+      minDepth: 2,
       maxDepth: null
     }),
     sillyTavernRegexScript({
@@ -3163,7 +3394,7 @@ function mvuRegexScripts() {
       id: MANAGED_REGEX_IDS.mvuPendingFold,
       scriptName: MANAGED_REGEX_NAMES[MANAGED_REGEX_IDS.mvuPendingFold],
       findRegex: "/<update(?:variable)?>(?![\\s\\S]*?<\\/update(?:variable)?>)\\s*([\\s\\S]*?)\\s*(?=<StatusPlaceHolderImpl\\s*\\/>\\s*$|$)/i",
-      replaceString: '<details data-rp-card-studio="mvu-update-pending"><summary>变量更新（未完成）</summary><pre>$1</pre></details>',
+      replaceString: "",
       placement: [2],
       markdownOnly: true,
       promptOnly: false
@@ -3172,7 +3403,7 @@ function mvuRegexScripts() {
       id: MANAGED_REGEX_IDS.mvuCompleteFold,
       scriptName: MANAGED_REGEX_NAMES[MANAGED_REGEX_IDS.mvuCompleteFold],
       findRegex: "/<update(?:variable)?>\\s*([\\s\\S]*?)\\s*<\\/update(?:variable)?>/gi",
-      replaceString: '<details data-rp-card-studio="mvu-update"><summary>变量更新</summary><pre>$1</pre></details>',
+      replaceString: "",
       placement: [2],
       markdownOnly: true,
       promptOnly: false
@@ -3185,10 +3416,11 @@ function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (character) => replacements[character]);
 }
 
-function statusRuntimePath(sourcePath, runtimeConfig) {
-  const namespace = runtimeConfig.namespace ?? "stat_data";
+function statusRuntimePath(sourcePath, runtimeConfig, field = null) {
+  const namespace = field?.data_source ?? runtimeConfig.namespace ?? "stat_data";
   const mapped = runtimeConfig.pathMappings[sourcePath] ?? sourcePath;
-  return mapped.startsWith(`${namespace}.`) ? mapped : `${namespace}.${mapped}`;
+  const semanticPath = mapped.replace(/^(?:stat_data|display_data)\./, "");
+  return `${namespace}.${semanticPath}`;
 }
 
 function compileStatusText(template, runtimeConfig, fieldsBySourcePath = new Map()) {
@@ -3196,7 +3428,7 @@ function compileStatusText(template, runtimeConfig, fieldsBySourcePath = new Map
     /\{\{\s*([A-Za-z_][A-Za-z0-9_-]*(?:\.[A-Za-z_][A-Za-z0-9_-]*)*)\s*\}\}/g,
     (_match, sourcePath) => {
       const suffix = fieldsBySourcePath.get(sourcePath)?.format === "percent" ? "%" : "";
-      return `{{format_message_variable::${statusRuntimePath(sourcePath, runtimeConfig)}}}${suffix}`;
+      return `{{format_message_variable::${statusRuntimePath(sourcePath, runtimeConfig, fieldsBySourcePath.get(sourcePath))}}}${suffix}`;
     }
   );
 }
@@ -3216,7 +3448,7 @@ function statusProjectionHtml(ui, runtimeConfig) {
     : "";
   const sectionMarkup = sections.map((section) => {
     const fields = (section.fields ?? []).map((field) => {
-      const macro = `{{format_message_variable::${statusRuntimePath(field.source_path, runtimeConfig)}}}`;
+      const macro = `{{format_message_variable::${statusRuntimePath(field.source_path, runtimeConfig, field)}}}`;
       const suffix = field.format === "percent" ? "%" : "";
       return `<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:baseline"><dt style="min-width:0;color:#a1a1aa">${escapeHtml(field.label ?? field.id)}</dt><dd style="margin:0;color:#fafafa;font-weight:650;overflow-wrap:anywhere">${macro}${suffix}</dd></div>`;
     }).join("");
@@ -3242,7 +3474,7 @@ function statusTemplateTokens(template, runtimeConfig, fieldsBySourcePath) {
     if (field) {
       tokens.push({
         type: "value",
-        runtimePath: statusRuntimePath(match[1], runtimeConfig),
+        runtimePath: statusRuntimePath(match[1], runtimeConfig, field),
         format: field.format,
         missing: field.missing_value
       });
@@ -3268,7 +3500,7 @@ function statusMessageConfig(ui, runtimeConfig) {
         .map((field) => ({
           id: field.id,
           label: field.label ?? field.id,
-          runtimePath: statusRuntimePath(field.source_path, runtimeConfig),
+          runtimePath: statusRuntimePath(field.source_path, runtimeConfig, field),
           sourcePath: field.source_path,
           format: field.format,
           missing: field.missing_value ?? "Unavailable"
@@ -3564,6 +3796,18 @@ function statusRegexScript(ui, runtimeConfig) {
   });
 }
 
+function statusPromptFilterRegexScript() {
+  return sillyTavernRegexScript({
+    id: MANAGED_REGEX_IDS.statusPromptFilter,
+    scriptName: MANAGED_REGEX_NAMES[MANAGED_REGEX_IDS.statusPromptFilter],
+    findRegex: "/<StatusPlaceHolderImpl\\s*\\/>/g",
+    replaceString: "",
+    placement: [2],
+    markdownOnly: false,
+    promptOnly: true
+  });
+}
+
 function canonicalJson(value) {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
   if (isObject(value)) return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`;
@@ -3618,7 +3862,7 @@ function syncStatusReplyContract(output, enabled) {
     enabled: true,
     kind: "status_reply_contract",
     order: 14723,
-    atDepth: true,
+    depth: 0,
   });
   output.data.character_book ??= {
     name: `${output.data.name ?? "未命名角色"} 世界书`,
@@ -3676,7 +3920,9 @@ function isRecognizableManagedRegexScript(script) {
       minDepth: null,
       maxDepth: null
     }
-    : mvuRegexScripts().find((candidate) => candidate.id === script.id);
+    : script.id === MANAGED_REGEX_IDS.statusPromptFilter
+      ? statusPromptFilterRegexScript()
+      : mvuRegexScripts().find((candidate) => candidate.id === script.id);
   if (!expected) return false;
   const actualFingerprint = managedRegexFingerprint(script);
   if (actualFingerprint === managedRegexFingerprint(expected)) return true;
@@ -3739,6 +3985,7 @@ export function applySillyTavernRegexAdapter(payload, { project, sources, target
   const contractWarnings = syncStatusReplyContract(output, Boolean(ui) && !mvuEnabled);
   if (ui) {
     const runtimeConfig = tavernHelperRuntimeConfig(mvuSources);
+    generated.push(statusPromptFilterRegexScript());
     generated.push(statusRegexScript(ui, runtimeConfig));
     output.data.first_mes = normalizeStatusPlaceholder(output.data.first_mes);
     output.data.alternate_greetings = Array.isArray(output.data.alternate_greetings)
@@ -3823,12 +4070,32 @@ export function auditSillyTavernMvuLifecycle(payload, worldbookRegistry = {}, ho
   const blobUrlRendering = typeof hostSettings?.tavern_helper?.render?.use_blob_url === "boolean"
     ? hostSettings.tavern_helper.render.use_blob_url
     : null;
-  const embeddedMvuScriptCompatible = blobUrlRendering === null ? null : !blobUrlRendering;
-  const hostBlockers = blobUrlRendering === true ? ["tavern_helper_blob_url_rendering"] : [];
+  const cardName = payload?.data?.name;
+  const enabledCharacterScripts = hostSettings?.tavern_helper?.scripts?.enabled_characters;
+  const characterScriptsEnabled = typeof hostSettings?.tavern_helper?.scripts?.character_enabled === "boolean"
+    ? hostSettings.tavern_helper.scripts.character_enabled
+    : Array.isArray(enabledCharacterScripts) && typeof cardName === "string"
+      ? enabledCharacterScripts.includes(cardName)
+      : null;
+  const mvuStarted = typeof hostSettings?.runtime_observation?.mvu_started === "boolean"
+    ? hostSettings.runtime_observation.mvu_started
+    : null;
+  const observedBlobFailure = blobUrlRendering === true && mvuStarted === false;
+  const embeddedMvuScriptCompatible = observedBlobFailure ? false : mvuStarted === true ? true : null;
+  const hostBlockers = [];
+  if (characterScriptsEnabled === false) hostBlockers.push("tavern_helper_character_scripts_disabled");
+  if (observedBlobFailure) hostBlockers.push("tavern_helper_blob_url_rendering_observed_failure");
   const ready = bindingMatches && registryPresent && managedContentMatches && initvarRecognizable;
+  const runtimeReady = !ready
+    ? false
+    : characterScriptsEnabled === false || mvuStarted === false
+      ? false
+      : mvuStarted === true
+        ? true
+        : null;
   return {
     ready,
-    runtime_ready: !ready ? false : embeddedMvuScriptCompatible,
+    runtime_ready: runtimeReady,
     book_name: bookName,
     binding,
     binding_matches: bindingMatches,
@@ -3843,6 +4110,9 @@ export function auditSillyTavernMvuLifecycle(payload, worldbookRegistry = {}, ho
       sillytavern_version: hostSettings?.sillytavern_version ?? null,
       tavern_helper_version: hostSettings?.tavern_helper_version ?? null,
       tavern_helper_blob_url_rendering: blobUrlRendering,
+      tavern_helper_character_scripts_enabled: characterScriptsEnabled,
+      mvu_started_observation: mvuStarted,
+      blob_url_workaround_recommended: observedBlobFailure,
       embedded_mvu_script_compatible: embeddedMvuScriptCompatible,
       blockers: hostBlockers,
     },

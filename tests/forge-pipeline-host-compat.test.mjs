@@ -114,7 +114,7 @@ mvu:
   enabled: true
   implementation: tavern_helper_mvu
   update_mode: same_generation
-  output_dialect: json_patch_subset
+  output_dialect: mvu_json_patch
   variables:
     - source_path: relationship.trust
       runtime_path: stat_data.relationship.trust

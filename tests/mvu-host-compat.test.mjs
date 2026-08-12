@@ -12,6 +12,8 @@ const {
 const MVU_TARGET = { type: 'message', message_id: 'latest' };
 const MVU_VERSION = 'v0.179.0';
 const MVU_IMPORT_URL = `https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate@${MVU_VERSION}/artifact/bundle.js`;
+const MVU_SCHEMA_VERSION = 'v0.3.449';
+const MVU_SCHEMA_IMPORT_URL = `https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource@${MVU_SCHEMA_VERSION}/dist/util/mvu_zod.js`;
 
 function emptySources(overrides = {}) {
   return {
@@ -87,7 +89,7 @@ function runtimeSources({
           enabled: mvuEnabled,
           implementation: 'tavern_helper_mvu',
           update_mode: mvuEnabled ? 'same_generation' : 'disabled',
-          output_dialect: 'rp_json_patch_v1',
+          output_dialect: 'mvu_json_patch',
           storage: {
             scope: 'message',
             namespace: 'stat_data',
@@ -95,7 +97,7 @@ function runtimeSources({
             merge_policy: 'scope_only',
           },
           protocol: {
-            id: 'rp_json_patch',
+            id: 'mvu_json_patch',
             version: '1.0.0',
             envelope: 'UpdateVariable',
             path_syntax: 'json_pointer',
@@ -696,12 +698,48 @@ test('remote MVU dependency emits one pinned import script before the runtime gu
   );
 });
 
-test('host-required MVU dependency emits the guard without a remote import script', () => {
+test('enabled MVU always emits a pinned engine, generated schema registrar, and guard', () => {
   const result = guardResult({ dependencyClass: 'host_required' });
   const { scripts } = findGuard(result);
+  const byId = new Map(scripts.map(script => [script.id, script]));
+  const engine = byId.get('rp_card_studio_00_mvu_runtime');
+  const schema = byId.get('rp_card_studio_10_mvu_schema');
+  const guard = byId.get('rp_card_studio_runtime_guard');
 
-  assert.equal(scripts.some(script => /\bimport\s*(?:\(|['"])/.test(script.content)), false);
-  assert.equal(scripts.filter(script => script.id === 'rp_card_studio_runtime_guard').length, 1);
+  assert.ok(engine, `missing embedded MVU engine: ${JSON.stringify(scripts)}`);
+  assert.ok(schema, `missing generated MVU schema registrar: ${JSON.stringify(scripts)}`);
+  assert.ok(guard);
+  assert.equal(engine.content, `import ${JSON.stringify(MVU_IMPORT_URL)};`);
+  assert.match(schema.content, new RegExp(MVU_SCHEMA_IMPORT_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(schema.content, /registerMvuSchema\(Schema\)/);
+  assert.match(schema.content, /relationship["']?\s*:\s*z\.object/);
+  assert.match(schema.content, /trust["']?\s*:\s*z\.coerce\.number\(\)\.int\(\)\.min\(0\)\.max\(100\)/);
+  assert.match(schema.content, /mood["']?\s*:\s*z\.enum\(\["calm","angry"\]\)/);
+  assert.doesNotMatch(engine.content, /@(?:master|main|latest)\b/);
+  assert.doesNotMatch(schema.content, /@(?:master|main|latest)\b/);
+  assert.ok(scripts.indexOf(engine) < scripts.indexOf(schema));
+  assert.ok(scripts.indexOf(schema) < scripts.indexOf(guard));
+});
+
+test('MVU prompt artifacts include current variables, update rules, and output format', async () => {
+  const result = await compileMvuArtifacts();
+  assert.deepEqual(result.issues, []);
+  const entries = result.payload.data.character_book.entries;
+  const byKind = new Map(entries.map(entry => [entry.extensions?.rp_card_studio?.kind, entry]));
+
+  assert.ok(byKind.has('mvu_initvar'));
+  assert.ok(byKind.has('mvu_variable_list'));
+  assert.ok(byKind.has('mvu_update_rules'));
+  assert.ok(byKind.has('mvu_update_format'));
+  const current = byKind.get('mvu_variable_list');
+  assert.equal(current.comment, '变量列表（当前状态）');
+  assert.equal(current.extensions.depth, 1);
+  assert.match(current.content, /format_message_variable::stat_data/);
+  assert.match(current.content, /<status_current_variable>/);
+
+  const format = byKind.get('mvu_update_format').content;
+  assert.match(format, /\/relationship\/trust/);
+  assert.doesNotMatch(format, /\/declared\/path/);
 });
 
 test('generated Tavern Helper scripts use the host schema and stable id ordering', () => {

@@ -16430,8 +16430,8 @@ function characterBookEntry(group, source, index, characterBookId = null, option
     use_regex: false,
     useProbability: true,
     probability: 100,
-    excludeRecursion: true,
-    preventRecursion: true,
+    excludeRecursion: config.recursion.preventIncoming,
+    preventRecursion: config.recursion.preventOutgoing,
     delayUntilRecursion: false,
     depth: null,
     role: 0,
@@ -16442,8 +16442,8 @@ function characterBookEntry(group, source, index, characterBookId = null, option
       position: config.position === "after_char" ? 1 : 0,
       useProbability: true,
       probability: 100,
-      exclude_recursion: true,
-      prevent_recursion: true,
+      exclude_recursion: config.recursion.preventIncoming,
+      prevent_recursion: config.recursion.preventOutgoing,
       delay_until_recursion: false,
       depth: null,
       role: 0,
@@ -16477,8 +16477,8 @@ function characterBookEntry(group, source, index, characterBookId = null, option
         scan_depth: config.scanDepth,
         ignore_budget: config.ignoreBudget,
         recursion: {
-          prevent_incoming: true,
-          prevent_outgoing: true,
+          prevent_incoming: config.recursion.preventIncoming,
+          prevent_outgoing: config.recursion.preventOutgoing,
           delay_until_recursion: false
         }
       }
@@ -16509,6 +16509,7 @@ function automaticCharacterBookConfig(group, source, index, cardMode = "pending"
   const singleCharacter = group === "character" && SINGLE_CHARACTER_CARD_MODES.has(cardMode);
   const constant = ["positioning", "world", "system", "prompt"].includes(group) || singleCharacter;
   const ignoreBudget = singleCharacter;
+  const protocolEntry = ["positioning", "system", "prompt"].includes(group);
   const baseOrder = { positioning: 50, world: 100, character: 300, scene: 400, system: 500, prompt: 600 }[group] ?? 900;
   return {
     constant,
@@ -16516,7 +16517,11 @@ function automaticCharacterBookConfig(group, source, index, cardMode = "pending"
     order: baseOrder + index,
     position: ["positioning", "system", "prompt"].includes(group) || singleCharacter ? "after_char" : "before_char",
     scanDepth: constant ? null : 4,
-    ignoreBudget
+    ignoreBudget,
+    recursion: {
+      preventIncoming: protocolEntry || group === "world",
+      preventOutgoing: protocolEntry
+    }
   };
 }
 function renderCharacterBookSource(group, source) {
@@ -16997,7 +17002,6 @@ async function commandUnpack(args, options) {
   });
   if (isPngCharacterFormat(artifact.format)) {
     addPreservedImport(project, "src/import/original.png");
-    project.deliverables = ["character_card_json", "character_card_png"];
   }
   const state = makeState(project, { revision: 1 });
   state.dirty_sources = [sourcePath];

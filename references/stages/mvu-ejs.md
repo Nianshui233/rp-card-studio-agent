@@ -52,7 +52,7 @@
 |---|---|---|---|
 | 状态快照属于哪里？ | message / chat / character | 影响存档隔离、覆盖顺序和迁移 | 默认 message；确有跨消息合并需求再扩大 scope |
 | 变量由谁写入？ | 剧情模型 / 独立更新模型 / 确定性脚本 | 影响提示词路由与竞争写入风险 | 公式派生值推荐脚本独占 |
-| 开场如何初始化？ | 共用 profile / 具名差异 profile | 影响开场一致性与迁移 | 共用默认 profile，只有真实差异才增加 binding |
+| 开场如何初始化？ | 共用 profile / 具名差异 profile | 影响开场一致性与迁移 | 逐开场核对地点、时间、在途状态和既定事实；只有完整状态确实相同才共用 profile |
 | 更新在哪次请求完成？ | 同轮生成 / 独立更新请求 | 影响调用链、失败处理和可验证性 | 当前 Forge 只实现 `same_generation`；没有完整独立请求链时不得选择后者 |
 ```
 
@@ -66,18 +66,18 @@ mvu:
   enabled: true
   implementation: "内嵌同轮状态更新契约"
   update_mode: same_generation
-  output_dialect: rp_json_patch
+  output_dialect: mvu_json_patch
   storage:
     scope: message
     namespace: stat_data
     snapshot_selector: current_message
     merge_policy: message_over_chat
   protocol:
-    id: rp_json_patch
+    id: mvu_json_patch
     version: 1.0.0
     envelope: UpdateVariable
     path_syntax: json_pointer
-    operations: [replace, delta]
+    operations: [replace, delta, insert, remove, move]
     atomicity: batch
     precondition: validate_before_commit
     revision_guard: if_present
@@ -152,8 +152,24 @@ ejs:
         fallback: "使用不依赖信任值的中性对话段。"
       missing_dependency: omit_dynamic
 runtime_contract:
-  adapter: null
+  adapter:
+    id: tavern_helper
+    version: 1.0.0
+    delivery: embedded
+    entrypoint: rp_card_studio_runtime_guard
+    load_order: 20
+    readiness_probe: globalThis.Mvu
+    timeout_ms: 10000
+    fallback: "MVU 不可用时保留上一份合法状态，明确报告运行时未就绪。"
   dependencies:
+    - id: tavern_helper
+      class: host_required
+      delivery: "SillyTavern Tavern Helper 4.9.1"
+      version: 4.9.1
+      load_order: 10
+      readiness_probe: globalThis.waitGlobalInitialized
+      timeout_ms: 10000
+      fallback: "依赖缺失时不启动 MVU，保留纯文本叙事。"
     - id: st_prompt_template
       class: host_required
       delivery: "SillyTavern ST-Prompt-Template 1.17.6.8"
@@ -166,6 +182,8 @@ runtime_contract:
   fallbacks:
     - "状态更新不可用时保留上一轮合法值，并继续生成叙事。"
 ```
+
+MVU 引擎与变量结构注册器不要求创作代理手写进 `dependencies`。Forge 会从内建白名单生成固定版本脚本；项目只需登记 Tavern Helper 等宿主依赖和实际启用的 EJS 依赖。这样可避免把 MVU 错标为 `embedded` 却漏掉引擎，或让项目自行选择漂移 URL。
 
 片段后报告已锁定决定、字段生命周期缺口、运行时假设和下一批本阶段问题。用户完全放权时，先一次性列出选择与理由，再锁定授权范围内的全部决定，之后不重复询问。
 
@@ -187,17 +205,23 @@ runtime_contract:
 ## 实现约束
 
 - 一个变量只有一个 writer；脚本派生值不得同时交给模型修改。
+- 启用 MVU 后，Forge 必须随卡生成并按稳定 ID 排序三条 Tavern Helper 角色脚本：固定版本 MVU 引擎、由变量账本生成的 Zod 结构注册、运行守卫。仅有守卫或仅有离线 `runtime-state.schema.json` 都是不完整实现。
+- 运行时结构脚本必须调用 `registerMvuSchema(Schema)`，覆盖每条声明变量路径并保留类型、枚举、范围、正则和集合上限等可表达约束。必须在守卫前执行，并使用固定版本 URL；禁止 `main`、`latest` 或未登记地址。
+- 模型提示词必须同时包含 D1/D0 的“变量列表（当前状态）”、变量更新规则和回复输出格式。变量列表使用 `{{format_message_variable::stat_data}}` 发送最新快照；离线 Schema 不能代替这三项中的任何一项。
 - `source_path` 是语义路径，`runtime_path` 是运行时路径，两者通过显式映射连接。
 - `storage` 必须声明单一可信 scope；跨 scope 读取只有在 `merge_policy` 明确时允许，不能依赖宿主的隐式覆盖顺序。
 - `protocol.id + protocol.version` 构成稳定协议身份。新项目使用结构化、可校验的协议；`output_dialect` 仅作为兼容摘要，不能替代 `protocol`。
 - 当前实现的 `update_mode` 必须是 `same_generation`；同一条原始助手消息中的更新块由 MVU 自动解析。发现 `extra_pass` 或 `both` 时先检查是否存在并通过独立请求全链路证据，没有就阻断，不能静默降级或虚构一次额外调用。
 - 纯 EJS 读取必须有与类型一致的默认值；MVU 联动读取必须有可证明的初始化先序和明确 `branches.fallback`，不得用默认值掩盖缺失快照或路径。
-- 每个 profile 有稳定 ID；`opening_bindings` 只引用已存在 opening 与 profile，继承不得成环，合并后必须通过完整运行时 Schema。
+- 每个 profile 有稳定 ID；`opening_bindings` 只引用已存在 opening 与 profile，继承不得成环。开场 `<initvar>` 是对世界书 `[initvar]` 的完整替代，不执行 merge；每个 `strategy` 固定为 `complete_replace`，替代后的完整状态必须通过运行时 Schema。
+- 每条开场必须解析为一份完整合法状态。跨场景共用 profile 前逐项核对地点、时间、在途状态和 `established_facts`；不一致时拆分 profile 或使用 opening override。非空变量默认对象/数组不得被初始化中的空容器无意覆盖。
+- EJS 的 `truthy`/`falsy` 对集合使用内容语义：空数组和空对象为假，非空集合为真；其他值才使用普通 JavaScript truthiness。
 - EJS 条件只读取已登记字段并覆盖所有分支。纯 EJS 通过 `getvar(runtime_path, { defaults })` 读取；MVU 联动当前只允许 `message/stat_data/current|latest message`，有界等待 `Mvu` 后读取快照。`current_message` 的 render 条目使用 ST-Prompt-Template 提供的数字 `message_id`；generate 上下文没有楼层号时明确降级到 latest。宿主、namespace 或路径缺失时进入 `branches.fallback`。
 - 条目路由与条目激活是两个维度；路由不能替代关键词、深度、顺序等激活规则。
 - 未确认的宿主能力进入 `runtime_contract.assumptions`，不得写成已经验证。
-- Tavern Helper adapter 是可选宿主桥接，不是默认依赖。需要时在本阶段锁定契约，实际 adapter 文件、入口装配和碰撞扫描留到 `integration`；不得直接引用未登记的远程运行脚本。
-- 选择 Tavern Helper 承载 MVU 角色脚本时，把 `酒馆助手 -> 渲染 -> 启用 Blob URL 渲染` 必须关闭登记为目标宿主兼容前置条件。真实验收先核对该设置并刷新宿主，再判断角色脚本是否启动；纯 EJS 且不依赖该 MVU 角色脚本的项目不适用此条件。
+- Tavern Helper 是 MVU 角色脚本的宿主依赖；adapter 契约仍在本阶段锁定，实际入口装配和碰撞扫描留到 `integration`。Forge 只允许其内建白名单中的固定版本 MVU 与 Schema 注册器 URL，项目源码不得临时追加未登记远程运行脚本。
+- 真实验收分别记录角色主世界书、局部正则授权、Tavern Helper 角色脚本、酒馆助手宏和 MVU 启动观察。Blob URL 渲染不是通用前置条件；仅当宿主观察到 MVU 未启动且该选项开启时，推荐关闭、刷新并重新观察。
+- EJS 使用 ST-Prompt-Template 时确认插件已启用；`getwi` 会绕过 SillyTavern 原生世界书激活与预算，`activewi` 进入原生激活，`@@preprocessing` 仅在满足宿主版本要求时使用。不得把三者当作等价入口。
 - 每条实际开场的完整 `<initvar>...</initvar>` 块保留在原始消息供 MVU 初始化；整合时必须生成分别作用于送模副本和玩家显示副本的隐藏正则。两条规则都不得吞掉未闭合块或改写原始记录。
 - NSFW 已启用时，只映射前序阶段已锁定的相关字段，不再询问偏好或边界；关闭时不得生成相关字段、条件或依赖。始终服从平台硬约束。
 
@@ -206,10 +230,12 @@ runtime_contract:
 - MVU 与 EJS 开关有明确值，禁用项不残留配置。
 - 每个变量完成默认值、writer、reader、renderer/无渲染理由、清理和迁移登记。
 - 默认初始化与每个开场覆盖都符合字段类型和约束。
+- 每个开场的初始化与其场景、地点、时间、在途状态和既定事实一致；没有用空容器覆盖非空变量默认值。
 - profiles、opening bindings 和继承图可解析，且每个开场合并后的状态合法。
 - 所有更新操作属于锁定的协议版本，更新边界、原子性、修订保护和失败行为已定义。
 - `update_mode` 与真实请求链一致；当前项目使用 `same_generation`，或对尚无独立请求链的 `extra_pass`/`both` 给出 blocker。
 - 已启用的变量账本能确定性生成 `reports/runtime-state.schema.json`；跳过本阶段且没有既有实现时不生成该报告。
+- 构建产物包含顺序正确的 MVU 引擎、变量结构和守卫脚本，以及变量列表、更新规则和输出格式三类 CharacterBook 条目。
 - 每个业务状态机映射保持原状态、转换与后果，不新增或改写系统语义。
 - 所有 EJS 读取路径存在；纯 EJS 条件具备类型匹配的默认值，MVU 联动条件具备安全 fallback，且两者都有完整分支。
 - plot、update、shared 三类接收者有清单，无模糊双写。
