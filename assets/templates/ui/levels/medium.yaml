@@ -1,0 +1,17 @@
+schema_version: 1.0.0
+level: medium
+description: 在轻型基础上增加玩家配置、开场分流和三个主要业务工作区。
+component_templates:
+  - launch-screen.yaml
+  - introduction-page.yaml
+  - opening-selector.yaml
+  - player-setup.yaml
+  - status-terminal.yaml
+  - task-center.yaml
+  - inventory-center.yaml
+  - relationship-center.yaml
+  - update-report.yaml
+  - roll-result.yaml
+  - choice-panel.yaml
+  - notification.yaml
+requirements: { minimum_components: 12, entry: 1, setup: 1, dashboard_or_workspace: 4, narrative_component: 2, navigation: mixed }

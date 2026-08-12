@@ -1,0 +1,42 @@
+schema_version: 2.0.0
+status: draft
+
+ui_theme:
+  id: main
+  display_name: 待设计主题
+  # 不得直接保留此占位说明。先从项目自身的材料、器物、媒介和时代语言
+  # 推导主题，并给出一个能被记住的视觉签名。
+  concept: 需要在 UI 阶段根据项目主题改写的完整视觉概念说明。
+  palette:
+    background: "#151719"
+    surface: "#1D2124"
+    surface_alt: "#272D31"
+    primary: "#D0A85C"
+    secondary: "#6D9E99"
+    text: "#F2EEE3"
+    muted: "#AAA79F"
+    success: "#70B98B"
+    warning: "#DDA64F"
+    danger: "#CF625B"
+    border: "#50595C"
+  typography:
+    display: system-ui
+    body: system-ui
+    utility: monospace
+    scale: [0.75, 0.875, 1, 1.25, 1.75]
+  shape:
+    radius: small
+    border_width: hairline
+    shadow: soft
+  texture: none
+  signature:
+    kind: custom
+    description: 需要根据项目重写的唯一视觉签名，不能使用通用霓虹终端作为默认答案。
+  motion: restrained
+  breakpoints:
+    narrow: 520
+    wide: 1100
+  resources:
+    font_strategy: system
+    icon_strategy: inline_svg
+    remote_urls: []

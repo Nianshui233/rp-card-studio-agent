@@ -1,0 +1,23 @@
+schema_version: 2.0.0
+status: draft
+ui_component:
+  id: introduction_page
+  display_name: 项目介绍页
+  role: guide
+  preset: introduction_page
+  trigger: { kind: self_closing, marker: RPIntroduction, producer: opening }
+  data_contract: { mode: none, payload_format: none }
+  binding_refs: []
+  interactions: [local_interaction, opening_swipe]
+  content:
+    eyebrow: FIELD BRIEF
+    title: 世界与玩法介绍
+    subtitle: 用项目自身的叙事语气解释世界、玩家位置和主要玩法。
+    body: [介绍核心世界状态。, 说明玩家能做什么以及不能依赖什么。]
+    primary_action: 选择开场
+    secondary_action: null
+  layout: { kind: article, groups: [] }
+  states: { loading: 正在载入说明, empty: 暂无说明, error: 无法切换开场, degraded: 请阅读普通文本说明 }
+  source: { mode: generated, html: "", css: "", js: "" }
+  delivery: { surface: message, adapter: tavern_helper_message, level: host_required, run_on_edit: true, min_depth: null, max_depth: 5 }
+  acceptance: { runtime: not_run, fallback: 保留世界简介、玩法和开场选择说明。 }

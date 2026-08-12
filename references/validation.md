@@ -52,6 +52,9 @@
 - `embedded + sillytavern_regex` 未固定为 `refresh: on_message`、`read_only: true`、`commands: []`，使用 tabs，或把条件缺失值、动态状态切换、命令、可靠逐楼层快照声明为已实现。（状态栏/UI、整合）
 - 项目声称动态刷新、命令、tabs、条件缺失值、运行时状态切换或可靠逐楼层快照已经可用，却没有显式选择 `adapter: tavern_helper_message`、`level: host_required`，也没有消息自身 iframe 的真实宿主运行证据；仅选择适配器或生成 fenced HTML 不能解除此 blocker。（状态栏/UI、整合）
 - `tavern_helper_message` 状态栏不是自包含 fenced HTML，未严格校验整数 `getCurrentMessageId()`，未按该 ID 低频复查 `getVariables({ type: "message", message_id })`，在首个合法旧快照后过早停止，未在卸载时清理，存在 latest 回退、父页面访问或远程 UI 加载。（状态栏/UI、整合）
+- 完整 `light`/`medium`/`heavy` UI 缺少 `ui_experience`、引用的主题/绑定/组件，等级能力门槛不足，以重复空面板凑数，或没有项目专属视觉概念与唯一视觉签名。（状态栏/UI、整合）
+- UI 绑定引用不存在的组件或字段，`source_path -> runtime_path` 映射不闭合，读取 `stat_data` 以外的临时/私密数据，或 UI 在系统阶段未定义的情况下发明变量语义。（状态栏/UI、整合）
+- UI 内联源码访问父页面、浏览器存储、动态代码、危险 HTML sink、内联事件、网络/远程资源，含 `$&`/`$1` 等 SillyTavern 替换令牌，重复绑定交互，或未移除 MVU 事件监听。（状态栏/UI、整合）
 - MVU 声明 `extra_pass` 或 `both`，但没有可执行且已验证的独立请求触发、路由、响应解析、协议校验、原子提交和失败回退全链路。（MVU/EJS、整合）
 - 运行时状态 Schema 与 storage、protocol、初始化 profiles、opening bindings 或字段账本不一致。（MVU/EJS、整合）
 - `assembly.yaml` 未登记、世界书/媒体 consumer 引用悬空、媒体回退成环，或关键远程媒体没有可用回退。（整合）
@@ -187,6 +190,11 @@
 - `status_ui.mode` 与 delivery 一致；所有启用模式都使用 `surface: message` 并拥有 adapter、entrypoint、artifact 和固定占位符。只有 `mode: none` 允许 `delivery: null`。
 - 默认与所有备选开场各含一个占位符。启用 MVU 时，后续占位符由 MVU 自动追加且模型不得输出；未启用 MVU但启用状态栏时，后续回复合同才要求模型输出恰好一个。状态栏角色正则在自有 MVU 显示规则之后执行。
 - 纯 Regex 对完整消息和已出现的更新块执行确定的消息重绘，但不声称能探测解析失败、自动选择 `states.*` 或恢复最近合法值；消息级实现只有在这些分支实测后才可声明确定行为。任何路径都不得留下跨消息或跨聊天的实例。
+- `basic_status` 与完整 UI 2.0 明确区分；新建完整 UI 的首批等级决定已锁定为 `light`、`medium` 或 `heavy`，且未用源代码行数替代能力验收。
+- UI 2.0 的 `experience -> theme/bindings/components` 引用闭合，组件 marker 与稳定正则 UUID 唯一，模型生产者拥有对应中文 CharacterBook 协议；重复构建保持幂等。
+- 主题的颜色、字体、形状、纹理、动效和唯一签名来自项目内容而非通用模板；远程资源为空，窄屏、键盘焦点、非颜色语义、减少动画和体积预算均有明确合同。
+- 每个组件的数据模式、payload 格式、binding、布局和交互相符；动态值只用安全文本/DOM 节点写入，消息 ID 严格绑定当前楼，静态交互只绑定一次，MVU listener 在卸载时释放。
+- 每个完整组件都有加载、空、错误、降级与纯文本 fallback；未进行真实宿主验收时，源码和产物通过也必须保持 `runtime: not_run`。
 
 ### 装配引用图
 

@@ -3,6 +3,12 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 
 import { projectModelSource, semanticLeafPointers } from "./forge/projection.mjs";
+import {
+  compileUiExperienceRegexes,
+  isManagedUiComponentRegex,
+  isUiExperienceEnabled,
+  validateUiExperienceSources,
+} from "./ui/compiler.mjs";
 
 const OPERATION_TYPES = Object.freeze({
   set: new Set(["string", "integer", "number", "boolean", "enum", "object", "array"]),
@@ -720,7 +726,10 @@ function validateMediaConsumers(sources, issues) {
     ["scene", new Set(values(sources, "scenes").map((source) => source.id))],
     ["world", new Set(values(sources, "world").map((source) => source.id))],
     ["system", new Set(values(sources, "systems").map((source) => source.id))],
-    ["ui", new Set(values(sources, "ui").flatMap((source) => source.status_ui?.sections ?? []).map((section) => section.id))]
+    ["ui", new Set(values(sources, "ui").flatMap((source) => [
+      ...(source.status_ui?.sections ?? []).map((section) => section.id),
+      ...source.ui_component ? [source.ui_component.id] : [],
+    ]))]
   ]);
   const sceneSlots = new Map();
   for (const [sceneIndex, scene] of values(sources, "scenes").entries()) {
@@ -793,8 +802,12 @@ function completeUiDelivery(ui) {
 
 function validateUi(uiSources, bySource, project, issues, warnings) {
   const enabledSources = uiSources.filter((source) => source.status_ui?.enabled);
-  if (Boolean(project?.features?.status_ui) !== (enabledSources.length > 0)) {
+  const enabledExperienceSources = uiSources.filter((source) => source.ui_experience?.enabled);
+  if (Boolean(project?.features?.status_ui) !== (enabledSources.length > 0 || enabledExperienceSources.length > 0)) {
     issues.push(issue("/runtime/ui", "ui.lifecycle", "project.features.status_ui must match the enabled status UI sources"));
+  }
+  if (enabledSources.length > 0 && enabledExperienceSources.length > 0) {
+    issues.push(issue("/runtime/ui", "ui.delivery.collision", "Legacy status_ui and UI 2.0 experience cannot both own generated message UI"));
   }
   const runnable = uiSources.filter((source) => source.status_ui?.enabled
     && ["text", "embedded", "both"].includes(source.status_ui.mode)
@@ -1683,6 +1696,9 @@ export async function validateRuntimeSources({ project, sources, projectRoot }) 
     const graph = validateVariables(mvuSources, issues);
     validateInitializations(mvuSources, openingSources, graph.bySource, issues, warnings);
     validateUi(uiSources, graph.bySource, project, issues, warnings);
+    const uiExperienceValidation = validateUiExperienceSources({ project, sources, variableBySource: graph.bySource });
+    issues.push(...uiExperienceValidation.issues);
+    warnings.push(...uiExperienceValidation.warnings);
     validateRuntimeDeliveries(mvuSources, uiSources, issues);
     validateHostRuntimeContracts(mvuSources, issues);
     validateStateBindings(sources, graph.bySource, issues);
@@ -3883,6 +3899,73 @@ function syncStatusReplyContract(output, enabled) {
     : [];
 }
 
+function uiComponentContractContent(contract) {
+  const wrapper = contract.kind === "block"
+    ? `<${contract.marker}>...</${contract.marker}>`
+    : `<${contract.marker}/>`;
+  const payload = contract.payload_format === "json"
+    ? "标签内部必须是严格有效的 JSON；不得使用 Markdown 代码围栏。"
+    : contract.payload_format === "lines"
+      ? "标签内部每行只写一个项目，不要嵌套额外标签。"
+      : contract.payload_format === "text"
+        ? "标签内部只写该组件需要显示的纯文本。"
+        : "该标记不携带额外负载。";
+  return [
+    `消息前端组件：${contract.display_name}`,
+    `当且仅当当前回复确实需要展示此组件时，输出 ${wrapper}。`,
+    payload,
+    "组件标记放在叙事正文之后、变量更新块之前；同一回复最多输出一次。",
+    `无法形成合法负载时不要输出损坏标签，继续使用普通叙事文本。降级说明：${contract.fallback}`,
+  ].join("\n");
+}
+
+function syncUiComponentContracts(output, contracts) {
+  output.data ??= {};
+  const book = output.data.character_book;
+  const existingEntries = Array.isArray(book?.entries)
+    ? book.entries
+    : isObject(book?.entries) ? Object.values(book.entries) : [];
+  const desired = new Map((contracts ?? []).map((contract) => [`ui_contract:${contract.id}`, contract]));
+  const retained = existingEntries.filter((entry) => {
+    const key = characterBookTrackingKey(entry);
+    return typeof key !== "string" || !key.startsWith("ui_contract:") || desired.has(key);
+  });
+  const allocator = createCharacterBookIdAllocator(retained);
+  const allocations = allocator.allocateMany([...desired.keys()]);
+  const issues = [];
+  for (const [sourceKey, contract] of desired) {
+    const existingIndex = retained.findIndex((entry) => characterBookTrackingKey(entry) === sourceKey);
+    const allocation = allocations.get(sourceKey);
+    const generated = mvuCharacterBookEntry({
+      id: allocation.id,
+      sourceId: contract.id,
+      sourceKey,
+      comment: `界面协议：${contract.display_name}`,
+      content: uiComponentContractContent(contract),
+      enabled: true,
+      kind: "ui_component_contract",
+      order: 14730 + [...desired.keys()].indexOf(sourceKey),
+      depth: 0,
+    });
+    if (existingIndex >= 0 && allocation.reused) retained[existingIndex] = generated;
+    else retained.push(generated);
+    if (allocation.collision) issues.push(issue(`/data/character_book/entries/${generated.id}`, "ui.id_collision", `Stable CharacterBook id ${allocation.candidate} was occupied; assigned ${allocation.id} to ${sourceKey}`));
+  }
+  if (desired.size > 0) {
+    output.data.character_book ??= {
+      name: `${output.data.name ?? "未命名角色"} 世界书`,
+      description: "SillyTavern制卡工坊消息前端组件协议",
+      scan_depth: null,
+      token_budget: null,
+      recursive_scanning: false,
+      extensions: {},
+      entries: [],
+    };
+  }
+  if (output.data.character_book) output.data.character_book.entries = retained;
+  return issues;
+}
+
 function activeStatusUi(project, sources) {
   if (project?.features?.status_ui !== true) return null;
   return values(sources, "ui").find((source) => source.status_ui?.enabled
@@ -3907,6 +3990,7 @@ function managedRegexFingerprint(script) {
 }
 
 function isRecognizableManagedRegexScript(script) {
+  if (isManagedUiComponentRegex(script)) return true;
   if (!Object.values(MANAGED_REGEX_IDS).includes(script?.id)) return false;
   const expected = script.id === MANAGED_REGEX_IDS.statusProjection
     ? {
@@ -3985,18 +4069,29 @@ export function applySillyTavernRegexAdapter(payload, { project, sources, target
   const mvuSources = values(sources, "mvu");
   const mvuEnabled = project?.features?.mvu === true && mvuSources.some((source) => source.mvu?.enabled);
   const ui = activeStatusUi(project, sources);
+  const uiExperienceEnabled = isUiExperienceEnabled(project, sources);
+  const compiledUi = compileUiExperienceRegexes({ project, sources });
 
   const output = clone(payload);
   const generated = mvuEnabled ? mvuRegexScripts(mvuSources) : [];
+  generated.push(...compiledUi.scripts);
   output.data ??= {};
   if (typeof output.data.post_history_instructions === "string") {
     output.data.post_history_instructions = removeStatusReplyContract(output.data.post_history_instructions);
   }
-  const contractWarnings = syncStatusReplyContract(output, Boolean(ui) && !mvuEnabled);
+  const usesStatusPlaceholder = Boolean(ui) || (uiExperienceEnabled && compiledUi.usesStatusPlaceholder);
+  const contractWarnings = syncStatusReplyContract(output, usesStatusPlaceholder && !mvuEnabled);
+  const uiContractIssues = syncUiComponentContracts(output, uiExperienceEnabled ? compiledUi.contracts : []);
   if (ui) {
     const runtimeConfig = tavernHelperRuntimeConfig(mvuSources);
     generated.push(statusPromptFilterRegexScript());
     generated.push(statusRegexScript(ui, runtimeConfig));
+    output.data.first_mes = normalizeStatusPlaceholder(output.data.first_mes);
+    output.data.alternate_greetings = Array.isArray(output.data.alternate_greetings)
+      ? output.data.alternate_greetings.map(normalizeStatusPlaceholder)
+      : [];
+  } else if (uiExperienceEnabled && compiledUi.usesStatusPlaceholder) {
+    generated.push(statusPromptFilterRegexScript());
     output.data.first_mes = normalizeStatusPlaceholder(output.data.first_mes);
     output.data.alternate_greetings = Array.isArray(output.data.alternate_greetings)
       ? output.data.alternate_greetings.map(normalizeStatusPlaceholder)
@@ -4010,7 +4105,8 @@ export function applySillyTavernRegexAdapter(payload, { project, sources, target
     }
   }
   const issues = mergeManagedRegexScripts(output, generated);
-  return { payload: output, issues, warnings: contractWarnings };
+  issues.push(...compiledUi.issues, ...uiContractIssues);
+  return { payload: output, issues, warnings: [...contractWarnings, ...compiledUi.warnings] };
 }
 
 function hostWorldbookLookup(registry, name) {

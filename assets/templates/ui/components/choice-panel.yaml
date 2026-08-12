@@ -1,0 +1,17 @@
+schema_version: 2.0.0
+status: draft
+ui_component:
+  id: choice_panel
+  display_name: 行动选项
+  role: narrative_component
+  preset: choice_panel
+  trigger: { kind: block, marker: RPChoices, producer: model }
+  data_contract: { mode: current_message, payload_format: lines }
+  binding_refs: []
+  interactions: [local_interaction, message_read, message_write, slash_command]
+  content: { eyebrow: DECISION, title: 可选行动, subtitle: 点击后通过酒馆助手公开消息接口发送并触发下一轮。, body: [], primary_action: null, secondary_action: null }
+  layout: { kind: grid, groups: [] }
+  states: { loading: 正在解析选项, empty: 暂无选项, error: 选项解析失败, degraded: 请复制普通文本选项回复 }
+  source: { mode: generated, html: "", css: "", js: "" }
+  delivery: { surface: message, adapter: tavern_helper_message, level: host_required, run_on_edit: true, min_depth: null, max_depth: 5 }
+  acceptance: { runtime: not_run, fallback: 以普通文本列出行动选项。 }

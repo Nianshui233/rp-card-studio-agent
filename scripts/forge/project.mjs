@@ -26,7 +26,7 @@ import {
   sha256,
   stableJson,
 } from './json.mjs';
-import { SOURCE_SCHEMA_BY_GROUP, validateNamedSchema } from './schema.mjs';
+import { SOURCE_SCHEMA_BY_GROUP, schemaNameForSource, validateNamedSchema } from './schema.mjs';
 import { readYaml, stringifyYaml } from './yaml.mjs';
 import { projectModelSource } from './projection.mjs';
 
@@ -695,12 +695,13 @@ export async function validateRegisteredSources(loaded) {
   const issues = [];
   const checks = [];
   const sources = Object.fromEntries(Object.keys(SOURCE_SCHEMA_BY_GROUP).map((group) => [group, []]));
-  for (const [group, schema] of Object.entries(SOURCE_SCHEMA_BY_GROUP)) {
+  for (const group of Object.keys(SOURCE_SCHEMA_BY_GROUP)) {
     for (const relativePath of loaded.project?.source_manifest?.[group] ?? []) {
       const absolutePath = resolveWithin(loaded.projectRoot, relativePath);
       try {
         const source = await readYaml(absolutePath);
         sources[group].push({ relativePath, absolutePath, value: source });
+        const schema = schemaNameForSource(group, source);
         const sourceIssues = validateNamedSchema(schema, source, `/${relativePath}`);
         issues.push(...sourceIssues);
         if (group === "mvu" && loaded.state?.stages?.mvu_ejs?.status !== "in_progress") {

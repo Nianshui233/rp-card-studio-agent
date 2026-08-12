@@ -1,0 +1,17 @@
+schema_version: 2.0.0
+status: draft
+ui_component:
+  id: battle_report
+  display_name: 冲突报告
+  role: narrative_component
+  preset: battle_report
+  trigger: { kind: block, marker: RPBattleReport, producer: model }
+  data_contract: { mode: current_message, payload_format: json }
+  binding_refs: []
+  interactions: [local_interaction, message_read]
+  content: { eyebrow: CONFLICT, title: 冲突结算, subtitle: 概括参与者、关键行动、损耗、位置变化与后果。, body: [], primary_action: null, secondary_action: null }
+  layout: { kind: timeline, groups: [] }
+  states: { loading: 正在解析冲突, empty: 本轮没有冲突结算, error: 冲突报告无效, degraded: 保留普通文本冲突结果 }
+  source: { mode: generated, html: "", css: "", js: "" }
+  delivery: { surface: message, adapter: tavern_helper_message, level: host_required, run_on_edit: true, min_depth: null, max_depth: 5 }
+  acceptance: { runtime: not_run, fallback: 直接显示冲突过程、损耗和后果。 }

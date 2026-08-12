@@ -1,0 +1,17 @@
+schema_version: 2.0.0
+status: draft
+ui_component:
+  id: travel_planner
+  display_name: 行程规划
+  role: workspace
+  preset: custom_panel
+  trigger: { kind: placeholder, marker: RPTravelPlanner, producer: runtime }
+  data_contract: { mode: stat_data, payload_format: none }
+  binding_refs: []
+  interactions: [local_interaction]
+  content: { eyebrow: JOURNEY, title: 行程与补给, subtitle: 结合目的地、耗时、风险、交通方式和补给需求呈现出行决策。, body: [], primary_action: null, secondary_action: null }
+  layout: { kind: split, groups: [{ id: route, label: 路线, binding_refs: [], collapsed: false }, { id: supply, label: 补给, binding_refs: [], collapsed: false }] }
+  states: { loading: 正在计算行程, empty: 尚无行程计划, error: 行程数据读取失败, degraded: 请查看普通文本路线与补给 }
+  source: { mode: generated, html: "", css: "", js: "" }
+  delivery: { surface: message, adapter: tavern_helper_message, level: host_required, run_on_edit: true, min_depth: null, max_depth: 5 }
+  acceptance: { runtime: not_run, fallback: 用普通文本列出路线、耗时、风险和补给。 }

@@ -1,0 +1,53 @@
+schema_version: 2.0.0
+status: draft
+
+ui_experience:
+  enabled: true
+  # UI 阶段首批锁定：basic_status / light / medium / heavy。
+  # light 最少 6 个组件；medium 最少 12 个；heavy 最少 24 个。
+  experience_level: light
+  goals:
+    - world_immersion
+    - complex_information
+    - opening_guidance
+  device_priority: equal
+  theme_ref: ui_theme:main
+  bindings_ref: ui_bindings:main
+  surfaces:
+    - ui_component:launch_screen
+    - ui_component:introduction_page
+    - ui_component:status_terminal
+    - ui_component:update_report
+    - ui_component:roll_result
+    - ui_component:choice_panel
+  navigation:
+    kind: mixed
+    primary_surface: ui_component:launch_screen
+    routes: []
+  host_policy:
+    adapter: tavern_helper_message
+    allow_remote_resources: false
+    allow_host_fragile: false
+    allowed_interactions:
+      - static
+      - local_interaction
+      - message_read
+      - message_write
+      - slash_command
+      - opening_swipe
+  accessibility:
+    keyboard: true
+    color_independent: true
+    reduced_motion: true
+    live_updates: polite
+  performance:
+    max_component_bytes: 131072
+    max_total_bytes: 1048576
+    large_collection_strategy: collapse
+  acceptance:
+    desktop: required
+    narrow: required
+    message_edit: required
+    empty_state: required
+    error_state: required
+    runtime: not_run

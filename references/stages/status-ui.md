@@ -1,205 +1,261 @@
 # 状态栏/UI 阶段
 
-本阶段把已经锁定的玩家可见状态投影到每条 AI 聊天消息中。它决定展示内容、消息内布局、变量绑定和交付方式，不拥有变量语义。交付路径只有两种：SillyTavern 角色正则生成的消息内投影，或 Tavern Helper 消息级 JS/iframe。要求助手后续每次回复输出状态栏占位符的格式合同属于 CharacterBook，不属于卡面高级定义字段。
+本阶段把已经锁定的玩家可见信息设计成与 RP 项目配套的消息前端系统。它拥有 UI 体验等级、视觉系统、信息架构、组件、数据绑定、消息内交互、降级和运行验收；不拥有世界事实、人物动机、玩法公式或变量业务语义。
+
+角色卡是完整 RP 项目容器，UI 也不应被缩减成一块通用状态框。完整 UI 可以包含启动页、介绍页、玩家创建、开场选择、状态终端、变量更新报告、检定、选项、任务、物品、关系、情报、调查、地图和战斗等多个消息组件。
 
 ## 进入条件
 
-- 项目已经决定进入状态栏/UI 阶段。
-- 需要显示的字段已有锁定的语义来源和玩家可见性。
-- 使用 MVU 时，字段账本、运行时路径和初始化已经锁定。
-- 叙事与开场阶段已经完成；本阶段只为最终制品添加消息占位符，不改写开场正文。
+- 用户已经确认进入状态栏/UI 阶段；在前一阶段结束时只能问“进入还是跳过”，不能提前询问 UI 内部设计。
+- 叙事与开场已经锁定；本阶段可以为开场绑定 UI 标记和导航，但不能改写开场共享语义、剧情事实或玩家交接。
+- 需要展示的状态已有玩家可见的语义来源。使用 MVU 时，变量类型、默认值、`source_path`、`runtime_path`、writer、reader 和初始化已经锁定。
+- 缺少 UI 所需变量时，只登记跨阶段待办并返回系统或 MVU/EJS 做最小补丁；不得在 UI 阶段现场发明变量语义。
+
+## UI 等级
+
+进入本阶段后的第一批必须询问：
+
+> 与本角色卡/RP 项目配套的 UI，希望做到轻型、中型还是重型？
+
+助手必须结合项目规模给出推荐和实际影响，不能只列选项。`basic_status` 仅作为兼容或用户明确要求的极简路线，不属于完整 UI 的轻型等级。
+
+| 等级 | 最低规模 | 能力门槛 | 典型适用项目 |
+| --- | ---: | --- | --- |
+| `basic_status` | 1 个状态投影 | 少量字段、无复杂交互、稳定优先 | 老项目、三五个字段、明确只要简单状态条 |
+| `light` 轻型 | 6 个组件 | 至少一个入口、一个综合状态终端、一个剧情组件；完整项目主题、响应式、空/错/降级态 | 以社区“轻度前端”规模为校准的单一主体验 |
+| `medium` 中型 | 12 个组件 | 轻型全部能力，加玩家设置、至少四个 dashboard/workspace、至少两类剧情组件 | 多角色、开放世界、任务/物品/关系/调查等多个主要玩法 |
+| `heavy` 重型 | 24 个组件 | 中型全部能力，加至少八个 dashboard/workspace、至少四类剧情组件、hub/mixed 导航和性能策略 | 将角色卡作为完整 RP 应用的复杂模拟项目 |
+
+“尸变纪元”只用作轻型规模与组件化方法的校准参考：启动、介绍、创建、状态终端、变量报告、检定和选项共同形成体验。不得复制其代码、主题、中文标记、远程字体、父页面 DOM 操作或具体世界内容。
+
+代码行数不是等级标准。组件覆盖、视觉完成度、数据绑定、交互、响应式、安全和宿主验收才是等级标准。
 
 ## 本阶段边界
 
 ### 允许询问
 
-- 纯文字状态栏、消息内 HTML 状态栏，或带可读文字摘要的消息内 HTML。
-- 玩家最常查看的信息、分组、折叠层级、格式和缺失值。
-- 视觉方向、信息密度、窄屏布局、键盘操作和可访问性。
-- 使用 SillyTavern 角色正则，还是已经有明确需求和可验证实现的 Tavern Helper 消息级 JS/iframe。
-- 完整消息、流式未完成消息、变量解析失败和扩展未授权时的设计文案，以及这些文案是否需要真实运行时切换。
-- 角色正则 ID、占位符、消息变量宏、依赖与宿主不可用时的行为。
+- UI 等级：轻型、中型、重型；用户明确只要极简时可选择 `basic_status`。
+- UI 服务的主要目标、主要设备、使用频率和可接受的 Tavern Helper 宿主依赖。
+- 项目专属的视觉方向、主题媒介、配色、字体策略、布局、纹理、动效和唯一视觉签名。
+- 页面/组件清单、导航、一级与二级信息、模型输出组件和移动端重排。
+- 已存在玩家可见字段使用什么组件呈现，如何处理空值、集合、大数据量和优先级。
+- 标签、折叠、表单、选项、消息写入、Slash 命令、开场 swipe 和运行失败时的降级。
+- HTML/CSS/JS 维护源、受管正则、性能预算、安全边界和真实宿主验收。
 
 ### 禁止询问
 
-- 不询问新剧情、角色动机、世界秘密或场景结构。
-- 不新增数值公式、阈值含义、变量或 writer。
-- 不改变开场正文，只验证构建后占位符会被幂等追加。
-- 不把玩家不可见或 GM 专用字段绑定到界面。
-- 不新增角色正则和 Tavern Helper 消息级 JS/iframe 之外的第三种 UI 表面。
-- 不复制参考卡、外部仓库或未登记远程页面作为状态栏实现。
+- 不询问新剧情、人物动机、世界秘密、场景结构或玩法公式。
+- 不新增变量、writer、阈值含义或状态转换；只绑定已有 `source_path`。
+- 不修改开场的共享事实、初始状态、钩子和玩家交接。
+- 不把 GM 专用或玩家不可见字段绑定到 UI。
+- 不要求修改 SillyTavern、Tavern Helper 或其他插件本体。
+- 不把参考卡、远程页面或外部仓库原样复制成项目 UI。
+- 默认不访问 `window.parent`、`parent.document`、`#send_textarea`、`#send_but` 等宿主私有 DOM。
+- 默认不加载 Google Fonts、远程图标库、远程脚本或远程 UI。
+- 不把模型维护的字符串直接写入 `innerHTML`；动态值使用 `textContent` 或受控 DOM 节点。
 
-## 多轮工作循环
+## 六批工作循环
 
-每轮只解决当前阶段的一组问题：
+每批都必须遵循：
 
-```markdown
-### 本轮目标：消息内状态栏形态
-| 问题 | 方向 | 影响 | 推荐 |
-|---|---|---|---|
-| 状态栏怎样进入消息？ | 角色正则直接投影 / 可选的 Tavern Helper fenced-HTML 消息 iframe 候选 | 影响复杂度、逐楼快照和宿主依赖 | 默认直接投影；只有明确需要高级能力、接受 `host_required`/`not_run`，并安排真实宿主验收时才选择 iframe 候选 |
-| 首层显示多少信息？ | 关键 3 项 / 分组摘要 / 全量 | 影响扫读速度和移动端高度 | 推荐关键项常显，次要信息折叠 |
-| UI 是否写变量？ | 只读 / 发送明确命令 | 影响 writer 所有权与交付方式 | 推荐只读；命令必须改用 Tavern Helper 消息级实现 |
+```text
+多项问题 + 已知信息采集 + 2~3 个针对性方向和推荐
+→ 用户选定或 AI 在授权范围内决定并报告理由
+→ 生成可合并片段
+→ 检查本批充分性
+→ 只进入下一批 UI 问题
 ```
 
-用户选择后立即生成可合并片段。新项目的默认交付是 SillyTavern 角色正则：Forge 在角色卡的 `data.extensions.regex_scripts` 中生成消息内状态栏规则，在所有开场末尾追加唯一占位符，并把后续助手回复的输出合同写入 CharacterBook。启用 MVU 时，合同合并到 MVU 回复格式条目；未启用 MVU 时，生成独立中文常驻条目 `状态栏：回复输出约定`。新卡的 `data.post_history_instructions` 保持为空。
+### 第一批：体验等级与目标
 
-<!-- validate: status-ui.schema.json -->
-```yaml
-schema_version: 1.2.0
-status: locked
-status_ui:
-  enabled: true
-  mode: embedded
-  read_only: true
-  refresh: on_message
-  text_template: "信任：{{relationship.trust}}"
-  sections:
-    - id: relationship
-      display_name: "关系"
-      priority: 0
-      collapsed: false
-      fields:
-        - id: trust
-          source_path: relationship.trust
-          label: "信任"
-          format: integer
-          missing_value: "未知"
-          visibility: player
-  commands: []
-  # 纯 Regex 下以下四项只保存设计文案，不会自动切换状态。
-  states:
-    loading: "正在读取状态"
-    empty: "暂无可显示状态"
-    error: "状态暂时不可用"
-    degraded: "状态信息不可用"
-  responsive:
-    narrow: compact_list
-    wide: grouped_columns
-  visual:
-    density: compact
-    hierarchy: [relationship]
-    motion: restrained
-  accessibility:
-    keyboard: true
-    live_updates: polite
-    color_independent: true
-  dependencies:
-    - id: tavern_helper_runtime
-      class: host_required
-      delivery: "提供消息变量宏；普通 DOM 重绘可能回退到最近变量消息"
-      fallback: "保留消息正文；不承诺 Regex 自动切换状态视图"
-  delivery:
-    level: embedded
-    adapter: sillytavern_regex
-    surface: message
-    entrypoint: generated
-    artifact: inline
-    placeholder: "<StatusPlaceHolderImpl/>"
+必须询问：
+
+1. 希望 UI 是轻型、中型还是重型？若用户只想要几个状态值，说明 `basic_status` 的取舍。
+2. UI 最主要服务于什么：快速状态、世界沉浸、复杂信息管理、开场引导、玩家创建、任务、调查、战斗、选项还是完整游戏式体验？
+3. 哪些内容必须成为独立界面，不能只塞进综合状态终端？
+4. 是否接受 Tavern Helper 消息 iframe 与公开接口作为完整前端依赖？
+5. 桌面、移动端或同等优先？
+
+推荐逻辑：
+
+- 少量字段、无主要玩法模块：建议 `basic_status`，但明确它不是完整轻型 UI。
+- 需要启动/介绍、综合终端和少量剧情组件：建议 `light`。
+- 任务、物品、NPC/关系、势力、情报、调查中有三类以上主要模块：建议 `medium`。
+- 多流程、复杂导航、地图/调查板/关系网、搜索筛选、批量数据或多数玩法都需要 UI：建议 `heavy`。
+
+用户完全放权时，AI按上述规则选择等级，报告决定与理由后立即锁定，不再重复询问。
+
+片段写入 `src/ui/ui.yaml`，使用 `ui-experience.schema.json`。
+
+### 第二批：视觉系统
+
+助手先从项目自身的时代、材料、器物、组织、技术和叙事媒介推导至少三个方向。每个方向必须说明：
+
+- 4~6 个核心颜色及其用途。
+- display/body/utility 三类字体策略；默认使用系统字体或随卡嵌入资源。
+- 布局概念与简短 ASCII 线框。
+- 边框、圆角、阴影、纹理和动效。
+- 一个能代表项目、且只在关键位置使用的视觉签名。
+- 可读性、移动端和减少动画模式。
+
+避免把“黑底 + 酸绿色霓虹终端”“暖米色 + 高对比衬线”“通用报纸排版”当作默认答案。只有项目本身真正要求时才使用。
+
+选定后，进行一次自我批评：指出哪个选择仍像通用模板，修改后再锁定。片段写入 `src/ui/theme.yaml`，使用 `ui-theme.schema.json`。
+
+### 第三批：信息架构与组件清单
+
+只决定：
+
+- 入口流程：启动、介绍、开场选择、玩家创建。
+- 主要工作区：状态、任务、物品、关系、情报、调查、地图、战斗等。
+- 剧情组件：变量报告、检定、选项、通知等。
+- 一级导航、二级折叠、页面之间的路由和移动端顺序。
+- 哪些组件由 opening、model 或 runtime 产生。
+
+组件引用使用 `ui_component:<id>`，触发标记使用稳定英文机器协议，正则名称使用中文。不得使用一个巨大组件覆盖所有用途，也不得复制空面板凑数量。
+
+片段写入：
+
+```text
+src/ui/ui.yaml
+src/ui/components/*.yaml
 ```
 
-片段之后输出字段绑定检查、玩家/GM 可见性检查、消息生命周期覆盖和下一批本阶段问题。
+组件使用 `ui-component.schema.json`。轻中重能力门槛由 Forge 检查，不仅检查数量，也检查 entry/setup/dashboard/workspace/narrative_component 的覆盖。
 
-## 建议的问题批次
+### 第四批：组件表现与数据绑定
 
-1. 模式与交付：文字、HTML、并存；角色正则或消息级 Tavern Helper 实现。
-2. 信息架构：首层字段、分组、优先级、折叠和历史信息。
-3. 绑定与格式：来源路径、运行时路径、单位、枚举文案、空值与过期状态。
-4. 消息状态：完整、流式部分、解析失败、生成中断和扩展未授权。
-5. 视觉与适配：密度、颜色角色、桌面/移动布局、长文本、键盘和可访问性。
-6. 交付核验：中文正则名、占位符、CharacterBook 回复合同、依赖、降级和真实宿主测试。
+对每个需要状态的数据槽决定：
 
-## 交付能力边界
+- 已锁定的语义 `source_path`。
+- 合适的表现组件：文本、数值、进度条、徽章、标签、列表、对象卡、时间线、装备网格、关系卡、任务列表、调查板、地图节点或资源表。
+- 标签、缺失值、优先级、范围、色调规则。
+- 数组、Record 和大集合的空状态、排序、限制和折叠策略。
 
-| 能力 | `sillytavern_regex + embedded` | `tavern_helper_message + host_required` |
-|---|---|---|
-| 消息内文字/HTML、分组、原生折叠 | 支持；折叠使用原生 `<details>` | 支持 |
-| 窄屏单列、紧凑列表、宽屏分组 | 支持静态 CSS 重排 | 支持 |
-| `percent` | 仅在上游值必有且已经是 0..100 时追加 `%` | 可实现校验、换算和精度 |
-| `missing_value` 与 `states.*` | 只保存设计文案，不能条件判断或自动切换 | 可在消息 iframe 中实现并验收 |
-| 历史逐楼层快照 | 不保证；普通宏可能读取最近变量消息 | 只是可验收的候选目标；脚本未在目标 iframe 中实际执行前不算支持 |
-| 命令、tabs、动态刷新 | 不支持 | 需要另行实现并实测的高级宿主路径；当前只可记为规格 |
+维护源只写语义 `source_path`。Forge 会通过 MVU 账本映射到真实 `runtime_path`，并且只读取 `stat_data`。不得绑定 `display_data` 或 `delta_data`。
 
-纯 Regex 的固定契约是 `refresh: on_message`、`read_only: true`、`commands: []`，且 `responsive.narrow/wide` 都不能选择 `tabs`。满足这组条件时默认并优先锁定 `adapter: sillytavern_regex` 与 `level: embedded`。项目需要 `on_state_change`、`manual`、`hybrid`、任意命令、tabs、条件缺失值、运行时状态切换或可靠逐楼层快照时，只能把 `adapter: tavern_helper_message` 与 `level: host_required` 作为用户明确选择的高级候选或设计规格；不能因为选择了它就宣称能力已经存在。在消息级实现通过目标宿主验收前，相关能力保持 `not_run`，不能标记为 `embedded`、可靠或 `runtime: pass`。
+片段写入 `src/ui/bindings.yaml`，使用 `ui-bindings.schema.json`。
 
-## 消息内交付契约
+若发现缺少状态路径，记录跨阶段待办，不在本轮追问变量公式或 writer。
 
-- `surface` 固定为 `message`。它约束状态栏出现在哪条消息的 DOM 中，不等于承诺变量读取已绑定该楼层。
-- `placeholder` 固定为 `<StatusPlaceHolderImpl/>`。Forge 会移除开场中的重复占位符，再在默认开场和每个备选开场末尾各追加一次。
-- 占位符职责按运行链拆分。默认开场和每个备选开场始终由 Forge 预置唯一占位符；启用 MVU 后，后续普通助手消息的占位符由 MVU 运行时自动追加，MVU 回复格式只要求模型输出变量更新块并明确禁止模型自行输出占位符；未启用 MVU 但启用状态栏时，才创建中文常驻条目 `状态栏：回复输出约定`，要求模型在回复末尾输出且只输出一个占位符。不得把这些合同写入 `post_history_instructions`、`system_prompt` 或其他高级定义字段。
-- 非 MVU 状态栏的回复合同必须常驻，因为每次助手生成都要遵守；它不能依赖偶然出现的关键词。合同本身是封闭输出协议，默认禁止传入和传出递归，避免自身文字触发其他条目或被其他条目重复唤起。具体 position、depth、order、probability、scan depth 与 recursion 数值仍由整合阶段逐条锁定。
-- `adapter: sillytavern_regex` 会生成 `placement: [2]`、`markdownOnly: true`、`promptOnly: false` 的角色正则，把占位符替换成消息内文字或自包含 HTML；该路径只允许按消息重绘、只读、无命令和无 tabs。
-- 字段值固定通过 `{{format_message_variable::stat_data.path}}` 宏读取。路径必须从 MVU 字段账本的 `runtime_path` 编译，不能直接猜，也不得绑定 `display_data` 或 `delta_data`：技能固定加载的 `mvu_zod v0.3.449` 会在更新结束后删除这两个兼容字段。需要显示“本轮变化”时，应在 `stat_data` 中设计明确、持久且受 Schema 约束的派生字段或变更日志。该宏由 Tavern Helper 的 macro-like 渲染层提供，只负责宿主格式化，不能在正则阶段判断缺失、错误或加载状态；当前验证的 Tavern Helper 4.9.1 在普通消息 DOM 重绘时没有向宏传 `message_id`，因此会回退到最近一条带变量的消息。交付清单必须同时要求启用 Tavern Helper 的宏替换能力，不能把它误写成 SillyTavern 原生变量宏。
-- `field.missing_value` 与 `states.loading/empty/error/degraded` 在纯 Regex 路径中是设计元数据。它们可供将来升级消息级实现，但不会被宣称为已经显示或已经自动切换。
-- `format: percent` 只允许为已保证存在且已经归一为 0..100 的上游数值追加字面 `%`；它独占这个单位后缀，`text_template` 中对应占位符后不得再手写 `%`，否则 Forge 必须阻断 `80%%` 一类重复输出。需要乘算、舍入、范围修正或条件空值时改用消息级实现。
-- 角色正则只改变显示副本；原始聊天消息保留占位符和变量更新块，供 MVU 与重新渲染使用。所有显示侧受管规则必须设置 `runOnEdit: true`，确保编辑消息后重新隐藏初始化/更新块并重建状态栏；prompt-only 规则保持 `runOnEdit: false`。
-- SillyTavern 首次载入带角色正则的卡时会请求用户授权。这是宿主安全机制；技能只能在交付清单中说明，不能绕过或伪造授权。
-- `adapter: tavern_helper_message` 是复杂消息级交互、动态状态切换或逐楼快照的可选高级候选，不是默认可靠适配器。角色正则可以把占位符替换为完整 fenced HTML，再由 Tavern Helper 尝试在消息位置创建 iframe；HTML、CSS、脚本和可读错误态必须全部自包含，不请求远程 UI，也不读取或修改父页面。当前真实组合 SillyTavern 1.18.0 + Tavern Helper 4.9.1 已证实：开启酒馆助手 `渲染 -> 启用 Blob URL 渲染` 时，消息 iframe 可能为空，同时随卡嵌入的 MVU 角色脚本也无法启动；关闭该选项并刷新 SillyTavern 后，MVU 初始化恢复。验收应先检查这个用户级宿主设置，再诊断卡片脚本；不得修改 SillyTavern 或扩展源码。
-- 消息 iframe 必须调用 `getCurrentMessageId()` 并以 `Number.isInteger(message_id)` 验证结果，再调用 `getVariables({ type: "message", message_id })` 读取该楼变量。首次合法 `stat_data` 可能是宿主暂时继承的上一楼快照，不能把“对象存在”当成本楼提交完成；初次快速获取后转为默认 2 秒低频同步，仅在可见值变化时重绘，并在 `pagehide`/`unload` 清理。无法取得整数 ID 时显示明确错误并停止；初次 API/读取失败有界重试后显示错误，已经取得合法值后的暂时失败保留最近合法内容并继续低频复查。不得传入 `"latest"`、调用 latest 快照作为回退，或悄悄显示其他楼层的数据。
-- 状态栏只能由上述两种消息内路径交付，不能增加其他页面级实现。
+### 第五批：交互、运行与安全
 
-## MVU 角色正则组合
+为每个交互分级：
 
-启用 MVU 时，Forge 还会生成并固定排序以下角色正则。用户可见的正则名称使用中文，稳定 UUID 和生成器内部 ID 保留英文：
+| 等级 | 含义 |
+| --- | --- |
+| `static` | 纯展示 |
+| `local_interaction` | 只操作当前消息 iframe 内部，如标签和折叠 |
+| `message_read` | 通过酒馆助手公开 API 读取当前楼原始消息 |
+| `message_write` | 通过公开消息 API 写入用户消息 |
+| `slash_command` | 通过 `triggerSlash` 调用命令 |
+| `opening_swipe` | 通过 `setChatMessages` 切换明确的首消息 swipe |
+| `host_fragile` | 依赖父页面或私有 DOM；默认禁止，用户明确接受且实机验证后才允许 |
 
-1. 初始化 Prompt 隐藏：只从送给模型的副本中移除完整 `<initvar>...</initvar>` 块。
-2. 更新 Prompt 过滤：从发给模型的历史副本中移除完整或流式未闭合的 `<UpdateVariable>` / `<update>` 块。默认策略 `prompt_history.update_visibility: hide_all` 对应 `minDepth: null`，不把任何历史更新块送回模型；只有项目明确需要近期变化痕迹并接受额外 token 与注意力成本时，才选择 `keep_recent_updates`，对应 `minDepth: 4`，大致保留最近一至两轮。
-3. 初始化显示隐藏：只从玩家看到的 Markdown 副本中移除完整 `<initvar>...</initvar>` 块。
-4. 流式显示隐藏：生成未完成时隐藏已经出现的更新块，保留更新块之后的状态栏占位符。
-5. 完整显示隐藏：生成完成后隐藏完整更新块，不额外展示变量命令。
-6. `[不发送]界面占位符`：从送模副本删除 `<StatusPlaceHolderImpl/>`。
-7. `[界面]状态栏`：最后把消息显示副本中的占位符替换成直接投影或 fenced HTML。
+默认完整 UI 使用 `tavern_helper_message + host_required`。生成代码必须：
 
-两条初始化隐藏规则都只匹配成对闭合的完整块；未闭合的 `<initvar>` 不得被宽松吞掉，以免隐藏普通正文或掩盖损坏的开场。正则只改变送模/显示副本，原始聊天记录中的初始化块必须保留给 MVU。
+- 用 `getCurrentMessageId()` 校验当前楼整数 ID。
+- 用 `getVariables({type:"message", message_id})` 读当前楼 `stat_data`。
+- 用 `getChatMessages(message_id)` 读取当前楼原始组件负载。
+- 选择提交优先使用 `createChatMessages` 与 `triggerSlash('/trigger')`。
+- 开场导航使用明确的 `setChatMessages([{message_id, swipe_id}])`。
+- 动态数据使用 `textContent` 或受控 DOM 节点。
+- 禁止 `eval`、`new Function`、未登记存储、网络请求和远程 UI。
+- 所有显示正则 `runOnEdit: true`。
+- 提供加载、空、错误、降级和纯文本 fallback。
+- 在真实宿主验证前保持 `runtime: not_run`。
 
-这些规则使用稳定 UUID。重建时，同 ID 且具有技能固定生成器指纹的旧规则会被刷新为当前配置；同 ID 但不符合该指纹的用户内容会原样保留并阻断覆盖。用户自己的其他规则保持原内容和相对顺序。正则必须使用非贪婪多块匹配，不能因为一条消息出现多个更新块而吞掉中间正文。
+片段写入 `ui.yaml` 的 `host_policy/performance/acceptance` 与各组件的 `interactions/delivery/acceptance`。
 
-## 模式语义
+### 第六批：代表性片段、审查和总汇
 
-- `mode: text`：把 `text_template` 中的语义路径编译为消息变量宏，生成消息内文字状态栏。
-- `mode: embedded`：根据 sections 生成自包含消息内 HTML；CSS 必须限定在自己的根类下，不污染其他消息。
-- `mode: both`：同一条消息内的 HTML 同时包含可读文字摘要；它不表示依赖失败时会自动切换视图。需要条件切换时使用 Tavern Helper 消息级实现。
-- `mode: none`：`enabled` 必须为 `false`，`delivery` 必须为 `null`，角色卡中不得残留占位符或状态栏正则。
+在锁定阶段前，至少展示：
 
-## 消息生命周期与降级
+1. 一个入口组件片段。
+2. 一个主要状态/工作区片段。
+3. 一个剧情组件片段。
+4. 主题 token 和唯一视觉签名。
+5. 桌面与窄屏布局说明。
+6. 交互链和纯文本降级。
 
-- 完整消息：状态栏留在该消息内部；默认宏方案按宿主可解析的消息变量显示，不能宣称历史快照隔离。
-- 流式部分：只隐藏已经出现的变量更新内容；占位符出现后再渲染状态栏，不伪造未提交值。
-- 解析失败：纯 Regex 无法探测失败或选择 `states.error/degraded`，只能保留原消息正文并把该能力记录为未实现；只有已验收的消息级实现才能显示相应状态并保留最近合法值。
-- 消息编辑或重新生成：由 SillyTavern 重新运行角色正则；规则必须幂等，不能重复生成状态栏。
-- 消息删除、切聊或加载历史：基础 Regex 只重新生成所在消息的静态投影。高级 iframe 候选若已在目标宿主运行，低频同步才可复查自己的整数楼层 ID，并必须在 `pagehide`/`unload` 清理；脚本未执行时这些都只是未运行的制品合同，不能据此宣称实例隔离或清理通过。
-- 若项目要求逐楼层历史快照：加载至少两个状态不同的历史楼层，确认每个消息 iframe 的脚本确实执行，`getCurrentMessageId()` 分别返回自身整数 ID，且 `getVariables({ type: "message", message_id })` 始终返回对应变量；还要制造“首读合法旧值、随后同楼提交新值”的时序，确认 UI 更新而未读取 latest。刷新页面后重复检查。纯角色正则加 DOM 宏不满足这一声明。
-- 正则未授权、Tavern Helper/MVU 缺失或宏不可用：不得阻塞消息正文。纯 Regex 不会凭空生成文字降级或最近合法状态；运行报告必须准确记录未显示、未替换或未验证的结果。
-- 若宿主插入了 iframe 元素但其子文档没有导航或脚本未执行，状态栏没有运行。先核对局部正则授权、角色脚本、宏、世界书绑定和真实 MVU 启动观察。只有观察到 MVU 未启动且 Blob URL 渲染开启时，才建议关闭该选项、刷新并重试，并记录 blocker `tavern_helper_blob_url_rendering_observed_failure`；不得仅凭开关、iframe 元素、Blob 内容或静态截图判定通过或失败。
+进行两次自我审查：
 
-## NSFW 投影规则
+- 设计审查：是否仍像对任何项目都会生成的通用模板？主题、字体、结构和文案是否来自本项目？
+- 工程审查：绑定、API、安全、性能、`runOnEdit`、降级和宿主证据是否完整？
 
-- 项目首轮已经启用 NSFW 时，本阶段只把前序阶段已锁定且允许玩家查看的相关字段纳入状态栏模板；角色模板已由角色阶段处理，本阶段不得回写或补造角色内容，也不再询问偏好、限制或单独开关。
-- 项目未启用时，相关字段、分组、文案、条件和占位空间全部省略。
-- 不因为默认纳入而暴露 GM 字段，也不突破平台硬约束。
-- 没有上游字段时不凭空创建 UI 字段；记录缺口并返回字段所属阶段。
+然后输出阶段总汇、查缺补漏和进入整合阶段的推荐。完全放权时直接锁定并进入下一阶段，不再请求确认。
 
-启用时把 `assets/templates/nsfw/status-ui.mixin.yaml` 的 sections 合并到 `status_ui.sections`，再仅绑定上游已存在且允许玩家查看的字段；关闭时不要读取或复制该 mix-in。
+## 维护源码与编译
+
+完整 UI 使用：
+
+```text
+src/ui/ui.yaml
+src/ui/theme.yaml
+src/ui/bindings.yaml
+src/ui/components/*.yaml
+```
+
+组件也可以提供经过安全扫描的 `source.mode: inline` HTML/CSS/JS。默认优先使用生成组件和项目 token；只有生成组件不足以表达项目独特体验时才写项目专属源码。
+
+Forge 将这些源编译为：
+
+```text
+UI 体验 + 主题 + 绑定 + 组件
+→ 跨源与变量引用检查
+→ 安全扫描
+→ 自包含 fenced HTML/CSS/JS
+→ 多条中文命名角色正则
+→ CharacterBook 模型输出组件协议
+→ 最终单一角色卡 JSON
+```
+
+组件正则使用由组件 ID 稳定生成的 UUID，带受管追踪信息；重复构建必须幂等。用户正则和未知扩展不被覆盖。
+
+## `basic_status` 兼容路线
+
+旧 `status-ui.schema.json 1.x` 与 `src/ui/status-ui.yaml` 继续可读。它适合少量只读字段和最小依赖：
+
+- `embedded + sillytavern_regex`：简单静态文字/HTML，使用 Tavern Helper 宏，不能实现可靠逐楼快照、条件状态或复杂交互。
+- `tavern_helper_message + host_required`：旧单状态栏消息 iframe 候选，仍需真实宿主验收。
+
+旧项目不会自动升级成 UI 2.0。用户要求升级时，应重新进入本阶段，从等级和目标开始设计；保留未知和用户自写正则，只替换技能可识别的受管规则。
+
+## MVU 与占位符
+
+- 完整 UI 的状态终端通常使用 `<StatusPlaceHolderImpl/>`；其他组件使用自己的稳定标记。
+- 默认与备选开场由 Forge 幂等保留唯一状态占位符。
+- 启用 MVU 后，后续状态占位符由 MVU 自动追加，模型不得输出。
+- 未启用 MVU但启用状态终端时，才生成模型末尾输出唯一占位符的 CharacterBook 合同。
+- 由模型产生的检定、选项、通知等组件，Forge 自动生成中文 CharacterBook 协议条目，规定标记、负载格式、顺序和降级。
+- 模型组件标记位于叙事之后、变量更新块之前；同一组件在一条回复中最多输出一次。
 
 ## 完成门槛
 
-- 每个显示字段都能解析到玩家可见来源路径和唯一运行时路径，格式与源类型兼容。
-- 默认开场和所有备选开场在制品中各含唯一占位符，后续回复合同明确且无重复。
-- 后续回复合同位于启用的 CharacterBook 条目：有 MVU 时已合并到 MVU 回复格式条目，无 MVU 时存在中文常驻条目 `状态栏：回复输出约定`；新卡 `data.post_history_instructions` 为空。
-- `data.extensions.regex_scripts` 同时包含 `[不发送]界面占位符` 与 `[界面]状态栏`；启用 MVU 时还包含 `<initvar>` 的 Prompt/显示隐藏、更新块 Prompt 过滤和显示隐藏规则。
-- 正则字段、UUID、placement、Markdown/Prompt 作用域、深度和顺序符合 SillyTavern 契约。
-- 状态栏只出现在 AI 消息内部；基础能力默认属于角色正则，Tavern Helper 消息级 JS/iframe 只作为显式选择且尚待宿主证明的高级路径。
-- 文字、HTML 和已真实实现的运行状态均不泄漏 GM 字段，窄屏与桌面不溢出。
-- 纯 Regex 的 `missing_value`、`states.*` 和逐楼层快照在报告中明确为设计元数据或未保证；命令、tabs 与动态刷新不会混入 embedded Regex 契约。
-- 不依赖参考文件或未登记远程页面；消息 iframe 的 HTML、CSS 与脚本自包含，不访问父页面或加载远程 UI。
-- Schema、制品校验和往返通过；未在真实 SillyTavern 执行时只记录为 `not_run`。
+- UI 等级、目标、设备优先级和宿主依赖已经锁定。
+- 主题不是占位或通用模板；存在项目专属的颜色、字体策略、布局概念和唯一视觉签名。
+- 组件数量和能力覆盖符合等级门槛；不是复制空面板凑数。
+- 所有组件引用、导航路由和绑定闭合。
+- 每个绑定都引用已声明、玩家可见且允许 `status_ui` 读取的变量；Forge 能映射到 `stat_data` 真实运行路径。
+- 入口、主要工作区和剧情组件都有纯文本 fallback。
+- 所有模型输出组件都有 CharacterBook 协议。
+- 交互只使用获准级别；默认没有父页面 DOM、网络、远程资源、动态代码和危险 HTML sink。
+- 桌面、窄屏、键盘、色彩独立和减少动画策略完整。
+- 性能预算、集合策略、空/错/降级状态完整。
+- 组件正则名称使用中文，机器 ID 和标记使用稳定英文。
+- `runtime: not_run` 与真实宿主证据严格区分，没有把离线成功冒充实机通过。
 
 ## 阶段总汇
 
-总汇包含：消息内模式、信息层级、字段绑定、可见性审计、中文正则名与稳定机器 ID 对照、正则顺序、占位符与 CharacterBook 助手输出合同、设计元数据与已实现能力的区别、完整/流式/失败状态矩阵、依赖行为、桌面/移动检查，以及尚未完成的真实 SillyTavern 验收。确认后冻结展示模型与交付契约；具体世界书插入位置、深度、顺序、概率、扫描深度和递归由整合阶段锁定，上游字段或宿主能力变化必须重新打开本阶段。
+总汇必须列出：
 
-## 下一阶段方向
-
-- 推荐进入 `integration`，构建角色正则、检查碰撞并验证最终制品。
-- 若绑定字段不存在或类型冲突，返回 `mvu_ejs` 或 `systems`。
-- 若信息层级不合适，留在本阶段继续迭代，不借机修改变量语义。
+1. UI 等级及选择理由。
+2. 体验目标与设备优先级。
+3. 主题概念、token 与唯一视觉签名。
+4. 组件和导航清单。
+5. 数据绑定覆盖与跨阶段缺口。
+6. 交互及其宿主能力级别。
+7. 安全、性能、降级和无障碍策略。
+8. 已生成或计划生成的受管正则与 CharacterBook 协议。
+9. 尚需真实 SillyTavern 验收的项目。
+10. 进入整合交付阶段的明确推荐。

@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rp-card-studio.local/schemas/ui-experience.schema.json",
+  "title": "UI Experience Source",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "ui_experience"],
+  "properties": {
+    "schema_version": { "const": "2.0.0" },
+    "status": { "enum": ["draft", "locked"] },
+    "ui_experience": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "experience_level", "goals", "device_priority", "theme_ref", "bindings_ref", "surfaces", "navigation", "host_policy", "accessibility", "performance", "acceptance"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "experience_level": { "enum": ["pending", "basic_status", "light", "medium", "heavy"] },
+        "goals": {
+          "type": "array",
+          "items": { "enum": ["quick_status", "world_immersion", "complex_information", "opening_guidance", "character_setup", "tasks", "investigation", "combat", "choices", "game_like_experience"] },
+          "uniqueItems": true
+        },
+        "device_priority": { "enum": ["equal", "desktop", "mobile"] },
+        "theme_ref": { "type": ["string", "null"], "pattern": "^ui_theme:[a-z][a-z0-9_]*$" },
+        "bindings_ref": { "type": ["string", "null"], "pattern": "^ui_bindings:[a-z][a-z0-9_]*$" },
+        "surfaces": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^ui_component:[a-z][a-z0-9_]*$" },
+          "uniqueItems": true
+        },
+        "navigation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "primary_surface", "routes"],
+          "properties": {
+            "kind": { "enum": ["single", "tabs", "hub", "flow", "mixed"] },
+            "primary_surface": { "type": ["string", "null"], "pattern": "^ui_component:[a-z][a-z0-9_]*$" },
+            "routes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["from", "to", "action"],
+                "properties": {
+                  "from": { "type": "string", "pattern": "^ui_component:[a-z][a-z0-9_]*$" },
+                  "to": { "type": "string", "pattern": "^ui_component:[a-z][a-z0-9_]*$" },
+                  "action": { "enum": ["local_navigation", "opening_swipe", "message_action"] },
+                  "message_id": { "type": "integer", "minimum": 0 },
+                  "swipe_id": { "type": "integer", "minimum": 0 },
+                  "prompt": { "type": "string", "minLength": 1 }
+                },
+                "allOf": [
+                  {
+                    "if": { "properties": { "action": { "const": "opening_swipe" } }, "required": ["action"] },
+                    "then": {
+                      "properties": {
+                        "message_id": { "type": "integer" },
+                        "swipe_id": { "type": "integer" }
+                      },
+                      "required": ["message_id", "swipe_id"]
+                    }
+                  },
+                  {
+                    "if": { "properties": { "action": { "const": "message_action" } }, "required": ["action"] },
+                    "then": { "properties": { "prompt": { "type": "string" } }, "required": ["prompt"] }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "host_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["adapter", "allow_remote_resources", "allow_host_fragile", "allowed_interactions"],
+          "properties": {
+            "adapter": { "enum": ["sillytavern_regex", "tavern_helper_message"] },
+            "allow_remote_resources": { "type": "boolean" },
+            "allow_host_fragile": { "type": "boolean" },
+            "allowed_interactions": {
+              "type": "array",
+              "items": { "enum": ["static", "local_interaction", "message_read", "message_write", "slash_command", "opening_swipe", "host_fragile"] },
+              "uniqueItems": true
+            }
+          }
+        },
+        "accessibility": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["keyboard", "color_independent", "reduced_motion", "live_updates"],
+          "properties": {
+            "keyboard": { "type": "boolean" },
+            "color_independent": { "type": "boolean" },
+            "reduced_motion": { "type": "boolean" },
+            "live_updates": { "enum": ["off", "polite", "assertive"] }
+          }
+        },
+        "performance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["max_component_bytes", "max_total_bytes", "large_collection_strategy"],
+          "properties": {
+            "max_component_bytes": { "type": "integer", "minimum": 4096, "maximum": 1048576 },
+            "max_total_bytes": { "type": "integer", "minimum": 16384, "maximum": 8388608 },
+            "large_collection_strategy": { "enum": ["collapse", "paginate", "limit_with_summary", "virtualize"] }
+          }
+        },
+        "acceptance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["desktop", "narrow", "message_edit", "empty_state", "error_state", "runtime"],
+          "properties": {
+            "desktop": { "enum": ["required", "not_applicable"] },
+            "narrow": { "enum": ["required", "not_applicable"] },
+            "message_edit": { "const": "required" },
+            "empty_state": { "const": "required" },
+            "error_state": { "const": "required" },
+            "runtime": { "enum": ["not_run", "required"] }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "enabled": { "const": true }, "experience_level": { "const": "light" } }, "required": ["enabled", "experience_level"] },
+          "then": { "properties": { "surfaces": { "type": "array", "minItems": 6 } } }
+        },
+        {
+          "if": { "properties": { "enabled": { "const": true }, "experience_level": { "const": "medium" } }, "required": ["enabled", "experience_level"] },
+          "then": { "properties": { "surfaces": { "type": "array", "minItems": 12 } } }
+        },
+        {
+          "if": { "properties": { "enabled": { "const": true }, "experience_level": { "const": "heavy" } }, "required": ["enabled", "experience_level"] },
+          "then": { "properties": { "surfaces": { "type": "array", "minItems": 24 } } }
+        },
+        {
+          "if": { "properties": { "enabled": { "const": true }, "experience_level": { "enum": ["light", "medium", "heavy"] } }, "required": ["enabled", "experience_level"] },
+          "then": {
+            "properties": {
+              "theme_ref": { "type": "string" },
+              "bindings_ref": { "type": "string" },
+              "host_policy": {
+                "type": "object",
+                "properties": { "adapter": { "const": "tavern_helper_message" } }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

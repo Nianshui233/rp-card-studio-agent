@@ -1,0 +1,17 @@
+schema_version: 2.0.0
+status: draft
+ui_component:
+  id: notification
+  display_name: 事件通知
+  role: notification
+  preset: notification
+  trigger: { kind: block, marker: RPNotification, producer: model }
+  data_contract: { mode: current_message, payload_format: json }
+  binding_refs: []
+  interactions: [message_read]
+  content: { eyebrow: NOTICE, title: 重要变化, subtitle: 只承载需要立即被看见的短信息，并标明类型与影响。, body: [], primary_action: null, secondary_action: null }
+  layout: { kind: compact, groups: [] }
+  states: { loading: 正在读取通知, empty: 暂无通知, error: 通知数据无效, degraded: 保留普通文本通知 }
+  source: { mode: generated, html: "", css: "", js: "" }
+  delivery: { surface: message, adapter: tavern_helper_message, level: host_required, run_on_edit: true, min_depth: null, max_depth: 5 }
+  acceptance: { runtime: not_run, fallback: 直接显示通知类型、内容和影响。 }

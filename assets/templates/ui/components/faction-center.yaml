@@ -1,0 +1,17 @@
+schema_version: 2.0.0
+status: draft
+ui_component:
+  id: faction_center
+  display_name: 势力中心
+  role: workspace
+  preset: custom_panel
+  trigger: { kind: placeholder, marker: RPFactionCenter, producer: runtime }
+  data_contract: { mode: stat_data, payload_format: none }
+  binding_refs: []
+  interactions: [local_interaction]
+  content: { eyebrow: POWER MAP, title: 势力与局势, subtitle: 展示势力目标、资源、关系、活动范围和近期动向。, body: [], primary_action: null, secondary_action: null }
+  layout: { kind: board, groups: [{ id: factions, label: 势力, binding_refs: [], collapsed: false }, { id: tensions, label: 局势, binding_refs: [], collapsed: false }] }
+  states: { loading: 正在整理势力, empty: 尚无势力记录, error: 势力数据读取失败, degraded: 请查看普通文本势力摘要 }
+  source: { mode: generated, html: "", css: "", js: "" }
+  delivery: { surface: message, adapter: tavern_helper_message, level: host_required, run_on_edit: true, min_depth: null, max_depth: 5 }
+  acceptance: { runtime: not_run, fallback: 用普通文本列出势力、目标、关系与动向。 }

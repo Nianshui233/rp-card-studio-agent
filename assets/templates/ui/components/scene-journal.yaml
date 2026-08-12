@@ -1,0 +1,17 @@
+schema_version: 2.0.0
+status: draft
+ui_component:
+  id: scene_journal
+  display_name: 场景日志
+  role: workspace
+  preset: custom_panel
+  trigger: { kind: placeholder, marker: RPSceneJournal, producer: runtime }
+  data_contract: { mode: stat_data, payload_format: none }
+  binding_refs: []
+  interactions: [local_interaction]
+  content: { eyebrow: SESSION LOG, title: 场景与回顾, subtitle: 保留关键场景、决定、承诺和未收束线索，帮助长线游玩接续。, body: [], primary_action: null, secondary_action: null }
+  layout: { kind: timeline, groups: [{ id: scenes, label: 场景, binding_refs: [], collapsed: false }, { id: unresolved, label: 未收束, binding_refs: [], collapsed: false }] }
+  states: { loading: 正在整理场景, empty: 尚无场景记录, error: 场景日志读取失败, degraded: 请查看普通文本回顾 }
+  source: { mode: generated, html: "", css: "", js: "" }
+  delivery: { surface: message, adapter: tavern_helper_message, level: host_required, run_on_edit: true, min_depth: null, max_depth: 5 }
+  acceptance: { runtime: not_run, fallback: 用普通文本列出关键场景、决定与未收束事项。 }

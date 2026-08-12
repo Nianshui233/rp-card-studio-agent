@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rp-card-studio.local/schemas/ui-theme.schema.json",
+  "title": "UI Theme Source",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "ui_theme"],
+  "properties": {
+    "schema_version": { "const": "2.0.0" },
+    "status": { "enum": ["draft", "locked"] },
+    "ui_theme": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "display_name", "concept", "palette", "typography", "shape", "texture", "signature", "motion", "breakpoints", "resources"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "display_name": { "type": "string", "minLength": 1 },
+        "concept": { "type": "string", "minLength": 20 },
+        "palette": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["background", "surface", "surface_alt", "primary", "secondary", "text", "muted", "success", "warning", "danger", "border"],
+          "properties": {
+            "background": { "$ref": "#/$defs/color" }, "surface": { "$ref": "#/$defs/color" }, "surface_alt": { "$ref": "#/$defs/color" },
+            "primary": { "$ref": "#/$defs/color" }, "secondary": { "$ref": "#/$defs/color" }, "text": { "$ref": "#/$defs/color" },
+            "muted": { "$ref": "#/$defs/color" }, "success": { "$ref": "#/$defs/color" }, "warning": { "$ref": "#/$defs/color" },
+            "danger": { "$ref": "#/$defs/color" }, "border": { "$ref": "#/$defs/color" }
+          }
+        },
+        "typography": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["display", "body", "utility", "scale"],
+          "properties": {
+            "display": { "type": "string", "minLength": 1 }, "body": { "type": "string", "minLength": 1 }, "utility": { "type": "string", "minLength": 1 },
+            "scale": { "type": "array", "minItems": 4, "items": { "type": "number", "minimum": 0.65, "maximum": 4 } }
+          }
+        },
+        "shape": {
+          "type": "object", "additionalProperties": false, "required": ["radius", "border_width", "shadow"],
+          "properties": { "radius": { "enum": ["none", "small", "medium", "large", "mixed"] }, "border_width": { "enum": ["hairline", "standard", "strong"] }, "shadow": { "enum": ["none", "soft", "hard", "glow"] } }
+        },
+        "texture": { "enum": ["none", "paper", "grain", "scanline", "grid", "glass", "fabric", "ink", "custom"] },
+        "signature": {
+          "type": "object", "additionalProperties": false, "required": ["kind", "description"],
+          "properties": { "kind": { "enum": ["seal", "instrument", "timeline", "constellation", "manuscript", "signal", "map", "custom"] }, "description": { "type": "string", "minLength": 12 } }
+        },
+        "motion": { "enum": ["none", "restrained", "expressive"] },
+        "breakpoints": {
+          "type": "object", "additionalProperties": false, "required": ["narrow", "wide"],
+          "properties": { "narrow": { "type": "integer", "minimum": 280, "maximum": 900 }, "wide": { "type": "integer", "minimum": 600, "maximum": 1800 } }
+        },
+        "resources": {
+          "type": "object", "additionalProperties": false, "required": ["font_strategy", "icon_strategy", "remote_urls"],
+          "properties": {
+            "font_strategy": { "enum": ["system", "embedded"] },
+            "icon_strategy": { "enum": ["css", "inline_svg", "text"] },
+            "remote_urls": { "type": "array", "maxItems": 0 }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" }
+  }
+}

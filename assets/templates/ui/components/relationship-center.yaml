@@ -1,0 +1,17 @@
+schema_version: 2.0.0
+status: draft
+ui_component:
+  id: relationship_center
+  display_name: 关系中心
+  role: workspace
+  preset: relationship_center
+  trigger: { kind: placeholder, marker: RPRelationshipCenter, producer: runtime }
+  data_contract: { mode: stat_data, payload_format: none }
+  binding_refs: []
+  interactions: [local_interaction]
+  content: { eyebrow: SOCIAL FIELD, title: 人物与关系, subtitle: 同时展示立场、关系变化、已知动机与信息可信度。, body: [], primary_action: null, secondary_action: null }
+  layout: { kind: tabs, groups: [{ id: present, label: 在场人物, binding_refs: [], collapsed: false }, { id: network, label: 关系网络, binding_refs: [], collapsed: false }] }
+  states: { loading: 正在整理关系, empty: 尚未建立关系记录, error: 关系数据读取失败, degraded: 请查看普通文本人物摘要 }
+  source: { mode: generated, html: "", css: "", js: "" }
+  delivery: { surface: message, adapter: tavern_helper_message, level: host_required, run_on_edit: true, min_depth: null, max_depth: 5 }
+  acceptance: { runtime: not_run, fallback: 用普通文本列出人物、立场和关系变化。 }

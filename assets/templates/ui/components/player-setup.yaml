@@ -1,0 +1,23 @@
+schema_version: 2.0.0
+status: draft
+ui_component:
+  id: player_setup
+  display_name: 玩家创建页
+  role: setup
+  preset: player_setup
+  trigger: { kind: self_closing, marker: RPPlayerSetup, producer: opening }
+  data_contract: { mode: none, payload_format: none }
+  binding_refs: []
+  interactions: [local_interaction, message_write, slash_command]
+  content:
+    eyebrow: PLAYER SETUP
+    title: 建立玩家资料
+    subtitle: 字段由本组件的 binding_refs 决定，提交时通过酒馆助手公开消息接口发送。
+    body: [只收集玩法真正需要的资料，不把完整角色设计问卷塞进开场。]
+    primary_action: 保存并开始
+    secondary_action: null
+  layout: { kind: form, groups: [] }
+  states: { loading: 正在准备表单, empty: 暂无字段, error: 提交失败, degraded: 请按普通文本格式发送玩家资料 }
+  source: { mode: generated, html: "", css: "", js: "" }
+  delivery: { surface: message, adapter: tavern_helper_message, level: host_required, run_on_edit: true, min_depth: null, max_depth: 5 }
+  acceptance: { runtime: not_run, fallback: 以普通文本列出玩家资料字段，并让用户直接回复。 }

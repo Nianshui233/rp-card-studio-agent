@@ -1,0 +1,17 @@
+schema_version: 2.0.0
+status: draft
+ui_component:
+  id: map_center
+  display_name: 地图中心
+  role: workspace
+  preset: map_center
+  trigger: { kind: placeholder, marker: RPMapCenter, producer: runtime }
+  data_contract: { mode: stat_data, payload_format: none }
+  binding_refs: []
+  interactions: [local_interaction]
+  content: { eyebrow: FIELD MAP, title: 地点与路线, subtitle: 展示已知节点、连接、距离、风险和当前可达性，不伪造地理信息。, body: [], primary_action: null, secondary_action: null }
+  layout: { kind: board, groups: [{ id: nearby, label: 附近, binding_refs: [], collapsed: false }, { id: routes, label: 路线, binding_refs: [], collapsed: false }] }
+  states: { loading: 正在绘制地图, empty: 尚无地图信息, error: 地图数据读取失败, degraded: 请查看普通文本地点与路线 }
+  source: { mode: generated, html: "", css: "", js: "" }
+  delivery: { surface: message, adapter: tavern_helper_message, level: host_required, run_on_edit: true, min_depth: null, max_depth: 5 }
+  acceptance: { runtime: not_run, fallback: 用普通文本列出当前位置、可达地点和路线风险。 }

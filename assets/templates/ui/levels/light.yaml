@@ -1,0 +1,11 @@
+schema_version: 1.0.0
+level: light
+description: 社区所谓“轻度前端”的最低完整产品线，不等于简单状态栏。
+component_templates:
+  - launch-screen.yaml
+  - introduction-page.yaml
+  - status-terminal.yaml
+  - update-report.yaml
+  - roll-result.yaml
+  - choice-panel.yaml
+requirements: { minimum_components: 6, entry: 1, setup: 0, dashboard_or_workspace: 1, narrative_component: 1, navigation: mixed }
