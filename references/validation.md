@@ -157,6 +157,7 @@
 - 默认值符合类型、范围和枚举；每个开场覆盖是完整合法状态。
 - writer 唯一，允许操作与字段类型相容，派生字段无竞争写入。
 - readers、EJS 条件和 UI 绑定只引用已存在路径。
+- 状态栏 UI 只绑定持久 `stat_data`。固定 `mvu_zod v0.3.449` 在更新结束后会清除 `display_data` 与 `delta_data`；依赖这两个字段的状态栏必须迁移为 `stat_data` 中的明确派生字段或变更日志，并通过运行时 Schema。
 - EJS 条目使用结构化 `condition` 与完整 `branches`，`placement` 和 `insertion_order` 可确定宿主顺序；旧字符串条件或顶层 `fallback` 必须进入迁移错误，不得静默转换。
 - EJS 条目声明 `st_prompt_template` 引擎及 `globalThis.EjsTemplate` 宿主依赖；生成物只出现在 CharacterBook entries，不得伪装成 Tavern Helper script。
 - MVU 联动 EJS 只接受已验证的 `message/stat_data/current|latest message` storage；必须有界等待 `Mvu` 后读取匹配 selector 的 target。`current_message` 在 render 中使用宿主提供的数字 `message_id`，generate 无楼层上下文时明确降级为 latest。快照、namespace 或路径缺失时输出 `branches.fallback`，不得回退 `getvar()` 后误入真假分支。纯 EJS 才使用带账本默认值的精确 `getvar(runtime_path, { defaults })`。
@@ -165,8 +166,9 @@
 - `embedded + sillytavern_regex` 只接受 `refresh: on_message`、`read_only: true`、空命令和非 tabs 响应式布局。任一动态刷新模式、非只读、命令或 tabs 都必须映射到 `tavern_helper_message + host_required`。
 - 纯 Regex 的 `field.missing_value` 与 `states.loading/empty/error/degraded` 只是设计元数据；离线或制品检查只能确认文案存在，不能确认条件判断、最近合法值保留或视图切换。`percent` 也只允许对必有且已归一为 0..100 的上游值追加字面 `%`。
 - 默认角色正则使用 Tavern Helper macro-like 层提供的 `format_message_variable`；宏被宿主解析只证明当前可用值能够显示，不证明它绑定当前 DOM 楼层。当前验证的 Tavern Helper 4.9.1 在普通消息重绘时未向宏传 `message_id`，会回退到最近一条带变量的消息。只有消息级 iframe 的文档真实导航、脚本实际执行、取得自身整数 `getCurrentMessageId()`、低频使用 `getVariables({ type: "message", message_id })` 复查变量，并通过“合法旧快照后出现本楼新值”、历史重载和卸载清理测试时，才允许报告“逐楼层快照：通过”；严禁 latest 回退。
-- 启用 MVU 时必须存在两条完整 `<initvar>...</initvar>` 隐藏规则，分别作用于 Prompt 副本和 Markdown 显示副本，原始消息保持不变；未闭合初始化块不能被吞掉。还必须存在 Prompt-only 更新块过滤规则，默认以 `minDepth: 2` 保留最近两层，并覆盖完整块、大小写变体和流式未闭合块；显示隐藏规则不得吞掉多个更新块之间的正文或末尾状态栏占位符。状态栏必须另有 `[不发送]界面占位符` 与 `[界面]状态栏` 两条规则。
-- 当前更新模式只接受 `same_generation`，并验证叙事、更新块与状态栏占位符来自同一次助手生成。`extra_pass`/`both` 只有在独立请求全链路与宿主证据齐全时才允许；解析或提交辅助入口、接收者清单或手工调用记录都不能单独证明该能力。
+- 启用 MVU 时必须存在两条完整 `<initvar>...</initvar>` 隐藏规则，分别作用于 Prompt 副本和 Markdown 显示副本，原始消息保持不变；未闭合初始化块不能被吞掉。还必须存在 Prompt-only 更新块过滤规则：默认 `prompt_history.update_visibility: hide_all` / `minDepth: null`；只有明确选择 `keep_recent_updates` 时才使用 `minDepth: 4`，并记录额外 token 与注意力成本。规则需覆盖完整块、大小写变体和流式未闭合块；显示隐藏规则不得吞掉多个更新块之间的正文或末尾状态栏占位符。全部显示侧受管正则必须 `runOnEdit: true`，prompt-only 规则保持 false。状态栏必须另有 `[不发送]界面占位符` 与 `[界面]状态栏` 两条规则。
+- 当前更新模式只接受 `same_generation`，并验证叙事与更新块来自同一次助手生成；启用状态栏时，后续占位符由 MVU 运行时自动追加，模型提示词不得要求模型自行输出。`extra_pass`/`both` 只有在独立请求全链路与宿主证据齐全时才允许；解析或提交辅助入口、接收者清单或手工调用记录都不能单独证明该能力。
+- 新项目输出协议使用 `replace`、`delta`、`insert`、`remove`、`move`；导入兼容检查接受上游合法 `add` 作为 `insert` 别名，但生成提示词不得推荐 `add`。
 - 清理和迁移规则覆盖改名、类型变化和旧存档缺失。
 - `mvu.initialization.profiles[]` 的 ID 唯一，默认 profile 可解析；`mvu.initialization.opening_bindings[]` 的每个 opening/profile 引用均存在，且同一 opening 不产生歧义绑定。
 - 每条实际开场都能解析到唯一初始化结果；未启用 MVU 时 `initial_state_ref` 为 `null`，也不生成伪造 profile。
@@ -183,7 +185,7 @@
 - UI 展示模型不直接修改原始状态；需要命令或 writer 的交互只能走 `tavern_helper_message + host_required`。
 - 纯 Regex 项目的空值、加载、错误和依赖不可用文案只作为设计元数据检查，不要求伪造可见运行结果，也不能标记 `runtime: pass`；消息级实现承诺这些能力时才逐项验证可见结果。
 - `status_ui.mode` 与 delivery 一致；所有启用模式都使用 `surface: message` 并拥有 adapter、entrypoint、artifact 和固定占位符。只有 `mode: none` 允许 `delivery: null`。
-- 默认与所有备选开场各含一个占位符，后续回复合同要求恰好一个；状态栏角色正则在自有 MVU 显示规则之后执行。
+- 默认与所有备选开场各含一个占位符。启用 MVU 时，后续占位符由 MVU 自动追加且模型不得输出；未启用 MVU但启用状态栏时，后续回复合同才要求模型输出恰好一个。状态栏角色正则在自有 MVU 显示规则之后执行。
 - 纯 Regex 对完整消息和已出现的更新块执行确定的消息重绘，但不声称能探测解析失败、自动选择 `states.*` 或恢复最近合法值；消息级实现只有在这些分支实测后才可声明确定行为。任何路径都不得留下跨消息或跨聊天的实例。
 
 ### 装配引用图

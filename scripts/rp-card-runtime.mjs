@@ -18,7 +18,7 @@ const PROTOCOL_OPERATION_ALIASES = Object.freeze({
   set: new Set(["set", "replace"]),
   add: new Set(["add", "delta"]),
   subtract: new Set(["subtract", "delta"]),
-  append: new Set(["append", "insert"]),
+  append: new Set(["append", "insert", "add"]),
   remove: new Set(["remove"]),
   move: new Set(["move"]),
   derive: new Set(["set", "replace"])
@@ -2161,14 +2161,9 @@ function mvuVariableListContent() {
 </status_current_variable>`;
 }
 
-function mvuOutputFormatContent(mvuSources, { statusEnabled = false } = {}) {
-  const protocol = mvuSources.find((source) => source.mvu?.protocol)?.mvu.protocol ?? {};
-  const operations = protocol.operations ?? ["replace", "delta", "insert", "remove", "move"];
-  const responseOrder = statusEnabled
-    ? `Structure every reply in this exact order: narrative content, one variable update block, then exactly one ${STATUS_PLACEHOLDER}.
-The status placeholder must be the final content. Never put a variable update block after it.`
-    : "End each reply that changes state with one variable update block.";
-  const statusSuffix = statusEnabled ? `\n${STATUS_PLACEHOLDER}` : "";
+function mvuOutputFormatContent(mvuSources) {
+  const operations = ["replace", "delta", "insert", "remove", "move"];
+  const responseOrder = "End each reply that changes state with one variable update block. MVU appends the status placeholder at runtime; never output that placeholder yourself.";
   const examplePath = mvuSources
     .flatMap((source) => source.mvu?.variables ?? [])
     .map((variable) => variable.source_path)
@@ -2187,7 +2182,7 @@ Paths use JSON Pointer syntax and must name a declared variable. Return an empty
   { "op": "replace", "path": "/${examplePath}", "value": "new value" }
 ]
 </JSONPatch>
-</UpdateVariable>${statusSuffix}`;
+</UpdateVariable>`;
 }
 
 export function applyMvuArtifacts(payload, { project, sources, target }) {
@@ -2195,7 +2190,6 @@ export function applyMvuArtifacts(payload, { project, sources, target }) {
   const mvuSources = values(sources, "mvu").filter((source) => source.mvu?.enabled);
   if (mvuSources.length === 0) return { payload, issues: [] };
   const defaults = mvuSources.reduce((state, source) => mergeValues(state, source.mvu.initialization?.defaults ?? {}), {});
-  const statusEnabled = Boolean(activeStatusUi(project, sources));
   const generated = [
     mvuCharacterBookEntry({
       // MVU v0.179.0 discovers initialization entries by searching comment
@@ -2223,8 +2217,8 @@ export function applyMvuArtifacts(payload, { project, sources, target }) {
       depth: 0
     }),
     mvuCharacterBookEntry({
-      comment: statusEnabled ? "回复输出格式（含状态栏）" : "回复输出格式",
-      content: mvuOutputFormatContent(mvuSources, { statusEnabled }),
+      comment: "回复输出格式",
+      content: mvuOutputFormatContent(mvuSources),
       enabled: true,
       kind: "mvu_update_format",
       order: 14723,
@@ -3339,6 +3333,7 @@ function sillyTavernRegexScript({
   placement,
   markdownOnly,
   promptOnly,
+  runOnEdit = !promptOnly,
   minDepth = null,
   maxDepth = null
 }) {
@@ -3352,14 +3347,21 @@ function sillyTavernRegexScript({
     disabled: false,
     markdownOnly,
     promptOnly,
-    runOnEdit: false,
+    runOnEdit,
     substituteRegex: 0,
     minDepth,
     maxDepth
   };
 }
 
-function mvuRegexScripts() {
+function mvuPromptUpdateMinDepth(mvuSources) {
+  return mvuSources.some((source) => source.mvu?.prompt_history?.update_visibility === "keep_recent_updates")
+    ? 4
+    : null;
+}
+
+function mvuRegexScripts(mvuSources = []) {
+  const updatePromptMinDepth = mvuPromptUpdateMinDepth(mvuSources);
   return [
     sillyTavernRegexScript({
       id: MANAGED_REGEX_IDS.mvuInitPromptFilter,
@@ -3378,7 +3380,7 @@ function mvuRegexScripts() {
       placement: [1, 2],
       markdownOnly: false,
       promptOnly: true,
-      minDepth: 2,
+      minDepth: updatePromptMinDepth,
       maxDepth: null
     }),
     sillyTavernRegexScript({
@@ -3417,7 +3419,7 @@ function escapeHtml(value) {
 }
 
 function statusRuntimePath(sourcePath, runtimeConfig, field = null) {
-  const namespace = field?.data_source ?? runtimeConfig.namespace ?? "stat_data";
+  const namespace = "stat_data";
   const mapped = runtimeConfig.pathMappings[sourcePath] ?? sourcePath;
   const semanticPath = mapped.replace(/^(?:stat_data|display_data)\./, "");
   return `${namespace}.${semanticPath}`;
@@ -3915,7 +3917,7 @@ function isRecognizableManagedRegexScript(script) {
       disabled: false,
       markdownOnly: true,
       promptOnly: false,
-      runOnEdit: false,
+      runOnEdit: true,
       substituteRegex: 0,
       minDepth: null,
       maxDepth: null
@@ -3925,10 +3927,18 @@ function isRecognizableManagedRegexScript(script) {
       : mvuRegexScripts().find((candidate) => candidate.id === script.id);
   if (!expected) return false;
   const actualFingerprint = managedRegexFingerprint(script);
-  if (actualFingerprint === managedRegexFingerprint(expected)) return true;
-  const legacyName = LEGACY_MANAGED_REGEX_NAMES[script.id];
-  return Boolean(legacyName)
-    && actualFingerprint === managedRegexFingerprint({ ...expected, scriptName: legacyName });
+  const names = [expected.scriptName, LEGACY_MANAGED_REGEX_NAMES[script.id]].filter(Boolean);
+  const variants = [expected];
+  if (expected.promptOnly) {
+    if (script.id === MANAGED_REGEX_IDS.mvuPromptFilter) {
+      variants.push({ ...expected, minDepth: 2 }, { ...expected, minDepth: 4 });
+    }
+  } else {
+    variants.push({ ...expected, runOnEdit: false });
+  }
+  return variants.some((variant) => names.some((scriptName) => (
+    actualFingerprint === managedRegexFingerprint({ ...variant, scriptName })
+  )));
 }
 
 function mergeManagedRegexScripts(output, generated) {
@@ -3977,7 +3987,7 @@ export function applySillyTavernRegexAdapter(payload, { project, sources, target
   const ui = activeStatusUi(project, sources);
 
   const output = clone(payload);
-  const generated = mvuEnabled ? mvuRegexScripts() : [];
+  const generated = mvuEnabled ? mvuRegexScripts(mvuSources) : [];
   output.data ??= {};
   if (typeof output.data.post_history_instructions === "string") {
     output.data.post_history_instructions = removeStatusReplyContract(output.data.post_history_instructions);
@@ -4070,27 +4080,39 @@ export function auditSillyTavernMvuLifecycle(payload, worldbookRegistry = {}, ho
   const blobUrlRendering = typeof hostSettings?.tavern_helper?.render?.use_blob_url === "boolean"
     ? hostSettings.tavern_helper.render.use_blob_url
     : null;
-  const cardName = payload?.data?.name;
-  const enabledCharacterScripts = hostSettings?.tavern_helper?.scripts?.enabled_characters;
-  const characterScriptsEnabled = typeof hostSettings?.tavern_helper?.scripts?.character_enabled === "boolean"
-    ? hostSettings.tavern_helper.scripts.character_enabled
-    : Array.isArray(enabledCharacterScripts) && typeof cardName === "string"
-      ? enabledCharacterScripts.includes(cardName)
+  const runtimeObservation = hostSettings?.runtime_observation;
+  const characterScriptsEnabled = typeof runtimeObservation?.character_scripts_enabled === "boolean"
+    ? runtimeObservation.character_scripts_enabled
+    : null;
+  const requiredManagedScriptIds = [MVU_RUNTIME_SCRIPT.id, MVU_SCHEMA_SCRIPT.id, RUNTIME_GUARD_SCRIPT.id];
+  const managedScriptObservation = isObject(runtimeObservation?.managed_scripts)
+    ? Object.fromEntries(requiredManagedScriptIds.map((id) => [
+      id,
+      typeof runtimeObservation.managed_scripts[id] === "boolean" ? runtimeObservation.managed_scripts[id] : null,
+    ]))
+    : Object.fromEntries(requiredManagedScriptIds.map((id) => [id, null]));
+  const managedScriptsEnabled = Object.values(managedScriptObservation).every((enabled) => enabled === true)
+    ? true
+    : Object.values(managedScriptObservation).some((enabled) => enabled === false)
+      ? false
       : null;
-  const mvuStarted = typeof hostSettings?.runtime_observation?.mvu_started === "boolean"
-    ? hostSettings.runtime_observation.mvu_started
+  const mvuStarted = typeof runtimeObservation?.mvu_started === "boolean"
+    ? runtimeObservation.mvu_started
     : null;
   const observedBlobFailure = blobUrlRendering === true && mvuStarted === false;
   const embeddedMvuScriptCompatible = observedBlobFailure ? false : mvuStarted === true ? true : null;
   const hostBlockers = [];
   if (characterScriptsEnabled === false) hostBlockers.push("tavern_helper_character_scripts_disabled");
+  for (const [id, enabled] of Object.entries(managedScriptObservation)) {
+    if (enabled === false) hostBlockers.push(`tavern_helper_managed_script_disabled:${id}`);
+  }
   if (observedBlobFailure) hostBlockers.push("tavern_helper_blob_url_rendering_observed_failure");
   const ready = bindingMatches && registryPresent && managedContentMatches && initvarRecognizable;
   const runtimeReady = !ready
     ? false
-    : characterScriptsEnabled === false || mvuStarted === false
+    : characterScriptsEnabled === false || managedScriptsEnabled === false || mvuStarted === false
       ? false
-      : mvuStarted === true
+      : characterScriptsEnabled === true && managedScriptsEnabled === true && mvuStarted === true
         ? true
         : null;
   return {
@@ -4110,7 +4132,9 @@ export function auditSillyTavernMvuLifecycle(payload, worldbookRegistry = {}, ho
       sillytavern_version: hostSettings?.sillytavern_version ?? null,
       tavern_helper_version: hostSettings?.tavern_helper_version ?? null,
       tavern_helper_blob_url_rendering: blobUrlRendering,
-      tavern_helper_character_scripts_enabled: characterScriptsEnabled,
+      character_script_collection_enabled: characterScriptsEnabled,
+      managed_character_scripts: managedScriptObservation,
+      managed_character_scripts_enabled: managedScriptsEnabled,
       mvu_started_observation: mvuStarted,
       blob_url_workaround_recommended: observedBlobFailure,
       embedded_mvu_script_compatible: embeddedMvuScriptCompatible,

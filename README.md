@@ -645,14 +645,14 @@ AI 原始消息末尾的 <StatusPlaceHolderImpl/>
         ↓ SillyTavern 角色正则（AI_OUTPUT + Markdown）
 消息内文字或简单静态 HTML 状态栏
         ↓ Tavern Helper 消息变量宏
-按字段语义显示宿主当前可解析的 stat_data 或 display_data
+显示宿主当前可解析、可持久校验的 stat_data
 ```
 
-Forge 默认生成 `{{format_message_variable::stat_data.path}}`；字段显式声明 `data_source: display_data` 时则生成对应的 `display_data.path`。`stat_data` 表示当前状态，`display_data` 表示本轮更新展示信息，不能一律混用。这个宏由 Tavern Helper 的 macro-like 渲染层提供，不是 SillyTavern 原生变量宏；因此交付检查既要确认角色正则获准，也要确认酒馆助手的“禁用酒馆助手宏”没有开启。
+Forge 固定生成 `{{format_message_variable::stat_data.path}}`。状态栏不能绑定 `display_data` 或 `delta_data`，因为技能固定加载的 `mvu_zod v0.3.449` 会在变量更新结束后删除这两个兼容字段；需要显示“本轮变化”时，应在 `stat_data` 中设计明确、持久且受 Schema 约束的派生字段或变更日志。这个宏由 Tavern Helper 的 macro-like 渲染层提供，不是 SillyTavern 原生变量宏；因此交付检查既要确认角色正则获准，也要确认酒馆助手的“禁用酒馆助手宏”没有开启。
 
-如果项目启用了随卡内嵌的 MVU 角色脚本，验收必须观察 MVU 是否实际启动，不能只看开关或脚本是否存在。在已验证的 SillyTavern 1.18.0 + Tavern Helper 4.9.1 环境中，曾观察到 Blob URL 渲染开启时 MVU 未启动、关闭并刷新后恢复；这是一项宿主兼容排障经验，不是所有环境的通用前置条件。只有同时满足“观察到 `mvu_started: false`”和“Blob URL 渲染开启”时才推荐关闭、刷新并重新观察。
+如果项目启用了随卡内嵌的 MVU 角色脚本，验收必须分别观察：当前角色的脚本集合是否启用、三条受管脚本自身是否全部启用、MVU 是否实际启动，不能只看某个总开关或脚本是否存在。审计使用归一化的 `runtime_observation.character_scripts_enabled` 和 `runtime_observation.managed_scripts`，不是对酒馆助手内部设置字段的直接镜像。在已验证的 SillyTavern 1.18.0 + Tavern Helper 4.9.1 环境中，曾观察到 Blob URL 渲染开启时 MVU 未启动、关闭并刷新后恢复；这是一项宿主兼容排障经验，不是所有环境的通用前置条件。只有同时满足“观察到 `mvu_started: false`”和“Blob URL 渲染开启”时才推荐关闭、刷新并重新观察。
 
-Forge 会为默认开场和每个备选开场各追加一次占位符，并给后续助手回复加入“末尾恰好一次”的合同。状态栏正则写入角色卡的 `data.extensions.regex_scripts`，不会修改聊天原文；消息重新渲染时，SillyTavern 会重新执行它。
+Forge 会为默认开场和每个备选开场各追加一次占位符。启用 MVU 后，后续助手回复的占位符由 MVU 运行时自动追加，模型只输出变量更新块且不得自行输出占位符；未启用 MVU但启用状态栏时，Forge 才生成“末尾恰好一次”的模型合同。状态栏正则写入角色卡的 `data.extensions.regex_scripts`，不会修改聊天原文；显示侧受管规则启用 `runOnEdit`，消息编辑或重新渲染时会重新隐藏技术块并重建状态栏。
 
 这里要区分“显示位置”和“变量快照”：角色正则能保证状态栏位于各条 AI 消息中，但当前验证的 Tavern Helper 4.9.1 在普通 DOM 宏重绘时没有传入该楼层的 `message_id`，会回退到最近一条带变量的消息。因此默认正则方案不承诺重载历史后仍显示各楼层旧快照，也不适合复杂运行时逻辑。
 
@@ -662,7 +662,7 @@ Forge 会为默认开场和每个备选开场各追加一次占位符，并给�
 
 消息 iframe 必须调用 `getCurrentMessageId()`，并且只有 `Number.isInteger(message_id)` 为真时才调用 `getVariables({ type: "message", message_id })`。新楼第一次读到的合法 `stat_data` 可能仍是继承自上一楼的旧快照，因此不能在首次成功后停止；Forge 会先快速获取，再默认每 2 秒低频复查同一个整数楼层，只在可见值变化时重绘，并在 `pagehide`/`unload` 清理计时器。拿不到整数 ID 时会在当前消息内显示明确错误并停止；初次读取持续失败时有界重试后显示错误。已经显示合法状态后遇到暂时读取失败，则保留最近合法值并继续低频复查。所有路径都不会改读 `"latest"`，因为 latest 会让旧楼层在重载后串到新状态。没有生成并在真实宿主验收前，这项能力只能记录为规格或 `not_run`，不能写成 `embedded` 或 `runtime: pass`。
 
-启用 MVU 时会生成五条变量处理规则：两条分别从送模副本和玩家显示副本隐藏完整 `<initvar>...</initvar>`；一条从送模历史副本移除完整或未闭合的变量更新块，并默认保留最近两层；两条从玩家看到的 Markdown 隐藏流式和完整更新块。状态栏另有两条规则：`[不发送]界面占位符` 从送模副本删除占位符，`[界面]状态栏` 在消息显示中把占位符替换为文字或 fenced HTML。初始化隐藏规则只接受成对闭合的完整块，不能吞掉未闭合正文；原始初始化块和更新块仍保留在聊天记录中供 MVU 使用。
+启用 MVU 时会生成五条变量处理规则：两条分别从送模副本和玩家显示副本隐藏完整 `<initvar>...</initvar>`；一条从送模历史副本移除完整或未闭合的变量更新块，默认 `prompt_history.update_visibility: hide_all` / `minDepth: null`，不把历史更新送回模型；项目明确选择 `keep_recent_updates` 时才使用 `minDepth: 4`，大致保留最近一至两轮并承担额外 token 与注意力成本；另两条从玩家看到的 Markdown 隐藏流式和完整更新块。状态栏另有两条规则：`[不发送]界面占位符` 从送模副本删除占位符，`[界面]状态栏` 在消息显示中把占位符替换为文字或 fenced HTML。所有显示侧规则 `runOnEdit: true`，prompt-only 规则保持 false。初始化隐藏规则只接受成对闭合的完整块，不能吞掉未闭合正文；原始初始化块和更新块仍保留在聊天记录中供 MVU 使用。
 
 角色内嵌正则第一次运行时，SillyTavern 会弹出授权确认。这是正常的安全机制，技能不会绕过。未授权时卡片正文仍可阅读，但占位符隐藏、状态栏投影和变量更新隐藏不会生效。
 

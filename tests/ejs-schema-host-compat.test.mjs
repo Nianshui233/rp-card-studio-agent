@@ -34,3 +34,12 @@ test('legacy string EJS conditions are represented as a migration error, not a v
   assert.equal(Object.hasOwn(entry.properties, 'fallback'), false);
   assert.equal(entry.properties.branches.$ref, '#/$defs/ejsBranches');
 });
+
+test('new MVU projects recommend insert while imported protocols may retain the upstream add alias', () => {
+  const operationVariants = schema.properties.mvu.allOf[0].then.properties.protocol.properties.operations.oneOf
+    .map(option => option.const);
+
+  assert.deepEqual(operationVariants[0], ['replace', 'delta', 'insert', 'remove', 'move']);
+  assert.ok(operationVariants.some(operations => operations.includes('add')));
+  assert.equal(schema.$defs.protocol.properties.operations.items.enum.includes('add'), true);
+});

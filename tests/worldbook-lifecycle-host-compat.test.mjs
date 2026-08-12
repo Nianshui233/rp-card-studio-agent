@@ -60,6 +60,18 @@ function importedWorldbook(card) {
   };
 }
 
+function managedRuntimeObservation(overrides = {}) {
+  return {
+    character_scripts_enabled: true,
+    managed_scripts: {
+      rp_card_studio_00_mvu_runtime: true,
+      rp_card_studio_10_mvu_schema: true,
+      rp_card_studio_runtime_guard: true,
+    },
+    ...overrides,
+  };
+}
+
 test('MVU is not ready before Import Card Lore materializes the embedded book in the host registry', () => {
   const card = embeddedCard();
   const audit = auditSillyTavernMvuLifecycle(card, {});
@@ -100,7 +112,8 @@ test('Import Card Lore plus matching primary binding makes MVU ready and initial
   assert.equal(audit.initvar.recognizable, true);
   assert.equal(audit.runtime_ready, null);
   assert.equal(audit.host_compatibility.tavern_helper_blob_url_rendering, null);
-  assert.equal(audit.host_compatibility.tavern_helper_character_scripts_enabled, null);
+  assert.equal(audit.host_compatibility.character_script_collection_enabled, null);
+  assert.equal(audit.host_compatibility.managed_character_scripts_enabled, null);
   assert.equal(audit.host_compatibility.mvu_started_observation, null);
   assert.deepEqual(audit.stat_data, {
     operation: { case_phase: 'arrival', fog_minutes: 26 },
@@ -130,14 +143,14 @@ test('an observed MVU startup failure with Blob URL rendering enabled records th
     tavern_helper_version: '4.9.1',
     tavern_helper: {
       render: { use_blob_url: true },
-      scripts: { character_enabled: true },
     },
-    runtime_observation: { mvu_started: false },
+    runtime_observation: managedRuntimeObservation({ mvu_started: false }),
   });
 
   assert.equal(audit.ready, true);
   assert.equal(audit.host_compatibility.tavern_helper_blob_url_rendering, true);
-  assert.equal(audit.host_compatibility.tavern_helper_character_scripts_enabled, true);
+  assert.equal(audit.host_compatibility.character_script_collection_enabled, true);
+  assert.equal(audit.host_compatibility.managed_character_scripts_enabled, true);
   assert.equal(audit.host_compatibility.mvu_started_observation, false);
   assert.equal(audit.host_compatibility.blob_url_workaround_recommended, true);
   assert.equal(audit.host_compatibility.embedded_mvu_script_compatible, false);
@@ -153,7 +166,6 @@ test('disabling Blob URL rendering alone does not claim MVU runtime success with
     tavern_helper_version: '4.9.1',
     tavern_helper: {
       render: { use_blob_url: false },
-      scripts: { character_enabled: true },
     },
   });
 
@@ -170,13 +182,13 @@ test('enabled character scripts plus an observed MVU startup prove runtime readi
   const audit = auditSillyTavernMvuLifecycle(card, { [bookName]: importedWorldbook(card) }, {
     tavern_helper: {
       render: { use_blob_url: true },
-      scripts: { enabled_characters: [card.data.name] },
     },
-    runtime_observation: { mvu_started: true },
+    runtime_observation: managedRuntimeObservation({ mvu_started: true }),
   });
 
   assert.equal(audit.runtime_ready, true);
-  assert.equal(audit.host_compatibility.tavern_helper_character_scripts_enabled, true);
+  assert.equal(audit.host_compatibility.character_script_collection_enabled, true);
+  assert.equal(audit.host_compatibility.managed_character_scripts_enabled, true);
   assert.equal(audit.host_compatibility.blob_url_workaround_recommended, false);
   assert.equal(audit.host_compatibility.embedded_mvu_script_compatible, true);
   assert.deepEqual(audit.host_compatibility.blockers, []);
@@ -186,9 +198,30 @@ test('disabled Tavern Helper character scripts block an otherwise complete MVU a
   const card = embeddedCard();
   const bookName = card.data.character_book.name;
   const audit = auditSillyTavernMvuLifecycle(card, { [bookName]: importedWorldbook(card) }, {
-    tavern_helper: { scripts: { character_enabled: false } },
+    runtime_observation: managedRuntimeObservation({ character_scripts_enabled: false }),
   });
 
   assert.equal(audit.runtime_ready, false);
   assert.deepEqual(audit.host_compatibility.blockers, ['tavern_helper_character_scripts_disabled']);
+});
+
+test('one disabled managed script blocks runtime readiness independently from the collection switch', () => {
+  const card = embeddedCard();
+  const bookName = card.data.character_book.name;
+  const audit = auditSillyTavernMvuLifecycle(card, { [bookName]: importedWorldbook(card) }, {
+    runtime_observation: managedRuntimeObservation({
+      mvu_started: true,
+      managed_scripts: {
+        rp_card_studio_00_mvu_runtime: true,
+        rp_card_studio_10_mvu_schema: false,
+        rp_card_studio_runtime_guard: true,
+      },
+    }),
+  });
+
+  assert.equal(audit.runtime_ready, false);
+  assert.equal(audit.host_compatibility.managed_character_scripts_enabled, false);
+  assert.deepEqual(audit.host_compatibility.blockers, [
+    'tavern_helper_managed_script_disabled:rp_card_studio_10_mvu_schema',
+  ]);
 });

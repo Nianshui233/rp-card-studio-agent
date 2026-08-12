@@ -324,9 +324,9 @@
         "id": { "$ref": "#/$defs/id" },
         "source_path": { "$ref": "#/$defs/sourcePath" },
         "data_source": {
-          "enum": ["stat_data", "display_data"],
+          "const": "stat_data",
           "default": "stat_data",
-          "description": "MVU message data root. stat_data is the current state; display_data contains update-display data for the current turn."
+          "description": "Persistent MVU message data root. The pinned mvu_zod runtime removes display_data and delta_data after updates, so status UI fields may bind only to stat_data."
         },
         "label": { "type": "string", "minLength": 1 },
         "format": {

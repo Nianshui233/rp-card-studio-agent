@@ -99,10 +99,11 @@ test('MVU host acceptance treats Blob URL rendering as observation-based diagnos
   assert.match(statusUi, /不得仅凭开关.*判定通过或失败/s);
 });
 
-test('MVU and status contracts require complete replacement, five operations, and dual placeholder regexes', () => {
-  assert.match(skill, /complete replacement.*never a merge/);
+test('MVU and status contracts scope opening replacement, recommend five operations, and split placeholder duties', () => {
+  assert.match(skill, /main CharacterBook fallback/);
   assert.match(skill, /mvu_json_patch.*five-operation protocol/);
   assert.match(skill, /\[不发送\]界面占位符/);
   assert.match(skill, /\[界面\]状态栏/);
-  assert.match(statusUi, /minDepth: 2/);
+  assert.match(statusUi, /hide_all/);
+  assert.match(statusUi, /minDepth: 4/);
 });

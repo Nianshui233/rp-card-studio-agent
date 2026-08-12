@@ -41,6 +41,7 @@ function runtimeSources({
   status = true,
   statusMode = 'embedded',
   statusAdapter = 'sillytavern_regex',
+  updateVisibility = 'hide_all',
 } = {}) {
   return emptySources({
     mvu: [{
@@ -53,6 +54,7 @@ function runtimeSources({
             namespace: 'stat_data',
             snapshot_selector: 'current_message',
           },
+          prompt_history: { update_visibility: updateVisibility },
           variables: [{
             source_path: 'relationship.trust',
             runtime_path: 'stat_data.runtime.relationship_score',
@@ -456,7 +458,7 @@ test('MVU emits init hiding, prompt filtering, and display folds in stable order
     promptOnly: true,
     runOnEdit: false,
     substituteRegex: 0,
-    minDepth: 2,
+    minDepth: null,
     maxDepth: null,
   });
   assert.deepEqual(scripts[2], {
@@ -469,7 +471,7 @@ test('MVU emits init hiding, prompt filtering, and display folds in stable order
     disabled: false,
     markdownOnly: true,
     promptOnly: false,
-    runOnEdit: false,
+    runOnEdit: true,
     substituteRegex: 0,
     minDepth: null,
     maxDepth: null,
@@ -478,8 +480,35 @@ test('MVU emits init hiding, prompt filtering, and display folds in stable order
     assert.deepEqual(script.placement, [2]);
     assert.equal(script.markdownOnly, true);
     assert.equal(script.promptOnly, false);
+    assert.equal(script.runOnEdit, true);
     assert.equal(script.substituteRegex, 0);
   }
+});
+
+test('MVU prompt history keeps recent updates only when the project explicitly selects it', () => {
+  const hidden = applyRegex({ status: false, sources: runtimeSources({ status: false }) });
+  const recent = applyRegex({
+    status: false,
+    sources: runtimeSources({ status: false, updateVisibility: 'keep_recent_updates' }),
+  });
+
+  assert.equal(hidden.payload.data.extensions.regex_scripts.find(script => script.id === IDS.prompt).minDepth, null);
+  assert.equal(recent.payload.data.extensions.regex_scripts.find(script => script.id === IDS.prompt).minDepth, 4);
+});
+
+test('changing prompt history policy refreshes the managed rule instead of reporting a collision', () => {
+  const recent = applyRegex({
+    status: false,
+    sources: runtimeSources({ status: false, updateVisibility: 'keep_recent_updates' }),
+  });
+  const hidden = applyRegex({
+    payload: recent.payload,
+    status: false,
+    sources: runtimeSources({ status: false, updateVisibility: 'hide_all' }),
+  });
+
+  assert.deepEqual(hidden.issues, []);
+  assert.equal(hidden.payload.data.extensions.regex_scripts.find(script => script.id === IDS.prompt).minDepth, null);
 });
 
 test('complete initvar blocks are hidden from prompts and rendered messages without mutating raw text', () => {
@@ -548,7 +577,7 @@ test('message status projection compiles full MVU paths and normalizes every ope
   assert.deepEqual(status.placement, [2]);
   assert.equal(status.markdownOnly, true);
   assert.equal(status.promptOnly, false);
-  assert.equal(status.runOnEdit, false);
+  assert.equal(status.runOnEdit, true);
   assert.equal(status.substituteRegex, 0);
   assert.equal(status.minDepth, null);
   assert.equal(status.maxDepth, null);
@@ -576,7 +605,7 @@ test('message status projection compiles full MVU paths and normalizes every ope
   assert.match(formatted, />42<\/dd>/);
 });
 
-test('status fields can project display_data independently from stat_data', async () => {
+test('legacy display_data selections are normalized to persistent stat_data projections', async () => {
   for (const statusAdapter of ['sillytavern_regex', 'tavern_helper_message']) {
     const sources = runtimeSources({ statusAdapter });
     sources.ui[0].value.status_ui.sections[0].fields[0].data_source = 'display_data';
@@ -584,8 +613,8 @@ test('status fields can project display_data independently from stat_data', asyn
     const status = result.payload.data.extensions.regex_scripts.find(script => script.id === IDS.status);
 
     if (statusAdapter === 'sillytavern_regex') {
-      assert.match(status.replaceString, /format_message_variable::display_data\.runtime\.relationship_score/);
-      assert.doesNotMatch(status.replaceString, /format_message_variable::stat_data\.runtime\.relationship_score/);
+      assert.match(status.replaceString, /format_message_variable::stat_data\.runtime\.relationship_score/);
+      assert.doesNotMatch(status.replaceString, /format_message_variable::display_data\.runtime\.relationship_score/);
     } else {
       const harness = await evaluateInlineStatus(status.replaceString, {
         messageId: 17,
@@ -594,8 +623,8 @@ test('status fields can project display_data independently from stat_data', asyn
           display_data: { runtime: { relationship_score: 27 } },
         }),
       });
-      assert.ok(harness.document.querySelectorAll('[data-rp-status-path="display_data.runtime.relationship_score"]')
-        .every(node => node.textContent === '27'));
+      assert.ok(harness.document.querySelectorAll('[data-rp-status-path="stat_data.runtime.relationship_score"]')
+        .every(node => node.textContent === '10'));
     }
   }
 });
@@ -1028,7 +1057,7 @@ test('disabled features retain unrecognized user collisions with managed UUIDs',
   ]);
 });
 
-test('MVU output contract orders narrative then update block then status placeholder', () => {
+test('MVU output contract delegates the status placeholder to the runtime', () => {
   const result = applyMvuArtifacts({
     data: {
       extensions: {},
@@ -1042,13 +1071,10 @@ test('MVU output contract orders narrative then update block then status placeho
   const output = result.payload.data.character_book.entries.find(entry => entry.content.includes('<UpdateVariable>'));
 
   assert.ok(output);
-  const narrativeIndex = output.content.indexOf('narrative');
-  const updateIndex = output.content.indexOf('<UpdateVariable>');
-  const placeholderIndex = output.content.lastIndexOf(PLACEHOLDER);
-  assert.ok(narrativeIndex >= 0 && narrativeIndex < updateIndex);
-  assert.ok(updateIndex < placeholderIndex);
-  assert.ok(output.content.trimEnd().endsWith(PLACEHOLDER));
-  assert.doesNotMatch(output.content, /End each reply that changes state with one update block/);
+  assert.match(output.content, /MVU appends the status placeholder at runtime/);
+  assert.match(output.content, /never output that placeholder yourself/);
+  assert.match(output.content, /<UpdateVariable>/);
+  assert.doesNotMatch(output.content, /<StatusPlaceHolderImpl\s*\/>/);
 });
 
 test('Tavern Helper retains only the managed MVU runtime chain', () => {

@@ -461,6 +461,8 @@ test('MVU artifacts emit native initvar, update-rule, and output-format Characte
   assert.match(output.content, /<JSONPatch>/);
   assert.match(output.content, /<\/JSONPatch>/);
   assert.match(output.content, /<\/UpdateVariable>/);
+  assert.match(output.content, /MVU appends the status placeholder at runtime/);
+  assert.doesNotMatch(output.content, /<StatusPlaceHolderImpl\s*\/>/);
 });
 
 test('opening selection appends each resolved state as a machine-readable initvar block', () => {
@@ -740,6 +742,8 @@ test('MVU prompt artifacts include current variables, update rules, and output f
   const format = byKind.get('mvu_update_format').content;
   assert.match(format, /\/relationship\/trust/);
   assert.doesNotMatch(format, /\/declared\/path/);
+  assert.match(format, /Use only these operations: replace, delta, insert, remove, move/);
+  assert.doesNotMatch(format, /Use only these operations:[^\n]*\badd\b/);
 });
 
 test('generated Tavern Helper scripts use the host schema and stable id ordering', () => {

@@ -142,7 +142,7 @@ test('regex-only missing and runtime state strings are explicitly design metadat
   assert.match(schema.properties.status_ui.properties.accessibility.description, /host verification/);
 });
 
-test('status fields may select stat_data or display_data while legacy fields default to stat_data', () => {
+test('status fields bind only persistent stat_data because the pinned registrar clears display data', () => {
   const legacy = regexDocument();
   expectValid(legacy);
 
@@ -154,7 +154,7 @@ test('status fields may select stat_data or display_data while legacy fields def
   const display = regexDocument();
   display.schema_version = '1.3.0';
   display.status_ui.sections[0].fields[0].data_source = 'display_data';
-  expectValid(display);
+  expectInvalid(display);
 
   display.status_ui.sections[0].fields[0].data_source = 'chat_data';
   expectInvalid(display);

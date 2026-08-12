@@ -126,13 +126,13 @@ status_ui:
 
 - `surface` 固定为 `message`。它约束状态栏出现在哪条消息的 DOM 中，不等于承诺变量读取已绑定该楼层。
 - `placeholder` 固定为 `<StatusPlaceHolderImpl/>`。Forge 会移除开场中的重复占位符，再在默认开场和每个备选开场末尾各追加一次。
-- Forge 会在 CharacterBook 中加入稳定合同：每条助手回复在变量更新块之后输出且只输出一个占位符，之后不再追加正文。启用 MVU 时合并到中文可见的 MVU 回复格式条目；未启用 MVU 时创建中文常驻条目 `状态栏：回复输出约定`。不得把新合同写入 `post_history_instructions`、`system_prompt` 或其他高级定义字段。
-- 该合同必须常驻，因为每次助手生成都要遵守；它不能依赖偶然出现的关键词。合同本身是封闭输出协议，默认禁止传入和传出递归，避免自身文字触发其他条目或被其他条目重复唤起。具体 position、depth、order、probability、scan depth 与 recursion 数值仍由整合阶段逐条锁定。
+- 占位符职责按运行链拆分。默认开场和每个备选开场始终由 Forge 预置唯一占位符；启用 MVU 后，后续普通助手消息的占位符由 MVU 运行时自动追加，MVU 回复格式只要求模型输出变量更新块并明确禁止模型自行输出占位符；未启用 MVU 但启用状态栏时，才创建中文常驻条目 `状态栏：回复输出约定`，要求模型在回复末尾输出且只输出一个占位符。不得把这些合同写入 `post_history_instructions`、`system_prompt` 或其他高级定义字段。
+- 非 MVU 状态栏的回复合同必须常驻，因为每次助手生成都要遵守；它不能依赖偶然出现的关键词。合同本身是封闭输出协议，默认禁止传入和传出递归，避免自身文字触发其他条目或被其他条目重复唤起。具体 position、depth、order、probability、scan depth 与 recursion 数值仍由整合阶段逐条锁定。
 - `adapter: sillytavern_regex` 会生成 `placement: [2]`、`markdownOnly: true`、`promptOnly: false` 的角色正则，把占位符替换成消息内文字或自包含 HTML；该路径只允许按消息重绘、只读、无命令和无 tabs。
-- 默认字段值通过成功参考卡同类的 `{{format_message_variable::stat_data.path}}` 宏读取。路径必须从 MVU 字段账本的 `runtime_path` 编译，不能直接猜。该宏由 Tavern Helper 的 macro-like 渲染层提供，只负责宿主格式化，不能在正则阶段判断缺失、错误或加载状态；当前验证的 Tavern Helper 4.9.1 在普通消息 DOM 重绘时没有向宏传 `message_id`，因此会回退到最近一条带变量的消息。交付清单必须同时要求启用 Tavern Helper 的宏替换能力，不能把它误写成 SillyTavern 原生变量宏。
+- 字段值固定通过 `{{format_message_variable::stat_data.path}}` 宏读取。路径必须从 MVU 字段账本的 `runtime_path` 编译，不能直接猜，也不得绑定 `display_data` 或 `delta_data`：技能固定加载的 `mvu_zod v0.3.449` 会在更新结束后删除这两个兼容字段。需要显示“本轮变化”时，应在 `stat_data` 中设计明确、持久且受 Schema 约束的派生字段或变更日志。该宏由 Tavern Helper 的 macro-like 渲染层提供，只负责宿主格式化，不能在正则阶段判断缺失、错误或加载状态；当前验证的 Tavern Helper 4.9.1 在普通消息 DOM 重绘时没有向宏传 `message_id`，因此会回退到最近一条带变量的消息。交付清单必须同时要求启用 Tavern Helper 的宏替换能力，不能把它误写成 SillyTavern 原生变量宏。
 - `field.missing_value` 与 `states.loading/empty/error/degraded` 在纯 Regex 路径中是设计元数据。它们可供将来升级消息级实现，但不会被宣称为已经显示或已经自动切换。
 - `format: percent` 只允许为已保证存在且已经归一为 0..100 的上游数值追加字面 `%`；它独占这个单位后缀，`text_template` 中对应占位符后不得再手写 `%`，否则 Forge 必须阻断 `80%%` 一类重复输出。需要乘算、舍入、范围修正或条件空值时改用消息级实现。
-- 角色正则只改变显示副本；原始聊天消息保留占位符和变量更新块，供 MVU 与重新渲染使用。
+- 角色正则只改变显示副本；原始聊天消息保留占位符和变量更新块，供 MVU 与重新渲染使用。所有显示侧受管规则必须设置 `runOnEdit: true`，确保编辑消息后重新隐藏初始化/更新块并重建状态栏；prompt-only 规则保持 `runOnEdit: false`。
 - SillyTavern 首次载入带角色正则的卡时会请求用户授权。这是宿主安全机制；技能只能在交付清单中说明，不能绕过或伪造授权。
 - `adapter: tavern_helper_message` 是复杂消息级交互、动态状态切换或逐楼快照的可选高级候选，不是默认可靠适配器。角色正则可以把占位符替换为完整 fenced HTML，再由 Tavern Helper 尝试在消息位置创建 iframe；HTML、CSS、脚本和可读错误态必须全部自包含，不请求远程 UI，也不读取或修改父页面。当前真实组合 SillyTavern 1.18.0 + Tavern Helper 4.9.1 已证实：开启酒馆助手 `渲染 -> 启用 Blob URL 渲染` 时，消息 iframe 可能为空，同时随卡嵌入的 MVU 角色脚本也无法启动；关闭该选项并刷新 SillyTavern 后，MVU 初始化恢复。验收应先检查这个用户级宿主设置，再诊断卡片脚本；不得修改 SillyTavern 或扩展源码。
 - 消息 iframe 必须调用 `getCurrentMessageId()` 并以 `Number.isInteger(message_id)` 验证结果，再调用 `getVariables({ type: "message", message_id })` 读取该楼变量。首次合法 `stat_data` 可能是宿主暂时继承的上一楼快照，不能把“对象存在”当成本楼提交完成；初次快速获取后转为默认 2 秒低频同步，仅在可见值变化时重绘，并在 `pagehide`/`unload` 清理。无法取得整数 ID 时显示明确错误并停止；初次 API/读取失败有界重试后显示错误，已经取得合法值后的暂时失败保留最近合法内容并继续低频复查。不得传入 `"latest"`、调用 latest 快照作为回退，或悄悄显示其他楼层的数据。
@@ -143,7 +143,7 @@ status_ui:
 启用 MVU 时，Forge 还会生成并固定排序以下角色正则。用户可见的正则名称使用中文，稳定 UUID 和生成器内部 ID 保留英文：
 
 1. 初始化 Prompt 隐藏：只从送给模型的副本中移除完整 `<initvar>...</initvar>` 块。
-2. 更新 Prompt 过滤：从发给模型的历史副本中移除完整或流式未闭合的 `<UpdateVariable>` / `<update>` 块；默认 `minDepth: 2`，保留最近两层供模型理解本轮状态变化。
+2. 更新 Prompt 过滤：从发给模型的历史副本中移除完整或流式未闭合的 `<UpdateVariable>` / `<update>` 块。默认策略 `prompt_history.update_visibility: hide_all` 对应 `minDepth: null`，不把任何历史更新块送回模型；只有项目明确需要近期变化痕迹并接受额外 token 与注意力成本时，才选择 `keep_recent_updates`，对应 `minDepth: 4`，大致保留最近一至两轮。
 3. 初始化显示隐藏：只从玩家看到的 Markdown 副本中移除完整 `<initvar>...</initvar>` 块。
 4. 流式显示隐藏：生成未完成时隐藏已经出现的更新块，保留更新块之后的状态栏占位符。
 5. 完整显示隐藏：生成完成后隐藏完整更新块，不额外展示变量命令。

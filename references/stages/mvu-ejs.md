@@ -60,7 +60,7 @@
 
 <!-- validate: mvu.schema.json -->
 ```yaml
-schema_version: 1.1.0
+schema_version: 1.2.0
 status: locked
 mvu:
   enabled: true
@@ -82,6 +82,8 @@ mvu:
     precondition: validate_before_commit
     revision_guard: if_present
     error_policy: reject_batch
+  prompt_history:
+    update_visibility: hide_all
   variables:
     - source_path: relationship.trust
       runtime_path: stat_data.relationship.trust
@@ -187,7 +189,7 @@ MVU 引擎与变量结构注册器不要求创作代理手写进 `dependencies`�
 
 片段后报告已锁定决定、字段生命周期缺口、运行时假设和下一批本阶段问题。用户完全放权时，先一次性列出选择与理由，再锁定授权范围内的全部决定，之后不重复询问。
 
-当前 Forge 生成并验证的 MVU 更新链只有 `same_generation`：同一次助手生成同时输出叙事、合法变量更新块与适用的状态栏占位符，宿主从这条原始消息解析并提交更新。`writer.kind: update_model` 只是字段所有权名称，不代表已经发起第二次模型请求。
+当前 Forge 生成并验证的 MVU 更新链只有 `same_generation`：同一次助手生成同时输出叙事与合法变量更新块，宿主从这条原始消息解析并提交更新；启用状态栏时，占位符由 MVU 运行时追加，不要求模型输出。`writer.kind: update_model` 只是字段所有权名称，不代表已经发起第二次模型请求。
 
 `extra_pass` 与 `both` 只作为既有项目的待迁移值识别。项目只有在实际交付了独立请求触发、提示词/接收者路由、响应解析、协议校验、原子提交、失败回退和真实宿主测试整条链时，才能启用这两个值；当前实现缺少这条链，构建必须阻断，不能把一个可被手工调用的解析或提交辅助函数当成自动 extra pass。
 
@@ -211,9 +213,11 @@ MVU 引擎与变量结构注册器不要求创作代理手写进 `dependencies`�
 - `source_path` 是语义路径，`runtime_path` 是运行时路径，两者通过显式映射连接。
 - `storage` 必须声明单一可信 scope；跨 scope 读取只有在 `merge_policy` 明确时允许，不能依赖宿主的隐式覆盖顺序。
 - `protocol.id + protocol.version` 构成稳定协议身份。新项目使用结构化、可校验的协议；`output_dialect` 仅作为兼容摘要，不能替代 `protocol`。
+- 新项目的 `mvu_json_patch` 输出固定推荐 `replace`、`delta`、`insert`、`remove`、`move` 五种操作。导入或审计上游已有卡时接受 `add` 作为 `insert` 的兼容别名，但不得因此让新卡提示词改用 `add`，也不能把合法旧卡误报成未知操作。
+- `prompt_history.update_visibility` 默认 `hide_all`，整合后对应 prompt-only 更新过滤正则 `minDepth: null`。只有项目明确需要模型看到近期变化痕迹并接受额外 token 与注意力占用时，才锁定 `keep_recent_updates`，对应 `minDepth: 4`，大致保留最近一至两轮更新。
 - 当前实现的 `update_mode` 必须是 `same_generation`；同一条原始助手消息中的更新块由 MVU 自动解析。发现 `extra_pass` 或 `both` 时先检查是否存在并通过独立请求全链路证据，没有就阻断，不能静默降级或虚构一次额外调用。
 - 纯 EJS 读取必须有与类型一致的默认值；MVU 联动读取必须有可证明的初始化先序和明确 `branches.fallback`，不得用默认值掩盖缺失快照或路径。
-- 每个 profile 有稳定 ID；`opening_bindings` 只引用已存在 opening 与 profile，继承不得成环。开场 `<initvar>` 是对世界书 `[initvar]` 的完整替代，不执行 merge；每个 `strategy` 固定为 `complete_replace`，替代后的完整状态必须通过运行时 Schema。
+- 每个 profile 有稳定 ID；`opening_bindings` 只引用已存在 opening 与 profile，继承不得成环。开场 `<initvar>` 完整替代角色主 CharacterBook 中的保底 `[initvar]`，不与该主书保底初始化 merge；其他当前启用的全局世界书仍遵循 MVU 自身的初始化加载规则。每个 `strategy` 固定为 `complete_replace`，替代后的完整状态必须通过运行时 Schema。
 - 每条开场必须解析为一份完整合法状态。跨场景共用 profile 前逐项核对地点、时间、在途状态和 `established_facts`；不一致时拆分 profile 或使用 opening override。非空变量默认对象/数组不得被初始化中的空容器无意覆盖。
 - EJS 的 `truthy`/`falsy` 对集合使用内容语义：空数组和空对象为假，非空集合为真；其他值才使用普通 JavaScript truthiness。
 - EJS 条件只读取已登记字段并覆盖所有分支。纯 EJS 通过 `getvar(runtime_path, { defaults })` 读取；MVU 联动当前只允许 `message/stat_data/current|latest message`，有界等待 `Mvu` 后读取快照。`current_message` 的 render 条目使用 ST-Prompt-Template 提供的数字 `message_id`；generate 上下文没有楼层号时明确降级到 latest。宿主、namespace 或路径缺失时进入 `branches.fallback`。
@@ -221,6 +225,7 @@ MVU 引擎与变量结构注册器不要求创作代理手写进 `dependencies`�
 - 未确认的宿主能力进入 `runtime_contract.assumptions`，不得写成已经验证。
 - Tavern Helper 是 MVU 角色脚本的宿主依赖；adapter 契约仍在本阶段锁定，实际入口装配和碰撞扫描留到 `integration`。Forge 只允许其内建白名单中的固定版本 MVU 与 Schema 注册器 URL，项目源码不得临时追加未登记远程运行脚本。
 - 真实验收分别记录角色主世界书、局部正则授权、Tavern Helper 角色脚本、酒馆助手宏和 MVU 启动观察。Blob URL 渲染不是通用前置条件；仅当宿主观察到 MVU 未启动且该选项开启时，推荐关闭、刷新并重新观察。
+- Tavern Helper 角色脚本验收必须拆成两个层次：当前角色的脚本集合是否启用，以及 `rp_card_studio_00_mvu_runtime`、`rp_card_studio_10_mvu_schema`、`rp_card_studio_runtime_guard` 三条受管脚本自身是否分别启用。审计输入使用归一化的 `runtime_observation.character_scripts_enabled` 与 `runtime_observation.managed_scripts`，不把这些字段冒充为酒馆助手内部设置的原始结构。
 - EJS 使用 ST-Prompt-Template 时确认插件已启用；`getwi` 会绕过 SillyTavern 原生世界书激活与预算，`activewi` 进入原生激活，`@@preprocessing` 仅在满足宿主版本要求时使用。不得把三者当作等价入口。
 - 每条实际开场的完整 `<initvar>...</initvar>` 块保留在原始消息供 MVU 初始化；整合时必须生成分别作用于送模副本和玩家显示副本的隐藏正则。两条规则都不得吞掉未闭合块或改写原始记录。
 - NSFW 已启用时，只映射前序阶段已锁定的相关字段，不再询问偏好或边界；关闭时不得生成相关字段、条件或依赖。始终服从平台硬约束。

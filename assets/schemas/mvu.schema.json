@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["schema_version", "status", "mvu", "ejs", "runtime_contract"],
   "properties": {
-    "schema_version": { "enum": ["1.0.0", "1.1.0"] },
+    "schema_version": { "enum": ["1.0.0", "1.1.0", "1.2.0"] },
     "status": { "enum": ["draft", "locked"] },
     "mvu": {
       "type": "object",
@@ -19,6 +19,7 @@
         "output_dialect": { "type": "string", "minLength": 1 },
         "storage": { "$ref": "#/$defs/storage" },
         "protocol": { "$ref": "#/$defs/protocol" },
+        "prompt_history": { "$ref": "#/$defs/promptHistory" },
         "variables": { "type": "array", "items": { "$ref": "#/$defs/variable" } },
         "initialization": {
           "type": "object",
@@ -114,7 +115,13 @@
                 "type": "object",
                 "properties": {
                   "id": { "const": "mvu_json_patch" },
-                  "operations": { "const": ["replace", "delta", "insert", "remove", "move"] }
+                  "operations": {
+                    "oneOf": [
+                      { "const": ["replace", "delta", "insert", "remove", "move"] },
+                      { "const": ["replace", "delta", "add", "remove", "move"] },
+                      { "const": ["replace", "delta", "insert", "add", "remove", "move"] }
+                    ]
+                  }
                 },
                 "required": ["id", "operations"]
               }
@@ -251,6 +258,17 @@
         "namespace": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$" },
         "snapshot_selector": { "enum": ["current_message", "latest_message", "current_chat", "current_character", "current_script", "current_extension", "global"] },
         "merge_policy": { "enum": ["scope_only", "message_over_chat", "message_over_chat_over_character", "deep_merge", "replace"] }
+      }
+    },
+    "promptHistory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["update_visibility"],
+      "properties": {
+        "update_visibility": {
+          "enum": ["hide_all", "keep_recent_updates"],
+          "description": "hide_all removes every historical update block from model context; keep_recent_updates maps to SillyTavern minDepth 4 and keeps roughly the newest one to two turns at an explicit token and attention cost."
+        }
       }
     },
     "protocol": {
