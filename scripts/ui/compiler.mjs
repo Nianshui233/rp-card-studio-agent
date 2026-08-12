@@ -28,6 +28,8 @@ const HOST_API_INTERACTIONS = new Set([
   "message_write",
   "slash_command",
   "opening_swipe",
+  "host_bridge",
+  "host_fragile",
 ]);
 
 function clone(value) {
@@ -107,11 +109,6 @@ function scanInlineSource(component, experience) {
   const all = `${html}\n${css}\n${js}`;
   const rules = [
     [
-      /(?:window\s*\.\s*)?parent\s*\.|globalThis\s*\.\s*parent|parent\s*\.\s*document/i,
-      "ui.security.parent_access",
-      "UI source must not access the parent page",
-    ],
-    [
       /\b(?:eval)\s*\(|new\s+Function\s*\(/i,
       "ui.security.dynamic_code",
       "UI source must not evaluate dynamic code",
@@ -145,6 +142,19 @@ function scanInlineSource(component, experience) {
   for (const [pattern, rule, message] of rules) {
     if (pattern.test(all)) issues.push(issue(base, rule, message));
   }
+  if (
+    /(?:#sheld\b|#form_sheld\b|rp_card_studio_status_ui|persistent[_-]?status[_-]?(?:panel|bar))/i.test(
+      all,
+    )
+  ) {
+    issues.push(
+      issue(
+        base,
+        "ui.security.persistent_status_panel",
+        "UI source must not create or revive a persistent page-level status panel",
+      ),
+    );
+  }
   const remoteUrls = [...all.matchAll(/https?:\/\/[^\s"'<>]+/gi)].map(
     (match) => match[0],
   );
@@ -157,18 +167,6 @@ function scanInlineSource(component, experience) {
         base,
         "ui.security.remote_resource",
         `Remote UI resources are disabled: ${remoteUrls[0]}`,
-      ),
-    );
-  }
-  if (
-    (component.interactions ?? []).includes("host_fragile") &&
-    experience.host_policy?.allow_host_fragile !== true
-  ) {
-    issues.push(
-      issue(
-        `${base}/../interactions`,
-        "ui.security.host_fragile",
-        "Host-fragile interaction requires explicit project authorization",
       ),
     );
   }

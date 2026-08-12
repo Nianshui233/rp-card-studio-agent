@@ -638,7 +638,7 @@ node $forge roundtrip "D:\AI\RP创作\项目\夜班列车"
 
 ### 状态栏/UI
 
-状态栏和其他配套 UI 都固定显示在 AI 聊天消息内部，不会创建页面常驻面板，也不会要求修改 SillyTavern 本体。进入 UI 阶段后，第一批会先让你选择规模：
+状态栏和其他配套 UI 都显示在 AI 聊天消息内部，不会创建页面常驻状态栏/面板，也不会要求修改 SillyTavern 本体。消息 UI 可以按实际功能通过 Tavern Helper 接口、斜杠命令或 `window.parent`/宿主 DOM 与 SillyTavern 输入框、发送按钮及插件界面联动；父页面访问本身不是禁止项。进入 UI 阶段后，第一批会先让你选择规模：
 
 | 选择 | 适合什么项目 | 最低完整能力 |
 | --- | --- | --- |
@@ -668,7 +668,7 @@ Forge 会为默认开场和每个备选开场各追加一次占位符。启用 M
 
 纯角色正则的能力边界是固定的：`refresh: on_message`、`read_only: true`、`commands: []`，响应式布局不能使用 tabs。它可以生成消息内文字/HTML、原生折叠、静态响应式布局和无障碍标记；`percent` 只是在上游值必有且已经是 0..100 时追加 `%`。`missing_value`、`loading/empty/error/degraded` 在这条路径中只是设计文案，正则无法在 Tavern Helper 展开宏之后判断并切换这些状态，也不能保证历史逐楼层快照。
 
-`basic_status` 默认使用 `adapter: sillytavern_regex`。完整的 `light`、`medium`、`heavy` UI 则使用 `adapter: tavern_helper_message` 与 `level: host_required`：每个入口页、介绍页、创建页、状态工作区、检定报告、选项面板等都是独立的消息组件，由各自的角色正则把语义标记替换成完整、自包含的 fenced HTML，再由 Tavern Helper 在该消息自己的 iframe 中运行。HTML、CSS、脚本和错误文案都随卡装进最终 JSON，不访问父页面、不创建页面常驻面板、不使用远程字体/图标/脚本。真实宿主没有完成 iframe 导航、脚本执行和逐项验收前，一律保持 `runtime: not_run`。
+`basic_status` 默认使用 `adapter: sillytavern_regex`。完整的 `light`、`medium`、`heavy` UI 则使用 `adapter: tavern_helper_message` 与 `level: host_required`：每个入口页、介绍页、创建页、状态工作区、检定报告、选项面板等都是独立的消息组件，由各自的角色正则把语义标记替换成完整、自包含的 fenced HTML，再由 Tavern Helper 在该消息自己的 iframe 中运行。HTML、CSS、脚本和错误文案都随卡装进最终 JSON；组件可以联动父页面或插件 DOM，但不能借此创建常驻状态栏/面板。真实宿主没有完成 iframe 导航、脚本执行和逐项验收前，一律保持 `runtime: not_run`。
 
 完整 UI 在项目源码中拆成四类文件，便于检查和重构：
 
@@ -681,7 +681,7 @@ src/ui/components/*.yaml       # 每个消息组件的职责、标记、布局�
 
 Forge 会把这些源码编译成多条稳定 UUID、中文命名的角色正则。需要模型输出 `<RPRollResult>...</RPRollResult>` 等组件标记时，还会生成对应的中文世界书协议条目。最终默认仍然只交付一个角色卡 `.json`，不需要玩家手工安装一堆 UI 文件。
 
-消息 iframe 必须调用 `getCurrentMessageId()`，并且只有 `Number.isInteger(message_id)` 为真时才调用 `getVariables({ type: "message", message_id })`。组件只读取本楼消息和本楼的持久 `stat_data`，不会改读 `"latest"`。静态按钮和标签只绑定一次；MVU 更新监听会在 `pagehide`/`unload` 时移除。自定义源码会拒绝父页面访问、危险 HTML 写入、浏览器存储、动态代码、网络请求、远程资源和 `$&`、`$1` 等可能被 SillyTavern 正则提前解释的替换令牌。没有生成并在真实宿主验收前，这项能力只能记录为规格或 `not_run`，不能写成 `embedded` 或 `runtime: pass`。
+消息 iframe 必须调用 `getCurrentMessageId()`，并且只有 `Number.isInteger(message_id)` 为真时才调用 `getVariables({ type: "message", message_id })`。组件只读取本楼消息和本楼的持久 `stat_data`，不会改读 `"latest"`。静态按钮和标签只绑定一次；MVU 更新监听会在 `pagehide`/`unload` 时移除。父页面/宿主 DOM 联动允许直接实现输入框预填、聚焦、用户确认后的发送和插件功能联动，无需先寻找替代 API；这类联动需要在目标版本实测，并清理注册到宿主的监听器和临时节点。自定义源码仍会拒绝危险动态 HTML 写入、凭据或私密存储访问、动态代码、失控的网络/远程 UI，以及 `$&`、`$1` 等可能被 SillyTavern 正则提前解释的替换令牌。没有真实宿主验收前，这项能力只能记录为规格或 `not_run`，不能写成 `embedded` 或 `runtime: pass`。
 
 启用 MVU 时会生成五条变量处理规则：两条分别从送模副本和玩家显示副本隐藏完整 `<initvar>...</initvar>`；一条从送模历史副本移除完整或未闭合的变量更新块，默认 `prompt_history.update_visibility: hide_all` / `minDepth: null`，不把历史更新送回模型；项目明确选择 `keep_recent_updates` 时才使用 `minDepth: 4`，大致保留最近一至两轮并承担额外 token 与注意力成本；另两条从玩家看到的 Markdown 隐藏流式和完整更新块。状态栏另有两条规则：`[不发送]界面占位符` 从送模副本删除占位符，`[界面]状态栏` 在消息显示中把占位符替换为文字或 fenced HTML。所有显示侧规则 `runOnEdit: true`，prompt-only 规则保持 false。初始化隐藏规则只接受成对闭合的完整块，不能吞掉未闭合正文；原始初始化块和更新块仍保留在聊天记录中供 MVU 使用。
 

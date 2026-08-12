@@ -193,7 +193,12 @@ test("UI stage asks for light, medium, or heavy first and keeps basic status as 
   assert.match(statusUi, /## 六批工作循环/);
   assert.match(
     statusUi,
-    /默认没有父页面 DOM、网络、远程资源、动态代码和危险 HTML sink/,
+    /父页面\/宿主 DOM 联动允许使用，常驻状态栏\/面板仍禁止/,
+  );
+  assert.match(skill, /Parent-page and host DOM access is allowed/);
+  assert.match(
+    skill,
+    /Do not force the model to search for an API replacement/,
   );
 });
 

@@ -27,7 +27,6 @@ ui_experience:
   host_policy:
     adapter: tavern_helper_message
     allow_remote_resources: false
-    allow_host_fragile: false
     allowed_interactions:
       - static
       - local_interaction
@@ -35,6 +34,7 @@ ui_experience:
       - message_write
       - slash_command
       - opening_swipe
+      - host_bridge
   accessibility:
     keyboard: true
     color_independent: true

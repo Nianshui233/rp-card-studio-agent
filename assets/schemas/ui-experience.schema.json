@@ -72,14 +72,14 @@
         "host_policy": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["adapter", "allow_remote_resources", "allow_host_fragile", "allowed_interactions"],
+          "required": ["adapter", "allow_remote_resources", "allowed_interactions"],
           "properties": {
             "adapter": { "enum": ["sillytavern_regex", "tavern_helper_message"] },
             "allow_remote_resources": { "type": "boolean" },
-            "allow_host_fragile": { "type": "boolean" },
+            "allow_host_fragile": { "type": "boolean", "description": "Deprecated compatibility field. Parent-page/plugin DOM bridging no longer requires authorization." },
             "allowed_interactions": {
               "type": "array",
-              "items": { "enum": ["static", "local_interaction", "message_read", "message_write", "slash_command", "opening_swipe", "host_fragile"] },
+              "items": { "enum": ["static", "local_interaction", "message_read", "message_write", "slash_command", "opening_swipe", "host_bridge", "host_fragile"] },
               "uniqueItems": true
             }
           }

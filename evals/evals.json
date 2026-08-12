@@ -13,7 +13,7 @@
         "项目定位、世界、每个具名人物、系统、场景、叙事规则和对白示例均由中文命名的 CharacterBook 条目覆盖，并显式记录触发、插入、深度、顺序、概率、扫描深度、预算与递归策略",
         "锚点人物在大型项目中不会因 primary_character 身份被强制常驻或忽略预算",
         "AI 根据世界/玩法规模自行选择并说明 light、medium 或 heavy UI 等级；完整 UI 使用多个消息内 Tavern Helper fenced-HTML 组件，真实宿主验收前保持 runtime: not_run",
-        "UI 拥有项目专属主题与唯一视觉签名，不使用父页面常驻面板、远程字体图标或通用黑底霓虹模板",
+        "UI 拥有项目专属主题与唯一视觉签名，不创建页面级常驻状态栏/面板，不使用失控远程字体图标或通用黑底霓虹模板；正常父页面/宿主 DOM 联动允许",
         "MVU 初始化块同时具有 Prompt 与显示隐藏正则，回复格式合同位于 CharacterBook 而不是高级定义字段",
         "项目校验、角色卡制品校验和 roundtrip 均通过"
       ]
@@ -44,7 +44,7 @@
         "data.description 仍是项目入口而不是人物档案，人物完整定义位于独立 CharacterBook 条目",
         "唯一人物条目为启用、常驻、100% 概率且 ignore_budget=true",
         "MVU Prompt 过滤、初始化隐藏和变量更新显示折叠规则存在",
-        "不存在消息状态栏正则、StatusPlaceHolderImpl 占位符、状态栏回复合同或父页面常驻面板脚本",
+        "不存在消息状态栏正则、StatusPlaceHolderImpl 占位符、状态栏回复合同或页面级常驻状态栏/面板脚本",
         "项目与制品验证通过"
       ]
     },
@@ -72,7 +72,7 @@
         "组件不是复制空面板凑数，地图、任务、关系、调查、资源等各有真实玩法职责",
         "主题含项目专属颜色、字体、形状、纹理、动效和唯一视觉签名，不以 HTML 行数作为验收",
         "所有动态字段有 source_path 到 runtime_path 映射且只读取玩家可见 stat_data",
-        "生成稳定中文命名正则和所需 CharacterBook 组件协议，无父页面访问、远程资源、危险 HTML sink 或 SillyTavern 替换令牌",
+        "生成稳定中文命名正则和所需 CharacterBook 组件协议；父页面/宿主 DOM 联动允许，但不得创建常驻状态栏/面板、使用失控远程资源、危险 HTML sink 或 SillyTavern 替换令牌",
         "真实 SillyTavern 验收前 runtime 保持 not_run，默认最终交付一个角色卡 JSON"
       ]
     }

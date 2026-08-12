@@ -188,7 +188,6 @@ function sources(level = "light", componentCount = 6) {
             host_policy: {
               adapter: "tavern_helper_message",
               allow_remote_resources: false,
-              allow_host_fragile: false,
               allowed_interactions: [
                 "static",
                 "local_interaction",
@@ -332,10 +331,7 @@ test("UI compiler emits stable Chinese-named component regexes with self-contain
     (status.replaceString.match(/wirePrimary\(\)/g) ?? []).length,
     1,
   );
-  assert.doesNotMatch(
-    status.replaceString,
-    /window\.parent|parent\.document|https?:\/\//i,
-  );
+  assert.doesNotMatch(status.replaceString, /https?:\/\//i);
 });
 
 test("message components generate CharacterBook output contracts and survive idempotent rebuilds", () => {
@@ -374,14 +370,15 @@ test("message components generate CharacterBook output contracts and survive ide
   );
 });
 
-test("UI validation rejects unsafe parent access and level underfill", async () => {
-  const unsafe = sources("medium", 6);
-  const unsafeComponent = unsafe.ui.find((entry) => entry.value.ui_component);
-  unsafeComponent.value.ui_component.source = {
+test("UI validation allows parent-page host bridging while still enforcing level floors", async () => {
+  const bridged = sources("medium", 6);
+  const bridgedComponent = bridged.ui.find((entry) => entry.value.ui_component);
+  bridgedComponent.value.ui_component.interactions.push("host_bridge");
+  bridgedComponent.value.ui_component.source = {
     mode: "inline",
     html: "",
     css: "",
-    js: 'window.parent.document.querySelector("#send_textarea")',
+    js: 'const input=window.parent.document.querySelector("#send_textarea"); if(input) input.focus();',
   };
   const result = await validateRuntimeSources({
     project: {
@@ -389,12 +386,41 @@ test("UI validation rejects unsafe parent access and level underfill", async () 
       features: { status_ui: true, mvu: true, ejs: false },
       deliverables: ["character_card_json"],
     },
-    sources: unsafe,
+    sources: bridged,
     projectRoot: process.cwd(),
   });
   assert.ok(result.issues.some((item) => item.rule === "ui.experience_level"));
+  assert.equal(
+    result.issues.some(
+      (item) => item.rule === "ui.security.persistent_status_panel",
+    ),
+    false,
+  );
+});
+
+test("UI validation still rejects known persistent page-level status panels", async () => {
+  const persistent = sources("light", 6);
+  const component = persistent.ui.find((entry) => entry.value.ui_component);
+  component.value.ui_component.interactions.push("host_bridge");
+  component.value.ui_component.source = {
+    mode: "inline",
+    html: "",
+    css: "",
+    js: 'window.parent.document.querySelector("#sheld")?.append(document.createElement("div"));',
+  };
+  const result = await validateRuntimeSources({
+    project: {
+      project: { target: "character_card" },
+      features: { status_ui: true, mvu: true, ejs: false },
+      deliverables: ["character_card_json"],
+    },
+    sources: persistent,
+    projectRoot: process.cwd(),
+  });
   assert.ok(
-    result.issues.some((item) => item.rule === "ui.security.parent_access"),
+    result.issues.some(
+      (item) => item.rule === "ui.security.persistent_status_panel",
+    ),
   );
 });
 

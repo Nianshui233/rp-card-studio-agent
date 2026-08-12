@@ -30,7 +30,7 @@
           "properties": { "mode": { "enum": ["none", "stat_data", "current_message", "stat_data_and_message"] }, "payload_format": { "enum": ["none", "json", "text", "lines"] } }
         },
         "binding_refs": { "type": "array", "items": { "$ref": "#/$defs/id" }, "uniqueItems": true },
-        "interactions": { "type": "array", "items": { "enum": ["static", "local_interaction", "message_read", "message_write", "slash_command", "opening_swipe", "host_fragile"] }, "uniqueItems": true },
+        "interactions": { "type": "array", "items": { "enum": ["static", "local_interaction", "message_read", "message_write", "slash_command", "opening_swipe", "host_bridge", "host_fragile"] }, "uniqueItems": true },
         "content": {
           "type": "object", "additionalProperties": false, "required": ["eyebrow", "title", "subtitle", "body", "primary_action", "secondary_action"],
           "properties": {

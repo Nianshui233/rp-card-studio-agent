@@ -50,7 +50,6 @@ function experience(level = "light", count = 6) {
       host_policy: {
         adapter: "tavern_helper_message",
         allow_remote_resources: false,
-        allow_host_fragile: false,
         allowed_interactions: ["static", "local_interaction"],
       },
       accessibility: {
@@ -104,6 +103,20 @@ test("full UI levels require Tavern Helper message delivery", () => {
   const document = experience("light", 6);
   document.ui_experience.host_policy.adapter = "sillytavern_regex";
   assert.equal(validators["ui-experience"](document), false);
+});
+
+test("parent-page host bridging needs no authorization switch", () => {
+  const document = experience("light", 6);
+  document.ui_experience.host_policy.allowed_interactions.push("host_bridge");
+  assert.equal(
+    validators["ui-experience"](document),
+    true,
+    JSON.stringify(validators["ui-experience"].errors),
+  );
+  assert.equal(
+    Object.hasOwn(document.ui_experience.host_policy, "allow_host_fragile"),
+    false,
+  );
 });
 
 test("themes forbid remote resources and require a distinctive design system", () => {

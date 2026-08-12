@@ -26,7 +26,7 @@
 | `medium` 中型 | 12 个组件 | 轻型全部能力，加玩家设置、至少四个 dashboard/workspace、至少两类剧情组件 | 多角色、开放世界、任务/物品/关系/调查等多个主要玩法 |
 | `heavy` 重型 | 24 个组件 | 中型全部能力，加至少八个 dashboard/workspace、至少四类剧情组件、hub/mixed 导航和性能策略 | 将角色卡作为完整 RP 应用的复杂模拟项目 |
 
-“尸变纪元”只用作轻型规模与组件化方法的校准参考：启动、介绍、创建、状态终端、变量报告、检定和选项共同形成体验。不得复制其代码、主题、中文标记、远程字体、父页面 DOM 操作或具体世界内容。
+“尸变纪元”只用作轻型规模与组件化方法的校准参考：启动、介绍、创建、状态终端、变量报告、检定和选项共同形成体验。不得复制其代码、主题、中文标记、远程字体或具体世界内容；父页面/宿主 DOM 联动可以按本项目需求重新设计。
 
 代码行数不是等级标准。组件覆盖、视觉完成度、数据绑定、交互、响应式、安全和宿主验收才是等级标准。
 
@@ -50,7 +50,7 @@
 - 不把 GM 专用或玩家不可见字段绑定到 UI。
 - 不要求修改 SillyTavern、Tavern Helper 或其他插件本体。
 - 不把参考卡、远程页面或外部仓库原样复制成项目 UI。
-- 默认不访问 `window.parent`、`parent.document`、`#send_textarea`、`#send_but` 等宿主私有 DOM。
+- 允许按功能需要访问 `window.parent`、`parent.document`、`#send_textarea`、`#send_but` 或插件宿主 DOM，不要求先证明公开 API 不可用，也不得仅因版本敏感就删减用户要求的功能。
 - 默认不加载 Google Fonts、远程图标库、远程脚本或远程 UI。
 - 不把模型维护的字符串直接写入 `innerHTML`；动态值使用 `textContent` 或受控 DOM 节点。
 
@@ -150,7 +150,8 @@ src/ui/components/*.yaml
 | `message_write` | 通过公开消息 API 写入用户消息 |
 | `slash_command` | 通过 `triggerSlash` 调用命令 |
 | `opening_swipe` | 通过 `setChatMessages` 切换明确的首消息 swipe |
-| `host_fragile` | 依赖父页面或私有 DOM；默认禁止，用户明确接受且实机验证后才允许 |
+| `host_bridge` | 通过父页面、输入框、发送按钮或插件 DOM 与 SillyTavern 联动；正常可用，需目标宿主实测 |
+| `host_fragile` | 旧项目兼容名称；按 `host_bridge` 处理，不再需要额外授权 |
 
 默认完整 UI 使用 `tavern_helper_message + host_required`。生成代码必须：
 
@@ -159,6 +160,8 @@ src/ui/components/*.yaml
 - 用 `getChatMessages(message_id)` 读取当前楼原始组件负载。
 - 选择提交优先使用 `createChatMessages` 与 `triggerSlash('/trigger')`。
 - 开场导航使用明确的 `setChatMessages([{message_id, swipe_id}])`。
+- 输入框预填、聚焦、发送按钮或插件功能联动可以直接使用父页面/宿主 DOM；无需为了规避 `parent.document` 改写为复杂替代路线。
+- 注册到父页面或插件的监听器、观察器和临时节点必须有稳定所有权并在卸载、切聊或重建时清理。
 - 动态数据使用 `textContent` 或受控 DOM 节点。
 - 禁止 `eval`、`new Function`、未登记存储、网络请求和远程 UI。
 - 所有显示正则 `runOnEdit: true`。
@@ -239,7 +242,7 @@ UI 体验 + 主题 + 绑定 + 组件
 - 每个绑定都引用已声明、玩家可见且允许 `status_ui` 读取的变量；Forge 能映射到 `stat_data` 真实运行路径。
 - 入口、主要工作区和剧情组件都有纯文本 fallback。
 - 所有模型输出组件都有 CharacterBook 协议。
-- 交互只使用获准级别；默认没有父页面 DOM、网络、远程资源、动态代码和危险 HTML sink。
+- 交互符合项目需要；父页面/宿主 DOM 联动允许使用，常驻状态栏/面板仍禁止；没有失控网络、远程 UI、动态代码和危险 HTML sink。
 - 桌面、窄屏、键盘、色彩独立和减少动画策略完整。
 - 性能预算、集合策略、空/错/降级状态完整。
 - 组件正则名称使用中文，机器 ID 和标记使用稳定英文。

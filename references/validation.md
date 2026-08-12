@@ -51,10 +51,10 @@
 - 状态栏启用但 delivery 不是 `surface: message`，角色正则/占位符/助手输出合同缺失，或 adapter ID、entrypoint、artifact、正则 UUID 与其他运行时交付发生碰撞。（状态栏/UI、整合）
 - `embedded + sillytavern_regex` 未固定为 `refresh: on_message`、`read_only: true`、`commands: []`，使用 tabs，或把条件缺失值、动态状态切换、命令、可靠逐楼层快照声明为已实现。（状态栏/UI、整合）
 - 项目声称动态刷新、命令、tabs、条件缺失值、运行时状态切换或可靠逐楼层快照已经可用，却没有显式选择 `adapter: tavern_helper_message`、`level: host_required`，也没有消息自身 iframe 的真实宿主运行证据；仅选择适配器或生成 fenced HTML 不能解除此 blocker。（状态栏/UI、整合）
-- `tavern_helper_message` 状态栏不是自包含 fenced HTML，未严格校验整数 `getCurrentMessageId()`，未按该 ID 低频复查 `getVariables({ type: "message", message_id })`，在首个合法旧快照后过早停止，未在卸载时清理，存在 latest 回退、父页面访问或远程 UI 加载。（状态栏/UI、整合）
+- `tavern_helper_message` 状态栏不是自包含 fenced HTML，未严格校验整数 `getCurrentMessageId()`，未按该 ID 读取 `getVariables({ type: "message", message_id })`，未在卸载时清理自身或宿主监听器/临时节点，存在 latest 冒充历史快照或失控远程 UI 加载。（状态栏/UI、整合）
 - 完整 `light`/`medium`/`heavy` UI 缺少 `ui_experience`、引用的主题/绑定/组件，等级能力门槛不足，以重复空面板凑数，或没有项目专属视觉概念与唯一视觉签名。（状态栏/UI、整合）
 - UI 绑定引用不存在的组件或字段，`source_path -> runtime_path` 映射不闭合，读取 `stat_data` 以外的临时/私密数据，或 UI 在系统阶段未定义的情况下发明变量语义。（状态栏/UI、整合）
-- UI 内联源码访问父页面、浏览器存储、动态代码、危险 HTML sink、内联事件、网络/远程资源，含 `$&`/`$1` 等 SillyTavern 替换令牌，重复绑定交互，或未移除 MVU 事件监听。（状态栏/UI、整合）
+- UI 内联源码创建或恢复页面级常驻状态栏/面板，访问凭据或私密存储，使用动态代码、危险 HTML sink、失控网络/远程 UI，含 `$&`/`$1` 等 SillyTavern 替换令牌，重复绑定交互，或未移除 MVU/宿主事件监听与临时节点。（状态栏/UI、整合）
 - MVU 声明 `extra_pass` 或 `both`，但没有可执行且已验证的独立请求触发、路由、响应解析、协议校验、原子提交和失败回退全链路。（MVU/EJS、整合）
 - 运行时状态 Schema 与 storage、protocol、初始化 profiles、opening bindings 或字段账本不一致。（MVU/EJS、整合）
 - `assembly.yaml` 未登记、世界书/媒体 consumer 引用悬空、媒体回退成环，或关键远程媒体没有可用回退。（整合）
@@ -165,7 +165,7 @@
 - EJS 条目声明 `st_prompt_template` 引擎及 `globalThis.EjsTemplate` 宿主依赖；生成物只出现在 CharacterBook entries，不得伪装成 Tavern Helper script。
 - MVU 联动 EJS 只接受已验证的 `message/stat_data/current|latest message` storage；必须有界等待 `Mvu` 后读取匹配 selector 的 target。`current_message` 在 render 中使用宿主提供的数字 `message_id`，generate 无楼层上下文时明确降级为 latest。快照、namespace 或路径缺失时输出 `branches.fallback`，不得回退 `getvar()` 后误入真假分支。纯 EJS 才使用带账本默认值的精确 `getvar(runtime_path, { defaults })`。
 - 内嵌 Tavern Helper MVU 适配器只允许已验证的 message current/latest 目标和 `Mvu.events.*` 动态事件；必须先订阅再从当前快照 bootstrap。不得使用 `getVariables()`、`globalThis.MVU` 或硬编码 MVU 事件名。
-- 状态栏只有两种消息内投影：默认由 `placement: [2]`、`markdownOnly: true`、`promptOnly: false` 的角色正则替换唯一占位符；复杂交互由同类正则生成自包含 fenced HTML，再由 Tavern Helper 创建消息 iframe。源码和制品中出现 `globalThis.parent`、`parent.document`、`#sheld` 或 `#form_sheld` 状态栏挂载，或消息 UI 加载远程页面/脚本，即为 blocker。
+- 状态栏只有两种消息内投影：默认由 `placement: [2]`、`markdownOnly: true`、`promptOnly: false` 的角色正则替换唯一占位符；复杂交互由同类正则生成自包含 fenced HTML，再由 Tavern Helper 创建消息 iframe。`globalThis.parent`、`parent.document`、`#send_textarea`、`#send_but` 或插件 DOM 联动本身允许；只有使用 `#sheld`、`#form_sheld`、已知旧脚本指纹或等价手段创建/恢复页面级常驻状态栏/面板，或加载失控远程页面/脚本，才是 blocker。
 - `embedded + sillytavern_regex` 只接受 `refresh: on_message`、`read_only: true`、空命令和非 tabs 响应式布局。任一动态刷新模式、非只读、命令或 tabs 都必须映射到 `tavern_helper_message + host_required`。
 - 纯 Regex 的 `field.missing_value` 与 `states.loading/empty/error/degraded` 只是设计元数据；离线或制品检查只能确认文案存在，不能确认条件判断、最近合法值保留或视图切换。`percent` 也只允许对必有且已归一为 0..100 的上游值追加字面 `%`。
 - 默认角色正则使用 Tavern Helper macro-like 层提供的 `format_message_variable`；宏被宿主解析只证明当前可用值能够显示，不证明它绑定当前 DOM 楼层。当前验证的 Tavern Helper 4.9.1 在普通消息重绘时未向宏传 `message_id`，会回退到最近一条带变量的消息。只有消息级 iframe 的文档真实导航、脚本实际执行、取得自身整数 `getCurrentMessageId()`、低频使用 `getVariables({ type: "message", message_id })` 复查变量，并通过“合法旧快照后出现本楼新值”、历史重载和卸载清理测试时，才允许报告“逐楼层快照：通过”；严禁 latest 回退。
