@@ -43,3 +43,15 @@ test('new MVU projects recommend insert while imported protocols may retain the 
   assert.ok(operationVariants.some(operations => operations.includes('add')));
   assert.equal(schema.$defs.protocol.properties.operations.items.enum.includes('add'), true);
 });
+
+
+test('MVU schema allows built-in, extra-pass, and hybrid update routes', () => {
+  assert.deepEqual(
+    schema.properties.mvu.properties.update_mode.enum,
+    ['disabled', 'same_generation', 'extra_pass', 'both'],
+  );
+  assert.deepEqual(
+    schema.properties.mvu.allOf[0].then.properties.update_mode.enum,
+    ['same_generation', 'extra_pass', 'both'],
+  );
+});

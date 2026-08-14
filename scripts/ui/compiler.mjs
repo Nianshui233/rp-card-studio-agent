@@ -113,7 +113,7 @@ function duplicateIds(items) {
   return [...duplicates];
 }
 
-function scanInlineSource(component, experience) {
+function scanInlineSource(component) {
   const issues = [];
   if (component.source?.mode !== "inline") return issues;
   const base = `/runtime/ui/components/${component.id}/source`;
@@ -121,90 +121,18 @@ function scanInlineSource(component, experience) {
   const css = String(component.source.css ?? "");
   const js = String(component.source.js ?? "");
   const all = `${html}\n${css}\n${js}`;
-  const rules = [
-    [
-      /\b(?:eval)\s*\(|new\s+Function\s*\(/i,
-      "ui.security.dynamic_code",
-      "UI source must not evaluate dynamic code",
-    ],
-    [
-      /document\s*\.\s*cookie|localStorage|sessionStorage|indexedDB/i,
-      "ui.security.storage",
-      "UI source must not use unregistered browser storage",
-    ],
-    [
-      /(?:innerHTML|outerHTML|insertAdjacentHTML)\s*=/i,
-      "ui.security.html_sink",
-      "Dynamic UI values must use textContent or controlled DOM nodes",
-    ],
-    [
-      /\son[a-z]+\s*=/i,
-      "ui.security.inline_handler",
-      "Inline event handlers are not allowed; register listeners in component JavaScript",
-    ],
-    [
-      /\bfetch\s*\(|XMLHttpRequest|WebSocket/i,
-      "ui.security.network",
-      "UI source must not perform network requests",
-    ],
-    [
-      /\$(?:[&`']|\d{1,2})/,
-      "ui.security.replacement_token",
-      "UI source must not contain SillyTavern replacement tokens such as $&, $1, $`, or $'",
-    ],
-  ];
-  for (const [pattern, rule, message] of rules) {
-    if (pattern.test(all)) issues.push(issue(base, rule, message));
-  }
-  if (/&&[A-Za-z_$]|\|\|[A-Za-z_$]/.test(js)) {
-    issues.push(
-      issue(
-        `${base}/js`,
-        "ui.runtime.html_entity_operator_spacing",
-        "Inline message JavaScript must keep spaces after && and ||; Tavern Helper HTML parsing can reinterpret sequences such as &&current as a named entity",
-      ),
-    );
-  }
-  if (/pagehide/i.test(js) && /AbortController|\.abort\s*\(|signal\s*:/i.test(js)) {
-    issues.push(
-      issue(
-        `${base}/js`,
-        "ui.runtime.pagehide_local_listener",
-        "Do not abort local button or navigation listeners on pagehide; opening swipe can emit pagehide without permanently discarding the message iframe",
-      ),
-    );
-  }
-  if (
-    /(?:#sheld\b|#form_sheld\b|rp_card_studio_status_ui|persistent[_-]?status[_-]?(?:panel|bar))/i.test(
-      all,
-    )
-  ) {
-    issues.push(
-      issue(
-        base,
-        "ui.security.persistent_status_panel",
-        "UI source must not create or revive a persistent page-level status panel",
-      ),
-    );
-  }
-  const remoteUrls = [...all.matchAll(/https?:\/\/[^\s"'<>]+/gi)].map(
-    (match) => match[0],
-  );
-  if (
-    remoteUrls.length > 0 &&
-    experience.host_policy?.allow_remote_resources !== true
-  ) {
-    issues.push(
-      issue(
-        base,
-        "ui.security.remote_resource",
-        `Remote UI resources are disabled: ${remoteUrls[0]}`,
-      ),
-    );
-  }
+
+  if (/\$(?:[&`']|\d{1,2})/.test(all))
+    issues.push(issue(base, "ui.correctness.replacement_token", "Inline source contains a raw SillyTavern replacement token; escape it, construct it at runtime, or use a Forge-controlled capture slot"));
+
+  if (/&&[A-Za-z_$]|\|\|[A-Za-z_$]/.test(js))
+    issues.push(issue(`${base}/js`, "ui.correctness.html_entity_operator_spacing", "Keep whitespace after && and || because Tavern Helper HTML parsing can reinterpret sequences such as &&current as a named entity"));
+
+  if (/(?:#sheld\b|#form_sheld\b|rp_card_studio_status_ui|persistent[_-]?status[_-]?(?:panel|bar))/i.test(all))
+    issues.push(issue(base, "ui.user_constraint.persistent_status_panel", "The user explicitly forbids creating or reviving a page-level persistent status panel"));
+
   return issues;
 }
-
 export function validateUiExperienceSources({
   project,
   sources,
@@ -253,7 +181,7 @@ export function validateUiExperienceSources({
       ),
     );
   for (const id of duplicateIds(components))
-    issues.push(
+    warnings.push(
       issue(
         `${base}/components`,
         "ui.id_duplicate",
@@ -262,7 +190,7 @@ export function validateUiExperienceSources({
     );
 
   if (!themeByRef.has(experience.theme_ref))
-    issues.push(
+    warnings.push(
       issue(
         `${base}/theme_ref`,
         "ui.reference",
@@ -270,7 +198,7 @@ export function validateUiExperienceSources({
       ),
     );
   if (!bindingsByRef.has(experience.bindings_ref))
-    issues.push(
+    warnings.push(
       issue(
         `${base}/bindings_ref`,
         "ui.reference",
@@ -279,7 +207,7 @@ export function validateUiExperienceSources({
     );
   for (const ref of experience.surfaces ?? []) {
     if (!componentByRef.has(ref))
-      issues.push(
+      warnings.push(
         issue(
           `${base}/surfaces`,
           "ui.reference",
@@ -291,7 +219,7 @@ export function validateUiExperienceSources({
     experience.navigation?.primary_surface &&
     !componentByRef.has(experience.navigation.primary_surface)
   ) {
-    issues.push(
+    warnings.push(
       issue(
         `${base}/navigation/primary_surface`,
         "ui.reference",
@@ -301,7 +229,7 @@ export function validateUiExperienceSources({
   }
   for (const route of experience.navigation?.routes ?? []) {
     if (!componentByRef.has(route.from) || !componentByRef.has(route.to))
-      issues.push(
+      warnings.push(
         issue(
           `${base}/navigation/routes`,
           "ui.reference",
@@ -316,7 +244,7 @@ export function validateUiExperienceSources({
     narrative: 0,
   };
   if ((experience.surfaces ?? []).length < levelRequirements.minimumSurfaces) {
-    issues.push(
+    warnings.push(
       issue(
         `${base}/surfaces`,
         "ui.experience_level",
@@ -351,7 +279,7 @@ export function validateUiExperienceSources({
   for (const component of workspaceComponents) {
     const primaryEntries = component.layout?.groups ?? [];
     if (primaryEntries.length > 5)
-      issues.push(
+      warnings.push(
         issue(
           `${base}/components/${component.id}/layout/groups`,
           "ui.navigation.player_entry_limit",
@@ -362,7 +290,7 @@ export function validateUiExperienceSources({
   const narrativeCount = roleCount("narrative_component");
   if (["light", "medium", "heavy"].includes(experience.experience_level)) {
     if (roleCount("entry") < 1)
-      issues.push(
+      warnings.push(
         issue(
           `${base}/surfaces`,
           "ui.capability_floor",
@@ -370,7 +298,7 @@ export function validateUiExperienceSources({
         ),
       );
     if (presetCount("status_terminal") < 1)
-      issues.push(
+      warnings.push(
         issue(
           `${base}/surfaces`,
           "ui.capability_floor",
@@ -378,7 +306,7 @@ export function validateUiExperienceSources({
         ),
       );
     if (narrativeCount < levelRequirements.narrative)
-      issues.push(
+      warnings.push(
         issue(
           `${base}/surfaces`,
           "ui.capability_floor",
@@ -386,7 +314,7 @@ export function validateUiExperienceSources({
         ),
       );
     if (workspaceModuleCount < levelRequirements.workspaceModules)
-      issues.push(
+      warnings.push(
         issue(
           `${base}/surfaces`,
           "ui.capability_floor",
@@ -396,7 +324,7 @@ export function validateUiExperienceSources({
   }
   if (["medium", "heavy"].includes(experience.experience_level)) {
     if (roleCount("setup") < 1)
-      issues.push(
+      warnings.push(
         issue(
           `${base}/surfaces`,
           "ui.capability_floor",
@@ -404,7 +332,7 @@ export function validateUiExperienceSources({
         ),
       );
     if (workspaceComponents.length < 1)
-      issues.push(
+      warnings.push(
         issue(
           `${base}/surfaces`,
           "ui.capability_floor",
@@ -414,7 +342,7 @@ export function validateUiExperienceSources({
   }
   if (experience.experience_level === "heavy") {
     if (!["hub", "mixed"].includes(experience.navigation?.kind))
-      issues.push(
+      warnings.push(
         issue(
           `${base}/navigation/kind`,
           "ui.capability_floor",
@@ -453,7 +381,7 @@ export function validateUiExperienceSources({
       );
     const visibleLabel = String(binding.label ?? "").trim().toLowerCase();
     if (PLAYER_VISIBLE_INTERNAL_KEYS.has(visibleLabel))
-      issues.push(
+      warnings.push(
         issue(
           `${base}/bindings/${binding.id}/label`,
           "ui.localization.internal_key_visible",
@@ -486,7 +414,7 @@ export function validateUiExperienceSources({
           ),
         );
     }
-    issues.push(...scanInlineSource(component, experience));
+    issues.push(...scanInlineSource(component));
   }
   const totalEstimate = selectedComponents.reduce(
     (sum, component) =>
@@ -497,7 +425,7 @@ export function validateUiExperienceSources({
     0,
   );
   if (totalEstimate > experience.performance.max_total_bytes)
-    issues.push(
+    warnings.push(
       issue(
         `${base}/performance/max_total_bytes`,
         "ui.performance",
@@ -769,6 +697,7 @@ export function compileUiExperienceRegexes({ project, sources }) {
   const scripts = [];
   const contracts = [];
   const issues = [];
+  const warnings = [];
   const runtimePaths = new Map(
     (Array.isArray(sources?.mvu) ? sources.mvu : []).flatMap((entry) =>
       entry.value?.mvu?.enabled
@@ -814,7 +743,7 @@ export function compileUiExperienceRegexes({ project, sources }) {
     if (syntaxIssue) issues.push(syntaxIssue);
     const bytes = Buffer.byteLength(replaceString, "utf8");
     if (bytes > experience.performance.max_component_bytes)
-      issues.push(
+      warnings.push(
         issue(
           `/runtime/ui_experience/components/${component.id}`,
           "ui.performance",
@@ -857,7 +786,7 @@ export function compileUiExperienceRegexes({ project, sources }) {
     0,
   );
   if (totalBytes > experience.performance.max_total_bytes)
-    issues.push(
+    warnings.push(
       issue(
         "/runtime/ui_experience/performance",
         "ui.performance",
@@ -867,7 +796,7 @@ export function compileUiExperienceRegexes({ project, sources }) {
   return {
     scripts,
     issues,
-    warnings: [],
+    warnings,
     contracts,
     usesStatusPlaceholder: (experience.surfaces ?? []).some(
       (ref) =>

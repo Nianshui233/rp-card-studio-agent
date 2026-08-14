@@ -173,60 +173,53 @@ test("MVU and EJS remain one optional stage with a direct skip path", () => {
   assert.match(skill, /proceeds to `narrative_opening`/);
 });
 
-test("UI stage asks for light, medium, or heavy first and keeps basic status as compatibility", () => {
+test("UI stage asks for light, medium, or heavy without imposing fixed architecture", () => {
   assert.match(
     skill,
     /first question batch must ask which UI scale the project needs: `light`, `medium`, or `heavy`/,
   );
-  assert.match(skill, /`basic_status` as a compatibility route only/);
-  assert.match(
-    skill,
-    /full `light`, `medium`, or `heavy` UI uses a small number of self-contained fenced-HTML message pages/,
-  );
-  assert.match(
-    skill,
-    /remains `host_required` and `runtime: not_run` until real host evidence exists/,
-  );
+  assert.match(skill, /mention `basic_status` only as a compatibility route/);
+  assert.match(skill, /page counts, module counts, navigation counts[\s\S]*recommendations selected by project intent, never universal blockers/);
+  assert.match(skill, /Large integrated pages, many tabs, technical views, remote libraries[\s\S]*are allowed/);
+  assert.match(skill, /Missing real-host evidence never blocks design, implementation, building, or candidate delivery/);
   assert.match(statusUi, /进入本阶段后的第一批必须询问/);
   assert.match(statusUi, /轻型、中型还是重型/);
-  assert.match(statusUi, /`basic_status` 仅作为兼容或用户明确要求的极简路线/);
-  assert.match(statusUi, /## 六批工作循环/);
-  assert.match(
-    statusUi,
-    /父页面\/宿主 DOM 联动允许使用，常驻状态栏\/面板仍禁止/,
-  );
-  assert.match(skill, /Parent-page and host DOM access is allowed/);
-  assert.match(
-    skill,
-    /Do not force the model to search for an API replacement/,
-  );
+  assert.match(statusUi, /不是固定页数、模块数、导航结构、adapter 或代码量门槛/);
+  assert.ok(statusUi.includes("父页面/宿主 DOM"));
+  assert.ok(statusUi.includes("页面级常驻状态栏/面板没有被创建"));
 });
 
-test("UI guidance prioritizes the Chinese player experience over internal schemas", () => {
-  assert.match(skill, /player-facing RP companion/);
-  assert.match(skill, /no more than five primary entries/);
-  assert.match(skill, /Never recursively dump arbitrary objects/);
-  assert.match(skill, /opening swipe can emit/);
+test("UI guidance treats player experience as project-specific advice, not a universal blocker", () => {
+  assert.match(skill, /Optimize for the user's desired experience, beauty, immersion, and functionality/);
+  assert.match(skill, /Chinese localization, mobile widths, touch sizes, accessibility[\s\S]*recommendations/);
+  assert.match(skill, /`innerHTML`, inline handlers, storage, network APIs, remote dependencies, dynamic code[\s\S]*are allowed/);
   assert.match(statusUi, /消息 UI 是面向玩家的 RP 伴随界面/);
-  assert.match(statusUi, /玩家一级入口通常不超过 5 个/);
+  assert.match(statusUi, /5 个是常见参考，不是硬上限/);
   assert.match(statusUi, /禁止使用一个“通用对象递归器”/);
   assert.ok(statusUi.includes("&&[A-Za-z_$]"));
-  assert.match(statusUi, /375px/);
+  assert.match(statusUi, /375px.*不是普遍硬门槛/);
   assert.match(statusUi, /技术 ID/);
 });
 
-test("MVU host acceptance treats Blob URL rendering as observation-based diagnosis", () => {
-  assert.match(skill, /observed MVU start\/initialization event/);
-  assert.match(skill, /never infer failure or success from that switch alone/);
-  assert.match(mvuEjs, /仅当宿主观察到 MVU 未启动且该选项开启时/);
-  assert.match(mvuEjs, /Blob URL 渲染不是通用前置条件/);
+test("personal-local trust and NSFW stay author-side without runtime gates", () => {
+  assert.match(skill, /## Personal Local Operating Principle/);
+  assert.match(skill, /private, local, non-commercial/);
+  assert.match(skill, /Implement first, then report dependencies/);
+  assert.match(skill, /author-side metadata only/);
+  assert.match(skill, /enabled means write it directly; disabled means do not specialize it/);
+  assert.match(skill, /neither state installs a runtime content gate/);
+  assert.match(preflight, /不反向审查、删除、净化或阻断/);
+  assert.ok(preflight.includes("不得向 CharacterBook、开场、系统提示、MVU/EJS、UI"));
 });
 
-test("MVU and status contracts scope opening replacement, recommend five operations, and split placeholder duties", () => {
-  assert.match(skill, /main CharacterBook fallback/);
-  assert.match(skill, /mvu_json_patch.*five-operation protocol/);
-  assert.match(skill, /\[不发送\]界面占位符/);
-  assert.match(skill, /\[界面\]状态栏/);
+test("MVU host acceptance and extension routes remain evidence-based", () => {
+  assert.match(skill, /bundled MVU route natively implements `same_generation`/);
+  assert.match(skill, /Other update modes are valid extension goals[\s\S]*registered custom adapter/);
+  assert.match(skill, /Known SillyTavern replacement behavior remains a correctness constraint/);
+  assert.match(mvuEjs, /Blob URL 渲染不是通用前置条件/);
+  assert.match(mvuEjs, /仅当宿主观察到 MVU 未启动且该选项开启时/);
+  assert.match(mvuEjs, /replace.*delta.*insert.*remove.*move/);
+  assert.match(mvuEjs, /extra_pass.*both.*自定义 adapter/s);
   assert.match(mvuEjs, /hide_all/);
   assert.match(mvuEjs, /minDepth: 4/);
 });

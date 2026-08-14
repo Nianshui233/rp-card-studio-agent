@@ -419,7 +419,7 @@ export function validateProjectModel(project, state, root) {
       issues.push(modelIssue(`/project/${field}`, "required", `${field} 必须是非空字符串`));
     }
   }
-  if (project?.project?.locale !== "zh-CN") issues.push(modelIssue("/project/locale", "const", "locale 必须为 zh-CN"));
+  if (typeof project?.project?.locale !== "string" || project.project.locale.trim() === "") issues.push(modelIssue("/project/locale", "type", "locale 必须是非空字符串"));
   if (!project?.preflight?.workspace_confirmed || !project?.preflight?.input_materials_confirmed || !project?.preflight?.deliverables_confirmed) {
     issues.push(modelIssue("/preflight", "confirmed", "工作区、输入材料状态和交付物必须完成预检确认"));
   }
@@ -843,15 +843,24 @@ function assembleCharacterCard(sources, project, state, originalPayload = null) 
   if (projectOwnsSurface) {
     payload.data.description = typeof positioning?.card_entry === "string" ? positioning.card_entry : "";
   }
+  const advancedDefinitionFields = [
+    "personality",
+    "scenario",
+    "mes_example",
+    "creator_notes",
+    "system_prompt",
+    "post_history_instructions",
+  ];
   if (clearAdvancedDefinitions) {
-    for (const field of [
-      "personality",
-      "scenario",
-      "mes_example",
-      "creator_notes",
-      "system_prompt",
-      "post_history_instructions",
-    ]) payload.data[field] = "";
+    for (const field of advancedDefinitionFields) payload.data[field] = "";
+  }
+  const cardFields = sources.assembly[0]?.value?.card_fields;
+  if (isPlainObject(cardFields)) {
+    for (const field of advancedDefinitionFields) {
+      if (Object.hasOwn(cardFields, field) && typeof cardFields[field] === "string") {
+        payload.data[field] = cardFields[field];
+      }
+    }
   }
   if (projectOwnsSurface && singleCharacterCard && Array.isArray(primary?.tags)) {
     payload.data.tags = [...primary.tags];

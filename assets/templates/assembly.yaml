@@ -1,6 +1,8 @@
 schema_version: 1.0.0
 status: draft
 
+card_fields: {}
+
 worldbook_manifest:
   id: worldbook_id
   display_name: 未命名世界书

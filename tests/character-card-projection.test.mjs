@@ -649,6 +649,23 @@ function assertCompleteAutomaticSchedule(entry) {
   }
 }
 
+test('NSFW character mixin exposes the restored authoring fields without a runtime gate', () => {
+  const mixin = parseYaml(readFileSync(path.join(skillRoot, 'assets', 'templates', 'nsfw', 'character.mixin.yaml'), 'utf8'));
+  assert.deepEqual(Object.keys(mixin.nsfw), [
+    'sexual_orientation',
+    'standing',
+    'fetish',
+    'preference',
+    'sex_organs',
+    'sensitive_areas',
+    'contrast',
+  ]);
+  assert.match(mixin.nsfw.sex_organs, /一线天/);
+  assert.match(mixin.nsfw.sex_organs, /12cm/);
+  assert.equal(Object.hasOwn(mixin.nsfw, 'enabled'), false);
+  assert.equal(Object.hasOwn(mixin.nsfw, 'gate'), false);
+});
+
 test('new character cards use a card-level entry on-card and project every character into scheduled Chinese CharacterBook entries', t => {
   const root = tempRoot(t, 'new-card');
   runForge(['init', root, '--nsfw', 'disabled', '--type', 'character'], { expectSuccess: true });
@@ -724,6 +741,24 @@ test('new character cards use a card-level entry on-card and project every chara
   assert.equal(buildManifest.source, sourcePaths.positioning);
 });
 
+test('assembly card_fields can intentionally populate advanced-definition host slots', t => {
+  const root = tempRoot(t, 'explicit-advanced-card-fields');
+  runForge(['init', root, '--nsfw', 'disabled', '--type', 'character'], { expectSuccess: true });
+  const assembly = completeAssembly();
+  assembly.card_fields = {
+    personality: '始终保持克制而敏锐。',
+    scenario: '雾港夜班期间的持续场景合同。',
+    mes_example: '<START>\n{{char}}: 潮钟刚响。',
+    creator_notes: '个人自用构建备注。',
+    system_prompt: '保持项目既有叙事协议。',
+    post_history_instructions: '优先维护已锁定的连续性。',
+  };
+  configureRichProject(root, { assembly });
+  runForge(['build', root], { expectSuccess: true });
+  const data = readBuiltCard(root).data;
+  for (const [field, value] of Object.entries(assembly.card_fields)) assert.equal(data[field], value);
+});
+
 test('a true single-character card uses the sole primary character name', t => {
   const root = tempRoot(t, 'single-character-name');
   runForge(['init', root, '--nsfw', 'disabled', '--type', 'character'], { expectSuccess: true });
@@ -787,7 +822,7 @@ test('locked positioning requires a non-empty RP package entry', t => {
   positioning.card_entry = '   \t';
   writeYaml(root, sourcePaths.positioning, positioning);
 
-  const result = runForge(['validate', root]);
+  const result = runForge(['validate', root, '--force']);
   assert.notEqual(result.status, 0);
   assert.match(result.output, /card_entry/);
   assert.match(result.output, /pattern/);
@@ -800,7 +835,7 @@ test('positioning rejects unknown card modes instead of guessing their naming se
   positioning.card_mode = 'single_charcter_card';
   writeYaml(root, sourcePaths.positioning, positioning);
 
-  const result = runForge(['validate', root]);
+  const result = runForge(['validate', root, '--force']);
   assert.notEqual(result.status, 0);
   assert.match(result.output, /card_mode/);
   assert.match(result.output, /enum/);
@@ -813,7 +848,7 @@ test('locked positioning cannot retain the pending card mode', t => {
   positioning.card_mode = 'pending';
   writeYaml(root, sourcePaths.positioning, positioning);
 
-  const result = runForge(['validate', root]);
+  const result = runForge(['validate', root, '--force']);
   assert.notEqual(result.status, 0);
   assert.match(result.output, /card_mode/);
   assert.match(result.output, /not/);
@@ -891,7 +926,7 @@ test('a locked authored character cannot retain the imported pending role', t =>
   project.source_manifest.characters = [sourcePaths.primary];
   writeYaml(root, 'project.yaml', project);
 
-  const result = runForge(['validate', root]);
+  const result = runForge(['validate', root, '--force']);
   assert.notEqual(result.status, 0);
   assert.match(result.output, /role/);
   assert.match(result.output, /pending/);
@@ -1108,7 +1143,7 @@ test('a character source cannot replace the required positioning source', t => {
   project.source_manifest.characters = [sourcePaths.primary];
   writeYaml(root, 'project.yaml', project);
 
-  const result = runForge(['validate', root]);
+  const result = runForge(['validate', root, '--force']);
   assert.notEqual(result.status, 0);
   assert.match(result.output, /source_manifest\.positioning/);
   assert.match(result.output, /YAML 维护源/);
@@ -1128,20 +1163,20 @@ test('an RP package has exactly one canonical positioning source', t => {
   project.source_manifest.positioning = [sourcePaths.positioning, duplicatePath];
   writeYaml(root, 'project.yaml', project);
 
-  const result = runForge(['validate', root]);
+  const result = runForge(['validate', root, '--force']);
   assert.notEqual(result.status, 0);
   assert.match(result.output, /source_manifest[./]positioning/);
   assert.match(result.output, /cardinality|canonical|maxItems/);
 });
 
-test('standalone worldbook assembly must cover the complete RP package', t => {
+test('standalone worldbook coverage omissions are reported without monopolizing projection', t => {
   const emptyRoot = tempRoot(t, 'worldbook-empty-assembly');
   runForge(['init', emptyRoot, '--nsfw', 'disabled', '--type', 'worldbook'], { expectSuccess: true });
   const emptyAssembly = completeAssembly();
   emptyAssembly.worldbook_manifest.entries = [];
   configureRichProject(emptyRoot, { assembly: emptyAssembly });
-  const emptyResult = runForge(['build', emptyRoot]);
-  assert.notEqual(emptyResult.status, 0);
+  const emptyResult = runForge(['build', emptyRoot], { expectSuccess: true });
+  assert.equal(emptyResult.status, 0);
   assert.match(emptyResult.output, /assembly\.coverage/);
   assert.match(emptyResult.output, /src\/world\/mist_harbor\.yaml/);
 
@@ -1151,8 +1186,8 @@ test('standalone worldbook assembly must cover the complete RP package', t => {
   incompleteAssembly.worldbook_manifest.entries = incompleteAssembly.worldbook_manifest.entries
     .filter(entry => entry.id !== 'system');
   configureRichProject(missingRoot, { assembly: incompleteAssembly });
-  const missingResult = runForge(['build', missingRoot]);
-  assert.notEqual(missingResult.status, 0);
+  const missingResult = runForge(['build', missingRoot], { expectSuccess: true });
+  assert.equal(missingResult.status, 0);
   assert.match(missingResult.output, /assembly\.coverage/);
   assert.match(missingResult.output, /src\/systems\/night_shift\.yaml/);
 
@@ -1169,15 +1204,15 @@ test('standalone worldbook assembly must cover the complete RP package', t => {
   assert.ok(sourceIds.has('scene'));
 });
 
-test('a zero-probability entry cannot satisfy RP package coverage', t => {
+test('a zero-probability CharacterBook entry produces a projection warning', t => {
   const root = tempRoot(t, 'zero-probability-coverage');
   runForge(['init', root, '--nsfw', 'disabled', '--type', 'character'], { expectSuccess: true });
   const assembly = completeAssembly();
   assembly.worldbook_manifest.entries.find(entry => entry.id === 'system').probability = 0;
   configureRichProject(root, { assembly });
 
-  const result = runForge(['build', root]);
-  assert.notEqual(result.status, 0);
+  const result = runForge(['build', root], { expectSuccess: true });
+  assert.equal(result.status, 0);
   assert.match(result.output, /assembly\.coverage/);
   assert.match(result.output, /src\/systems\/night_shift\.yaml/);
 });
@@ -1217,7 +1252,7 @@ test('scene media contracts stay in the RP package and assembly consumers must b
   assert.match(sceneContent.media_slots[0].text_fallback, /钢轮余响/);
 });
 
-test('explicit assembly blocks every CharacterBook coverage omission for every project operation', t => {
+test('explicit assembly reports CharacterBook omissions while allowing other projection destinations', t => {
   const root = tempRoot(t, 'assembly-coverage');
   runForge(['init', root, '--nsfw', 'disabled', '--type', 'character'], { expectSuccess: true });
   const assembly = completeAssembly();
@@ -1238,8 +1273,8 @@ test('explicit assembly blocks every CharacterBook coverage omission for every p
     incomplete.worldbook_manifest.entries = incomplete.worldbook_manifest.entries.filter(entry => entry.id !== entryId);
     writeYaml(root, sourcePaths.assembly, incomplete);
 
-    const result = runForge(['build', root]);
-    assert.notEqual(result.status, 0, `build accepted assembly without ${missingPath}`);
+    const result = runForge(['validate', root, '--force']);
+    assert.ok([0, 5].includes(result.status), `unexpected validation status for advisory CharacterBook omission ${missingPath}: ${result.status}`);
     assert.match(result.output, /assembly\.coverage/, `coverage failure did not identify its rule:\n${result.output}`);
     assert.match(result.output, new RegExp(missingPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `coverage failure did not identify ${missingPath}`);
   }
@@ -1252,8 +1287,8 @@ test('explicit assembly blocks every CharacterBook coverage omission for every p
     incomplete.worldbook_manifest.entries = incomplete.worldbook_manifest.entries.filter(entry => entry.id !== 'system');
     writeYaml(root, sourcePaths.assembly, incomplete);
 
-    const result = runForge(['build', root]);
-    assert.notEqual(result.status, 0, `${operation} project accepted incomplete assembly coverage`);
+    const result = runForge(['validate', root, '--force']);
+    assert.ok([0, 5].includes(result.status), `${operation} project returned an unexpected validation status: ${result.status}`);
     assert.match(result.output, /assembly\.coverage/);
   }
 

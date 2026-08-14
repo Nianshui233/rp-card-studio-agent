@@ -27,7 +27,7 @@
 - 不修改 MVU 类型、更新公式、EJS 方言或 writer。
 - 不询问状态栏布局、颜色、组件、DOM、挂载点、资源 URL、实际媒体文件、构建入口或打包方式。
 - 不询问叙事条目的常驻/关键词选择、插入位置、深度、顺序、概率、扫描深度或递归；这些由整合交付阶段逐条决定。
-- 不讨论把内容分摊到 `personality`、`scenario`、`mes_example`、`system_prompt` 或 `post_history_instructions`；新卡默认保持这些高级定义字段为空。
+- 本阶段只决定叙事与开场语义，不提前决定高级定义的最终宿主分摊；如发现某段适合 `mes_example`、`system_prompt` 等槽位，登记整合待办。
 
 发现缺口时把它路由回原阶段；可以写“暂缺事实导致开场 2 阻塞”，不能在开场阶段替用户补造底层设定。
 
@@ -152,7 +152,7 @@ source_refs:
 
 ## 阶段总汇
 
-总汇包含：叙事合同、禁止替玩家决定的事项、开场索引、`data.first_mes` 与 `data.alternate_greetings` 投影表、每条开场的共享事实与初始状态、钩子对比、呈现变体矩阵、默认/回退关系、媒体叙事引用、叙事/示例 CharacterBook 内容候选及缺漏。总汇还要明确说明新卡高级定义字段保持为空，世界书 activation、keys、position、depth、order、probability、scan depth 与 recursion 尚未在本阶段决定。用户确认后锁定文本；后续若更改开场状态，必须重新检查 MVU 初始化，若更改呈现能力则重新检查状态栏/UI 和整合装配。
+总汇包含：叙事合同、禁止替玩家决定的事项、开场索引、`data.first_mes` 与 `data.alternate_greetings` 投影表、每条开场的共享事实与初始状态、钩子对比、呈现变体矩阵、默认/回退关系、媒体叙事引用、叙事/示例 CharacterBook 内容候选及缺漏。总汇还要列出可能进入高级定义字段的候选片段，但不在本阶段锁定宿主分摊；世界书 activation、keys、position、depth、order、probability、scan depth 与 recursion 也尚未在本阶段决定。用户确认后锁定文本；后续若更改开场状态，必须重新检查 MVU 初始化，若更改呈现能力则重新检查状态栏/UI 和整合装配。
 
 ## 下一阶段方向
 

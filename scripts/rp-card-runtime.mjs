@@ -949,23 +949,32 @@ function validateRuntimeDeliveries(mvuSources, uiSources, issues) {
   }
 }
 
-function validateHostRuntimeContracts(mvuSources, issues) {
+function validateHostRuntimeContracts(mvuSources, issues, warnings) {
   for (const [sourceIndex, source] of mvuSources.entries()) {
-    const base = `/runtime/mvu/${sourceIndex}`;
+    const base = "/runtime/mvu/" + sourceIndex;
     const mvu = source.mvu;
     const adapter = source.runtime_contract?.adapter;
-    if (mvu?.enabled && mvu.update_mode !== "same_generation") {
-      issues.push(issue(`${base}/mvu/update_mode`, "mvu.update_mode_unimplemented", "Enabled MVU currently supports same_generation only; extra_pass requires an independent request, parse, and commit chain"));
+    const customUpdateAdapter = adapter
+      && adapter.id !== "tavern_helper"
+      && ["embedded", "host_required", "remote"].includes(adapter.delivery)
+      && typeof adapter.entrypoint === "string"
+      && adapter.entrypoint.trim() !== "";
+    if (mvu?.enabled && ["extra_pass", "both"].includes(mvu.update_mode) && !customUpdateAdapter) {
+      issues.push(issue(
+        base + "/mvu/update_mode",
+        "mvu.update_mode_adapter",
+        mvu.update_mode + " requires a registered custom adapter with an embedded, host_required, or remote delivery and a non-empty entrypoint",
+      ));
     }
     if (!mvu?.enabled && mvu?.update_mode !== "disabled") {
-      issues.push(issue(`${base}/mvu/update_mode`, "mvu.update_mode_lifecycle", "Disabled MVU must use update_mode: disabled"));
+      issues.push(issue(base + "/mvu/update_mode", "mvu.update_mode_lifecycle", "Disabled MVU must use update_mode: disabled"));
     }
     if (mvu?.enabled && adapter?.id === "tavern_helper" && adapter.delivery === "embedded") {
       const storage = mvu.storage ?? {};
       const scope = storage.scope ?? "message";
       const snapshotSelector = storage.snapshot_selector ?? "current_message";
       if (scope !== "message" || !["current_message", "latest_message"].includes(snapshotSelector)) {
-        issues.push(issue(`${base}/mvu/storage`, "adapter.storage_scope", "Embedded Tavern Helper MVU currently supports only message storage with current_message or latest_message snapshots"));
+        issues.push(issue(base + "/mvu/storage", "adapter.storage_scope", "Embedded Tavern Helper MVU currently supports only message storage with current_message or latest_message snapshots"));
       }
     }
     if (!source.ejs?.enabled) continue;
@@ -977,7 +986,7 @@ function validateHostRuntimeContracts(mvuSources, issues) {
       if (scope !== "message" || namespace !== "stat_data"
         || !["current_message", "latest_message"].includes(snapshotSelector)) {
         issues.push(issue(
-          `${base}/mvu/storage`,
+          base + "/mvu/storage",
           "ejs.storage_contract",
           "EJS linked to MVU currently supports only the stat_data namespace on the current/latest message snapshot",
         ));
@@ -987,13 +996,18 @@ function validateHostRuntimeContracts(mvuSources, issues) {
     const ejsDependency = dependencies.find((dependency) => dependency?.id === "st_prompt_template");
     if (!ejsDependency
       || ejsDependency.class !== "host_required"
-      || ejsDependency.version !== "1.17.6.8"
       || !/^(?:(?:globalThis|window)\.)?EjsTemplate$/.test(ejsDependency.readiness_probe ?? "")) {
-      issues.push(issue(`${base}/runtime_contract/dependencies`, "ejs.dependency", "Enabled EJS requires the host ST-Prompt-Template 1.17.6.8 dependency with an EjsTemplate readiness probe"));
+      issues.push(issue(base + "/runtime_contract/dependencies", "ejs.dependency", "Enabled EJS requires a registered host ST-Prompt-Template dependency with an EjsTemplate readiness probe"));
+    } else if (ejsDependency.version !== "1.17.6.8") {
+      warnings.push(issue(
+        base + "/runtime_contract/dependencies",
+        "ejs.version_compatibility",
+        "ST-Prompt-Template " + (ejsDependency.version || "unspecified") + " differs from the verified 1.17.6.8 baseline; keep it when intentional and confirm behavior in the actual host before claiming runtime: pass",
+      ));
     }
     for (const [entryIndex, entry] of (source.ejs.entries ?? []).entries()) {
       if (entry.engine !== "st_prompt_template") {
-        issues.push(issue(`${base}/ejs/entries/${entryIndex}/engine`, "ejs.engine", "EJS entries must use the st_prompt_template engine"));
+        issues.push(issue(base + "/ejs/entries/" + entryIndex + "/engine", "ejs.engine", "EJS entries must use the st_prompt_template engine"));
       }
     }
   }
@@ -1276,7 +1290,7 @@ function assemblyRegistrations(manifest, sources) {
   })).filter((record) => record.resolved);
 }
 
-function validateCharacterBookCoverage(manifest, sources, base, issues, project) {
+function validateCharacterBookCoverage(manifest, sources, base, warnings, project) {
   const registrations = assemblyRegistrations(manifest, sources)
     .filter(({ entry }) => entry.enabled === true && entry.probability > 0);
   for (const required of requiredCharacterBookSources(sources, project)) {
@@ -1292,10 +1306,10 @@ function validateCharacterBookCoverage(manifest, sources, base, issues, project)
       .join("、");
     const firstMissingRoot = missingPointers[0]?.split("/").slice(0, 2).join("/") ?? "";
     const sourceHint = `${required.relativePath}${firstMissingRoot ? `#${firstMissingRoot}` : ""}`;
-    issues.push(issue(
+    warnings.push(issue(
       `${base}/worldbook_manifest/entries`,
       "assembly.coverage",
-      `世界书装配未完整覆盖 ${required.label}（${sourceHint}；缺少 ${missingHint}）；可用一个整源条目或多个 selector 条目联合覆盖，并分别明确触发、插入、深度、顺序、概率与递归策略`,
+      `[assembly.coverage] 世界书装配未完整覆盖 ${required.label}（${sourceHint}；缺少 ${missingHint}）；可用一个整源条目或多个 selector 条目联合覆盖，并分别明确触发、插入、深度、顺序、概率与递归策略`,
     ));
   }
 }
@@ -1602,7 +1616,7 @@ async function validateAssembly(sources, projectRoot, issues, warnings, target, 
         "Every keyword-driven content entry blocks recursion in both directions; related people, places, factions, and clues cannot activate one another"
       ));
     }
-    validateCharacterBookCoverage(manifest, sources, `/runtime/assembly/${sourceIndex}`, issues, project);
+    validateCharacterBookCoverage(manifest, sources, `/runtime/assembly/${sourceIndex}`, warnings, project);
     if (target === "character") {
       validateSingleCharacterEntry(manifest, sources, `/runtime/assembly/${sourceIndex}`, issues);
     }
@@ -1700,7 +1714,7 @@ export async function validateRuntimeSources({ project, sources, projectRoot }) 
     issues.push(...uiExperienceValidation.issues);
     warnings.push(...uiExperienceValidation.warnings);
     validateRuntimeDeliveries(mvuSources, uiSources, issues);
-    validateHostRuntimeContracts(mvuSources, issues);
+    validateHostRuntimeContracts(mvuSources, issues, warnings);
     validateStateBindings(sources, graph.bySource, issues);
   }
   validateStableIds(sources, issues);
@@ -1714,11 +1728,17 @@ export async function validateRuntimeSources({ project, sources, projectRoot }) 
     for (const [sourceIndex, source] of mvuSources.entries()) {
       if (!source.mvu?.enabled) continue;
       const adapter = source.runtime_contract?.adapter;
-      if (adapter?.id !== "tavern_helper" || adapter.delivery !== "embedded") {
+      const registeredAdapter = adapter
+        && typeof adapter.entrypoint === "string"
+        && adapter.entrypoint.trim() !== ""
+        && (adapter.id === "tavern_helper"
+          ? adapter.delivery === "embedded"
+          : ["embedded", "host_required", "remote"].includes(adapter.delivery));
+      if (!registeredAdapter) {
         issues.push(issue(
           `/runtime/mvu/${sourceIndex}/runtime_contract/adapter`,
           "mvu.runtime_delivery",
-          "MVU character-card delivery requires the embedded Tavern Helper adapter so Forge can include the pinned engine, generated schema registrar, and runtime guard"
+          "MVU character-card delivery requires either the embedded Tavern Helper adapter or another fully registered custom adapter"
         ));
       }
     }

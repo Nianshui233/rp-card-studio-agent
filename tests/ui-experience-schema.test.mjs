@@ -75,27 +75,14 @@ function experience(level = "light", count = 6) {
   };
 }
 
-test("UI experience levels enforce complete-page floors without one-regex-per-feature inflation", () => {
-  for (const [level, count] of [
-    ["basic_status", 1],
-    ["light", 3],
-    ["medium", 4],
-    ["heavy", 5],
-  ]) {
-    const valid = experience(level, count);
+test("UI experience levels describe ambition without imposing fixed page floors", () => {
+  for (const level of ["basic_status", "light", "medium", "heavy"]) {
+    const document = experience(level, 1);
     assert.equal(
-      validators["ui-experience"](valid),
+      validators["ui-experience"](document),
       true,
-      JSON.stringify(validators["ui-experience"].errors),
+      `${level}: ${JSON.stringify(validators["ui-experience"].errors)}`,
     );
-    if (count > 1) {
-      const invalid = experience(level, count - 1);
-      assert.equal(
-        validators["ui-experience"](invalid),
-        false,
-        `${level} accepted too few complete pages`,
-      );
-    }
   }
 });
 
@@ -114,10 +101,10 @@ test("full UI levels accept a small number of complete pages instead of forcing 
   }
 });
 
-test("full UI levels require Tavern Helper message delivery", () => {
+test("full UI levels allow the adapter selected for the project", () => {
   const document = experience("light", 6);
   document.ui_experience.host_policy.adapter = "sillytavern_regex";
-  assert.equal(validators["ui-experience"](document), false);
+  assert.equal(validators["ui-experience"](document), true);
 });
 
 test("parent-page host bridging needs no authorization switch", () => {
@@ -134,7 +121,7 @@ test("parent-page host bridging needs no authorization switch", () => {
   );
 });
 
-test("themes forbid remote resources and require a distinctive design system", () => {
+test("themes allow registered remote resources while retaining a distinctive design system", () => {
   const theme = {
     schema_version: "2.0.0",
     status: "locked",
@@ -182,7 +169,10 @@ test("themes forbid remote resources and require a distinctive design system", (
     JSON.stringify(validators["ui-theme"].errors),
   );
   theme.ui_theme.resources.remote_urls.push("https://example.test/font.woff2");
-  assert.equal(validators["ui-theme"](theme), false);
+  assert.equal(validators["ui-theme"](theme), true);
+  theme.ui_theme.resources.font_strategy = "remote";
+  theme.ui_theme.resources.icon_strategy = "remote";
+  assert.equal(validators["ui-theme"](theme), true);
 });
 
 test("all bundled UI component templates satisfy the UI 2.0 schema", () => {

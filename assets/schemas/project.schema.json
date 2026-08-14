@@ -19,44 +19,108 @@
     "release"
   ],
   "properties": {
-    "schema_version": { "const": "1.0.0" },
+    "schema_version": {
+      "const": "1.0.0"
+    },
     "project": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "display_name", "locale", "workspace", "operation", "status"],
+      "required": [
+        "id",
+        "display_name",
+        "locale",
+        "workspace",
+        "operation",
+        "status"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "display_name": { "type": "string", "minLength": 1 },
-        "locale": { "const": "zh-CN" },
-        "workspace": { "type": "string", "minLength": 1 },
-        "operation": { "enum": ["create", "continue", "convert", "edit", "audit", "ui"] },
-        "status": { "enum": ["draft", "active", "complete", "archived"] }
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "locale": {
+          "type": "string",
+          "minLength": 1,
+          "default": "zh-CN"
+        },
+        "workspace": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operation": {
+          "enum": [
+            "create",
+            "continue",
+            "convert",
+            "edit",
+            "audit",
+            "ui"
+          ]
+        },
+        "status": {
+          "enum": [
+            "draft",
+            "active",
+            "complete",
+            "archived"
+          ]
+        }
       }
     },
     "preflight": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["workspace_confirmed", "nsfw", "input_materials_confirmed", "deliverables_confirmed"],
+      "required": [
+        "workspace_confirmed",
+        "nsfw",
+        "input_materials_confirmed",
+        "deliverables_confirmed"
+      ],
       "properties": {
-        "workspace_confirmed": { "type": "boolean" },
+        "workspace_confirmed": {
+          "type": "boolean"
+        },
         "nsfw": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["confirmed", "enabled", "decision_source"],
+          "required": [
+            "confirmed",
+            "enabled",
+            "decision_source"
+          ],
           "properties": {
-            "confirmed": { "type": "boolean" },
-            "enabled": { "type": "boolean" },
-            "decision_source": { "enum": ["pending", "user"] }
+            "confirmed": {
+              "type": "boolean"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "decision_source": {
+              "enum": [
+                "pending",
+                "user"
+              ]
+            }
           }
         },
-        "input_materials_confirmed": { "type": "boolean" },
-        "deliverables_confirmed": { "type": "boolean" }
+        "input_materials_confirmed": {
+          "type": "boolean"
+        },
+        "deliverables_confirmed": {
+          "type": "boolean"
+        }
       }
     },
     "workflow": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["stage_order", "optional_stages"],
+      "required": [
+        "stage_order",
+        "optional_stages"
+      ],
       "properties": {
         "stage_order": {
           "const": [
@@ -73,21 +137,46 @@
           ]
         },
         "optional_stages": {
-          "const": ["materials", "systems", "scenes", "mvu_ejs", "status_ui"]
+          "const": [
+            "materials",
+            "systems",
+            "scenes",
+            "mvu_ejs",
+            "status_ui"
+          ]
         }
       }
     },
     "features": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["materials", "systems", "scenes", "mvu", "ejs", "status_ui"],
+      "required": [
+        "materials",
+        "systems",
+        "scenes",
+        "mvu",
+        "ejs",
+        "status_ui"
+      ],
       "properties": {
-        "materials": { "type": "boolean" },
-        "systems": { "type": "boolean" },
-        "scenes": { "type": "boolean" },
-        "mvu": { "type": "boolean" },
-        "ejs": { "type": "boolean" },
-        "status_ui": { "type": "boolean" }
+        "materials": {
+          "type": "boolean"
+        },
+        "systems": {
+          "type": "boolean"
+        },
+        "scenes": {
+          "type": "boolean"
+        },
+        "mvu": {
+          "type": "boolean"
+        },
+        "ejs": {
+          "type": "boolean"
+        },
+        "status_ui": {
+          "type": "boolean"
+        }
       }
     },
     "deliverables": {
@@ -109,65 +198,154 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "path", "kind"],
+        "required": [
+          "id",
+          "path",
+          "kind"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "path": { "type": "string", "minLength": 1 },
-          "kind": { "enum": ["text", "document", "character_card_json", "character_card_png", "worldbook", "project", "other"] },
-          "read_only": { "type": "boolean", "default": true },
-          "notes": { "type": "string" }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "enum": [
+              "text",
+              "document",
+              "character_card_json",
+              "character_card_png",
+              "worldbook",
+              "project",
+              "other"
+            ]
+          },
+          "read_only": {
+            "type": "boolean",
+            "default": true
+          },
+          "notes": {
+            "type": "string"
+          }
         }
       }
     },
     "decisions": {
       "type": "array",
-      "items": { "$ref": "#/$defs/decision" }
+      "items": {
+        "$ref": "#/$defs/decision"
+      }
     },
     "cross_stage_backlog": {
       "type": "array",
-      "items": { "$ref": "#/$defs/backlog" }
+      "items": {
+        "$ref": "#/$defs/backlog"
+      }
     },
     "source_manifest": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["positioning", "world", "characters", "systems", "scenes", "mvu", "prompts", "ui", "preserved_imports"],
+      "required": [
+        "positioning",
+        "world",
+        "characters",
+        "systems",
+        "scenes",
+        "mvu",
+        "prompts",
+        "ui",
+        "preserved_imports"
+      ],
       "properties": {
-        "positioning": { "$ref": "#/$defs/singlePathList" },
-        "world": { "$ref": "#/$defs/pathList" },
-        "characters": { "$ref": "#/$defs/pathList" },
-        "systems": { "$ref": "#/$defs/pathList" },
-        "scenes": { "$ref": "#/$defs/pathList" },
-        "mvu": { "$ref": "#/$defs/pathList" },
-        "prompts": { "$ref": "#/$defs/pathList" },
-        "ui": { "$ref": "#/$defs/pathList" },
+        "positioning": {
+          "$ref": "#/$defs/singlePathList"
+        },
+        "world": {
+          "$ref": "#/$defs/pathList"
+        },
+        "characters": {
+          "$ref": "#/$defs/pathList"
+        },
+        "systems": {
+          "$ref": "#/$defs/pathList"
+        },
+        "scenes": {
+          "$ref": "#/$defs/pathList"
+        },
+        "mvu": {
+          "$ref": "#/$defs/pathList"
+        },
+        "prompts": {
+          "$ref": "#/$defs/pathList"
+        },
+        "ui": {
+          "$ref": "#/$defs/pathList"
+        },
         "assembly": {
           "type": "array",
-          "items": { "type": "string", "minLength": 1 },
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
           "uniqueItems": true,
           "maxItems": 1
         },
-        "preserved_imports": { "$ref": "#/$defs/pathList" }
+        "preserved_imports": {
+          "$ref": "#/$defs/pathList"
+        }
       }
     },
     "runtime_target": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["application", "version", "dependencies"],
+      "required": [
+        "application",
+        "version",
+        "dependencies"
+      ],
       "properties": {
-        "application": { "const": "SillyTavern" },
-        "version": { "type": "string", "minLength": 1 },
+        "application": {
+          "const": "SillyTavern"
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
         "dependencies": {
           "type": "array",
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["id", "class", "delivery"],
+            "required": [
+              "id",
+              "class",
+              "delivery"
+            ],
             "properties": {
-              "id": { "$ref": "#/$defs/id" },
-              "class": { "enum": ["builtin", "embedded", "host_required", "remote", "development_only"] },
-              "delivery": { "type": "string", "minLength": 1 },
-              "version": { "type": "string" },
-              "fallback": { "type": "string" }
+              "id": {
+                "$ref": "#/$defs/id"
+              },
+              "class": {
+                "enum": [
+                  "builtin",
+                  "embedded",
+                  "host_required",
+                  "remote",
+                  "development_only"
+                ]
+              },
+              "delivery": {
+                "type": "string",
+                "minLength": 1
+              },
+              "version": {
+                "type": "string"
+              },
+              "fallback": {
+                "type": "string"
+              }
             }
           }
         }
@@ -176,70 +354,185 @@
     "release": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["version", "outputs", "accepted_warnings"],
+      "required": [
+        "version",
+        "outputs",
+        "accepted_warnings"
+      ],
       "properties": {
-        "version": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$" },
-        "outputs": { "$ref": "#/$defs/pathList" },
-        "accepted_warnings": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+        "version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$"
+        },
+        "outputs": {
+          "$ref": "#/$defs/pathList"
+        },
+        "accepted_warnings": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        }
       }
     }
   },
   "$defs": {
-    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
     "stage": {
-      "enum": ["preflight", "positioning", "materials", "worldbuilding", "character", "systems", "scenes", "mvu_ejs", "narrative_opening", "status_ui", "integration"]
+      "enum": [
+        "preflight",
+        "positioning",
+        "materials",
+        "worldbuilding",
+        "character",
+        "systems",
+        "scenes",
+        "mvu_ejs",
+        "narrative_opening",
+        "status_ui",
+        "integration"
+      ]
     },
     "decision": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "stage", "summary", "value", "decided_by", "locked", "status", "rationale", "history"],
+      "required": [
+        "id",
+        "stage",
+        "summary",
+        "value",
+        "decided_by",
+        "locked",
+        "status",
+        "rationale",
+        "history"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/decisionId" },
-        "stage": { "$ref": "#/$defs/stage" },
-        "summary": { "type": "string", "minLength": 1 },
+        "id": {
+          "$ref": "#/$defs/decisionId"
+        },
+        "stage": {
+          "$ref": "#/$defs/stage"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
         "value": {},
-        "decided_by": { "enum": ["user", "ai_delegation", "imported"] },
-        "locked": { "type": "boolean" },
-        "status": { "enum": ["active", "superseded"] },
-        "rationale": { "type": "string", "minLength": 1 },
-        "round": { "type": "integer", "minimum": 0 },
+        "decided_by": {
+          "enum": [
+            "user",
+            "ai_delegation",
+            "imported"
+          ]
+        },
+        "locked": {
+          "type": "boolean"
+        },
+        "status": {
+          "enum": [
+            "active",
+            "superseded"
+          ]
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        },
+        "round": {
+          "type": "integer",
+          "minimum": 0
+        },
         "history": {
           "type": "array",
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["value", "decided_by", "rationale", "superseded_at"],
+            "required": [
+              "value",
+              "decided_by",
+              "rationale",
+              "superseded_at"
+            ],
             "properties": {
               "value": {},
-              "decided_by": { "enum": ["user", "ai_delegation", "imported"] },
-              "rationale": { "type": "string", "minLength": 1 },
-              "superseded_at": { "type": "string", "minLength": 1 }
+              "decided_by": {
+                "enum": [
+                  "user",
+                  "ai_delegation",
+                  "imported"
+                ]
+              },
+              "rationale": {
+                "type": "string",
+                "minLength": 1
+              },
+              "superseded_at": {
+                "type": "string",
+                "minLength": 1
+              }
             }
           }
         }
       }
     },
-    "decisionId": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)*$" },
+    "decisionId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)*$"
+    },
     "backlog": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "source_stage", "target_stage", "summary", "status"],
+      "required": [
+        "id",
+        "source_stage",
+        "target_stage",
+        "summary",
+        "status"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "source_stage": { "$ref": "#/$defs/stage" },
-        "target_stage": { "$ref": "#/$defs/stage" },
-        "summary": { "type": "string", "minLength": 1 },
-        "status": { "enum": ["open", "blocking", "deferred", "resolved"] }
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "source_stage": {
+          "$ref": "#/$defs/stage"
+        },
+        "target_stage": {
+          "$ref": "#/$defs/stage"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "open",
+            "blocking",
+            "deferred",
+            "resolved"
+          ]
+        }
       }
     },
     "pathList": {
       "type": "array",
-      "items": { "type": "string", "minLength": 1 },
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
       "uniqueItems": true
     },
     "singlePathList": {
       "type": "array",
-      "items": { "type": "string", "minLength": 1 },
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
       "uniqueItems": true,
       "minItems": 1,
       "maxItems": 1

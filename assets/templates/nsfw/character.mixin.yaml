@@ -1,10 +1,11 @@
+# ═══ NSFW层 ═══
 nsfw:
-  physical_presentation: []
-  intimacy_style:
-    initiative: ""
-    pacing: ""
-    expressions: []
-  situational_behavior: []
-  relationship_expression: []
-  continuity_rules: []
-
+  sexual_orientation: "性取向"
+  standing: "角色定位（如：攻/受/S/M等）"
+  fetish:
+    - "具体性癖"
+  preference: "风格偏好（如：偏好主导/服从/温柔/粗暴等）"
+  sex_organs: '具体描述（如：阴户是"一线天"，颜色偏黑色；阴茎疲软时5CM，勃起时12cm等）'
+  sensitive_areas:
+    - "敏感部位 + 反应描述"
+  contrast: "性格反差描述（如：平时高冷 → 亲密时粘人且失控等）"

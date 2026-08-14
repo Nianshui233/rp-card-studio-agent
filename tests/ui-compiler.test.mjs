@@ -530,7 +530,7 @@ test("message components generate CharacterBook output contracts and survive ide
   );
 });
 
-test("UI validation allows parent-page host bridging while still enforcing level floors", async () => {
+test("UI validation allows parent-page host bridging without turning level guidance into blockers", async () => {
   const bridged = sources("medium", 6);
   const bridgedComponent = bridged.ui.find((entry) => entry.value.ui_component);
   bridgedComponent.value.ui_component.interactions.push("host_bridge");
@@ -549,10 +549,11 @@ test("UI validation allows parent-page host bridging while still enforcing level
     sources: bridged,
     projectRoot: process.cwd(),
   });
-  assert.ok(result.issues.some((item) => item.rule === "ui.capability_floor"));
+  assert.equal(result.issues.some((item) => item.rule === "ui.capability_floor"), false);
+  assert.ok(result.warnings.some((item) => item.rule === "ui.capability_floor"));
   assert.equal(
     result.issues.some(
-      (item) => item.rule === "ui.security.persistent_status_panel",
+      (item) => item.rule === "ui.user_constraint.persistent_status_panel",
     ),
     false,
   );
@@ -579,7 +580,7 @@ test("UI validation still rejects known persistent page-level status panels", as
   });
   assert.ok(
     result.issues.some(
-      (item) => item.rule === "ui.security.persistent_status_panel",
+      (item) => item.rule === "ui.user_constraint.persistent_status_panel",
     ),
   );
 });
@@ -603,11 +604,11 @@ test("UI validation rejects SillyTavern replacement tokens in inline sources", a
     projectRoot: process.cwd(),
   });
   assert.ok(
-    result.issues.some((item) => item.rule === "ui.security.replacement_token"),
+    result.issues.some((item) => item.rule === "ui.correctness.replacement_token"),
   );
 });
 
-test("inline message scripts reject HTML-entity-prone operators and pagehide-aborted controls", async () => {
+test("inline message scripts reject HTML-entity-prone operators but allow pagehide cleanup", async () => {
   const unsafe = sources("light", 6);
   const unsafeComponent = unsafe.ui.find((entry) => entry.value.ui_component);
   unsafeComponent.value.ui_component.source = {
@@ -627,13 +628,14 @@ test("inline message scripts reject HTML-entity-prone operators and pagehide-abo
   });
   assert.ok(
     result.issues.some(
-      (item) => item.rule === "ui.runtime.html_entity_operator_spacing",
+      (item) => item.rule === "ui.correctness.html_entity_operator_spacing",
     ),
   );
-  assert.ok(
+  assert.equal(
     result.issues.some(
       (item) => item.rule === "ui.runtime.pagehide_local_listener",
     ),
+    false,
   );
 });
 
@@ -656,7 +658,7 @@ test("inline message scripts accept spaced boolean operators", async () => {
   });
   assert.equal(
     result.issues.some(
-      (item) => item.rule === "ui.runtime.html_entity_operator_spacing",
+      (item) => item.rule === "ui.correctness.html_entity_operator_spacing",
     ),
     false,
   );
@@ -680,7 +682,7 @@ test("compiled message UI rejects invalid final JavaScript", () => {
   );
 });
 
-test("player-visible bindings reject known internal machine keys", () => {
+test("player-visible internal machine keys produce UX warnings rather than blockers", () => {
   const exposed = sources("light", 6);
   const bindingSet = exposed.ui.find((entry) => entry.value.ui_bindings);
   bindingSet.value.ui_bindings.bindings[0].label = "scene_id";
@@ -692,11 +694,8 @@ test("player-visible bindings reject known internal machine keys", () => {
     sources: exposed,
     variableBySource,
   });
-  assert.ok(
-    result.issues.some(
-      (item) => item.rule === "ui.localization.internal_key_visible",
-    ),
-  );
+  assert.equal(result.issues.some((item) => item.rule === "ui.localization.internal_key_visible"), false);
+  assert.ok(result.warnings.some((item) => item.rule === "ui.localization.internal_key_visible"));
 });
 
 test("medium UI capability can be concentrated into one multi-module workspace page", async () => {
@@ -790,7 +789,7 @@ test("medium UI capability can be concentrated into one multi-module workspace p
   );
 });
 
-test("player workspaces reject more than five primary entries", () => {
+test("player workspaces may exceed five primary entries with a UX warning", () => {
   const overloaded = sources("medium", 6);
   const status = overloaded.ui.find(
     (entry) => entry.value.ui_component?.id === "status",
@@ -809,14 +808,11 @@ test("player workspaces reject more than five primary entries", () => {
     sources: overloaded,
     variableBySource,
   });
-  assert.ok(
-    result.issues.some(
-      (item) => item.rule === "ui.navigation.player_entry_limit",
-    ),
-  );
+  assert.equal(result.issues.some((item) => item.rule === "ui.navigation.player_entry_limit"), false);
+  assert.ok(result.warnings.some((item) => item.rule === "ui.navigation.player_entry_limit"));
 });
 
-test("UI levels require real capability coverage rather than duplicated empty panels", async () => {
+test("UI level capability gaps are advisory rather than build blockers", async () => {
   const hollow = sources("heavy", 24);
   for (const entry of hollow.ui.filter((item) => item.value.ui_component)) {
     entry.value.ui_component.role = "workspace";
@@ -832,8 +828,6 @@ test("UI levels require real capability coverage rather than duplicated empty pa
     sources: hollow,
     projectRoot: process.cwd(),
   });
-  assert.ok(
-    result.issues.filter((item) => item.rule === "ui.capability_floor")
-      .length >= 4,
-  );
+  assert.equal(result.issues.some((item) => item.rule === "ui.capability_floor"), false);
+  assert.ok(result.warnings.filter((item) => item.rule === "ui.capability_floor").length >= 4);
 });

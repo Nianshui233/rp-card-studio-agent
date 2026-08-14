@@ -46,8 +46,8 @@ runtime_contract:
   # mvu.enabled=true 且交付角色卡时，改为 tavern_helper/embedded；
   # Forge 会自动生成固定版本 MVU 引擎、变量结构注册和运行守卫三条脚本。
   # 不要自行添加 main/latest MVU 或 mvu_zod 远程依赖。
-  # EJS 启用时登记 id=st_prompt_template、version=1.17.6.8、
-  # readiness_probe=globalThis.EjsTemplate 的 host_required 依赖。
+  # EJS 启用时登记 id=st_prompt_template、实际 version、
+  # readiness_probe=globalThis.EjsTemplate 的 host_required 依赖；1.17.6.8 是已验证基线。
   dependencies: []
   assumptions: []
   fallbacks: []

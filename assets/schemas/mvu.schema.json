@@ -4,49 +4,121 @@
   "title": "MVU and EJS Source",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "status", "mvu", "ejs", "runtime_contract"],
+  "required": [
+    "schema_version",
+    "status",
+    "mvu",
+    "ejs",
+    "runtime_contract"
+  ],
   "properties": {
-    "schema_version": { "enum": ["1.0.0", "1.1.0", "1.2.0"] },
-    "status": { "enum": ["draft", "locked"] },
+    "schema_version": {
+      "enum": [
+        "1.0.0",
+        "1.1.0",
+        "1.2.0"
+      ]
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "locked"
+      ]
+    },
     "mvu": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["enabled", "implementation", "update_mode", "output_dialect", "variables", "initialization", "update_rules", "routing"],
+      "required": [
+        "enabled",
+        "implementation",
+        "update_mode",
+        "output_dialect",
+        "variables",
+        "initialization",
+        "update_rules",
+        "routing"
+      ],
       "properties": {
-        "enabled": { "type": "boolean" },
-        "implementation": { "type": "string", "minLength": 1 },
-        "update_mode": { "enum": ["disabled", "same_generation"] },
-        "output_dialect": { "type": "string", "minLength": 1 },
-        "storage": { "$ref": "#/$defs/storage" },
-        "protocol": { "$ref": "#/$defs/protocol" },
-        "prompt_history": { "$ref": "#/$defs/promptHistory" },
-        "variables": { "type": "array", "items": { "$ref": "#/$defs/variable" } },
+        "enabled": {
+          "type": "boolean"
+        },
+        "implementation": {
+          "type": "string",
+          "minLength": 1
+        },
+        "update_mode": {
+          "enum": [
+            "disabled",
+            "same_generation",
+            "extra_pass",
+            "both"
+          ]
+        },
+        "output_dialect": {
+          "type": "string",
+          "minLength": 1
+        },
+        "storage": {
+          "$ref": "#/$defs/storage"
+        },
+        "protocol": {
+          "$ref": "#/$defs/protocol"
+        },
+        "prompt_history": {
+          "$ref": "#/$defs/promptHistory"
+        },
+        "variables": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/variable"
+          }
+        },
         "initialization": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["defaults", "opening_overrides"],
+          "required": [
+            "defaults",
+            "opening_overrides"
+          ],
           "properties": {
-            "defaults": { "type": "object" },
+            "defaults": {
+              "type": "object"
+            },
             "opening_overrides": {
               "type": "array",
               "items": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["opening_ref", "values", "strategy"],
+                "required": [
+                  "opening_ref",
+                  "values",
+                  "strategy"
+                ],
                 "properties": {
-                  "opening_ref": { "type": "string", "pattern": "^opening:[a-z][a-z0-9_]*$" },
-                  "values": { "type": "object" },
-                  "strategy": { "const": "complete_replace" }
+                  "opening_ref": {
+                    "type": "string",
+                    "pattern": "^opening:[a-z][a-z0-9_]*$"
+                  },
+                  "values": {
+                    "type": "object"
+                  },
+                  "strategy": {
+                    "const": "complete_replace"
+                  }
                 }
               }
             },
             "profiles": {
               "type": "array",
-              "items": { "$ref": "#/$defs/initializationProfile" }
+              "items": {
+                "$ref": "#/$defs/initializationProfile"
+              }
             },
             "opening_bindings": {
               "type": "array",
-              "items": { "$ref": "#/$defs/openingBinding" }
+              "items": {
+                "$ref": "#/$defs/openingBinding"
+              }
             }
           }
         },
@@ -55,46 +127,101 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["id", "trigger", "writer_id", "reads", "writes", "failure"],
+            "required": [
+              "id",
+              "trigger",
+              "writer_id",
+              "reads",
+              "writes",
+              "failure"
+            ],
             "properties": {
-              "id": { "$ref": "#/$defs/id" },
-              "trigger": { "type": "string", "minLength": 1 },
-              "writer_id": { "$ref": "#/$defs/id" },
-              "reads": { "$ref": "#/$defs/sourcePaths" },
+              "id": {
+                "$ref": "#/$defs/id"
+              },
+              "trigger": {
+                "type": "string",
+                "minLength": 1
+              },
+              "writer_id": {
+                "$ref": "#/$defs/id"
+              },
+              "reads": {
+                "$ref": "#/$defs/sourcePaths"
+              },
               "writes": {
                 "type": "array",
                 "minItems": 1,
                 "items": {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": ["source_path", "operation"],
+                  "required": [
+                    "source_path",
+                    "operation"
+                  ],
                   "properties": {
-                    "source_path": { "$ref": "#/$defs/sourcePath" },
-                    "operation": { "enum": ["set", "add", "subtract", "append", "remove", "move", "derive"] },
+                    "source_path": {
+                      "$ref": "#/$defs/sourcePath"
+                    },
+                    "operation": {
+                      "enum": [
+                        "set",
+                        "add",
+                        "subtract",
+                        "append",
+                        "remove",
+                        "move",
+                        "derive"
+                      ]
+                    },
                     "value": {}
                   }
                 }
               },
-              "failure": { "type": "string", "minLength": 1 }
+              "failure": {
+                "type": "string",
+                "minLength": 1
+              }
             }
           }
         },
         "routing": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["entries"],
+          "required": [
+            "entries"
+          ],
           "properties": {
             "entries": {
               "type": "array",
               "items": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["id", "source_ref", "recipient", "reason"],
+                "required": [
+                  "id",
+                  "source_ref",
+                  "recipient",
+                  "reason"
+                ],
                 "properties": {
-                  "id": { "$ref": "#/$defs/id" },
-                  "source_ref": { "type": "string", "minLength": 1 },
-                  "recipient": { "enum": ["plot", "update", "shared"] },
-                  "reason": { "type": "string", "minLength": 1 }
+                  "id": {
+                    "$ref": "#/$defs/id"
+                  },
+                  "source_ref": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "recipient": {
+                    "enum": [
+                      "plot",
+                      "update",
+                      "shared"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1
+                  }
                 }
               }
             }
@@ -104,37 +231,91 @@
       "allOf": [
         {
           "if": {
-            "properties": { "enabled": { "const": true } },
-            "required": ["enabled"]
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "enabled"
+            ]
           },
           "then": {
             "properties": {
-              "update_mode": { "const": "same_generation" },
-              "output_dialect": { "const": "mvu_json_patch" },
+              "update_mode": {
+                "enum": [
+                  "same_generation",
+                  "extra_pass",
+                  "both"
+                ]
+              },
+              "output_dialect": {
+                "const": "mvu_json_patch"
+              },
               "protocol": {
                 "type": "object",
                 "properties": {
-                  "id": { "const": "mvu_json_patch" },
+                  "id": {
+                    "const": "mvu_json_patch"
+                  },
                   "operations": {
                     "oneOf": [
-                      { "const": ["replace", "delta", "insert", "remove", "move"] },
-                      { "const": ["replace", "delta", "add", "remove", "move"] },
-                      { "const": ["replace", "delta", "insert", "add", "remove", "move"] }
+                      {
+                        "const": [
+                          "replace",
+                          "delta",
+                          "insert",
+                          "remove",
+                          "move"
+                        ]
+                      },
+                      {
+                        "const": [
+                          "replace",
+                          "delta",
+                          "add",
+                          "remove",
+                          "move"
+                        ]
+                      },
+                      {
+                        "const": [
+                          "replace",
+                          "delta",
+                          "insert",
+                          "add",
+                          "remove",
+                          "move"
+                        ]
+                      }
                     ]
                   }
                 },
-                "required": ["id", "operations"]
+                "required": [
+                  "id",
+                  "operations"
+                ]
               }
             }
           }
         },
         {
           "if": {
-            "properties": { "enabled": { "const": false } },
-            "required": ["enabled"]
+            "properties": {
+              "enabled": {
+                "const": false
+              }
+            },
+            "required": [
+              "enabled"
+            ]
           },
           "then": {
-            "properties": { "update_mode": { "const": "disabled" } }
+            "properties": {
+              "update_mode": {
+                "const": "disabled"
+              }
+            }
           }
         }
       ]
@@ -142,28 +323,83 @@
     "ejs": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["enabled", "entries"],
+      "required": [
+        "enabled",
+        "entries"
+      ],
       "properties": {
-        "enabled": { "type": "boolean" },
+        "enabled": {
+          "type": "boolean"
+        },
         "entries": {
           "type": "array",
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["id", "source_ref", "complexity", "condition", "reads", "target", "placement", "insertion_order", "branches"],
+            "required": [
+              "id",
+              "source_ref",
+              "complexity",
+              "condition",
+              "reads",
+              "target",
+              "placement",
+              "insertion_order",
+              "branches"
+            ],
             "properties": {
-              "id": { "$ref": "#/$defs/id" },
-              "display_name": { "type": "string", "minLength": 1 },
-              "source_ref": { "type": "string", "minLength": 1 },
-              "complexity": { "enum": ["entry_visibility", "section_branch", "dynamic_text"] },
-              "engine": { "const": "st_prompt_template" },
-              "placement": { "enum": ["before", "after"] },
-              "insertion_order": { "type": "integer" },
-              "condition": { "$ref": "#/$defs/ejsCondition" },
-              "reads": { "$ref": "#/$defs/runtimePaths" },
-              "target": { "enum": ["prompt", "render", "both"] },
-              "branches": { "$ref": "#/$defs/ejsBranches" },
-              "missing_dependency": { "enum": ["omit_dynamic", "block"] }
+              "id": {
+                "$ref": "#/$defs/id"
+              },
+              "display_name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "source_ref": {
+                "type": "string",
+                "minLength": 1
+              },
+              "complexity": {
+                "enum": [
+                  "entry_visibility",
+                  "section_branch",
+                  "dynamic_text"
+                ]
+              },
+              "engine": {
+                "const": "st_prompt_template"
+              },
+              "placement": {
+                "enum": [
+                  "before",
+                  "after"
+                ]
+              },
+              "insertion_order": {
+                "type": "integer"
+              },
+              "condition": {
+                "$ref": "#/$defs/ejsCondition"
+              },
+              "reads": {
+                "$ref": "#/$defs/runtimePaths"
+              },
+              "target": {
+                "enum": [
+                  "prompt",
+                  "render",
+                  "both"
+                ]
+              },
+              "branches": {
+                "$ref": "#/$defs/ejsBranches"
+              },
+              "missing_dependency": {
+                "enum": [
+                  "omit_dynamic",
+                  "block"
+                ]
+              }
             }
           }
         }
@@ -172,12 +408,20 @@
     "runtime_contract": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["dependencies", "assumptions", "fallbacks"],
+      "required": [
+        "dependencies",
+        "assumptions",
+        "fallbacks"
+      ],
       "properties": {
         "adapter": {
           "oneOf": [
-            { "type": "null" },
-            { "$ref": "#/$defs/adapter" }
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/adapter"
+            }
           ]
         },
         "dependencies": {
@@ -185,88 +429,246 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["id", "class", "delivery"],
+            "required": [
+              "id",
+              "class",
+              "delivery"
+            ],
             "properties": {
-              "id": { "$ref": "#/$defs/id" },
-              "class": { "enum": ["builtin", "embedded", "host_required", "remote", "development_only"] },
-              "delivery": { "type": "string", "minLength": 1 },
-              "version": { "type": "string", "minLength": 1 },
-              "load_order": { "type": "integer", "minimum": 0 },
+              "id": {
+                "$ref": "#/$defs/id"
+              },
+              "class": {
+                "enum": [
+                  "builtin",
+                  "embedded",
+                  "host_required",
+                  "remote",
+                  "development_only"
+                ]
+              },
+              "delivery": {
+                "type": "string",
+                "minLength": 1
+              },
+              "version": {
+                "type": "string",
+                "minLength": 1
+              },
+              "load_order": {
+                "type": "integer",
+                "minimum": 0
+              },
               "readiness_probe": {
                 "type": "string",
                 "pattern": "^(?:(?:globalThis|window)\\.)?[A-Za-z_$][A-Za-z0-9_$]*(?:\\.[A-Za-z_$][A-Za-z0-9_$]*)*$"
               },
-              "timeout_ms": { "type": "integer", "minimum": 1 },
-              "fallback": { "type": "string" }
+              "timeout_ms": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "fallback": {
+                "type": "string"
+              }
             }
           }
         },
-        "assumptions": { "$ref": "#/$defs/stringList" },
-        "fallbacks": { "$ref": "#/$defs/stringList" }
+        "assumptions": {
+          "$ref": "#/$defs/stringList"
+        },
+        "fallbacks": {
+          "$ref": "#/$defs/stringList"
+        }
       }
     },
-    "extensions": { "type": "object" }
+    "extensions": {
+      "type": "object"
+    }
   },
   "$defs": {
-    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
-    "sourcePath": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$" },
-    "runtimePath": { "type": "string", "pattern": "^stat_data\\.[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$" },
-    "sourcePaths": { "type": "array", "items": { "$ref": "#/$defs/sourcePath" }, "uniqueItems": true },
-    "runtimePaths": { "type": "array", "items": { "$ref": "#/$defs/runtimePath" }, "uniqueItems": true },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "sourcePath": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+    },
+    "runtimePath": {
+      "type": "string",
+      "pattern": "^stat_data\\.[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+    },
+    "sourcePaths": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/sourcePath"
+      },
+      "uniqueItems": true
+    },
+    "runtimePaths": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/runtimePath"
+      },
+      "uniqueItems": true
+    },
     "ejsCondition": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["runtime_path", "operator"],
+      "required": [
+        "runtime_path",
+        "operator"
+      ],
       "properties": {
-        "runtime_path": { "$ref": "#/$defs/runtimePath" },
-        "operator": { "enum": ["eq", "ne", "lt", "lte", "gt", "gte", "truthy", "falsy", "includes"] },
+        "runtime_path": {
+          "$ref": "#/$defs/runtimePath"
+        },
+        "operator": {
+          "enum": [
+            "eq",
+            "ne",
+            "lt",
+            "lte",
+            "gt",
+            "gte",
+            "truthy",
+            "falsy",
+            "includes"
+          ]
+        },
         "value": {}
       }
     },
     "ejsBranches": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["when_true", "when_false", "fallback"],
+      "required": [
+        "when_true",
+        "when_false",
+        "fallback"
+      ],
       "properties": {
-        "when_true": { "type": "string", "minLength": 1 },
-        "when_false": { "type": "string", "minLength": 1 },
-        "fallback": { "type": "string", "minLength": 1 }
+        "when_true": {
+          "type": "string",
+          "minLength": 1
+        },
+        "when_false": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fallback": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "ejsDependency": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "class", "delivery", "readiness_probe"],
+      "required": [
+        "id",
+        "class",
+        "delivery",
+        "readiness_probe"
+      ],
       "properties": {
-        "id": { "const": "st_prompt_template" },
-        "class": { "const": "host_required" },
-        "delivery": { "type": "string", "minLength": 1 },
-        "version": { "const": "1.17.6.8" },
-        "load_order": { "type": "integer", "minimum": 0 },
-        "readiness_probe": { "type": "string", "pattern": "^(?:(?:globalThis|window)\\.)?EjsTemplate$" },
-        "timeout_ms": { "type": "integer", "minimum": 1 },
-        "fallback": { "type": "string", "minLength": 1 }
+        "id": {
+          "const": "st_prompt_template"
+        },
+        "class": {
+          "const": "host_required"
+        },
+        "delivery": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "const": "1.17.6.8"
+        },
+        "load_order": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "readiness_probe": {
+          "type": "string",
+          "pattern": "^(?:(?:globalThis|window)\\.)?EjsTemplate$"
+        },
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "fallback": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
-    "stringList": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "stringList": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
     "storage": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["scope", "namespace", "snapshot_selector", "merge_policy"],
+      "required": [
+        "scope",
+        "namespace",
+        "snapshot_selector",
+        "merge_policy"
+      ],
       "properties": {
-        "scope": { "enum": ["global", "preset", "character", "chat", "message", "script", "extension"] },
-        "namespace": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$" },
-        "snapshot_selector": { "enum": ["current_message", "latest_message", "current_chat", "current_character", "current_script", "current_extension", "global"] },
-        "merge_policy": { "enum": ["scope_only", "message_over_chat", "message_over_chat_over_character", "deep_merge", "replace"] }
+        "scope": {
+          "enum": [
+            "global",
+            "preset",
+            "character",
+            "chat",
+            "message",
+            "script",
+            "extension"
+          ]
+        },
+        "namespace": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$"
+        },
+        "snapshot_selector": {
+          "enum": [
+            "current_message",
+            "latest_message",
+            "current_chat",
+            "current_character",
+            "current_script",
+            "current_extension",
+            "global"
+          ]
+        },
+        "merge_policy": {
+          "enum": [
+            "scope_only",
+            "message_over_chat",
+            "message_over_chat_over_character",
+            "deep_merge",
+            "replace"
+          ]
+        }
       }
     },
     "promptHistory": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["update_visibility"],
+      "required": [
+        "update_visibility"
+      ],
       "properties": {
         "update_visibility": {
-          "enum": ["hide_all", "keep_recent_updates"],
+          "enum": [
+            "hide_all",
+            "keep_recent_updates"
+          ],
           "description": "hide_all removes every historical update block from model context; keep_recent_updates maps to SillyTavern minDepth 4 and keeps roughly the newest one to two turns at an explicit token and attention cost."
         }
       }
@@ -274,103 +676,322 @@
     "protocol": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "version", "envelope", "path_syntax", "operations", "atomicity", "precondition"],
+      "required": [
+        "id",
+        "version",
+        "envelope",
+        "path_syntax",
+        "operations",
+        "atomicity",
+        "precondition"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "version": { "$ref": "#/$defs/semver" },
-        "envelope": { "type": "string", "minLength": 1 },
-        "path_syntax": { "enum": ["json_pointer", "dot_path"] },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "version": {
+          "$ref": "#/$defs/semver"
+        },
+        "envelope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path_syntax": {
+          "enum": [
+            "json_pointer",
+            "dot_path"
+          ]
+        },
         "operations": {
           "type": "array",
           "minItems": 1,
-          "items": { "enum": ["replace", "delta", "insert", "remove", "move", "set", "add", "subtract", "append"] },
+          "items": {
+            "enum": [
+              "replace",
+              "delta",
+              "insert",
+              "remove",
+              "move",
+              "set",
+              "add",
+              "subtract",
+              "append"
+            ]
+          },
           "uniqueItems": true
         },
-        "atomicity": { "enum": ["single", "batch"] },
-        "precondition": { "enum": ["none", "validate_before_commit", "revision_match"] },
-        "revision_guard": { "enum": ["none", "if_present", "required"] },
-        "error_policy": { "enum": ["reject_operation", "reject_batch", "retain_previous"] }
+        "atomicity": {
+          "enum": [
+            "single",
+            "batch"
+          ]
+        },
+        "precondition": {
+          "enum": [
+            "none",
+            "validate_before_commit",
+            "revision_match"
+          ]
+        },
+        "revision_guard": {
+          "enum": [
+            "none",
+            "if_present",
+            "required"
+          ]
+        },
+        "error_policy": {
+          "enum": [
+            "reject_operation",
+            "reject_batch",
+            "retain_previous"
+          ]
+        }
       }
     },
     "initializationProfile": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "values"],
+      "required": [
+        "id",
+        "values"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "extends": { "type": ["string", "null"], "pattern": "^mvu_init:[a-z][a-z0-9_]*$" },
-        "strategy": { "const": "complete_replace" },
-        "values": { "type": "object" }
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "extends": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^mvu_init:[a-z][a-z0-9_]*$"
+        },
+        "strategy": {
+          "const": "complete_replace"
+        },
+        "values": {
+          "type": "object"
+        }
       }
     },
     "openingBinding": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["opening_ref", "profile_ref", "strategy"],
+      "required": [
+        "opening_ref",
+        "profile_ref",
+        "strategy"
+      ],
       "properties": {
-        "opening_ref": { "type": "string", "pattern": "^opening:[a-z][a-z0-9_]*$" },
-        "profile_ref": { "type": "string", "pattern": "^mvu_init:[a-z][a-z0-9_]*$" },
-        "strategy": { "const": "complete_replace" }
+        "opening_ref": {
+          "type": "string",
+          "pattern": "^opening:[a-z][a-z0-9_]*$"
+        },
+        "profile_ref": {
+          "type": "string",
+          "pattern": "^mvu_init:[a-z][a-z0-9_]*$"
+        },
+        "strategy": {
+          "const": "complete_replace"
+        }
       }
     },
     "adapter": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "version", "delivery", "entrypoint", "readiness_probe", "timeout_ms", "fallback"],
+      "required": [
+        "id",
+        "version",
+        "delivery",
+        "entrypoint",
+        "readiness_probe",
+        "timeout_ms",
+        "fallback"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "version": { "$ref": "#/$defs/semver" },
-        "delivery": { "enum": ["builtin", "embedded", "host_required", "remote"] },
-        "entrypoint": { "type": "string", "minLength": 1 },
-        "load_order": { "type": "integer", "minimum": 0 },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "version": {
+          "$ref": "#/$defs/semver"
+        },
+        "delivery": {
+          "enum": [
+            "builtin",
+            "embedded",
+            "host_required",
+            "remote"
+          ]
+        },
+        "entrypoint": {
+          "type": "string",
+          "minLength": 1
+        },
+        "load_order": {
+          "type": "integer",
+          "minimum": 0
+        },
         "readiness_probe": {
           "type": "string",
           "pattern": "^(?:(?:globalThis|window)\\.)?[A-Za-z_$][A-Za-z0-9_$]*(?:\\.[A-Za-z_$][A-Za-z0-9_$]*)*$"
         },
-        "timeout_ms": { "type": "integer", "minimum": 1 },
-        "fallback": { "type": "string" }
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "fallback": {
+          "type": "string"
+        }
       },
       "allOf": [
         {
           "if": {
-            "properties": { "delivery": { "const": "embedded" } },
-            "required": ["delivery"]
+            "properties": {
+              "delivery": {
+                "const": "embedded"
+              }
+            },
+            "required": [
+              "delivery"
+            ]
           },
           "then": {
             "properties": {
-              "id": { "const": "tavern_helper" },
-              "entrypoint": { "const": "rp_card_studio_runtime_guard" }
+              "id": {
+                "const": "tavern_helper"
+              },
+              "entrypoint": {
+                "const": "rp_card_studio_runtime_guard"
+              }
             }
           }
         }
       ]
     },
-    "semver": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$" },
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$"
+    },
     "variable": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["source_path", "runtime_path", "type", "default", "constraints", "writer", "readers", "renderer", "cleanup", "migration", "visibility"],
+      "required": [
+        "source_path",
+        "runtime_path",
+        "type",
+        "default",
+        "constraints",
+        "writer",
+        "readers",
+        "renderer",
+        "cleanup",
+        "migration",
+        "visibility"
+      ],
       "properties": {
-        "source_path": { "$ref": "#/$defs/sourcePath" },
-        "runtime_path": { "$ref": "#/$defs/runtimePath" },
-        "type": { "enum": ["string", "integer", "number", "boolean", "enum", "object", "array"] },
+        "source_path": {
+          "$ref": "#/$defs/sourcePath"
+        },
+        "runtime_path": {
+          "$ref": "#/$defs/runtimePath"
+        },
+        "type": {
+          "enum": [
+            "string",
+            "integer",
+            "number",
+            "boolean",
+            "enum",
+            "object",
+            "array"
+          ]
+        },
         "default": {},
-        "constraints": { "type": "object" },
+        "constraints": {
+          "type": "object"
+        },
         "writer": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["kind", "id", "operations"],
+          "required": [
+            "kind",
+            "id",
+            "operations"
+          ],
           "properties": {
-            "kind": { "enum": ["plot_model", "update_model", "script", "user", "system", "none"] },
-            "id": { "$ref": "#/$defs/id" },
-            "operations": { "type": "array", "items": { "enum": ["set", "add", "subtract", "append", "remove", "move", "derive"] }, "uniqueItems": true }
+            "kind": {
+              "enum": [
+                "plot_model",
+                "update_model",
+                "script",
+                "user",
+                "system",
+                "none"
+              ]
+            },
+            "id": {
+              "$ref": "#/$defs/id"
+            },
+            "operations": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "set",
+                  "add",
+                  "subtract",
+                  "append",
+                  "remove",
+                  "move",
+                  "derive"
+                ]
+              },
+              "uniqueItems": true
+            }
           }
         },
-        "readers": { "type": "array", "items": { "enum": ["plot_model", "update_model", "ejs", "status_ui", "script", "user"] }, "uniqueItems": true },
-        "renderer": { "type": ["string", "null"] },
-        "cleanup": { "enum": ["retain", "archive", "truncate", "delete", "reset_on_new_chat"] },
-        "migration": { "type": ["string", "object"] },
-        "visibility": { "enum": ["player", "gm", "model"] }
+        "readers": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "plot_model",
+              "update_model",
+              "ejs",
+              "status_ui",
+              "script",
+              "user"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "renderer": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cleanup": {
+          "enum": [
+            "retain",
+            "archive",
+            "truncate",
+            "delete",
+            "reset_on_new_chat"
+          ]
+        },
+        "migration": {
+          "type": [
+            "string",
+            "object"
+          ]
+        },
+        "visibility": {
+          "enum": [
+            "player",
+            "gm",
+            "model"
+          ]
+        }
       }
     }
   }

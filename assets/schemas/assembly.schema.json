@@ -4,81 +4,223 @@
   "title": "RP Card Assembly Source",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "status", "worldbook_manifest", "media_manifest"],
+  "required": [
+    "schema_version",
+    "status",
+    "worldbook_manifest",
+    "media_manifest"
+  ],
   "properties": {
-    "schema_version": { "const": "1.0.0" },
-    "status": { "enum": ["draft", "locked"] },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "locked"
+      ]
+    },
     "worldbook_manifest": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["entries"],
+      "required": [
+        "entries"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "display_name": { "type": "string", "minLength": 1 },
-        "description": { "type": "string" },
-        "scan_depth": { "type": "null" },
-        "token_budget": { "type": "null" },
-        "recursive_scanning": { "const": false },
-        "preserve_imported_entries": { "type": "boolean" },
-        "duplicate_policy": { "enum": ["error", "keep_imported", "replace_imported"] },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "scan_depth": {
+          "type": "null"
+        },
+        "token_budget": {
+          "type": "null"
+        },
+        "recursive_scanning": {
+          "const": false
+        },
+        "preserve_imported_entries": {
+          "type": "boolean"
+        },
+        "duplicate_policy": {
+          "enum": [
+            "error",
+            "keep_imported",
+            "replace_imported"
+          ]
+        },
         "entries": {
           "type": "array",
-          "items": { "$ref": "#/$defs/worldbookEntry" }
+          "items": {
+            "$ref": "#/$defs/worldbookEntry"
+          }
         }
       }
     },
     "media_manifest": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["enabled", "assets"],
+      "required": [
+        "enabled",
+        "assets"
+      ],
       "properties": {
-        "enabled": { "type": "boolean" },
+        "enabled": {
+          "type": "boolean"
+        },
         "assets": {
           "type": "array",
-          "items": { "$ref": "#/$defs/mediaAsset" }
+          "items": {
+            "$ref": "#/$defs/mediaAsset"
+          }
         }
       }
     },
-    "extensions": { "type": "object" }
+    "extensions": {
+      "type": "object"
+    },
+    "card_fields": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "personality": {
+          "type": "string"
+        },
+        "scenario": {
+          "type": "string"
+        },
+        "mes_example": {
+          "type": "string"
+        },
+        "creator_notes": {
+          "type": "string"
+        },
+        "system_prompt": {
+          "type": "string"
+        },
+        "post_history_instructions": {
+          "type": "string"
+        }
+      }
+    }
   },
   "$defs": {
-    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
     "stringList": {
       "type": "array",
-      "items": { "type": "string", "minLength": 1 },
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
       "uniqueItems": true
     },
     "source": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind"],
+      "required": [
+        "kind"
+      ],
       "properties": {
-        "kind": { "enum": ["file", "registered_source", "inline"] },
-        "path": { "type": "string", "minLength": 1 },
-        "source_ref": { "type": "string", "minLength": 1 },
-        "selector": { "type": "string", "pattern": "^(?:|/(?:[^~/]|~[01])*)?(?:/(?:[^~/]|~[01])*)*$" },
-        "content": { "type": "string" }
+        "kind": {
+          "enum": [
+            "file",
+            "registered_source",
+            "inline"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "selector": {
+          "type": "string",
+          "pattern": "^(?:|/(?:[^~/]|~[01])*)?(?:/(?:[^~/]|~[01])*)*$"
+        },
+        "content": {
+          "type": "string"
+        }
       },
       "allOf": [
         {
-          "if": { "properties": { "kind": { "const": "file" } }, "required": ["kind"] },
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "file"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
           "then": {
-            "properties": { "path": { "type": "string", "minLength": 1 } },
-            "required": ["path"]
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "path"
+            ]
           }
         },
         {
-          "if": { "properties": { "kind": { "const": "registered_source" } }, "required": ["kind"] },
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "registered_source"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
           "then": {
-            "properties": { "source_ref": { "type": "string", "minLength": 1 } },
-            "required": ["source_ref"]
+            "properties": {
+              "source_ref": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "source_ref"
+            ]
           }
         },
         {
-          "if": { "properties": { "kind": { "const": "inline" } }, "required": ["kind"] },
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "inline"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
           "then": {
-            "properties": { "content": { "type": "string" } },
-            "required": ["content"]
+            "properties": {
+              "content": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "content"
+            ]
           }
         }
       ]
@@ -86,102 +228,283 @@
     "worldbookEntry": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "display_name", "source", "enabled", "activation", "insertion", "probability", "scan_depth", "recursion", "recipient", "visibility", "fallback"],
+      "required": [
+        "id",
+        "display_name",
+        "source",
+        "enabled",
+        "activation",
+        "insertion",
+        "probability",
+        "scan_depth",
+        "recursion",
+        "recipient",
+        "visibility",
+        "fallback"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "display_name": { "type": "string", "minLength": 1 },
-        "source": { "$ref": "#/$defs/source" },
-        "enabled": { "type": "boolean" },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
         "activation": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["mode", "primary_keys", "secondary_keys", "selective", "logic", "case_sensitive", "match_whole_words"],
+          "required": [
+            "mode",
+            "primary_keys",
+            "secondary_keys",
+            "selective",
+            "logic",
+            "case_sensitive",
+            "match_whole_words"
+          ],
           "properties": {
-            "mode": { "enum": ["constant", "keywords"] },
-            "primary_keys": { "$ref": "#/$defs/stringList" },
-            "secondary_keys": { "$ref": "#/$defs/stringList" },
-            "selective": { "type": "boolean" },
-            "logic": { "enum": ["any", "all", "not_any", "not_all"] },
-            "case_sensitive": { "type": "boolean" },
-            "match_whole_words": { "type": "boolean" }
+            "mode": {
+              "enum": [
+                "constant",
+                "keywords"
+              ]
+            },
+            "primary_keys": {
+              "$ref": "#/$defs/stringList"
+            },
+            "secondary_keys": {
+              "$ref": "#/$defs/stringList"
+            },
+            "selective": {
+              "type": "boolean"
+            },
+            "logic": {
+              "enum": [
+                "any",
+                "all",
+                "not_any",
+                "not_all"
+              ]
+            },
+            "case_sensitive": {
+              "type": "boolean"
+            },
+            "match_whole_words": {
+              "type": "boolean"
+            }
           }
         },
         "insertion": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["position", "order", "depth", "role"],
+          "required": [
+            "position",
+            "order",
+            "depth",
+            "role"
+          ],
           "properties": {
-            "position": { "enum": ["before_char", "after_char", "before_example", "after_example", "at_depth"] },
-            "order": { "type": "integer" },
-            "depth": { "type": ["integer", "null"], "minimum": 0 },
-            "role": { "enum": ["system", "user", "assistant"] }
-          }
-        },
-        "probability": { "type": "number", "minimum": 0, "maximum": 100 },
-        "scan_depth": { "type": ["integer", "null"], "minimum": 0, "maximum": 1000 },
-        "recursion": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["prevent_incoming", "prevent_outgoing", "delay_until_recursion"],
-          "properties": {
-            "prevent_incoming": { "type": "boolean" },
-            "prevent_outgoing": { "type": "boolean" },
-            "delay_until_recursion": {
-              "oneOf": [
-                { "type": "boolean" },
-                { "type": "integer", "minimum": 1, "maximum": 10000 }
+            "position": {
+              "enum": [
+                "before_char",
+                "after_char",
+                "before_example",
+                "after_example",
+                "at_depth"
+              ]
+            },
+            "order": {
+              "type": "integer"
+            },
+            "depth": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "role": {
+              "enum": [
+                "system",
+                "user",
+                "assistant"
               ]
             }
           }
         },
-        "recipient": { "const": "shared" },
-        "visibility": { "const": "model" },
-        "ignore_budget": { "type": "boolean" },
-        "token_budget": { "type": "null" },
-        "fallback": { "enum": ["skip", "block"] },
+        "probability": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "scan_depth": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "recursion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "prevent_incoming",
+            "prevent_outgoing",
+            "delay_until_recursion"
+          ],
+          "properties": {
+            "prevent_incoming": {
+              "type": "boolean"
+            },
+            "prevent_outgoing": {
+              "type": "boolean"
+            },
+            "delay_until_recursion": {
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 10000
+                }
+              ]
+            }
+          }
+        },
+        "recipient": {
+          "const": "shared"
+        },
+        "visibility": {
+          "const": "model"
+        },
+        "ignore_budget": {
+          "type": "boolean"
+        },
+        "token_budget": {
+          "type": "null"
+        },
+        "fallback": {
+          "enum": [
+            "skip",
+            "block"
+          ]
+        },
         "character_filter": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["avatar_stems", "tag_ids", "is_exclude"],
+          "required": [
+            "avatar_stems",
+            "tag_ids",
+            "is_exclude"
+          ],
           "properties": {
-            "avatar_stems": { "$ref": "#/$defs/stringList" },
-            "tag_ids": { "$ref": "#/$defs/stringList" },
-            "is_exclude": { "type": "boolean" }
+            "avatar_stems": {
+              "$ref": "#/$defs/stringList"
+            },
+            "tag_ids": {
+              "$ref": "#/$defs/stringList"
+            },
+            "is_exclude": {
+              "type": "boolean"
+            }
           }
         },
-        "extensions": { "type": "object" }
+        "extensions": {
+          "type": "object"
+        }
       }
     },
     "mediaAsset": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "kind", "source", "delivery", "consumers", "fallback"],
+      "required": [
+        "id",
+        "kind",
+        "source",
+        "delivery",
+        "consumers",
+        "fallback"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "kind": { "enum": ["portrait", "background", "sprite", "audio", "video", "ui_image", "font", "other"] },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "enum": [
+            "portrait",
+            "background",
+            "sprite",
+            "audio",
+            "video",
+            "ui_image",
+            "font",
+            "other"
+          ]
+        },
         "source": {
           "oneOf": [
-            { "$ref": "#/$defs/source" },
+            {
+              "$ref": "#/$defs/source"
+            },
             {
               "type": "object",
               "additionalProperties": false,
-              "required": ["kind", "url"],
+              "required": [
+                "kind",
+                "url"
+              ],
               "properties": {
-                "kind": { "const": "url" },
-                "url": { "type": "string", "pattern": "^https://" }
+                "kind": {
+                  "const": "url"
+                },
+                "url": {
+                  "type": "string",
+                  "pattern": "^https://"
+                }
               }
             }
           ]
         },
-        "delivery": { "enum": ["embedded", "remote", "host_required"] },
-        "preload": { "enum": ["none", "on_opening", "eager", "on_demand"] },
-        "mime_type": { "type": "string", "minLength": 1 },
+        "delivery": {
+          "enum": [
+            "embedded",
+            "remote",
+            "host_required"
+          ]
+        },
+        "preload": {
+          "enum": [
+            "none",
+            "on_opening",
+            "eager",
+            "on_demand"
+          ]
+        },
+        "mime_type": {
+          "type": "string",
+          "minLength": 1
+        },
         "integrity": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-            "bytes": { "type": "integer", "minimum": 0 }
+            "sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 0
+            }
           }
         },
         "consumers": {
@@ -189,42 +512,85 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["ref", "slot"],
+            "required": [
+              "ref",
+              "slot"
+            ],
             "properties": {
-              "ref": { "type": "string", "minLength": 1 },
-              "slot": { "type": "string", "minLength": 1 }
+              "ref": {
+                "type": "string",
+                "minLength": 1
+              },
+              "slot": {
+                "type": "string",
+                "minLength": 1
+              }
             }
           }
         },
         "fallback": {
           "oneOf": [
-            { "enum": ["skip", "text", "block"] },
+            {
+              "enum": [
+                "skip",
+                "text",
+                "block"
+              ]
+            },
             {
               "type": "object",
               "additionalProperties": false,
-              "required": ["strategy"],
+              "required": [
+                "strategy"
+              ],
               "properties": {
-                "strategy": { "enum": ["skip", "text", "asset", "block"] },
-                "text": { "type": "string" },
-                "asset_ref": { "type": "string", "pattern": "^media:[a-z][a-z0-9_]*$" }
+                "strategy": {
+                  "enum": [
+                    "skip",
+                    "text",
+                    "asset",
+                    "block"
+                  ]
+                },
+                "text": {
+                  "type": "string"
+                },
+                "asset_ref": {
+                  "type": "string",
+                  "pattern": "^media:[a-z][a-z0-9_]*$"
+                }
               }
             }
           ]
         },
-        "extensions": { "type": "object" }
+        "extensions": {
+          "type": "object"
+        }
       },
       "allOf": [
         {
           "if": {
-            "properties": { "delivery": { "const": "remote" } },
-            "required": ["delivery"]
+            "properties": {
+              "delivery": {
+                "const": "remote"
+              }
+            },
+            "required": [
+              "delivery"
+            ]
           },
           "then": {
             "properties": {
               "source": {
                 "type": "object",
-                "properties": { "kind": { "const": "url" } },
-                "required": ["kind"]
+                "properties": {
+                  "kind": {
+                    "const": "url"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
               }
             }
           }
@@ -234,14 +600,30 @@
             "properties": {
               "source": {
                 "type": "object",
-                "properties": { "kind": { "enum": ["file", "registered_source", "inline"] } },
-                "required": ["kind"]
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "file",
+                      "registered_source",
+                      "inline"
+                    ]
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
               }
             },
-            "required": ["source"]
+            "required": [
+              "source"
+            ]
           },
           "then": {
-            "properties": { "delivery": { "const": "embedded" } }
+            "properties": {
+              "delivery": {
+                "const": "embedded"
+              }
+            }
           }
         }
       ]

@@ -117,7 +117,7 @@ Use the sole character's name only when the locked mode is truly single-characte
 | `data.alternate_greetings` | Alternate opening texts in locked order |
 | metadata fields | Packaging identity such as tags, creator, and version; not world or behavior modules |
 
-Keep these advanced-definition fields empty for a newly authored card:
+Advanced-definition fields are valid SillyTavern host slots rather than forbidden territory:
 
 ```text
 data.personality
@@ -128,7 +128,9 @@ data.system_prompt
 data.post_history_instructions
 ```
 
-SillyTavern injects `description` as an always-present prompt block; it does not dynamically route content on its own. Keep the entry compact and do not place any character dossier, independently scheduled world module, system rules, narrative contracts, or status-output contracts there. Imported legacy values are different: preserve user-authored or unknown values losslessly unless a deliberate migration is authorized, and report rather than silently deleting them. Completing positioning transfers `name`/`description` ownership to the project, not deletion authority over advanced-definition fields. Clear those fields only after migration is complete and `integration.advanced_definition_policy` is locked to `clear_after_migration` or `migrate_to_characterbook`.
+Leave them empty when CharacterBook routing is cleaner, but use them when a compact always-on contract, traditional card compatibility, a plugin behavior, creator notes, example dialogue, or project-specific host semantics benefit from them. A maintained project writes them deliberately through `assembly.card_fields`; absence means “preserve or use the default,” while an explicitly present string means “project this value.” Avoid accidental duplication, but never reject a card merely because an advanced-definition field is intentionally populated.
+
+SillyTavern injects `description` as an always-present prompt block, so keep that field as the compact actor-free package entry. Do not turn it into a character dossier. Imported legacy advanced definitions remain lossless unless a deliberate migration or explicit `card_fields` override authorizes change.
 
 ### CharacterBook-first modularization
 
@@ -229,57 +231,27 @@ Equality proves only that the card points at a name. On first import into a clea
 
 ## 9. Runtime Projection Order
 
-Build a character payload in this order:
+Project runtime behavior in dependency order: semantic sources -> state/update contract -> adapter -> CharacterBook/model protocol -> SillyTavern regex or Tavern Helper script -> message HTML/UI. Record which layer owns each behavior so a display component never becomes the hidden source of game state.
 
-```text
-assembly
--> MVU CharacterBook entries
--> EJS CharacterBook entries
--> preserved imports
--> Tavern Helper scripts
--> SillyTavern character regexes
--> main CharacterBook binding
-```
-
-Each projector consumes the previous payload and merges its issues/warnings. A later adapter may not conceal an earlier contract failure.
-
-### MVU and EJS
-
-- The embedded MVU adapter targets Tavern Helper's `Mvu` API, waits boundedly for `waitGlobalInitialized("Mvu")`, subscribes to all public `Mvu.events.*` before bootstrapping from `getMvuData(options)`, and removes the exact `(event, handler)` pairs on cleanup. It must not fall back to `getVariables()`, `globalThis.MVU`, or invented event names.
-- An MVU-enabled card carries three managed Tavern Helper role scripts in stable ID order: the pinned MVU engine, a Zod schema registrar compiled from the variable ledger, and the runtime guard. The registrar calls `registerMvuSchema(Schema)` and is not replaced by the offline runtime-state JSON Schema.
-- The CharacterBook carries a D1/D0 current-variable entry using `format_message_variable::stat_data`, plus update rules and output format. These three model-facing prompts are part of the runtime contract.
-- Embedded MVU storage currently supports message targets. `latest_message` maps to `{ type: "message", message_id: "latest" }`; `current_message` uses a numeric host message context and otherwise explicitly degrades to latest. Initialization fills defaults in the host event object without a second write; bootstrap may persist missing defaults once. Reject an invalid update atomically.
-- Automatic updates currently support `same_generation`. `extra_pass` or `both` requires a verified independent request, routing, response parser, protocol validation, atomic commit, and failure handling. A parser or commit helper alone does not implement this chain.
-- EJS uses SillyTavern's `ST-Prompt-Template 1.17.6.8` (`globalThis.EjsTemplate`). EJS projects only to `data.character_book.entries[]`, never Tavern Helper scripts. Host entries stay disabled and constant with empty keys and preserve adjacent `@@always_enabled` plus generate/render decorators. Split `target: both` into generate and render entries.
-- EJS conditions are structured `condition.runtime_path/operator/value` with `branches.when_true/when_false/fallback`. Pure EJS uses a ledger-typed default with `getvar()`. MVU-linked EJS accepts only the verified message/stat_data/current-or-latest contract and reads `Mvu.getMvuData()` after a bounded wait. Missing snapshots, namespace, or paths use `branches.fallback`; never disguise missing state with a default that selects true or false.
-
-### Status UI
-
-- Status UI appears only inside AI messages. The delivery paths are SillyTavern character regex or Tavern Helper message-level JS/iframe.
-- `basic_status` is the compatibility contract. Its simple embedded regex replaces `<StatusPlaceHolderImpl/>` with self-contained text/static HTML and is fixed to `refresh: on_message`, `read_only: true`, `commands: []`, and a non-tab layout. Its missing/loading/error/degraded strings are design metadata, not proof of runtime branching or reliable per-message history.
-- Full `light`, `medium`, and `heavy` UI uses UI 2.0 sources: one `ui_experience`, one referenced `ui_theme`, one referenced `ui_bindings`, and one `ui_component` per complete message page or genuinely separate trigger block. Forge compiles each page into a stable UUID character regex with a Chinese display name. A full page contains its CSS, body structure, JavaScript, internal modules and bindings. Model-produced block markers also compile into dedicated Chinese-named CharacterBook output contracts. The card still builds to one `.json` by default.
-- `light` requires at least three complete pages, four populated modules inside dashboard/workspace pages, an entry, `status_terminal`, and one narrative component. `medium` requires at least four pages, a setup surface, eight populated workspace modules, and two narrative components. `heavy` requires at least five pages, twelve populated workspace modules, three narrative components, and `hub` or `mixed` navigation. Duplicate shells, empty groups, or one-regex-per-feature padding do not satisfy these capability floors.
-- `ui_theme` records the subject-specific concept, full semantic palette, display/body/utility typography, shape, texture, motion, breakpoints, resource strategy, and one restrained visual signature. Remote font, icon, image, script, and stylesheet URLs are empty by default; visual quality is not measured by source line count.
-- `ui_bindings` preserves semantic `source_path` ownership and maps it explicitly to MVU `runtime_path`. Bindings may read only player-visible persistent `stat_data`; UI components never invent variable semantics or become a second writer. Every component declares its producer, trigger shape, payload format, interactions, layout groups, loading/empty/error/degraded states, delivery and fallback.
-- Full UI pages require `tavern_helper_message + host_required`. Each regex emits self-contained fenced HTML for the message iframe. State pages wait for `Mvu`, read the message-aware merged snapshot with `getAllVariables()`, render persistent `stat_data`, subscribe to `Mvu.events.VARIABLE_UPDATE_ENDED`, and remove the exact listener on `pagehide`/`unload`. A declared runtime path is tried first; a stale `uninitialized` alias may fall back to the same ledger variable's semantic source path. Model-produced block pages receive their payload through a Forge-controlled regex capture slot instead of rereading replaced chat text with `getChatMessages()`.
-- The generated block capture is the only place UI compilation may introduce `$1`. Inline user HTML/CSS/JS still rejects SillyTavern replacement tokens. JSON payload contracts require strict JSON without Markdown fences and Unicode-escaped `<`, `>`, and `&` so the inert capture container cannot be terminated by payload text.
-- Inline UI sources may use parent-page or plugin DOM access for practical host integration, including composer prefilling, focusing, confirmed sending, and plugin controls; this is `host_bridge`, while legacy `host_fragile` declarations remain compatible and require no extra authorization. Do not require an API search or substitute before using a known host target. Host/global listeners, observers, and temporary nodes need stable ownership plus unload/chat-switch/rebuild cleanup. Sources must not create a page-level persistent status bar/panel, access credentials or private storage, use `eval`/`new Function`, unsafe dynamic HTML sinks, uncontrolled network/remote UI, or SillyTavern replacement tokens such as `$&`, `$1`, `$`` and `$'`. No component may use `latest` to impersonate a historical message snapshot or require a modification to SillyTavern or Tavern Helper.
-- UI 2.0 preserves responsive, keyboard, color-independent and reduced-motion behavior, explicit component/total byte budgets, a large-collection strategy, message-edit redraw, and plain-text fallback. Before real host execution, every full component and the experience remain `runtime: not_run` even when Schema, compilation and static checks pass.
-- Record scoped-regex authorization, Tavern Helper character-script enablement, macro enablement, ST-Prompt-Template enablement when applicable, and observed MVU startup separately. Blob URL rendering is diagnostic evidence only: recommend disabling it and refreshing only when the target host actually observes `mvu_started: false` while the option is enabled. The option alone proves neither success nor failure.
-- Forge appends one placeholder idempotently to the default and alternate openings. With MVU, the later reply-format entry must tell the model not to output a placeholder because MVU appends it at runtime. Without MVU, generate a dedicated Chinese-named constant entry requiring exactly one trailing placeholder. Remove the old managed marker from `post_history_instructions` and never write the new contract there.
-- With MVU, generate separate prompt/display regexes that hide only complete `<initvar>...</initvar>` blocks and preserve the raw message, a prompt-only update filter that defaults to `hide_all`/`minDepth: null`, and stream/final display hiding for update blocks. The explicit `keep_recent_updates` option maps to `minDepth: 4`. Set `runOnEdit: true` on display-side rules and false on prompt-only rules. Generate `[不发送]界面占位符` separately from `[界面]状态栏`. Use stable UUIDs, non-greedy multi-block matching, fixed managed order, and collision protection.
-- SillyTavern's first-use regex authorization is a host security mechanism. Report it in handoff; never bypass or fake it.
+- CharacterBook is the preferred container for independently scheduled model-facing modules, not the only legal destination. Each maintained source needs an explicit projection disposition: CharacterBook, card field, greeting, regex, script, UI, runtime/build-only, or deliberate exclusion with a reason.
+- Built-in `same_generation` MVU remains the default maintained route. `extra_pass` and `both` are valid when a registered custom adapter supplies the independent request/parse/commit chain. Do not claim a capability that no adapter implements.
+- EJS requires a registered ST-Prompt-Template dependency and readiness probe. Version `1.17.6.8` is the verified baseline, not a universal lock; other versions produce compatibility notes and require real-host evidence before `runtime: pass`.
+- UI may use complete HTML/CSS/JavaScript, inline handlers, trusted HTML templates, `innerHTML`/`insertAdjacentHTML`, browser storage, indexedDB, fetch/XHR/WebSocket, remote libraries/fonts/media, parent-page DOM, plugin internals, private host APIs, dynamic code and custom bridges when they serve the project. Record dependencies, versions, portability and cleanup responsibilities instead of deleting the feature.
+- Hard-fail only confirmed breakage: invalid HTML/JavaScript/JSON, raw SillyTavern replacement tokens that corrupt replacement output, known HTML-entity operator collisions, broken references/bindings, missing required adapter entrypoints, or lifecycle behavior that demonstrably duplicates listeners, loses data or makes controls fail.
+- The only UI form explicitly prohibited by the owner is a page-level persistent status bar/panel mounted outside message content. Message-contained pages, buttons that prefill/send the SillyTavern composer, dialogs, overlays inside the message iframe and host-linked interactions are allowed.
+- Do not modify SillyTavern, Tavern Helper or another plugin to make the card work. Compatibility belongs in the card/project adapter layer.
+- Offline success may produce a candidate deliverable. Without real host evidence, keep `runtime: not_run`; this limits the claim, not the implementation or delivery.
 
 ## 10. NSFW Projection
 
-Lock NSFW only during project preflight.
+Lock NSFW once during project preflight and keep the switch author-side only.
 
-- `enabled: false`: omit specialized fields, groups, rules, conditions, and placeholders from character, system, openings, MVU, EJS, and UI.
-- `enabled: true`: merge already confirmed relevant content into normal character and status structures without a separate questionnaire or repeated switch prompt.
-- Platform-level constraints always apply.
-- GM visibility remains independent; enabling the feature does not make private fields player-visible.
+- `enabled: true`: treat the mature-content dimension as fully delegated, load the authoring mix-ins when their normal modules exist, and merge their fields into ordinary character/UI design without a separate questionnaire.
+- `enabled: false`: do not proactively load specialized adult templates. Preserve mature material already supplied or naturally required by the project; do not sanitize it merely because the author-side helper was disabled.
+- Never emit an NSFW on/off flag, refusal instruction, runtime gate, player-facing switch, model-facing restriction card or repeated safety reminder unless the user explicitly designs one as gameplay.
+- Visibility remains a separate content-routing decision: private facts stay private because of audience semantics, not because of the NSFW switch.
 
-Load the two mix-ins under `assets/templates/nsfw/` only when enabled. Do not create empty keys when disabled.
+The mix-ins under `assets/templates/nsfw/` are authoring scaffolds, not runtime guards.
 
 ## 11. Imported Cards and Unknown Fields
 

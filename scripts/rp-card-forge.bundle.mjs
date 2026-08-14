@@ -15929,7 +15929,7 @@ function validateProjectModel(project, state, root) {
       issues.push(modelIssue(`/project/${field}`, "required", `${field} \u5FC5\u987B\u662F\u975E\u7A7A\u5B57\u7B26\u4E32`));
     }
   }
-  if (project?.project?.locale !== "zh-CN") issues.push(modelIssue("/project/locale", "const", "locale \u5FC5\u987B\u4E3A zh-CN"));
+  if (typeof project?.project?.locale !== "string" || project.project.locale.trim() === "") issues.push(modelIssue("/project/locale", "type", "locale \u5FC5\u987B\u662F\u975E\u7A7A\u5B57\u7B26\u4E32"));
   if (!project?.preflight?.workspace_confirmed || !project?.preflight?.input_materials_confirmed || !project?.preflight?.deliverables_confirmed) {
     issues.push(modelIssue("/preflight", "confirmed", "\u5DE5\u4F5C\u533A\u3001\u8F93\u5165\u6750\u6599\u72B6\u6001\u548C\u4EA4\u4ED8\u7269\u5FC5\u987B\u5B8C\u6210\u9884\u68C0\u786E\u8BA4"));
   }
@@ -16308,15 +16308,24 @@ function assembleCharacterCard(sources, project, state, originalPayload = null) 
   if (projectOwnsSurface) {
     payload.data.description = typeof positioning?.card_entry === "string" ? positioning.card_entry : "";
   }
+  const advancedDefinitionFields = [
+    "personality",
+    "scenario",
+    "mes_example",
+    "creator_notes",
+    "system_prompt",
+    "post_history_instructions"
+  ];
   if (clearAdvancedDefinitions) {
-    for (const field of [
-      "personality",
-      "scenario",
-      "mes_example",
-      "creator_notes",
-      "system_prompt",
-      "post_history_instructions"
-    ]) payload.data[field] = "";
+    for (const field of advancedDefinitionFields) payload.data[field] = "";
+  }
+  const cardFields = sources.assembly[0]?.value?.card_fields;
+  if (isPlainObject(cardFields)) {
+    for (const field of advancedDefinitionFields) {
+      if (Object.hasOwn(cardFields, field) && typeof cardFields[field] === "string") {
+        payload.data[field] = cardFields[field];
+      }
+    }
   }
   if (projectOwnsSurface && singleCharacterCard && Array.isArray(primary?.tags)) {
     payload.data.tags = [...primary.tags];

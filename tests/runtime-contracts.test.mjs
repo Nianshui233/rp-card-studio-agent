@@ -142,6 +142,29 @@ function runtimeUiSources({
   });
 }
 
+test('extra-pass MVU requires a registered custom adapter but is not globally forbidden', async () => {
+  const missingAdapter = runtimeUiSources();
+  missingAdapter.mvu[0].value.mvu.update_mode = 'extra_pass';
+  let validation = await validateRuntimeSources({
+    project: { project: { target: 'character_card' }, features: { mvu: true, ejs: false, status_ui: true }, deliverables: ['character_card_json'] },
+    sources: missingAdapter,
+    projectRoot: process.cwd(),
+  });
+  assert.ok(validation.issues.some(issue => issue.rule === 'mvu.update_mode_adapter'));
+
+  const customAdapter = runtimeUiSources({ adapterDelivery: 'host_required' });
+  customAdapter.mvu[0].value.mvu.update_mode = 'extra_pass';
+  customAdapter.mvu[0].value.runtime_contract.adapter.id = 'custom_update_bridge';
+  customAdapter.mvu[0].value.runtime_contract.adapter.entrypoint = 'globalThis.CustomUpdateBridge';
+  validation = await validateRuntimeSources({
+    project: { project: { target: 'character_card' }, features: { mvu: true, ejs: false, status_ui: true }, deliverables: ['character_card_json'] },
+    sources: customAdapter,
+    projectRoot: process.cwd(),
+  });
+  assert.equal(validation.issues.some(issue => issue.rule === 'mvu.update_mode_adapter'), false);
+  assert.equal(validation.issues.some(issue => issue.rule === 'mvu.runtime_delivery'), false);
+});
+
 test('registered assembly sources resolve source_ref and JSON Pointer selector', async () => {
   const sources = emptySources({
     world: [{
