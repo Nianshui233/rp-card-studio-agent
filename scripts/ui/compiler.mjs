@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { Script } from "node:vm";
 
 const LEVEL_REQUIREMENTS = Object.freeze({
   basic_status: { minimumSurfaces: 1, workspaceModules: 1, narrative: 0 },
@@ -30,6 +31,19 @@ const HOST_API_INTERACTIONS = new Set([
   "opening_swipe",
   "host_bridge",
   "host_fragile",
+]);
+const PLAYER_VISIBLE_INTERNAL_KEYS = new Set([
+  "status",
+  "scene_id",
+  "scene_ref",
+  "region_id",
+  "area_id",
+  "display_name",
+  "setup_status",
+  "phase_id",
+  "current_branch_status",
+  "baseline_unmodified",
+  "awaiting_player_declaration",
 ]);
 
 function clone(value) {
@@ -141,6 +155,24 @@ function scanInlineSource(component, experience) {
   ];
   for (const [pattern, rule, message] of rules) {
     if (pattern.test(all)) issues.push(issue(base, rule, message));
+  }
+  if (/&&[A-Za-z_$]|\|\|[A-Za-z_$]/.test(js)) {
+    issues.push(
+      issue(
+        `${base}/js`,
+        "ui.runtime.html_entity_operator_spacing",
+        "Inline message JavaScript must keep spaces after && and ||; Tavern Helper HTML parsing can reinterpret sequences such as &&current as a named entity",
+      ),
+    );
+  }
+  if (/pagehide/i.test(js) && /AbortController|\.abort\s*\(|signal\s*:/i.test(js)) {
+    issues.push(
+      issue(
+        `${base}/js`,
+        "ui.runtime.pagehide_local_listener",
+        "Do not abort local button or navigation listeners on pagehide; opening swipe can emit pagehide without permanently discarding the message iframe",
+      ),
+    );
   }
   if (
     /(?:#sheld\b|#form_sheld\b|rp_card_studio_status_ui|persistent[_-]?status[_-]?(?:panel|bar))/i.test(
@@ -309,11 +341,24 @@ export function validateUiExperienceSources({
   const workspaceModuleCount = workspaceComponents.reduce(
     (count, component) =>
       count +
-      (component.layout?.groups ?? []).filter(
-        (group) => (group.binding_refs ?? []).length > 0,
-      ).length,
+      new Set(
+        (component.layout?.groups ?? []).flatMap(
+          (group) => group.binding_refs ?? [],
+        ),
+      ).size,
     0,
   );
+  for (const component of workspaceComponents) {
+    const primaryEntries = component.layout?.groups ?? [];
+    if (primaryEntries.length > 5)
+      issues.push(
+        issue(
+          `${base}/components/${component.id}/layout/groups`,
+          "ui.navigation.player_entry_limit",
+          "A player-facing workspace may expose at most five primary entries; map additional internal modules into sections, secondary tabs, folds, or contextual entry points",
+        ),
+      );
+  }
   const narrativeCount = roleCount("narrative_component");
   if (["light", "medium", "heavy"].includes(experience.experience_level)) {
     if (roleCount("entry") < 1)
@@ -406,6 +451,15 @@ export function validateUiExperienceSources({
           `Variable is not readable by status_ui: ${binding.source_path}`,
         ),
       );
+    const visibleLabel = String(binding.label ?? "").trim().toLowerCase();
+    if (PLAYER_VISIBLE_INTERNAL_KEYS.has(visibleLabel))
+      issues.push(
+        issue(
+          `${base}/bindings/${binding.id}/label`,
+          "ui.localization.internal_key_visible",
+          `Player-visible labels must describe meaning in Chinese instead of exposing the internal key: ${binding.label}`,
+        ),
+      );
   }
   for (const component of selectedComponents) {
     for (const bindingId of component.binding_refs ?? []) {
@@ -492,7 +546,7 @@ function baseCss(theme) {
       : theme.texture === "grid"
         ? '.rp-shell:before{content:"";position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(var(--rp-border)22 1px,transparent 1px),linear-gradient(90deg,var(--rp-border)22 1px,transparent 1px);background-size:22px 22px}'
         : "";
-  return `${themeCss(theme)}*{box-sizing:border-box}body{margin:0;padding:0;background:transparent;color:var(--rp-text);font-family:var(--rp-body),system-ui,sans-serif}.rp-shell{position:relative;isolation:isolate;overflow:hidden;margin:8px 0;border:1px solid var(--rp-border);border-radius:var(--rp-radius);background:linear-gradient(145deg,var(--rp-surface),var(--rp-bg));box-shadow:var(--rp-shadow)}${texture}.rp-head{position:relative;padding:18px 20px;border-bottom:1px solid var(--rp-border)}.rp-eyebrow{font:600 11px/1.2 var(--rp-utility),monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--rp-primary)}.rp-title{margin:5px 0 0;font:700 clamp(20px,4vw,34px)/1.05 var(--rp-display),system-ui}.rp-subtitle{margin:8px 0 0;color:var(--rp-muted);max-width:70ch}.rp-body{position:relative;padding:16px 20px}.rp-copy{margin:0 0 10px;line-height:1.7}.rp-tabs{display:flex;gap:6px;overflow:auto;padding:10px 12px;border-bottom:1px solid var(--rp-border)}.rp-tab,.rp-action,.rp-choice{appearance:none;border:1px solid var(--rp-border);border-radius:999px;background:var(--rp-surface-alt);color:var(--rp-text);padding:8px 12px;font:600 12px/1 var(--rp-utility),monospace;cursor:pointer}.rp-tab[aria-selected=true],.rp-action:hover,.rp-choice:hover{border-color:var(--rp-primary);color:var(--rp-primary)}.rp-panel[hidden]{display:none}.rp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:10px}.rp-card{min-width:0;padding:12px;border:1px solid var(--rp-border);border-radius:calc(var(--rp-radius) * .75);background:var(--rp-surface-alt)}.rp-card h3{margin:0 0 9px;font:650 13px/1.25 var(--rp-display),system-ui;color:var(--rp-primary)}.rp-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:5px 0;border-bottom:1px dashed color-mix(in srgb,var(--rp-border),transparent 35%)}.rp-label{color:var(--rp-muted);overflow-wrap:anywhere}.rp-value{font-family:var(--rp-utility),monospace;font-weight:650;text-align:right;overflow-wrap:anywhere}.rp-meter{height:7px;margin-top:5px;border-radius:999px;background:var(--rp-bg);overflow:hidden}.rp-meter>span{display:block;height:100%;width:0;background:var(--rp-primary);transition:width .25s}.rp-list{display:flex;flex-wrap:wrap;gap:6px}.rp-chip{padding:4px 7px;border:1px solid var(--rp-border);border-radius:999px;color:var(--rp-muted);font-size:11px}.rp-state{padding:18px;color:var(--rp-muted);text-align:center}.rp-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.rp-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.rp-field{display:grid;gap:5px}.rp-field input,.rp-field textarea{width:100%;border:1px solid var(--rp-border);border-radius:7px;background:var(--rp-bg);color:var(--rp-text);padding:9px;font:inherit}.rp-field textarea{min-height:88px;resize:vertical}.rp-fallback{white-space:pre-wrap;line-height:1.6}@media(max-width:${narrow}px){.rp-head,.rp-body{padding:14px}.rp-form{grid-template-columns:1fr}.rp-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.rp-row{grid-template-columns:1fr}.rp-value{text-align:left}}@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}`;
+  return `${themeCss(theme)}*{box-sizing:border-box}body{margin:0;padding:0;background:transparent;color:var(--rp-text);font-family:var(--rp-body),system-ui,sans-serif}.rp-shell{position:relative;isolation:isolate;overflow:hidden;margin:8px 0;border:1px solid var(--rp-border);border-radius:var(--rp-radius);background:linear-gradient(145deg,var(--rp-surface),var(--rp-bg));box-shadow:var(--rp-shadow)}${texture}.rp-head{position:relative;padding:18px 20px;border-bottom:1px solid var(--rp-border)}.rp-eyebrow{font:600 11px/1.2 var(--rp-utility),monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--rp-primary)}.rp-title{margin:5px 0 0;font:700 clamp(20px,4vw,34px)/1.05 var(--rp-display),system-ui}.rp-subtitle{margin:8px 0 0;color:var(--rp-muted);max-width:70ch}.rp-body{position:relative;padding:16px 20px}.rp-copy{margin:0 0 10px;line-height:1.7}.rp-tabs{display:flex;gap:8px;overflow:auto;padding:10px 12px;border-bottom:1px solid var(--rp-border)}.rp-tab,.rp-action,.rp-choice{appearance:none;min-width:44px;min-height:44px;border:1px solid var(--rp-border);border-radius:999px;background:var(--rp-surface-alt);color:var(--rp-text);padding:10px 14px;font:600 12px/1 var(--rp-utility),monospace;cursor:pointer}.rp-tab[aria-selected=true],.rp-action:hover,.rp-choice:hover{border-color:var(--rp-primary);color:var(--rp-primary)}.rp-tab:focus-visible,.rp-action:focus-visible,.rp-choice:focus-visible,.rp-field input:focus-visible,.rp-field textarea:focus-visible{outline:2px solid var(--rp-primary);outline-offset:2px}.rp-panel[hidden]{display:none}.rp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));align-items:start;gap:10px}.rp-card{min-width:0;padding:12px;border:1px solid var(--rp-border);border-radius:calc(var(--rp-radius) * .75);background:var(--rp-surface-alt)}.rp-card h3{margin:0 0 9px;font:650 13px/1.25 var(--rp-display),system-ui;color:var(--rp-primary)}.rp-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:5px 0;border-bottom:1px dashed color-mix(in srgb,var(--rp-border),transparent 35%)}.rp-label{color:var(--rp-muted);overflow-wrap:anywhere}.rp-value{font-family:var(--rp-utility),monospace;font-weight:650;text-align:right;overflow-wrap:anywhere}.rp-meter{height:7px;margin-top:5px;border-radius:999px;background:var(--rp-bg);overflow:hidden}.rp-meter>span{display:block;height:100%;width:0;background:var(--rp-primary);transition:width .25s}.rp-list{display:flex;flex-wrap:wrap;gap:6px}.rp-chip{padding:4px 7px;border:1px solid var(--rp-border);border-radius:999px;color:var(--rp-muted);font-size:11px}.rp-state{padding:18px;color:var(--rp-muted);text-align:center}.rp-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.rp-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.rp-field{display:grid;gap:5px}.rp-field input,.rp-field textarea{width:100%;border:1px solid var(--rp-border);border-radius:7px;background:var(--rp-bg);color:var(--rp-text);padding:9px;font:inherit}.rp-field textarea{min-height:88px;resize:vertical}.rp-fallback{white-space:pre-wrap;line-height:1.6}@media(max-width:${narrow}px){.rp-head,.rp-body{padding:14px}.rp-form{grid-template-columns:1fr}.rp-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.rp-row{grid-template-columns:1fr}.rp-value{text-align:left}}@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}`;
 }
 
 function componentHtml(component) {
@@ -555,7 +609,7 @@ function runtimeSource(component, componentBindings, theme, experience) {
     (character) =>
       `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`,
   );
-  const generatedRuntime = `(function(){"use strict";const config=${serialized};const root=document.querySelector('[data-rp-ui-root="${cssEscape(component.id)}"]');if(!root)return;const state=root.querySelector('[data-rp-state]');const q=(s,p=root)=>(p||root).querySelector(s);const qa=(s,p=root)=>[...(p||root).querySelectorAll(s)];const text=(node,value)=>{if(node)node.textContent=value==null||value===''?'—':String(value)};const pathGet=(value,path)=>String(path||'').split('.').reduce((current,key)=>current==null?undefined:current[key],value);const showState=(kind,message)=>{if(!state)return;state.hidden=false;state.dataset.kind=kind;text(state,message||config.states[kind]||config.states.degraded)};const hideState=()=>{if(state)state.hidden=true};const currentId=()=>{try{const id=getCurrentMessageId();return Number.isInteger(id)?id:null}catch(_error){return null}};const currentMessage=()=>{const id=currentId();if(id===null||typeof getChatMessages!=='function')return null;const item=getChatMessages(id)?.[0];return item?.message??null};const currentVariables=()=>{const id=currentId();if(id===null||typeof getVariables!=='function')return null;return getVariables({type:'message',message_id:id})};const tone=(binding,value)=>{for(const rule of binding.tones||[]){const ok=rule.operator==='lt'?value<rule.value:rule.operator==='lte'?value<=rule.value:rule.operator==='eq'?Object.is(value,rule.value):rule.operator==='gte'?value>=rule.value:value>rule.value;if(ok)return rule.tone}return'neutral'};const make=(tag,className)=>{const node=document.createElement(tag);if(className)node.className=className;return node};const renderValue=(container,binding,value)=>{container.replaceChildren();if(binding.presentation==='progress'||binding.presentation==='meter'||binding.presentation==='resource_meter'){const row=make('div','rp-row');const label=make('span','rp-label');const output=make('span','rp-value');text(label,binding.label);text(output,value??binding.missing_value);row.append(label,output);const meter=make('div','rp-meter');const bar=make('span');const min=binding.range?.minimum??0,max=binding.range?.maximum??100,num=Number(value);const pct=Number.isFinite(num)&&max>min?Math.max(0,Math.min(100,(num-min)/(max-min)*100)):0;bar.style.width=pct+'%';bar.dataset.tone=tone(binding,num);meter.append(bar);container.append(row,meter);return}if(Array.isArray(value)||binding.presentation==='tags'||binding.presentation==='list'){const list=make('div','rp-list');const items=Array.isArray(value)?value:[];for(const item of items.slice(0,binding.collection?.limit??50)){const chip=make('span','rp-chip');text(chip,typeof item==='object'?JSON.stringify(item):item);list.append(chip)}if(items.length===0){const empty=make('span','rp-label');text(empty,binding.collection?.empty||binding.missing_value);list.append(empty)}container.append(list);return}if(value&&typeof value==='object'){const list=make('div','rp-grid');const entries=Object.entries(value).slice(0,binding.collection?.limit??50);for(const [key,item]of entries){const card=make('div','rp-card');const title=make('h3');text(title,key);const content=make('div','rp-value');text(content,typeof item==='object'?JSON.stringify(item):item);card.append(title,content);list.append(card)}if(entries.length===0){const empty=make('span','rp-label');text(empty,binding.collection?.empty||binding.missing_value);list.append(empty)}container.append(list);return}const row=make('div','rp-row');const label=make('span','rp-label');const output=make('span','rp-value');text(label,binding.label);text(output,value??binding.missing_value);row.append(label,output);container.append(row)};const renderBindings=(variables)=>{const stat=variables?.stat_data??{};for(const binding of config.bindings){const host=q('[data-rp-binding="'+binding.id+'"]');if(host)renderValue(host,binding,pathGet(stat,binding.runtime_path||binding.source_path))}};const parsePayload=(message)=>{if(!message)return null;const marker=config.marker.replace(/[.*+?^\${}()|[\\]\\]/g,'\\$&');const match=new RegExp('<'+marker+'(?:\\s[^>]*)?>([\\s\\S]*?)<\\/'+marker+'>','i').exec(message);if(!match)return null;const raw=match[1].trim();if(config.payloadFormat==='json'){try{return JSON.parse(raw)}catch(_error){return null}}if(config.payloadFormat==='lines')return raw.split(/\\r?\\n/).map(item=>item.replace(/^[-*\\d.)\\s]+/,'').trim()).filter(Boolean);return raw};const renderMessage=()=>{const payload=parsePayload(currentMessage());const host=q('[data-rp-message]');if(host)text(host,payload==null?config.states.empty:typeof payload==='string'?payload:JSON.stringify(payload,null,2));const choices=q('[data-rp-choices]');if(choices){choices.replaceChildren();const items=Array.isArray(payload)?payload:Array.isArray(payload?.choices)?payload.choices:[];for(const item of items){const value=typeof item==='string'?item:item?.text??item?.label;const button=make('button','rp-choice');button.type='button';text(button,value);button.addEventListener('click',async()=>{if(!value)return;try{if(typeof createChatMessages==='function')await createChatMessages([{role:'user',content:value}]);if(typeof triggerSlash==='function')await triggerSlash('/trigger')}catch(_error){showState('error')}});choices.append(button)}if(items.length===0)showState('empty')}};const renderForm=()=>{const form=q('[data-rp-form]');if(!form)return;for(const binding of config.bindings){const field=make('label','rp-field');const label=make('span','rp-label');text(label,binding.label);const input=binding.presentation==='text'?make('textarea'):make('input');input.dataset.rpInput=binding.id;input.placeholder=binding.missing_value||'';field.append(label,input);form.append(field)}const action=q('[data-rp-primary]');action?.addEventListener('click',async()=>{const lines=config.bindings.map(binding=>binding.label+': '+(q('[data-rp-input="'+binding.id+'"]')?.value||binding.missing_value||'未填写'));try{if(typeof createChatMessages==='function')await createChatMessages([{role:'user',content:lines.join('\\n')}]);if(typeof triggerSlash==='function')await triggerSlash('/trigger')}catch(_error){showState('error')}})};const wirePrimary=()=>{if(config.preset==='player_setup')return;const action=q('[data-rp-primary]');const route=(config.routes||[]).find(item=>item.from==='ui_component:'+config.id);if(!action||!route)return;action.addEventListener('click',async()=>{try{if(route.action==='opening_swipe'&&typeof setChatMessages==='function')await setChatMessages([{message_id:route.message_id,swipe_id:route.swipe_id}]);else if(route.action==='message_action'){if(typeof createChatMessages==='function')await createChatMessages([{role:'user',content:route.prompt}]);if(typeof triggerSlash==='function')await triggerSlash('/trigger')}}catch(_error){showState('error')}})};const wireLocal=()=>{for(const tab of qa('[data-rp-tab]'))tab.addEventListener('click',()=>{for(const item of qa('[data-rp-tab]'))item.setAttribute('aria-selected',String(item===tab));for(const panel of qa('[data-rp-panel]'))panel.hidden=panel.dataset.rpPanel!==tab.dataset.rpTab})};const render=()=>{try{hideState();wireLocal();wirePrimary();if(config.preset==='player_setup')renderForm();if(config.dataMode==='stat_data'||config.dataMode==='stat_data_and_message'){const variables=currentVariables();if(!variables)showState('error');else renderBindings(variables)}if(config.dataMode==='current_message'||config.dataMode==='stat_data_and_message')renderMessage()}catch(_error){showState('error')}};render();if(typeof eventOn==='function'&&globalThis.Mvu?.events?.VARIABLE_UPDATE_ENDED)eventOn(Mvu.events.VARIABLE_UPDATE_ENDED,render);})();`;
+  const generatedRuntime = `(function(){"use strict";const config=${serialized};const root=document.querySelector('[data-rp-ui-root="${cssEscape(component.id)}"]');if(!root)return;const ownerKey='__rpCardStudioUi:'+config.id;const previous=globalThis[ownerKey];if(previous && typeof previous.cleanup==='function')previous.cleanup();const state=root.querySelector('[data-rp-state]');const q=(s,p=root)=>(p||root).querySelector(s);const qa=(s,p=root)=>[...(p||root).querySelectorAll(s)];const text=(node,value)=>{if(node)node.textContent=value==null||value===''?'—':String(value)};const pathGet=(value,path)=>String(path||'').split('.').reduce((current,key)=>current==null?undefined:current[key],value);const showState=(kind,message)=>{if(!state)return;state.hidden=false;state.dataset.kind=kind;text(state,message||config.states[kind]||config.states.degraded)};const hideState=()=>{if(state)state.hidden=true};const currentId=()=>{try{const id=getCurrentMessageId();return Number.isInteger(id)?id:null}catch(_error){return null}};const currentMessage=()=>{const id=currentId();if(id===null||typeof getChatMessages!=='function')return null;const item=getChatMessages(id)?.[0];return item?.message??null};const currentVariables=()=>{const id=currentId();if(id===null||typeof getVariables!=='function')return null;return getVariables({type:'message',message_id:id})};const tone=(binding,value)=>{for(const rule of binding.tones||[]){const ok=rule.operator==='lt'?value<rule.value:rule.operator==='lte'?value<=rule.value:rule.operator==='eq'?Object.is(value,rule.value):rule.operator==='gte'?value>=rule.value:value>rule.value;if(ok)return rule.tone}return'neutral'};const make=(tag,className)=>{const node=document.createElement(tag);if(className)node.className=className;return node};const renderValue=(container,binding,value)=>{container.replaceChildren();if(binding.presentation==='progress'||binding.presentation==='meter'||binding.presentation==='resource_meter'){const row=make('div','rp-row');const label=make('span','rp-label');const output=make('span','rp-value');text(label,binding.label);text(output,value??binding.missing_value);row.append(label,output);const meter=make('div','rp-meter');const bar=make('span');const min=binding.range?.minimum??0,max=binding.range?.maximum??100,num=Number(value);const pct=Number.isFinite(num)&&max>min?Math.max(0,Math.min(100,(num-min)/(max-min)*100)):0;bar.style.width=pct+'%';bar.dataset.tone=tone(binding,num);meter.append(bar);container.append(row,meter);return}if(Array.isArray(value)||binding.presentation==='tags'||binding.presentation==='list'){const list=make('div','rp-list');const items=Array.isArray(value)?value:[];for(const item of items.slice(0,binding.collection?.limit??50)){const chip=make('span','rp-chip');text(chip,typeof item==='object'?JSON.stringify(item):item);list.append(chip)}if(items.length===0){const empty=make('span','rp-label');text(empty,binding.collection?.empty||binding.missing_value);list.append(empty)}container.append(list);return}if(value&&typeof value==='object'){const list=make('div','rp-grid');const entries=Object.entries(value).slice(0,binding.collection?.limit??50);for(const [key,item]of entries){const card=make('div','rp-card');const title=make('h3');text(title,key);const content=make('div','rp-value');text(content,typeof item==='object'?JSON.stringify(item):item);card.append(title,content);list.append(card)}if(entries.length===0){const empty=make('span','rp-label');text(empty,binding.collection?.empty||binding.missing_value);list.append(empty)}container.append(list);return}const row=make('div','rp-row');const label=make('span','rp-label');const output=make('span','rp-value');text(label,binding.label);text(output,value??binding.missing_value);row.append(label,output);container.append(row)};const renderBindings=(variables)=>{const stat=variables?.stat_data??{};for(const binding of config.bindings){const host=q('[data-rp-binding="'+binding.id+'"]');if(host)renderValue(host,binding,pathGet(stat,binding.runtime_path||binding.source_path))}};const parsePayload=(message)=>{if(!message)return null;const marker=config.marker.replace(/[.*+?^\${}()|[\\]\\]/g,'\\$&');const match=new RegExp('<'+marker+'(?:\\s[^>]*)?>([\\s\\S]*?)<\\/'+marker+'>','i').exec(message);if(!match)return null;const raw=match[1].trim();if(config.payloadFormat==='json'){try{return JSON.parse(raw)}catch(_error){return null}}if(config.payloadFormat==='lines')return raw.split(/\\r?\\n/).map(item=>item.replace(/^[-*\\d.)\\s]+/,'').trim()).filter(Boolean);return raw};const renderMessage=()=>{const payload=parsePayload(currentMessage());const host=q('[data-rp-message]');if(host)text(host,payload==null?config.states.empty:typeof payload==='string'?payload:JSON.stringify(payload,null,2));const choices=q('[data-rp-choices]');if(choices){choices.replaceChildren();const items=Array.isArray(payload)?payload:Array.isArray(payload?.choices)?payload.choices:[];for(const item of items){const value=typeof item==='string'?item:item?.text??item?.label;const button=make('button','rp-choice');button.type='button';text(button,value);button.addEventListener('click',async()=>{if(!value)return;try{if(typeof createChatMessages==='function')await createChatMessages([{role:'user',content:value}]);if(typeof triggerSlash==='function')await triggerSlash('/trigger')}catch(_error){showState('error')}});choices.append(button)}if(items.length===0)showState('empty')}};const renderForm=()=>{const form=q('[data-rp-form]');if(!form)return;for(const binding of config.bindings){const field=make('label','rp-field');const label=make('span','rp-label');text(label,binding.label);const input=binding.presentation==='text'?make('textarea'):make('input');input.dataset.rpInput=binding.id;input.placeholder=binding.missing_value||'';field.append(label,input);form.append(field)}const action=q('[data-rp-primary]');action?.addEventListener('click',async()=>{const lines=config.bindings.map(binding=>binding.label+': '+(q('[data-rp-input="'+binding.id+'"]')?.value||binding.missing_value||'未填写'));try{if(typeof createChatMessages==='function')await createChatMessages([{role:'user',content:lines.join('\\n')}]);if(typeof triggerSlash==='function')await triggerSlash('/trigger')}catch(_error){showState('error')}})};const wirePrimary=()=>{if(config.preset==='player_setup')return;const action=q('[data-rp-primary]');const route=(config.routes||[]).find(item=>item.from==='ui_component:'+config.id);if(!action||!route)return;action.onclick=async()=>{try{if(route.action==='opening_swipe' && typeof setChatMessages==='function')await setChatMessages([{message_id:route.message_id,swipe_id:route.swipe_id}]);else if(route.action==='message_action'){if(typeof createChatMessages==='function')await createChatMessages([{role:'user',content:route.prompt}]);if(typeof triggerSlash==='function')await triggerSlash('/trigger')}}catch(_error){showState('error')}}};const wireLocal=()=>{for(const tab of qa('[data-rp-tab]'))tab.onclick=()=>{for(const item of qa('[data-rp-tab]'))item.setAttribute('aria-selected',String(item===tab));for(const panel of qa('[data-rp-panel]'))panel.hidden=panel.dataset.rpPanel!==tab.dataset.rpTab}};const render=()=>{try{hideState();wireLocal();wirePrimary();if(config.preset==='player_setup')renderForm();if(config.dataMode==='stat_data'||config.dataMode==='stat_data_and_message'){const variables=currentVariables();if(!variables)showState('error');else renderBindings(variables)}if(config.dataMode==='current_message'||config.dataMode==='stat_data_and_message')renderMessage()}catch(_error){showState('error')}};render();if(typeof eventOn==='function'&&globalThis.Mvu?.events?.VARIABLE_UPDATE_ENDED)eventOn(Mvu.events.VARIABLE_UPDATE_ENDED,render);})();`;
   const hardenedRuntime = generatedRuntime
     .replace(
       /const marker=config\.marker\.replace\(.+?\);const match=/,
@@ -583,7 +637,7 @@ function runtimeSource(component, componentBindings, theme, experience) {
     )
     .replace(
       "render();if(typeof eventOn==='function'&&globalThis.Mvu?.events?.VARIABLE_UPDATE_ENDED)eventOn(Mvu.events.VARIABLE_UPDATE_ENDED,render);})();",
-      "wireLocal();wirePrimary();if(config.preset==='player_setup')renderForm();const usesState=config.dataMode==='stat_data'||config.dataMode==='stat_data_and_message';let mvuEvent=null;const bindMvu=()=>{if(usesState&&typeof eventOn==='function'&&globalThis.Mvu?.events?.VARIABLE_UPDATE_ENDED){mvuEvent=globalThis.Mvu.events.VARIABLE_UPDATE_ENDED;eventOn(mvuEvent,render)}};const start=async()=>{if(usesState&&typeof waitGlobalInitialized==='function')await waitGlobalInitialized('Mvu');render();bindMvu()};Promise.resolve(start()).catch(()=>showState('error'));const cleanup=()=>{if(mvuEvent&&typeof eventRemoveListener==='function')eventRemoveListener(mvuEvent,render);mvuEvent=null};globalThis.addEventListener?.('pagehide',cleanup,{once:true});globalThis.addEventListener?.('unload',cleanup,{once:true})})();",
+      "wireLocal();wirePrimary();if(config.preset==='player_setup')renderForm();const usesState=config.dataMode==='stat_data'||config.dataMode==='stat_data_and_message';let mvuEvent=null;const bindMvu=()=>{if(usesState&&typeof eventOn==='function'&&globalThis.Mvu?.events?.VARIABLE_UPDATE_ENDED){mvuEvent=globalThis.Mvu.events.VARIABLE_UPDATE_ENDED;eventOn(mvuEvent,render)}};const start=async()=>{if(usesState&&typeof waitGlobalInitialized==='function')await waitGlobalInitialized('Mvu');render();bindMvu()};Promise.resolve(start()).catch(()=>showState('error'));const cleanup=()=>{if(mvuEvent && typeof eventRemoveListener==='function')eventRemoveListener(mvuEvent,render);mvuEvent=null};globalThis[ownerKey]={cleanup};globalThis.addEventListener?.('unload',cleanup,{once:true})})();",
     );
   return component.source?.mode === "inline" && component.source.js.trim()
     ? `${hardenedRuntime}\n${component.source.js}`
@@ -649,6 +703,26 @@ function componentFrontend(component, componentBindings, theme, experience) {
     "</body>",
     "```",
   ].join("\n");
+}
+
+function validateCompiledFrontend(replaceString, componentId) {
+  const match = /<script>([\s\S]*)<\/script>/.exec(replaceString);
+  if (!match)
+    return issue(
+      `/runtime/ui_experience/components/${componentId}`,
+      "ui.runtime.script_missing",
+      "Compiled message UI is missing its executable script",
+    );
+  try {
+    new Script(match[1]);
+    return null;
+  } catch (error) {
+    return issue(
+      `/runtime/ui_experience/components/${componentId}`,
+      "ui.runtime.script_syntax",
+      `Compiled message UI JavaScript is invalid: ${error.message}`,
+    );
+  }
 }
 
 function triggerRegex(trigger) {
@@ -736,6 +810,8 @@ export function compileUiExperienceRegexes({ project, sources }) {
       theme,
       experience,
     );
+    const syntaxIssue = validateCompiledFrontend(replaceString, component.id);
+    if (syntaxIssue) issues.push(syntaxIssue);
     const bytes = Buffer.byteLength(replaceString, "utf8");
     if (bytes > experience.performance.max_component_bytes)
       issues.push(

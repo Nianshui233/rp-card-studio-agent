@@ -202,6 +202,19 @@ test("UI stage asks for light, medium, or heavy first and keeps basic status as 
   );
 });
 
+test("UI guidance prioritizes the Chinese player experience over internal schemas", () => {
+  assert.match(skill, /player-facing RP companion/);
+  assert.match(skill, /no more than five primary entries/);
+  assert.match(skill, /Never recursively dump arbitrary objects/);
+  assert.match(skill, /opening swipe can emit/);
+  assert.match(statusUi, /消息 UI 是面向玩家的 RP 伴随界面/);
+  assert.match(statusUi, /玩家一级入口通常不超过 5 个/);
+  assert.match(statusUi, /禁止使用一个“通用对象递归器”/);
+  assert.ok(statusUi.includes("&&[A-Za-z_$]"));
+  assert.match(statusUi, /375px/);
+  assert.match(statusUi, /技术 ID/);
+});
+
 test("MVU host acceptance treats Blob URL rendering as observation-based diagnosis", () => {
   assert.match(skill, /observed MVU start\/initialization event/);
   assert.match(skill, /never infer failure or success from that switch alone/);

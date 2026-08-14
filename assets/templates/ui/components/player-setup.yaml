@@ -10,7 +10,7 @@ ui_component:
   binding_refs: []
   interactions: [local_interaction, message_write, slash_command]
   content:
-    eyebrow: PLAYER SETUP
+    eyebrow: 玩家设定
     title: 建立玩家资料
     subtitle: 字段由本组件的 binding_refs 决定，提交时通过酒馆助手公开消息接口发送。
     body: [只收集玩法真正需要的资料，不把完整角色设计问卷塞进开场。]

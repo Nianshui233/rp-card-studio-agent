@@ -10,7 +10,7 @@ ui_component:
   binding_refs: []
   interactions: [local_interaction, opening_swipe]
   content:
-    eyebrow: FIELD BRIEF
+    eyebrow: 世界导览
     title: 世界与玩法介绍
     subtitle: 用项目自身的叙事语气解释世界、玩家位置和主要玩法。
     body: [介绍核心世界状态。, 说明玩家能做什么以及不能依赖什么。]

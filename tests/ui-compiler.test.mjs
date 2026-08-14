@@ -417,7 +417,11 @@ test("UI compiler emits stable Chinese-named component regexes with self-contain
     /binding\.read_paths/,
   );
   assert.match(status.replaceString, /eventRemoveListener/);
-  assert.match(status.replaceString, /pagehide/);
+  assert.match(status.replaceString, /ownerKey/);
+  assert.match(status.replaceString, /\.onclick=/);
+  assert.match(status.replaceString, /min-height:44px/);
+  assert.match(status.replaceString, /align-items:start/);
+  assert.doesNotMatch(status.replaceString, /pagehide/);
   assert.doesNotMatch(status.replaceString, /\\\$&|\$(?:[&`']|\d{1,2})/);
   assert.equal((status.replaceString.match(/wireLocal\(\)/g) ?? []).length, 1);
   assert.equal(
@@ -603,6 +607,98 @@ test("UI validation rejects SillyTavern replacement tokens in inline sources", a
   );
 });
 
+test("inline message scripts reject HTML-entity-prone operators and pagehide-aborted controls", async () => {
+  const unsafe = sources("light", 6);
+  const unsafeComponent = unsafe.ui.find((entry) => entry.value.ui_component);
+  unsafeComponent.value.ui_component.source = {
+    mode: "inline",
+    html: "",
+    css: "",
+    js: "const current={cleanup(){}}; if(current&&current.cleanup){current.cleanup()} const controller=new AbortController(); addEventListener('pagehide',()=>controller.abort());",
+  };
+  const result = await validateRuntimeSources({
+    project: {
+      project: { target: "character_card" },
+      features: { status_ui: true, mvu: true, ejs: false },
+      deliverables: ["character_card_json"],
+    },
+    sources: unsafe,
+    projectRoot: process.cwd(),
+  });
+  assert.ok(
+    result.issues.some(
+      (item) => item.rule === "ui.runtime.html_entity_operator_spacing",
+    ),
+  );
+  assert.ok(
+    result.issues.some(
+      (item) => item.rule === "ui.runtime.pagehide_local_listener",
+    ),
+  );
+});
+
+test("inline message scripts accept spaced boolean operators", async () => {
+  const safe = sources("light", 6);
+  const safeComponent = safe.ui.find((entry) => entry.value.ui_component);
+  safeComponent.value.ui_component.source = {
+    mode: "inline",
+    html: "",
+    css: "",
+    js: "const current={cleanup(){}}; if(current && current.cleanup){current.cleanup()}",
+  };
+  const variableBySource = new Map(
+    safe.mvu[0].value.mvu.variables.map((item) => [item.source_path, item]),
+  );
+  const result = validateUiExperienceSources({
+    project: { features: { status_ui: true } },
+    sources: safe,
+    variableBySource,
+  });
+  assert.equal(
+    result.issues.some(
+      (item) => item.rule === "ui.runtime.html_entity_operator_spacing",
+    ),
+    false,
+  );
+});
+
+test("compiled message UI rejects invalid final JavaScript", () => {
+  const broken = sources("light", 6);
+  const brokenComponent = broken.ui.find((entry) => entry.value.ui_component);
+  brokenComponent.value.ui_component.source = {
+    mode: "inline",
+    html: "",
+    css: "",
+    js: "if (",
+  };
+  const result = compileUiExperienceRegexes({
+    project: { features: { status_ui: true } },
+    sources: broken,
+  });
+  assert.ok(
+    result.issues.some((item) => item.rule === "ui.runtime.script_syntax"),
+  );
+});
+
+test("player-visible bindings reject known internal machine keys", () => {
+  const exposed = sources("light", 6);
+  const bindingSet = exposed.ui.find((entry) => entry.value.ui_bindings);
+  bindingSet.value.ui_bindings.bindings[0].label = "scene_id";
+  const variableBySource = new Map(
+    exposed.mvu[0].value.mvu.variables.map((item) => [item.source_path, item]),
+  );
+  const result = validateUiExperienceSources({
+    project: { features: { status_ui: true } },
+    sources: exposed,
+    variableBySource,
+  });
+  assert.ok(
+    result.issues.some(
+      (item) => item.rule === "ui.localization.internal_key_visible",
+    ),
+  );
+});
+
 test("medium UI capability can be concentrated into one multi-module workspace page", async () => {
   const consolidated = sources("medium", 6);
   const intro = consolidated.ui.find(
@@ -632,7 +728,20 @@ test("medium UI capability can be concentrated into one multi-module workspace p
   bindingSet.bindings = [];
   declarations.length = 0;
   status.binding_refs = [];
-  status.layout.groups = moduleIds.map((id, index) => {
+  const playerEntries = [
+    ["overview", "概览"],
+    ["people", "人物"],
+    ["journey", "行旅"],
+    ["affairs", "事务"],
+    ["records", "案牍"],
+  ];
+  status.layout.groups = playerEntries.map(([id, label]) => ({
+    id,
+    label,
+    binding_refs: [],
+    collapsed: false,
+  }));
+  moduleIds.forEach((id, index) => {
     const bindingId = `module_${index}`;
     const sourcePath = `workspace.${id}`;
     declarations.push({
@@ -651,18 +760,13 @@ test("medium UI capability can be concentrated into one multi-module workspace p
       slot: id,
       source_path: sourcePath,
       presentation: "text",
-      label: id,
+      label: `模块${index + 1}`,
       missing_value: "未记录",
       priority: index,
       collection: { empty: "未记录", limit: 20, sort: "source" },
     });
     status.binding_refs.push(bindingId);
-    return {
-      id,
-      label: id,
-      binding_refs: [bindingId],
-      collapsed: false,
-    };
+    status.layout.groups[index % playerEntries.length].binding_refs.push(bindingId);
   });
 
   const variableBySource = new Map(
@@ -675,10 +779,40 @@ test("medium UI capability can be concentrated into one multi-module workspace p
   });
   assert.equal(
     result.issues.some((item) =>
-      ["ui.experience_level", "ui.capability_floor"].includes(item.rule),
+      [
+        "ui.experience_level",
+        "ui.capability_floor",
+        "ui.navigation.player_entry_limit",
+      ].includes(item.rule),
     ),
     false,
     JSON.stringify(result.issues),
+  );
+});
+
+test("player workspaces reject more than five primary entries", () => {
+  const overloaded = sources("medium", 6);
+  const status = overloaded.ui.find(
+    (entry) => entry.value.ui_component?.id === "status",
+  ).value.ui_component;
+  status.layout.groups = Array.from({ length: 6 }, (_, index) => ({
+    id: `entry_${index}`,
+    label: `入口${index + 1}`,
+    binding_refs: index === 0 ? ["health"] : [],
+    collapsed: false,
+  }));
+  const variableBySource = new Map(
+    overloaded.mvu[0].value.mvu.variables.map((item) => [item.source_path, item]),
+  );
+  const result = validateUiExperienceSources({
+    project: { features: { status_ui: true } },
+    sources: overloaded,
+    variableBySource,
+  });
+  assert.ok(
+    result.issues.some(
+      (item) => item.rule === "ui.navigation.player_entry_limit",
+    ),
   );
 });
 
