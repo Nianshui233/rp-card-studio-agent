@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
 
-const LEVEL_MINIMUMS = Object.freeze({
-  basic_status: 1,
-  light: 6,
-  medium: 12,
-  heavy: 24,
+const LEVEL_REQUIREMENTS = Object.freeze({
+  basic_status: { minimumSurfaces: 1, workspaceModules: 1, narrative: 0 },
+  light: { minimumSurfaces: 3, workspaceModules: 4, narrative: 1 },
+  medium: { minimumSurfaces: 4, workspaceModules: 8, narrative: 2 },
+  heavy: { minimumSurfaces: 5, workspaceModules: 12, narrative: 3 },
 });
 const DASHBOARD_PRESETS = new Set([
   "status_terminal",
@@ -278,13 +278,17 @@ export function validateUiExperienceSources({
       );
   }
 
-  const minimum = LEVEL_MINIMUMS[experience.experience_level] ?? 0;
-  if ((experience.surfaces ?? []).length < minimum) {
+  const levelRequirements = LEVEL_REQUIREMENTS[experience.experience_level] ?? {
+    minimumSurfaces: 0,
+    workspaceModules: 0,
+    narrative: 0,
+  };
+  if ((experience.surfaces ?? []).length < levelRequirements.minimumSurfaces) {
     issues.push(
       issue(
         `${base}/surfaces`,
         "ui.experience_level",
-        `${experience.experience_level} UI requires at least ${minimum} components`,
+        `${experience.experience_level} UI requires at least ${levelRequirements.minimumSurfaces} complete message pages`,
       ),
     );
   }
@@ -299,9 +303,17 @@ export function validateUiExperienceSources({
   const presetCount = (preset) =>
     selectedComponents.filter((component) => component.preset === preset)
       .length;
-  const workspaceCount = selectedComponents.filter((component) =>
+  const workspaceComponents = selectedComponents.filter((component) =>
     ["dashboard", "workspace"].includes(component.role),
-  ).length;
+  );
+  const workspaceModuleCount = workspaceComponents.reduce(
+    (count, component) =>
+      count +
+      (component.layout?.groups ?? []).filter(
+        (group) => (group.binding_refs ?? []).length > 0,
+      ).length,
+    0,
+  );
   const narrativeCount = roleCount("narrative_component");
   if (["light", "medium", "heavy"].includes(experience.experience_level)) {
     if (roleCount("entry") < 1)
@@ -320,12 +332,20 @@ export function validateUiExperienceSources({
           `${experience.experience_level} UI requires a status terminal`,
         ),
       );
-    if (narrativeCount < 1)
+    if (narrativeCount < levelRequirements.narrative)
       issues.push(
         issue(
           `${base}/surfaces`,
           "ui.capability_floor",
-          `${experience.experience_level} UI requires at least one narrative component`,
+          `${experience.experience_level} UI requires at least ${levelRequirements.narrative} message-bound narrative components`,
+        ),
+      );
+    if (workspaceModuleCount < levelRequirements.workspaceModules)
+      issues.push(
+        issue(
+          `${base}/surfaces`,
+          "ui.capability_floor",
+          `${experience.experience_level} UI requires at least ${levelRequirements.workspaceModules} populated modules inside its dashboard/workspace pages`,
         ),
       );
   }
@@ -338,40 +358,16 @@ export function validateUiExperienceSources({
           `${experience.experience_level} UI requires a setup surface`,
         ),
       );
-    if (workspaceCount < 4)
+    if (workspaceComponents.length < 1)
       issues.push(
         issue(
           `${base}/surfaces`,
           "ui.capability_floor",
-          `${experience.experience_level} UI requires at least four dashboard/workspace surfaces`,
-        ),
-      );
-    if (narrativeCount < 2)
-      issues.push(
-        issue(
-          `${base}/surfaces`,
-          "ui.capability_floor",
-          `${experience.experience_level} UI requires at least two narrative components`,
+          `${experience.experience_level} UI requires an integrated dashboard/workspace page`,
         ),
       );
   }
   if (experience.experience_level === "heavy") {
-    if (workspaceCount < 8)
-      issues.push(
-        issue(
-          `${base}/surfaces`,
-          "ui.capability_floor",
-          "heavy UI requires at least eight dashboard/workspace surfaces",
-        ),
-      );
-    if (narrativeCount < 4)
-      issues.push(
-        issue(
-          `${base}/surfaces`,
-          "ui.capability_floor",
-          "heavy UI requires at least four narrative components",
-        ),
-      );
     if (!["hub", "mixed"].includes(experience.navigation?.kind))
       issues.push(
         issue(
@@ -566,12 +562,28 @@ function runtimeSource(component, componentBindings, theme, experience) {
       "const marker=config.marker;const match=",
     )
     .replace(
+      "const currentId=()=>{try{const id=getCurrentMessageId();return Number.isInteger(id)?id:null}catch(_error){return null}};const currentMessage=()=>{const id=currentId();if(id===null||typeof getChatMessages!=='function')return null;const item=getChatMessages(id)?.[0];return item?.message??null};const currentVariables=()=>{const id=currentId();if(id===null||typeof getVariables!=='function')return null;return getVariables({type:'message',message_id:id})};",
+      "const currentId=()=>{try{const id=getCurrentMessageId();return Number.isInteger(id)?id:null}catch(_error){return null}};const capturedPayload=()=>document.querySelector('[data-rp-captured-payload]')?.textContent??null;const currentVariables=()=>{if(typeof getAllVariables==='function')return getAllVariables();const id=currentId();if(id===null||typeof getVariables!=='function')return null;return getVariables({type:'message',message_id:id})};",
+    )
+    .replace(
+      "const renderBindings=(variables)=>{const stat=variables?.stat_data??{};for(const binding of config.bindings){const host=q('[data-rp-binding=\"'+binding.id+'\"]');if(host)renderValue(host,binding,pathGet(stat,binding.runtime_path||binding.source_path))}};",
+      "const bindingValue=(stat,binding)=>{const paths=binding.read_paths||[binding.runtime_path,binding.source_path];let fallback;for(const path of paths){const value=pathGet(stat,path);if(fallback===undefined&&value!==undefined)fallback=value;if(value!==undefined&&value!==null&&value!==''&&value!=='uninitialized')return value}return fallback};const renderBindings=(variables)=>{const stat=variables?.stat_data??{};for(const binding of config.bindings){const host=q('[data-rp-binding=\"'+binding.id+'\"]');if(host)renderValue(host,binding,bindingValue(stat,binding))}};",
+    )
+    .replace(
+      /const parsePayload=.*?;const renderMessage=/,
+      "const parsePayload=(payloadText)=>{if(!payloadText)return null;const raw=payloadText.trim();if(config.payloadFormat==='json'){try{return JSON.parse(raw)}catch(_error){return null}}if(config.payloadFormat==='lines')return raw.split(/\\r?\\n/).map(item=>item.replace(/^[-*\\d.)\\s]+/,'').trim()).filter(Boolean);return raw};const renderMessage=",
+    )
+    .replace(
+      "const renderMessage=()=>{const payload=parsePayload(currentMessage());",
+      "const renderMessage=()=>{const payload=parsePayload(capturedPayload());",
+    )
+    .replace(
       "const render=()=>{try{hideState();wireLocal();wirePrimary();if(config.preset==='player_setup')renderForm();",
       "const render=()=>{try{hideState();",
     )
     .replace(
       "render();if(typeof eventOn==='function'&&globalThis.Mvu?.events?.VARIABLE_UPDATE_ENDED)eventOn(Mvu.events.VARIABLE_UPDATE_ENDED,render);})();",
-      "wireLocal();wirePrimary();if(config.preset==='player_setup')renderForm();render();let mvuBound=false;if(typeof eventOn==='function'&&globalThis.Mvu?.events?.VARIABLE_UPDATE_ENDED){eventOn(Mvu.events.VARIABLE_UPDATE_ENDED,render);mvuBound=true}const cleanup=()=>{if(mvuBound&&typeof eventRemoveListener==='function')eventRemoveListener(Mvu.events.VARIABLE_UPDATE_ENDED,render);mvuBound=false};globalThis.addEventListener?.('pagehide',cleanup,{once:true});globalThis.addEventListener?.('unload',cleanup,{once:true})})();",
+      "wireLocal();wirePrimary();if(config.preset==='player_setup')renderForm();const usesState=config.dataMode==='stat_data'||config.dataMode==='stat_data_and_message';let mvuEvent=null;const bindMvu=()=>{if(usesState&&typeof eventOn==='function'&&globalThis.Mvu?.events?.VARIABLE_UPDATE_ENDED){mvuEvent=globalThis.Mvu.events.VARIABLE_UPDATE_ENDED;eventOn(mvuEvent,render)}};const start=async()=>{if(usesState&&typeof waitGlobalInitialized==='function')await waitGlobalInitialized('Mvu');render();bindMvu()};Promise.resolve(start()).catch(()=>showState('error'));const cleanup=()=>{if(mvuEvent&&typeof eventRemoveListener==='function')eventRemoveListener(mvuEvent,render);mvuEvent=null};globalThis.addEventListener?.('pagehide',cleanup,{once:true});globalThis.addEventListener?.('unload',cleanup,{once:true})})();",
     );
   return component.source?.mode === "inline" && component.source.js.trim()
     ? `${hardenedRuntime}\n${component.source.js}`
@@ -621,10 +633,15 @@ function componentFrontend(component, componentBindings, theme, experience) {
     theme,
     experience,
   );
+  const capturedPayload =
+    component.trigger.kind === "block"
+      ? '<script type="application/json" data-rp-captured-payload>$1</script>'
+      : "";
   return [
     "```",
     `<body data-rp-ui-component="${escapeHtml(component.id)}">`,
     `<style>${css}</style>`,
+    capturedPayload,
     `<main class="rp-shell" data-rp-ui-root="${escapeHtml(component.id)}" role="region" aria-label="${escapeHtml(component.display_name)}">`,
     `<header class="rp-head"><div class="rp-eyebrow">${escapeHtml(component.content.eyebrow)}</div><h1 class="rp-title">${escapeHtml(component.content.title)}</h1><p class="rp-subtitle">${escapeHtml(component.content.subtitle)}</p></header>`,
     `<div class="rp-state" data-rp-state hidden></div><div class="rp-body">${body}${customHtml}</div></main>`,
@@ -637,7 +654,7 @@ function componentFrontend(component, componentBindings, theme, experience) {
 function triggerRegex(trigger) {
   const marker = trigger.marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return trigger.kind === "block"
-    ? `/<${marker}(?:\\s[^>]*)?>[\\s\\S]*?<\\/${marker}>/gi`
+    ? `/<${marker}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${marker}>/gi`
     : `/<${marker}\\s*\\/?>/gi`;
 }
 
@@ -700,11 +717,19 @@ export function compileUiExperienceRegexes({ project, sources }) {
           binding.component_ref === ref &&
           (component.binding_refs ?? []).includes(binding.id),
       )
-      .map((binding) => ({
-        ...binding,
-        runtime_path:
-          runtimePaths.get(binding.source_path) ?? binding.source_path,
-      }));
+      .map((binding) => {
+        const sourcePath = String(binding.source_path).replace(
+          /^stat_data\./,
+          "",
+        );
+        const runtimePath =
+          runtimePaths.get(binding.source_path) ?? sourcePath;
+        return {
+          ...binding,
+          runtime_path: runtimePath,
+          read_paths: [...new Set([runtimePath, sourcePath])],
+        };
+      });
     const replaceString = componentFrontend(
       component,
       componentBindings,

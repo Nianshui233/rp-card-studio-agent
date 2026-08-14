@@ -4,7 +4,9 @@ status: draft
 ui_experience:
   enabled: true
   # UI 阶段首批锁定：basic_status / light / medium / heavy。
-  # light 最少 6 个组件；medium 最少 12 个；heavy 最少 24 个。
+  # 等级衡量完整页面内的模块深度与交互复杂度，不按独立正则数量凑数。
+  # light / medium / heavy 的完整页面最低数分别为 3 / 4 / 5，
+  # 综合工作区内至少承载 4 / 8 / 12 个有真实数据绑定的功能模块。
   experience_level: light
   goals:
     - world_immersion

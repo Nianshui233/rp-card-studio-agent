@@ -181,7 +181,7 @@ test("UI stage asks for light, medium, or heavy first and keeps basic status as 
   assert.match(skill, /`basic_status` as a compatibility route only/);
   assert.match(
     skill,
-    /full `light`, `medium`, or `heavy` UI uses multiple self-contained fenced-HTML message components/,
+    /full `light`, `medium`, or `heavy` UI uses a small number of self-contained fenced-HTML message pages/,
   );
   assert.match(
     skill,

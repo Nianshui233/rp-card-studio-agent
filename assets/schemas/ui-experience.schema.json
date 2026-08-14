@@ -122,15 +122,15 @@
       "allOf": [
         {
           "if": { "properties": { "enabled": { "const": true }, "experience_level": { "const": "light" } }, "required": ["enabled", "experience_level"] },
-          "then": { "properties": { "surfaces": { "type": "array", "minItems": 6 } } }
+          "then": { "properties": { "surfaces": { "type": "array", "minItems": 3 } } }
         },
         {
           "if": { "properties": { "enabled": { "const": true }, "experience_level": { "const": "medium" } }, "required": ["enabled", "experience_level"] },
-          "then": { "properties": { "surfaces": { "type": "array", "minItems": 12 } } }
+          "then": { "properties": { "surfaces": { "type": "array", "minItems": 4 } } }
         },
         {
           "if": { "properties": { "enabled": { "const": true }, "experience_level": { "const": "heavy" } }, "required": ["enabled", "experience_level"] },
-          "then": { "properties": { "surfaces": { "type": "array", "minItems": 24 } } }
+          "then": { "properties": { "surfaces": { "type": "array", "minItems": 5 } } }
         },
         {
           "if": { "properties": { "enabled": { "const": true }, "experience_level": { "enum": ["light", "medium", "heavy"] } }, "required": ["enabled", "experience_level"] },

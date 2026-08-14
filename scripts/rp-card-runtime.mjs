@@ -3904,7 +3904,7 @@ function uiComponentContractContent(contract) {
     ? `<${contract.marker}>...</${contract.marker}>`
     : `<${contract.marker}/>`;
   const payload = contract.payload_format === "json"
-    ? "标签内部必须是严格有效的 JSON；不得使用 Markdown 代码围栏。"
+    ? "标签内部必须是严格有效的 JSON；不得使用 Markdown 代码围栏。JSON 字符串中的 <、>、& 使用 \\u003c、\\u003e、\\u0026 转义，不得出现字面 </script。"
     : contract.payload_format === "lines"
       ? "标签内部每行只写一个项目，不要嵌套额外标签。"
       : contract.payload_format === "text"

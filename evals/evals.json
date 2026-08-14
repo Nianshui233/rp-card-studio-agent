@@ -64,12 +64,12 @@
     {
       "id": 5,
       "prompt": "显式使用 $rp-card-studio，为一个复杂开放世界项目全面设计重型 UI。UI 阶段全部交给 AI，不要提问；完成 UI 源码、编译、验证和最终单 JSON 交付。",
-      "expected_output": "AI 报告重型等级及理由后锁定，生成至少 24 个职责真实的消息组件、项目专属主题、显式绑定和安全运行合同，并编译进一个角色卡 JSON。",
+      "expected_output": "AI 报告重型等级及理由后锁定，以少量完整消息页面承载高密度页内模块，生成项目专属主题、显式绑定和安全运行合同，并编译进一个角色卡 JSON。",
       "files": [],
       "expectations": [
         "报告 AI 选择 heavy 的理由并锁定，不重复询问用户",
-        "至少包含入口、玩家设置、综合状态、八个 dashboard/workspace、四类 narrative component 和 hub/mixed 导航",
-        "组件不是复制空面板凑数，地图、任务、关系、调查、资源等各有真实玩法职责",
+        "至少包含入口、玩家设置、综合状态、十二个有真实绑定的页内工作区模块、三类 narrative component 和 hub/mixed 导航",
+        "任务、物品、关系、情报、地图、调查、资源等共享生命周期的功能整合进少量完整 HTML 页面，不按功能名拆成重复外壳正则",
         "主题含项目专属颜色、字体、形状、纹理、动效和唯一视觉签名，不以 HTML 行数作为验收",
         "所有动态字段有 source_path 到 runtime_path 映射且只读取玩家可见 stat_data",
         "生成稳定中文命名正则和所需 CharacterBook 组件协议；父页面/宿主 DOM 联动允许，但不得创建常驻状态栏/面板、使用失控远程资源、危险 HTML sink 或 SillyTavern 替换令牌",

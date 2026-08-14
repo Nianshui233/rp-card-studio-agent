@@ -51,9 +51,10 @@
 - 状态栏启用但 delivery 不是 `surface: message`，角色正则/占位符/助手输出合同缺失，或 adapter ID、entrypoint、artifact、正则 UUID 与其他运行时交付发生碰撞。（状态栏/UI、整合）
 - `embedded + sillytavern_regex` 未固定为 `refresh: on_message`、`read_only: true`、`commands: []`，使用 tabs，或把条件缺失值、动态状态切换、命令、可靠逐楼层快照声明为已实现。（状态栏/UI、整合）
 - 项目声称动态刷新、命令、tabs、条件缺失值、运行时状态切换或可靠逐楼层快照已经可用，却没有显式选择 `adapter: tavern_helper_message`、`level: host_required`，也没有消息自身 iframe 的真实宿主运行证据；仅选择适配器或生成 fenced HTML 不能解除此 blocker。（状态栏/UI、整合）
-- `tavern_helper_message` 状态栏不是自包含 fenced HTML，未严格校验整数 `getCurrentMessageId()`，未按该 ID 读取 `getVariables({ type: "message", message_id })`，未在卸载时清理自身或宿主监听器/临时节点，存在 latest 冒充历史快照或失控远程 UI 加载。（状态栏/UI、整合）
+- `tavern_helper_message` 状态/工作区页面不是包含 CSS、主体结构和 JS 的自包含 fenced HTML，未等待 `Mvu`、未通过消息 iframe 的 `getAllVariables()` 读取截至当前楼的合并 `stat_data`，未在卸载时清理自身或宿主监听器/临时节点，或存在 latest 冒充历史快照和失控远程 UI 加载。（状态栏/UI、整合）
 - 完整 `light`/`medium`/`heavy` UI 缺少 `ui_experience`、引用的主题/绑定/组件，等级能力门槛不足，以重复空面板凑数，或没有项目专属视觉概念与唯一视觉签名。（状态栏/UI、整合）
-- UI 绑定引用不存在的组件或字段，`source_path -> runtime_path` 映射不闭合，读取 `stat_data` 以外的临时/私密数据，或 UI 在系统阶段未定义的情况下发明变量语义。（状态栏/UI、整合）
+- UI 绑定引用不存在的页面或字段，`source_path -> runtime_path` 映射不闭合，读取 `stat_data` 以外的临时/私密数据，或 UI 在系统阶段未定义的情况下发明变量语义。（状态栏/UI、整合）
+- 轻/中/重 UI 通过拆分大量同壳独立正则凑等级，而综合工作区缺少 4/8/12 个具有真实绑定的页内模块；或模型 block 正则没有捕获并传入当轮负载，状态页没有等待 `Mvu`/读取 `getAllVariables()`，导致只渲染空壳。（状态栏/UI、整合）
 - UI 内联源码创建或恢复页面级常驻状态栏/面板，访问凭据或私密存储，使用动态代码、危险 HTML sink、失控网络/远程 UI，含 `$&`/`$1` 等 SillyTavern 替换令牌，重复绑定交互，或未移除 MVU/宿主事件监听与临时节点。（状态栏/UI、整合）
 - MVU 声明 `extra_pass` 或 `both`，但没有可执行且已验证的独立请求触发、路由、响应解析、协议校验、原子提交和失败回退全链路。（MVU/EJS、整合）
 - 运行时状态 Schema 与 storage、protocol、初始化 profiles、opening bindings 或字段账本不一致。（MVU/EJS、整合）
@@ -125,7 +126,7 @@
 - 角色正则授权后，状态栏在默认/备选开场及后续 AI 消息内部加载。变量取值另行记录：默认宏方案允许宿主回退到最近一条带变量的消息，不得据此宣称历史楼层快照隔离。
 - 启用 MVU 的角色卡投影制品在新建聊天的开场楼层立即产生预期 `stat_data`；若消息 iframe 已加载但变量为空，先核对角色主世界书绑定与 Tavern Helper 角色脚本启用状态，不能把空变量误判为状态栏渲染故障。
 - 纯 Regex 项目只验证消息内投影、静态布局、原生折叠、ARIA 标记和宿主原值显示；`missing_value`、`states.*`、命令、tabs、动态刷新与逐楼层快照不得顺带标记为通过。
-- Tavern Helper 消息级项目按实际实现验证完整/流式、缺失、加载、错误、依赖不可用、消息编辑/重新生成、加载历史和切换聊天；只有 iframe 脚本实际执行、`getCurrentMessageId()` 返回自身整数 ID，并由 `getVariables({ type: "message", message_id })` 反复读出该楼变量时才记录逐楼层快照通过。必须制造首读合法旧值、随后同楼提交新值的时序，确认新值出现且未读取 latest；读取失败不得以 latest 数据冒充成功。
+- Tavern Helper 消息级项目按实际实现验证完整/流式、缺失、加载、错误、依赖不可用、消息编辑/重新生成、加载历史和切换聊天；只有 iframe 脚本实际执行、`getAllVariables()` 在不同历史消息 iframe 中分别读出截至各自楼层的合并快照时才记录逐楼层快照通过。必须制造首读合法旧值、随后同楼提交新值的时序，确认新值出现，并重载历史确认旧楼没有被最新楼覆盖；读取失败不得以 latest 数据冒充成功。
 - 控制台错误、网络失败与宿主依赖状态。
 - iframe 元素或 Blob 内容存在不等于子文档已运行。若子 frame 没有导航、运行哨兵未出现或脚本未执行，记录 `runtime: not_run`。分别记录主世界书绑定、局部正则授权、角色脚本、宏、EJS 插件与 MVU 启动观察；只有 `mvu_started: false` 且 Blob URL 渲染开启时记录 `tavern_helper_blob_url_rendering_observed_failure`，关闭并刷新后仍需重新观察。
 
@@ -168,7 +169,7 @@
 - 状态栏只有两种消息内投影：默认由 `placement: [2]`、`markdownOnly: true`、`promptOnly: false` 的角色正则替换唯一占位符；复杂交互由同类正则生成自包含 fenced HTML，再由 Tavern Helper 创建消息 iframe。`globalThis.parent`、`parent.document`、`#send_textarea`、`#send_but` 或插件 DOM 联动本身允许；只有使用 `#sheld`、`#form_sheld`、已知旧脚本指纹或等价手段创建/恢复页面级常驻状态栏/面板，或加载失控远程页面/脚本，才是 blocker。
 - `embedded + sillytavern_regex` 只接受 `refresh: on_message`、`read_only: true`、空命令和非 tabs 响应式布局。任一动态刷新模式、非只读、命令或 tabs 都必须映射到 `tavern_helper_message + host_required`。
 - 纯 Regex 的 `field.missing_value` 与 `states.loading/empty/error/degraded` 只是设计元数据；离线或制品检查只能确认文案存在，不能确认条件判断、最近合法值保留或视图切换。`percent` 也只允许对必有且已归一为 0..100 的上游值追加字面 `%`。
-- 默认角色正则使用 Tavern Helper macro-like 层提供的 `format_message_variable`；宏被宿主解析只证明当前可用值能够显示，不证明它绑定当前 DOM 楼层。当前验证的 Tavern Helper 4.9.1 在普通消息重绘时未向宏传 `message_id`，会回退到最近一条带变量的消息。只有消息级 iframe 的文档真实导航、脚本实际执行、取得自身整数 `getCurrentMessageId()`、低频使用 `getVariables({ type: "message", message_id })` 复查变量，并通过“合法旧快照后出现本楼新值”、历史重载和卸载清理测试时，才允许报告“逐楼层快照：通过”；严禁 latest 回退。
+- `basic_status` 的默认角色正则使用 Tavern Helper macro-like 层提供的 `format_message_variable`；宏被宿主解析只证明当前可用值能够显示，不证明它绑定当前 DOM 楼层。当前验证的 Tavern Helper 4.9.1 在普通消息重绘时未向宏传 `message_id`，会回退到最近一条带变量的消息。完整 UI 必须改用消息 iframe，等待 `Mvu` 后通过 `getAllVariables()` 读取该 iframe 截至当前楼的合并快照，并通过“合法旧快照后出现本楼新值”、历史重载和卸载清理测试，才允许报告“逐楼层快照：通过”；严禁 latest 回退。
 - 启用 MVU 时必须存在两条完整 `<initvar>...</initvar>` 隐藏规则，分别作用于 Prompt 副本和 Markdown 显示副本，原始消息保持不变；未闭合初始化块不能被吞掉。还必须存在 Prompt-only 更新块过滤规则：默认 `prompt_history.update_visibility: hide_all` / `minDepth: null`；只有明确选择 `keep_recent_updates` 时才使用 `minDepth: 4`，并记录额外 token 与注意力成本。规则需覆盖完整块、大小写变体和流式未闭合块；显示隐藏规则不得吞掉多个更新块之间的正文或末尾状态栏占位符。全部显示侧受管正则必须 `runOnEdit: true`，prompt-only 规则保持 false。状态栏必须另有 `[不发送]界面占位符` 与 `[界面]状态栏` 两条规则。
 - 当前更新模式只接受 `same_generation`，并验证叙事与更新块来自同一次助手生成；启用状态栏时，后续占位符由 MVU 运行时自动追加，模型提示词不得要求模型自行输出。`extra_pass`/`both` 只有在独立请求全链路与宿主证据齐全时才允许；解析或提交辅助入口、接收者清单或手工调用记录都不能单独证明该能力。
 - 新项目输出协议使用 `replace`、`delta`、`insert`、`remove`、`move`；导入兼容检查接受上游合法 `add` 作为 `insert` 别名，但生成提示词不得推荐 `add`。

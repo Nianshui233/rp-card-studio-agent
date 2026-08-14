@@ -75,12 +75,12 @@ function experience(level = "light", count = 6) {
   };
 }
 
-test("UI experience levels enforce basic, light, medium, and heavy component floors", () => {
+test("UI experience levels enforce complete-page floors without one-regex-per-feature inflation", () => {
   for (const [level, count] of [
     ["basic_status", 1],
-    ["light", 6],
-    ["medium", 12],
-    ["heavy", 24],
+    ["light", 3],
+    ["medium", 4],
+    ["heavy", 5],
   ]) {
     const valid = experience(level, count);
     assert.equal(
@@ -93,9 +93,24 @@ test("UI experience levels enforce basic, light, medium, and heavy component flo
       assert.equal(
         validators["ui-experience"](invalid),
         false,
-        `${level} accepted too few surfaces`,
+        `${level} accepted too few complete pages`,
       );
     }
+  }
+});
+
+test("full UI levels accept a small number of complete pages instead of forcing one regex per feature", () => {
+  for (const [level, count] of [
+    ["light", 3],
+    ["medium", 4],
+    ["heavy", 5],
+  ]) {
+    const document = experience(level, count);
+    assert.equal(
+      validators["ui-experience"](document),
+      true,
+      `${level}: ${JSON.stringify(validators["ui-experience"].errors)}`,
+    );
   }
 });
 
@@ -205,19 +220,34 @@ test("all bundled UI component templates satisfy the UI 2.0 schema", () => {
 test("level manifests define complete light, medium, and heavy capability sets", () => {
   const directory = path.join(root, "assets", "templates", "ui");
   const componentDirectory = path.join(directory, "components");
-  const expected = { light: 6, medium: 12, heavy: 24 };
-  for (const [level, count] of Object.entries(expected)) {
+  const expected = {
+    light: { surfaces: 6, minimum: 3, modules: 4 },
+    medium: { surfaces: 9, minimum: 4, modules: 8 },
+    heavy: { surfaces: 10, minimum: 5, modules: 12 },
+  };
+  for (const [level, expectation] of Object.entries(expected)) {
     const manifest = parseYaml(
       readFileSync(path.join(directory, "levels", `${level}.yaml`), "utf8"),
     );
     assert.equal(manifest.level, level);
-    assert.equal(manifest.component_templates.length, count);
-    assert.equal(new Set(manifest.component_templates).size, count);
+    assert.equal(manifest.component_templates.length, expectation.surfaces);
+    assert.equal(
+      new Set(manifest.component_templates).size,
+      expectation.surfaces,
+    );
     for (const template of manifest.component_templates) {
       assert.doesNotThrow(() =>
         readFileSync(path.join(componentDirectory, template), "utf8"),
       );
     }
-    assert.equal(manifest.requirements.minimum_components, count);
+    assert.equal(
+      manifest.requirements.minimum_surfaces,
+      expectation.minimum,
+    );
+    assert.equal(
+      manifest.requirements.minimum_workspace_modules,
+      expectation.modules,
+    );
+    assert.equal(manifest.workspace_modules.length, expectation.modules);
   }
 });

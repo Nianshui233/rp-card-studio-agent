@@ -20,6 +20,9 @@ ui_component:
     kind: tabs
     groups:
       - { id: overview, label: 总览, binding_refs: [], collapsed: false }
+      - { id: character, label: 角色, binding_refs: [], collapsed: false }
+      - { id: world, label: 世界, binding_refs: [], collapsed: false }
+      - { id: objectives, label: 目标, binding_refs: [], collapsed: false }
   states: { loading: 正在读取当前楼状态, empty: 暂无可显示状态, error: 当前楼变量读取失败, degraded: 状态终端暂时不可用 }
   source: { mode: generated, html: "", css: "", js: "" }
   delivery: { surface: message, adapter: tavern_helper_message, level: host_required, run_on_edit: true, min_depth: null, max_depth: 5 }

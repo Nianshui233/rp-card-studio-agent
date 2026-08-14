@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import vm from "node:vm";
 
 import {
   applySillyTavernRegexAdapter,
@@ -8,6 +9,7 @@ import {
 import {
   compileUiExperienceRegexes,
   stableUiRegexId,
+  validateUiExperienceSources,
 } from "../scripts/ui/compiler.mjs";
 
 function component(
@@ -297,6 +299,97 @@ function sources(level = "light", componentCount = 6) {
   };
 }
 
+function regexFromHostLiteral(literal) {
+  const match = /^\/(.*)\/([a-z]*)$/s.exec(literal);
+  assert.ok(match, `Invalid SillyTavern regex literal: ${literal}`);
+  return new RegExp(match[1], match[2]);
+}
+
+class FakeNode {
+  constructor() {
+    this.children = [];
+    this.dataset = {};
+    this.hidden = false;
+    this.style = {};
+    this.textContent = "";
+  }
+
+  append(...children) {
+    this.children.push(...children);
+  }
+
+  replaceChildren(...children) {
+    this.children = [...children];
+  }
+
+  addEventListener() {}
+
+  setAttribute(name, value) {
+    this[name] = value;
+  }
+
+  querySelector() {
+    return null;
+  }
+
+  querySelectorAll() {
+    return [];
+  }
+}
+
+function nodeText(node) {
+  return [node.textContent, ...node.children.map(nodeText)].join(" ");
+}
+
+async function runCompiledUi(replacement, { variables, capturedPayload = null }) {
+  const scriptMatch = /<script>([\s\S]*)<\/script>/.exec(replacement);
+  assert.ok(scriptMatch, "Compiled UI must contain an executable script");
+  const root = new FakeNode();
+  const state = new FakeNode();
+  const bindingHosts = new Map();
+  const messageHost = new FakeNode();
+  const captured = new FakeNode();
+  captured.textContent = capturedPayload ?? "";
+  root.querySelector = (selector) => {
+    if (selector === "[data-rp-state]") return state;
+    if (selector === "[data-rp-message]") return messageHost;
+    const binding = /^\[data-rp-binding="(.+)"\]$/.exec(selector);
+    if (binding) {
+      if (!bindingHosts.has(binding[1])) bindingHosts.set(binding[1], new FakeNode());
+      return bindingHosts.get(binding[1]);
+    }
+    return null;
+  };
+  const context = {
+    console,
+    document: {
+      querySelector(selector) {
+        if (selector.startsWith("[data-rp-ui-root=")) return root;
+        if (selector === "[data-rp-captured-payload]") return capturedPayload === null ? null : captured;
+        return null;
+      },
+      createElement() {
+        return new FakeNode();
+      },
+    },
+    getAllVariables: () => structuredClone(variables),
+    getVariables: () => structuredClone(variables),
+    getCurrentMessageId: () => 2,
+    getChatMessages: () => [],
+    waitGlobalInitialized: async () => {},
+    eventOn: () => {},
+    eventRemoveListener: () => {},
+    Mvu: { events: { VARIABLE_UPDATE_ENDED: "variable-update-ended" } },
+    setTimeout,
+    clearTimeout,
+  };
+  context.globalThis = context;
+  context.addEventListener = () => {};
+  vm.runInNewContext(scriptMatch[1], context);
+  await new Promise((resolve) => setImmediate(resolve));
+  return { root, state, bindingHosts, messageHost };
+}
+
 test("UI compiler emits stable Chinese-named component regexes with self-contained message frontends", () => {
   const result = compileUiExperienceRegexes({
     project: { features: { status_ui: true } },
@@ -321,7 +414,7 @@ test("UI compiler emits stable Chinese-named component regexes with self-contain
   assert.match(status.replaceString, /getVariables/);
   assert.match(
     status.replaceString,
-    /binding\.runtime_path\|\|binding\.source_path/,
+    /binding\.read_paths/,
   );
   assert.match(status.replaceString, /eventRemoveListener/);
   assert.match(status.replaceString, /pagehide/);
@@ -332,6 +425,69 @@ test("UI compiler emits stable Chinese-named component regexes with self-contain
     1,
   );
   assert.doesNotMatch(status.replaceString, /https?:\/\//i);
+});
+
+test("model block components carry their captured payload into the replacement iframe", async () => {
+  const result = compileUiExperienceRegexes({
+    project: { features: { status_ui: true } },
+    sources: sources(),
+  });
+  const update = result.scripts.find(
+    (script) => script.rp_card_studio.source_id === "update",
+  );
+  const input = '<RPUI_update>{"title":"开局锚定","location":"苏州府吴县"}</RPUI_update>';
+  const replacement = input.replace(
+    regexFromHostLiteral(update.findRegex),
+    update.replaceString,
+  );
+  assert.match(update.findRegex, /\(\[\\s\\S\]\*\?\)/);
+  assert.match(update.replaceString, /data-rp-captured-payload/);
+  assert.doesNotMatch(update.replaceString, /getChatMessages/);
+  const rendered = await runCompiledUi(replacement, {
+    variables: {},
+    capturedPayload: '{"title":"开局锚定","location":"苏州府吴县"}',
+  });
+  assert.match(nodeText(rendered.messageHost), /开局锚定/);
+  assert.match(nodeText(rendered.messageHost), /苏州府吴县/);
+});
+
+test("status components wait for MVU and prefer the updated source path over a stale runtime alias", async () => {
+  const divergent = sources();
+  const declaration = divergent.mvu[0].value.mvu.variables[0];
+  declaration.source_path = "historical_sandbox_state.current_date";
+  declaration.runtime_path = "stat_data.world.current_date";
+  const bindingSet = divergent.ui.find((entry) => entry.value.ui_bindings);
+  bindingSet.value.ui_bindings.bindings[0].id = "current_date";
+  bindingSet.value.ui_bindings.bindings[0].source_path = declaration.source_path;
+  bindingSet.value.ui_bindings.bindings[0].label = "当前纪年";
+  const statusComponent = divergent.ui.find(
+    (entry) => entry.value.ui_component?.id === "status",
+  );
+  statusComponent.value.ui_component.binding_refs = ["current_date"];
+  statusComponent.value.ui_component.layout.groups[0].binding_refs = ["current_date"];
+
+  const result = compileUiExperienceRegexes({
+    project: { features: { status_ui: true } },
+    sources: divergent,
+  });
+  const status = result.scripts.find(
+    (script) => script.rp_card_studio.source_id === "status",
+  );
+  assert.match(status.replaceString, /waitGlobalInitialized/);
+  assert.match(status.replaceString, /getAllVariables/);
+  const rendered = await runCompiledUi(status.replaceString, {
+    variables: {
+      stat_data: {
+        historical_sandbox_state: { current_date: "洪武十四年" },
+        world: { current_date: "uninitialized" },
+      },
+    },
+  });
+  assert.match(nodeText(rendered.bindingHosts.get("current_date")), /洪武十四年/);
+  assert.doesNotMatch(
+    nodeText(rendered.bindingHosts.get("current_date")),
+    /uninitialized/,
+  );
 });
 
 test("message components generate CharacterBook output contracts and survive idempotent rebuilds", () => {
@@ -389,7 +545,7 @@ test("UI validation allows parent-page host bridging while still enforcing level
     sources: bridged,
     projectRoot: process.cwd(),
   });
-  assert.ok(result.issues.some((item) => item.rule === "ui.experience_level"));
+  assert.ok(result.issues.some((item) => item.rule === "ui.capability_floor"));
   assert.equal(
     result.issues.some(
       (item) => item.rule === "ui.security.persistent_status_panel",
@@ -444,6 +600,85 @@ test("UI validation rejects SillyTavern replacement tokens in inline sources", a
   });
   assert.ok(
     result.issues.some((item) => item.rule === "ui.security.replacement_token"),
+  );
+});
+
+test("medium UI capability can be concentrated into one multi-module workspace page", async () => {
+  const consolidated = sources("medium", 6);
+  const intro = consolidated.ui.find(
+    (entry) => entry.value.ui_component?.id === "intro",
+  ).value.ui_component;
+  intro.role = "setup";
+  intro.preset = "player_setup";
+  intro.layout = { kind: "form", groups: [] };
+
+  const status = consolidated.ui.find(
+    (entry) => entry.value.ui_component?.id === "status",
+  ).value.ui_component;
+  const bindingSet = consolidated.ui.find(
+    (entry) => entry.value.ui_bindings,
+  ).value.ui_bindings;
+  const declarations = consolidated.mvu[0].value.mvu.variables;
+  const moduleIds = [
+    "overview",
+    "character",
+    "world",
+    "tasks",
+    "inventory",
+    "relationships",
+    "intelligence",
+    "location",
+  ];
+  bindingSet.bindings = [];
+  declarations.length = 0;
+  status.binding_refs = [];
+  status.layout.groups = moduleIds.map((id, index) => {
+    const bindingId = `module_${index}`;
+    const sourcePath = `workspace.${id}`;
+    declarations.push({
+      source_path: sourcePath,
+      runtime_path: `stat_data.${sourcePath}`,
+      type: "string",
+      default: "未记录",
+      constraints: {},
+      writer: { id: "state", operations: ["set"] },
+      readers: ["status_ui"],
+      visibility: "player",
+    });
+    bindingSet.bindings.push({
+      id: bindingId,
+      component_ref: "ui_component:status",
+      slot: id,
+      source_path: sourcePath,
+      presentation: "text",
+      label: id,
+      missing_value: "未记录",
+      priority: index,
+      collection: { empty: "未记录", limit: 20, sort: "source" },
+    });
+    status.binding_refs.push(bindingId);
+    return {
+      id,
+      label: id,
+      binding_refs: [bindingId],
+      collapsed: false,
+    };
+  });
+
+  const variableBySource = new Map(
+    declarations.map((declaration) => [declaration.source_path, declaration]),
+  );
+  const result = validateUiExperienceSources({
+    project: { features: { status_ui: true } },
+    sources: consolidated,
+    variableBySource,
+  });
+  assert.equal(
+    result.issues.some((item) =>
+      ["ui.experience_level", "ui.capability_floor"].includes(item.rule),
+    ),
+    false,
+    JSON.stringify(result.issues),
   );
 });
 
