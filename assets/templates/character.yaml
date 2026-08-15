@@ -1,56 +1,130 @@
-schema_version: 1.0.0
+schema_version: 1.1.0
 id: character_id
 display_name: 未命名角色
 status: draft
 role: pending
 
+# 角色模板的目标是让 AI 稳定地“成为这个人”，而不是填写人物数据库。
+# 描述尽量落到：触发条件 → 可观察行为 → 语言变化 → 结果或代价。
 identity:
   aliases: []
-  age: null
+  age: ""
+  gender: ""
   species: ""
   occupation: ""
-  appearance: []
+  appearance:
+    - "辨识度高、能在场景中被观察到的外貌特征"
+  body:
+    height: ""
+    build: ""
+    details: ""
+  clothing:
+    everyday: ""
+    formal_or_work: ""
+    private_or_relaxed: ""
+    accessories: []
+  impression: ""                    # 最高辨识特征 + 他人的第一反应
 
-narrative_function:
-  purpose: ""
-  pressure_on_player: ""
-
-goals:
-  immediate: []
-  long_term: []
-  hidden: []
+story_role:
+  function: ""                      # 该角色为 RP 带来什么冲突、关系或体验
+  connection_to_user: ""
+  current_stakes: ""
 
 psychology:
-  needs: []
-  fears: []
-  weaknesses: []
-  biases: []
-  self_deceptions: []
+  motivations:
+    goal: ""                         # 当前最想达成、可被验证的目标
+    drive: ""                        # 为什么非做到不可
+  fears:
+    situation: ""                    # 最怕变成怎样的人或落入怎样的处境
+    loss: ""                         # 最怕失去的具体对象、关系或状态
+  values:
+    ranking: ""                      # 如：忠诚 > 真相 > 安全
+    rationale: ""                    # 应能推导至少两条行为规则
+  taboos: []                          # 绝不会做的可观察行为
+  internal_conflict: ""              # 两个重要价值之间无法轻易兼得的张力
 
-value_priority: []
-internal_conflicts: []
-boundaries: []
+behavior:
+  rules:
+    - trigger: ""
+      action: ""
+      condition: ""
+      reason: ""
+      cost: ""
+  stress_response:
+    - when: ""
+      reaction: ""
+  quirks: []                          # 小动作、泄露内心的反应、仪式感行为
 
-behavioral_rules: []
-stress_ladder: []
-ooc_guardrails: []
+attitudes:
+  close_ones:
+    behavior: ""
+    subtext: ""
+    verbal_change: ""
+  strangers:
+    behavior: ""
+    subtext: ""
+    verbal_change: ""
+  enemies:
+    behavior: ""
+    subtext: ""
+    verbal_change: ""
+  authority:
+    behavior: ""
+    subtext: ""
+    verbal_change: ""
+  custom:
+    - target_type: ""
+      behavior: ""
+      subtext: ""
+      verbal_change: ""
 
 speech:
-  register: ""
-  rhythm: ""
-  habits: []
-  avoid: []
+  style:
+    tone: ""
+    structure: ""
+    vocabulary: ""
+  catchphrases: []
+  rules:
+    - type: "structure"              # structure / forbidden / emotion_shift / addressing / custom
+      content: ""
+  quotes:
+    - line: ""
+      context: ""
 
-relationships: []
+background:
+  origin: ""                         # 只保留会影响当前行为的出身信息
+  turning_point: ""                  # 应能解释至少一个恐惧、底线或行为规则
+  current_situation: ""
+  unresolved_past: []
+
+relationships:
+  - target_ref: player:user           # 或 character:角色ID
+    public_relation: ""
+    private_relation: ""
+    current_dynamic: ""
+    behavioral_effect: ""
+    change_basis: ""
+    prohibited_shortcuts: []
 
 knowledge:
   player_visible: []
   gm_only: []
   model_only: []
-  mistaken: []
-  forbidden: []
+  mistaken: []                        # 角色坚信但并不正确的事
+  forbidden: []                       # 角色不可能知道或不得无故说出的信息
 
-state_bindings: []
-examples: []
+growth_arc:
+  starting_state: ""
+  pressure_points: []
+  possible_changes: []
+  must_not_change_without_event: []
+
+anti_ooc:
+  always: []                          # 任何场景都必须保持的核心行为准则
+  never: []                           # 与 taboos 和 values 对应的绝对禁止行为
+  meta_handling: ""
+  unknown_handling: ""               # 未覆盖场景如何从动机与价值外推
+
+state_bindings: []                    # 只有确实需要变量联动时填写
 tags: []
 source_refs: []

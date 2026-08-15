@@ -4,54 +4,264 @@
   "title": "Character Source",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "id", "display_name", "status", "role", "identity", "narrative_function", "goals", "value_priority", "internal_conflicts", "boundaries", "behavioral_rules", "speech", "relationships", "knowledge", "state_bindings", "examples", "tags", "source_refs"],
+  "required": [
+    "schema_version",
+    "id",
+    "display_name",
+    "status",
+    "role",
+    "tags",
+    "source_refs"
+  ],
   "properties": {
-    "schema_version": { "const": "1.0.0" },
-    "id": { "$ref": "#/$defs/id" },
-    "display_name": { "type": "string", "minLength": 1 },
-    "status": { "enum": ["draft", "locked"] },
-    "role": { "enum": ["pending", "primary_character", "companion", "antagonist", "npc", "player_template", "ensemble"] },
+    "schema_version": {
+      "enum": [
+        "1.0.0",
+        "1.1.0"
+      ]
+    },
+    "id": {
+      "$ref": "#/$defs/id"
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "locked"
+      ]
+    },
+    "role": {
+      "enum": [
+        "pending",
+        "primary_character",
+        "companion",
+        "antagonist",
+        "npc",
+        "player_template",
+        "ensemble"
+      ]
+    },
     "identity": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["aliases", "age", "species", "occupation", "appearance"],
+      "required": [],
       "properties": {
-        "aliases": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
-        "age": { "type": ["integer", "string", "null"] },
-        "species": { "type": "string" },
-        "occupation": { "type": "string" },
-        "appearance": { "$ref": "#/$defs/stringList" }
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "age": {
+          "type": [
+            "integer",
+            "string",
+            "null"
+          ]
+        },
+        "gender": {
+          "type": "string"
+        },
+        "species": {
+          "type": "string"
+        },
+        "occupation": {
+          "type": "string"
+        },
+        "appearance": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "body": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "height",
+            "build",
+            "details"
+          ],
+          "properties": {
+            "height": {
+              "type": "string"
+            },
+            "build": {
+              "type": "string"
+            },
+            "details": {
+              "type": "string"
+            }
+          }
+        },
+        "clothing": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "everyday",
+            "formal_or_work",
+            "private_or_relaxed",
+            "accessories"
+          ],
+          "properties": {
+            "everyday": {
+              "type": "string"
+            },
+            "formal_or_work": {
+              "type": "string"
+            },
+            "private_or_relaxed": {
+              "type": "string"
+            },
+            "accessories": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "impression": {
+          "type": "string"
+        }
       }
     },
     "narrative_function": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["purpose", "pressure_on_player"],
+      "required": [
+        "purpose",
+        "pressure_on_player"
+      ],
       "properties": {
-        "purpose": { "type": "string" },
-        "pressure_on_player": { "type": "string" }
+        "purpose": {
+          "type": "string"
+        },
+        "pressure_on_player": {
+          "type": "string"
+        }
       }
     },
     "goals": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["immediate", "long_term", "hidden"],
+      "required": [
+        "immediate",
+        "long_term",
+        "hidden"
+      ],
       "properties": {
-        "immediate": { "$ref": "#/$defs/stringList" },
-        "long_term": { "$ref": "#/$defs/stringList" },
-        "hidden": { "$ref": "#/$defs/stringList" }
+        "immediate": {
+          "$ref": "#/$defs/stringList"
+        },
+        "long_term": {
+          "$ref": "#/$defs/stringList"
+        },
+        "hidden": {
+          "$ref": "#/$defs/stringList"
+        }
       }
     },
     "psychology": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["needs", "fears", "weaknesses", "biases", "self_deceptions"],
+      "required": [],
       "properties": {
-        "needs": { "$ref": "#/$defs/stringList" },
-        "fears": { "$ref": "#/$defs/stringList" },
-        "weaknesses": { "$ref": "#/$defs/stringList" },
-        "biases": { "$ref": "#/$defs/stringList" },
-        "self_deceptions": { "$ref": "#/$defs/stringList" }
+        "needs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "weaknesses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "biases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "self_deceptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "motivations": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "goal",
+            "drive"
+          ],
+          "properties": {
+            "goal": {
+              "type": "string"
+            },
+            "drive": {
+              "type": "string"
+            }
+          }
+        },
+        "fears": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "situation",
+                "loss"
+              ],
+              "properties": {
+                "situation": {
+                  "type": "string"
+                },
+                "loss": {
+                  "type": "string"
+                }
+              }
+            }
+          ]
+        },
+        "values": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "ranking",
+            "rationale"
+          ],
+          "properties": {
+            "ranking": {
+              "type": "string"
+            },
+            "rationale": {
+              "type": "string"
+            }
+          }
+        },
+        "taboos": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "internal_conflict": {
+          "type": "string"
+        }
       }
     },
     "value_priority": {
@@ -59,29 +269,69 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "value", "rank"],
+        "required": [
+          "id",
+          "value",
+          "rank"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "value": { "type": "string", "minLength": 1 },
-          "rank": { "type": "integer", "minimum": 1 }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "value": {
+            "type": "string",
+            "minLength": 1
+          },
+          "rank": {
+            "type": "integer",
+            "minimum": 1
+          }
         }
       }
     },
-    "internal_conflicts": { "$ref": "#/$defs/stringList" },
-    "boundaries": { "$ref": "#/$defs/stringList" },
+    "internal_conflicts": {
+      "$ref": "#/$defs/stringList"
+    },
+    "boundaries": {
+      "$ref": "#/$defs/stringList"
+    },
     "behavioral_rules": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "when", "response", "never", "visibility"],
+        "required": [
+          "id",
+          "when",
+          "response",
+          "never",
+          "visibility"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "when": { "type": "string", "minLength": 1 },
-          "assessment": { "type": "string" },
-          "response": { "type": "string", "minLength": 1 },
-          "never": { "$ref": "#/$defs/stringList" },
-          "visibility": { "enum": ["player", "gm", "model"] }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "when": {
+            "type": "string",
+            "minLength": 1
+          },
+          "assessment": {
+            "type": "string"
+          },
+          "response": {
+            "type": "string",
+            "minLength": 1
+          },
+          "never": {
+            "$ref": "#/$defs/stringList"
+          },
+          "visibility": {
+            "enum": [
+              "player",
+              "gm",
+              "model"
+            ]
+          }
         }
       }
     },
@@ -90,27 +340,134 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "rank", "behavior", "escalation_triggers", "deescalation"],
+        "required": [
+          "id",
+          "rank",
+          "behavior",
+          "escalation_triggers",
+          "deescalation"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "rank": { "type": "integer", "minimum": 1 },
-          "behavior": { "type": "string", "minLength": 1 },
-          "escalation_triggers": { "$ref": "#/$defs/stringList" },
-          "deescalation": { "type": "string", "minLength": 1 }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "rank": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "behavior": {
+            "type": "string",
+            "minLength": 1
+          },
+          "escalation_triggers": {
+            "$ref": "#/$defs/stringList"
+          },
+          "deescalation": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     },
-    "ooc_guardrails": { "$ref": "#/$defs/stringList" },
+    "ooc_guardrails": {
+      "$ref": "#/$defs/stringList"
+    },
     "speech": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["register", "rhythm", "habits", "avoid"],
+      "required": [],
       "properties": {
-        "register": { "type": "string" },
-        "rhythm": { "type": "string" },
-        "address": { "type": "string" },
-        "habits": { "$ref": "#/$defs/stringList" },
-        "avoid": { "$ref": "#/$defs/stringList" }
+        "register": {
+          "type": "string"
+        },
+        "rhythm": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "habits": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "avoid": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "style": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tone",
+            "structure",
+            "vocabulary"
+          ],
+          "properties": {
+            "tone": {
+              "type": "string"
+            },
+            "structure": {
+              "type": "string"
+            },
+            "vocabulary": {
+              "type": "string"
+            }
+          }
+        },
+        "catchphrases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "content"
+            ],
+            "properties": {
+              "type": {
+                "enum": [
+                  "structure",
+                  "forbidden",
+                  "emotion_shift",
+                  "addressing",
+                  "custom"
+                ]
+              },
+              "content": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "quotes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "line",
+              "context"
+            ],
+            "properties": {
+              "line": {
+                "type": "string"
+              },
+              "context": {
+                "type": "string"
+              }
+            }
+          }
+        }
       }
     },
     "relationships": {
@@ -118,27 +475,62 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["target_ref", "public_relation", "private_relation", "behavioral_effect"],
+        "required": [
+          "target_ref",
+          "public_relation",
+          "private_relation",
+          "behavioral_effect"
+        ],
         "properties": {
-          "target_ref": { "type": "string", "pattern": "^(character|player):[a-z][a-z0-9_]*$" },
-          "public_relation": { "type": "string" },
-          "private_relation": { "type": "string" },
-          "behavioral_effect": { "type": "string" },
-          "change_basis": { "type": "string" },
-          "prohibited_shortcuts": { "$ref": "#/$defs/stringList" }
+          "target_ref": {
+            "type": "string",
+            "pattern": "^(character|player):[a-z][a-z0-9_]*$"
+          },
+          "public_relation": {
+            "type": "string"
+          },
+          "private_relation": {
+            "type": "string"
+          },
+          "behavioral_effect": {
+            "type": "string"
+          },
+          "change_basis": {
+            "type": "string"
+          },
+          "prohibited_shortcuts": {
+            "$ref": "#/$defs/stringList"
+          },
+          "current_dynamic": {
+            "type": "string"
+          }
         }
       }
     },
     "knowledge": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["player_visible", "gm_only", "model_only"],
+      "required": [
+        "player_visible",
+        "gm_only",
+        "model_only"
+      ],
       "properties": {
-        "player_visible": { "$ref": "#/$defs/stringList" },
-        "gm_only": { "$ref": "#/$defs/stringList" },
-        "model_only": { "$ref": "#/$defs/stringList" },
-        "mistaken": { "$ref": "#/$defs/stringList" },
-        "forbidden": { "$ref": "#/$defs/stringList" }
+        "player_visible": {
+          "$ref": "#/$defs/stringList"
+        },
+        "gm_only": {
+          "$ref": "#/$defs/stringList"
+        },
+        "model_only": {
+          "$ref": "#/$defs/stringList"
+        },
+        "mistaken": {
+          "$ref": "#/$defs/stringList"
+        },
+        "forbidden": {
+          "$ref": "#/$defs/stringList"
+        }
       }
     },
     "state_bindings": {
@@ -146,11 +538,26 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["source_path", "purpose", "access"],
+        "required": [
+          "source_path",
+          "purpose",
+          "access"
+        ],
         "properties": {
-          "source_path": { "$ref": "#/$defs/path" },
-          "purpose": { "type": "string", "minLength": 1 },
-          "access": { "enum": ["read", "write", "read_write"] }
+          "source_path": {
+            "$ref": "#/$defs/path"
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 1
+          },
+          "access": {
+            "enum": [
+              "read",
+              "write",
+              "read_write"
+            ]
+          }
         }
       }
     },
@@ -159,33 +566,549 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["context", "line", "demonstrates"],
+        "required": [
+          "context",
+          "line",
+          "demonstrates"
+        ],
         "properties": {
-          "context": { "type": "string", "minLength": 1 },
-          "line": { "type": "string", "minLength": 1 },
-          "demonstrates": { "type": "string", "minLength": 1 }
+          "context": {
+            "type": "string",
+            "minLength": 1
+          },
+          "line": {
+            "type": "string",
+            "minLength": 1
+          },
+          "demonstrates": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     },
-    "tags": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
-    "source_refs": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
-    "nsfw": { "type": "object", "minProperties": 1 },
-    "extensions": { "type": "object" }
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "source_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "nsfw": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "extensions": {
+      "type": "object"
+    },
+    "story_role": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "function",
+        "connection_to_user",
+        "current_stakes"
+      ],
+      "properties": {
+        "function": {
+          "type": "string"
+        },
+        "connection_to_user": {
+          "type": "string"
+        },
+        "current_stakes": {
+          "type": "string"
+        }
+      }
+    },
+    "behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rules",
+        "stress_response",
+        "quirks"
+      ],
+      "properties": {
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "trigger",
+              "action"
+            ],
+            "properties": {
+              "trigger": {
+                "type": "string"
+              },
+              "action": {
+                "type": "string"
+              },
+              "condition": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "cost": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "stress_response": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "when",
+              "reaction"
+            ],
+            "properties": {
+              "when": {
+                "type": "string"
+              },
+              "reaction": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "quirks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "attitudes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "close_ones",
+        "strangers",
+        "enemies",
+        "authority",
+        "custom"
+      ],
+      "properties": {
+        "close_ones": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "behavior",
+            "subtext",
+            "verbal_change"
+          ],
+          "properties": {
+            "behavior": {
+              "type": "string"
+            },
+            "subtext": {
+              "type": "string"
+            },
+            "verbal_change": {
+              "type": "string"
+            }
+          }
+        },
+        "strangers": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "behavior",
+            "subtext",
+            "verbal_change"
+          ],
+          "properties": {
+            "behavior": {
+              "type": "string"
+            },
+            "subtext": {
+              "type": "string"
+            },
+            "verbal_change": {
+              "type": "string"
+            }
+          }
+        },
+        "enemies": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "behavior",
+            "subtext",
+            "verbal_change"
+          ],
+          "properties": {
+            "behavior": {
+              "type": "string"
+            },
+            "subtext": {
+              "type": "string"
+            },
+            "verbal_change": {
+              "type": "string"
+            }
+          }
+        },
+        "authority": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "behavior",
+            "subtext",
+            "verbal_change"
+          ],
+          "properties": {
+            "behavior": {
+              "type": "string"
+            },
+            "subtext": {
+              "type": "string"
+            },
+            "verbal_change": {
+              "type": "string"
+            }
+          }
+        },
+        "custom": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "target_type",
+              "behavior",
+              "subtext",
+              "verbal_change"
+            ],
+            "properties": {
+              "target_type": {
+                "type": "string"
+              },
+              "behavior": {
+                "type": "string"
+              },
+              "subtext": {
+                "type": "string"
+              },
+              "verbal_change": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "background": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "origin",
+        "turning_point",
+        "current_situation",
+        "unresolved_past"
+      ],
+      "properties": {
+        "origin": {
+          "type": "string"
+        },
+        "turning_point": {
+          "type": "string"
+        },
+        "current_situation": {
+          "type": "string"
+        },
+        "unresolved_past": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "growth_arc": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "starting_state",
+        "pressure_points",
+        "possible_changes",
+        "must_not_change_without_event"
+      ],
+      "properties": {
+        "starting_state": {
+          "type": "string"
+        },
+        "pressure_points": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "possible_changes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "must_not_change_without_event": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "anti_ooc": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "always",
+        "never",
+        "meta_handling",
+        "unknown_handling"
+      ],
+      "properties": {
+        "always": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "never": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "meta_handling": {
+          "type": "string"
+        },
+        "unknown_handling": {
+          "type": "string"
+        }
+      }
+    }
   },
   "allOf": [
     {
       "if": {
-        "properties": { "status": { "const": "locked" } },
-        "required": ["status"]
+        "properties": {
+          "schema_version": {
+            "const": "1.0.0"
+          }
+        },
+        "required": [
+          "schema_version"
+        ]
       },
       "then": {
-        "properties": { "role": { "not": { "const": "pending" } } }
+        "required": [
+          "schema_version",
+          "id",
+          "display_name",
+          "status",
+          "role",
+          "identity",
+          "narrative_function",
+          "goals",
+          "value_priority",
+          "internal_conflicts",
+          "boundaries",
+          "behavioral_rules",
+          "speech",
+          "relationships",
+          "knowledge",
+          "state_bindings",
+          "examples",
+          "tags",
+          "source_refs"
+        ],
+        "properties": {
+          "schema_version": {},
+          "id": {},
+          "display_name": {},
+          "status": {},
+          "role": {},
+          "identity": {},
+          "narrative_function": {},
+          "goals": {},
+          "value_priority": {},
+          "internal_conflicts": {},
+          "boundaries": {},
+          "behavioral_rules": {},
+          "speech": {},
+          "relationships": {},
+          "knowledge": {},
+          "state_bindings": {},
+          "examples": {},
+          "tags": {},
+          "source_refs": {}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": "1.1.0"
+          }
+        },
+        "required": [
+          "schema_version"
+        ]
+      },
+      "then": {
+        "required": [
+          "schema_version",
+          "id",
+          "display_name",
+          "status",
+          "role",
+          "identity",
+          "story_role",
+          "psychology",
+          "behavior",
+          "attitudes",
+          "speech",
+          "background",
+          "relationships",
+          "knowledge",
+          "growth_arc",
+          "anti_ooc",
+          "state_bindings",
+          "tags",
+          "source_refs"
+        ],
+        "properties": {
+          "schema_version": {},
+          "id": {},
+          "display_name": {},
+          "status": {},
+          "role": {},
+          "identity": {
+            "properties": {
+              "aliases": {},
+              "age": {},
+              "gender": {},
+              "species": {},
+              "occupation": {},
+              "appearance": {},
+              "body": {},
+              "clothing": {},
+              "impression": {}
+            },
+            "required": [
+              "aliases",
+              "age",
+              "gender",
+              "species",
+              "occupation",
+              "appearance",
+              "body",
+              "clothing",
+              "impression"
+            ],
+            "type": "object"
+          },
+          "story_role": {},
+          "psychology": {
+            "properties": {
+              "motivations": {},
+              "fears": {},
+              "values": {},
+              "taboos": {},
+              "internal_conflict": {}
+            },
+            "required": [
+              "motivations",
+              "fears",
+              "values",
+              "taboos",
+              "internal_conflict"
+            ],
+            "type": "object"
+          },
+          "behavior": {},
+          "attitudes": {},
+          "speech": {
+            "properties": {
+              "style": {},
+              "catchphrases": {},
+              "rules": {},
+              "quotes": {}
+            },
+            "required": [
+              "style",
+              "catchphrases",
+              "rules",
+              "quotes"
+            ],
+            "type": "object"
+          },
+          "background": {},
+          "relationships": {},
+          "knowledge": {},
+          "growth_arc": {},
+          "anti_ooc": {},
+          "state_bindings": {},
+          "tags": {},
+          "source_refs": {}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "locked"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "role": {
+            "not": {
+              "const": "pending"
+            }
+          }
+        }
       }
     }
   ],
   "$defs": {
-    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
-    "path": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$" },
-    "stringList": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "path": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+    },
+    "stringList": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
   }
 }

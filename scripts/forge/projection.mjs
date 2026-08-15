@@ -57,6 +57,19 @@ export function projectModelSource(group, source) {
       "knowledge",
       "continuity",
       "hooks",
+      "world_identity",
+      "setting_scope",
+      "information_layers",
+      "core_conflict",
+      "world_rules",
+      "species",
+      "factions_and_society",
+      "improvised_characters",
+      "common_knowledge",
+      "timeline",
+      "change_boundaries",
+      "cross_world_rules",
+      "open_questions",
     ]);
   } else if (normalizedGroup === "character") {
     projected = pick(source, [
@@ -79,6 +92,12 @@ export function projectModelSource(group, source) {
       "state_bindings",
       "examples",
       "nsfw",
+      "story_role",
+      "behavior",
+      "attitudes",
+      "background",
+      "growth_arc",
+      "anti_ooc",
     ]);
   } else if (normalizedGroup === "system") {
     projected = pick(source, [

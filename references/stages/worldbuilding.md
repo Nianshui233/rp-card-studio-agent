@@ -1,6 +1,18 @@
 # 世界观阶段
 
-本阶段建立所有角色和场景共同服从的世界事实。重点是让规则可执行、后果可推导、信息可分层，而不是堆积百科式背景。
+本阶段把零散想法整理成一份真正供 AI 执行 RP 的 World Bible。重点不是填写世界数据库，而是让 AI 知道：玩家可以做什么、什么会阻止他们、普通人怎样反应、冲突如何升级、秘密何时揭示，以及世界规则会带来什么后果。
+
+## RP 作者模板原则
+
+- **以可玩性为中心**：每条重要设定至少服务于行动可行性、冲突生成、后果裁决、NPC 反应或环境描写之一。纯氛围内容压缩到 `world_identity`、`common_knowledge.daily_life_anchors` 或具体地点的描写锚点中。
+- **规则直接可执行**：核心体系使用“能做什么 / 不能做什么 / 代价 / 上限 / 频率 / 成功、部分成功、失败 / 边界案例 / 优先级”，避免让游玩模型从长篇历史里自行猜规则。
+- **先框架后细节**：先锁定类型与基调、时空范围、公开现实、核心矛盾和力量体系，再扩展种族、势力、日常常识与历史。
+- **世界会回应玩家**：势力、法律、资源、身份和常识都要能生成具体的支持、阻力、误解、代价与剧情机会。
+- **信息分层防剧透**：公开信息、条件信息、秘密、谣言与揭示条件分别保存；秘密不能因为它写在世界观里就被角色自动知道。
+- **即兴 NPC 也属于世界设计**：世界观定义即兴人物的能力上限、常见背景、命名风格、复用与多样性，但不预制具体人物档案。
+- **不适用就裁剪**：不为模板完整度虚构种族、宗教、跨世界结构或复杂规则。保留有用模块，删除不适用模块，并保证剩余内容闭合。
+
+新建世界源码使用 `world.schema.json 1.1.0` 和 [world.yaml](../../assets/templates/world.yaml)。旧 `1.0.0` 项目继续兼容，不要求为了换模板而机械迁移。
 
 ## 本阶段产物
 
@@ -131,19 +143,26 @@
 - [世界级决定]
 
 ## 本轮生成片段
-<!-- validate: world.schema.json; merge: assets/templates/world.yaml -->
+<!-- merge fragment; final source validates against world.schema.json 1.1.0 -->
 ```yaml
-schema_version: 1.0.0
-id: world_id
-display_name: "本轮锁定的世界名称"
-status: draft
-premise:
-  summary: "本轮锁定的世界级事实"
+world_identity:
+  genre: "本轮锁定的主类型"
+  tone: "本轮锁定的基调"
+core_conflict:
+  current_situation: "本轮锁定的当前局势"
+world_rules:
+  systems:
+    - id: rule_system_id
+      name: "本轮锁定的核心规则"
+      can_do: []
+      cannot_do: []
+      costs: []
+      limits: []
 ```
 
 ## 本阶段检查
 - 已满足：[X/Y 项]
-- 规则缺口：[仅列世界规则]
+- RP 执行缺口：[行动、后果、NPC 反应或信息分层方面的缺口]
 - 冲突：[严重度 + 影响]
 - 跨阶段待办：[目标阶段 + 原始信息]
 
@@ -153,117 +172,79 @@ premise:
 
 ## 示例片段
 
-<!-- validate: world.schema.json -->
+下面是一个可合并片段，重点展示“规则怎样直接服务 RP”，不是配置项堆砌：
+
 ```yaml
-schema_version: 1.0.0
+schema_version: 1.1.0
 id: midnight_railway
 display_name: "午夜列车"
-status: locked
-premise:
-  summary: "列车必须维持运行秩序，而乘客只有破坏部分秩序才能查明自己为何登车。"
-  scale: local
-  time_scope: "车内时间连续，但与外界时序无法稳定对应。"
-  space_scope: "一列在未知线路上持续运行的封闭长途列车。"
-  public_reality: "乘客普遍知道列车不会按普通时刻表停靠，乘务人员则宣称遵守车规即可抵达目的地。"
-fundamental_rules:
-  - id: train_no_voluntary_stop
-    statement: "列车不能通过常规制动主动停靠。"
-    scope: "列车运行、制动与车门开放。"
-    can:
-      - "列车可以减速、改变车厢内部状态并在预定节点开门。"
-    cannot:
-      - "乘客或乘务人员不能凭临时要求让列车完全停车。"
-    cost: "强行干预制动会切断相邻车厢的供能，并触发全列警报。"
-    limits: "干预最多持续三分钟，之后制动系统自动回归运行状态。"
-    adjudication: "任何让列车相对线路静止超过三分钟的方案均判定失败。"
-    precedence: "与普通设备说明冲突时，以本规则为准。"
-    boundary_cases:
-      - "外部障碍迫使列车减速但未静止时，不视为停车。"
-    exceptions: []
-    consequences:
-      - "强行干预失败后，相邻车厢断电并触发警报。"
-    visibility: player
-  - id: passenger_protection_oath
-    statement: "正式乘务人员不得主动实施以乘客死亡为直接目的的行为。"
-    scope: "所有正式乘务人员及其主动下达的命令。"
-    can:
-      - "乘务人员可以使用阻止即时大规模伤亡所必需的强制手段。"
-    cannot:
-      - "乘务人员不能借第三方代行以乘客死亡为直接目的的行为。"
-    cost: "违背誓约会立即失去列车权限。"
-    limits: "必要强制手段必须在威胁停止后终止。"
-    adjudication: "按行为的直接目的与可预见结果共同裁决。"
-    precedence: "与岗位命令冲突时，乘客保护誓约优先。"
-    boundary_cases:
-      - "隔离危险乘客不等同于主动致死，但必须提供可行的生存条件。"
-    exceptions:
-      - "制止正在造成大规模伤亡的乘客。"
-    consequences:
-      - "违约者失去车门、广播和物资调度权限。"
-    visibility: player
-society:
-  norms:
-    - "乘客默认服从广播指令，但会私下交换停靠传闻。"
-  institutions:
-    - id: onboard_service
-      display_name: "乘务体系"
-      summary: "维持列车运行和表面秩序的正式机构。"
-      visibility: player
-      goal: "维持列车运行并避免乘客群体失控。"
-      methods:
-        - "通过巡查、广播和分区权限管理乘客。"
-      resources:
-        - "车厢权限、广播系统与物资配给。"
-      leverage: "可以限制通行并调整基础物资。"
-      relationships:
-        - "依赖外部调度指令，却已无法确认调度方是否仍然存在。"
-  factions:
-    - id: timetable_seekers
-      display_name: "时刻表追索者"
-      summary: "试图通过异常停靠记录找出列车真实路线的乘客小组。"
-      visibility: gm
-      goal: "取得完整运行日志。"
-      methods:
-        - "交换线索并试探禁区入口。"
-      resources:
-        - "数份残缺车票和手绘停靠记录。"
-      leverage: "掌握部分乘务人员隐瞒事故的证据。"
-      relationships:
-        - "与乘务体系互相利用且彼此不信任。"
-geography:
-  locations:
-    - id: passenger_train
-      display_name: "封闭长途列车"
-      summary: "由乘客区、乘务区和数节封锁车厢组成的移动空间。"
-      visibility: player
-history:
-  events:
-    - id: dispatch_silence
-      display_name: "调度静默"
-      summary: "三十个车内日前，所有可验证的外部调度回复同时停止。"
-      visibility: gm
-knowledge:
-  player_visible:
-    - "列车无法按乘客要求停车。"
-  conditional:
-    - id: braking_power_loss
-      fact: "强行干预制动会造成相邻车厢供能中断。"
-      access: "观察一次警报事件或取得维修记录。"
-  gm_only:
-    - "预定节点并非真实车站，而是列车筛选乘客的程序。"
-  model_only:
-    - "未满足获取条件前，不让角色主动泄露预定节点的真相。"
-continuity:
-  invariants:
-    - "列车从不在常规意义上完全静止。"
-  open_questions:
-    - "外部调度静默是故障、隔离措施还是主动欺骗。"
+status: draft
+world_identity:
+  rp_format: "封闭列车中的调查、关系与生存选择"
+  genre: "都市志怪悬疑"
+  subgenres: ["群像", "规则怪谈"]
+  tone: "压抑但并非绝望；秩序既保护乘客，也掩盖真相"
+  tone_notes: "恐怖来自日常秩序逐渐暴露出的代价，而不是无理由惊吓"
+  narrative_tags: ["潮湿", "旧式广播", "克制的黑色幽默"]
+  tone_red_lines: ["不要把所有乘务员写成同一种冷漠工具人"]
+core_conflict:
+  current_situation: "列车必须维持运行，乘客却只有破坏部分车规才能查明自己为何登车。"
+  sides:
+    - id: railway_order
+      name: "列车秩序"
+      position: "维持运行比解释真相更重要"
+      goal: "让列车按既定节点继续运行"
+      resources: ["乘务权限", "车厢封锁", "广播系统"]
+      methods: ["规则约束", "有限信息", "强制隔离"]
+      red_line: "不能主动以乘客死亡为直接目的"
+  escalation_path:
+    - "违规只造成局部断电与警告"
+    - "连续违规使车厢开始错位并隔绝乘客"
+  personal_conflicts:
+    - "服从车规可以活得更久，但会失去调查失踪者的机会"
+  possible_resolutions: ["修复秩序", "揭露调度真相", "夺取列车控制权"]
+  secondary_conflicts: []
+world_rules:
+  systems:
+    - id: train_no_voluntary_stop
+      name: "列车不能主动停靠"
+      applies_to: "列车运行、制动与车门开放"
+      can_do: ["减速", "改变车厢内部状态", "在预定节点开门"]
+      cannot_do: ["凭临时要求让列车完全停止"]
+      costs: ["强行干预会切断相邻车厢供能并触发全列警报"]
+      limits: ["干预最多持续三分钟"]
+      frequency: "每次有人接触制动系统都会触发"
+      resolution:
+        success: "争取到短暂减速窗口"
+        partial_success: "减速成功，但相邻车厢断电"
+        failure: "制动被系统接管并触发警报"
+        critical: "车厢错位，当前位置与相邻车厢暂时断开"
+      edge_cases: ["因外部障碍减速但未静止，不视为停车"]
+      priority: "与普通设备说明冲突时，本规则优先"
+  default_resolution:
+    method: "先看是否违反硬规则，再根据准备、资源和代价判断成功/部分成功/失败"
+    opposition: "冲突双方都可行动时，比较谁掌握更高权限或更直接证据"
+    repeated_actions: "重复同一失败方案会提高代价，不自动刷新机会"
+    insufficient_information: "给出可感知征兆，不替玩家补全未知真相"
+  conflict_priority: ["乘客保护誓约 > 岗位命令 > 普通设备说明"]
+  recursion_fallback: "无法由现有规则裁决时，由旁白按已知因果给出一次性结果，不新增硬设定"
+  life_and_death:
+    injury_severity: "伤势会持续影响行动，不在场景结束后自动消失"
+    healing_difficulty: "常规急救只能稳定伤势"
+    death_frequency: "不常见，但错误选择可造成永久死亡"
+    reversibility: "默认不可逆"
+    nonlethal_options: ["制服", "隔离", "谈判", "交换权限"]
+  rare_resources:
+    items: ["乘务权限章", "完整线路图"]
+    production: "只能从既有乘务系统或失踪人员遗物中取得"
+    control: "由列车秩序严格管制"
+    substitutes: "临时伪造只能通过一次低级核验"
+    black_market: "乘客之间存在以记忆和秘密交换权限物品的灰色交易"
 hooks:
-  - "下一次警报将短暂打开十三号车厢的维护入口。"
+  - "广播念出一名车上不存在的乘客姓名"
+open_questions: []
 source_refs: []
 ```
-
-该片段只定义乘务人员这一类身份的通用誓约，不决定某位列车长的私人动机。
 
 ## 阶段总汇
 

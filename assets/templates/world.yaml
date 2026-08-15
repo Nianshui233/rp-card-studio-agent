@@ -1,37 +1,213 @@
-schema_version: 1.0.0
+schema_version: 1.1.0
 id: world_main
 display_name: 未命名世界
 status: draft
 
-premise:
-  summary: ""
-  scale: pending
-  time_scope: ""
-  space_scope: ""
-  public_reality: ""
+# 这是一份供 AI 实际执行 RP 的 World Bible，不是百科目录。
+# 每项内容优先回答：玩家能做什么、会遇到什么阻力、世界会怎样回应。
+world_identity:
+  rp_format: ""                    # 如：开放世界探索 / 单城群像 / 生存经营 / 悬疑调查
+  ai_core_instruction: ""           # 游玩模型执行本世界时最重要的一条总指令
+  genre: ""                        # 主类型
+  subgenres: []                     # 2-4 个真正影响玩法的子类型
+  tone: ""                         # 整体明暗、严肃度、残酷度与希望感
+  tone_notes: ""                   # 这种基调在场景和 NPC 反应中如何体现
+  narrative_tags: []                # 如：潮湿、压抑、黑色幽默、慢热关系
+  tone_red_lines: []                # 会破坏本世界体验的表达方向
 
-fundamental_rules: []
+setting_scope:
+  era: ""                          # 时代、纪年与当前年份
+  world_scale: ""                  # 故事实际活动范围，而非地图理论大小
+  main_locations:
+    - id: location_id
+      name: "地点名"
+      role_in_rp: ""               # 玩家为什么会来这里、这里能发生什么
+      public_impression: ""        # 普通人眼中的样子
+      hidden_reality: ""           # 可选；未揭示前不可直接泄露
+  environment:
+    climate_and_terrain: ""
+    resource_situation: ""
+    scarce_resources: []
+    everyday_technology: ""
+    transportation: ""
+    communication: ""
+    population_scale: ""
+    environmental_threats: []
 
-society:
-  norms: []
-  institutions: []
-  factions: []
+information_layers:
+  public: []                        # 普通角色可自然知道
+  conditional:
+    - id: information_id
+      fact: ""
+      access: ""                   # 调查、身份、地点、关系或事件条件
+      reveal_trigger: ""
+      consequence_if_known: ""
+  secrets: []                       # 仅旁白/GM 或特定高层可知
+  misinformation: []               # 谣言、宣传、错误常识及其来源
+  revelation_rules: []             # 信息如何逐步揭示，避免无条件剧透
+  leakage_consequences: ""         # 秘密被错误泄露时的世界反应
 
-geography:
-  locations: []
+core_conflict:
+  current_situation: ""
+  sides:
+    - id: side_id
+      name: "冲突方名称"
+      position: ""
+      goal: ""
+      resources: []
+      methods: []
+      red_line: ""
+  escalation_path: []               # 局势会怎样逐级恶化
+  personal_conflicts: []            # 普通角色会实际遭遇的两难
+  possible_resolutions: []          # 保留多种可玩方向，不预设唯一结局
+  secondary_conflicts: []
 
-history:
-  events: []
+world_rules:
+  systems:
+    - id: rule_system_id
+      name: "规则/力量体系名称"
+      applies_to: ""
+      can_do: []                     # 明确能力与典型用法
+      cannot_do: []                  # 绝对做不到或被禁止的事项
+      costs: []                      # 消耗、反噬、法律与关系代价
+      limits: []                     # 强度、范围、频率、持续时间上限
+      frequency: ""                 # 稀有度或普通人接触概率
+      resolution:
+        success: ""
+        partial_success: ""
+        failure: ""
+        critical: ""
+      edge_cases: []                 # 模糊场景与默认裁决
+      priority: ""                  # 与其他规则冲突时的优先级
+  default_resolution:
+    method: ""                      # 无需一定掷骰，但必须能裁决结果
+    opposition: ""
+    repeated_actions: ""
+    insufficient_information: ""
+  conflict_priority: []              # 多条规则冲突时按何顺序处理
+  recursion_fallback: ""            # 规则嵌套过深时的兜底
+  life_and_death:
+    injury_severity: ""
+    healing_difficulty: ""
+    death_frequency: ""
+    reversibility: ""
+    nonlethal_options: []
+  rare_resources:
+    items: []
+    production: ""
+    control: ""
+    substitutes: ""
+    black_market: ""
 
-knowledge:
-  player_visible: []
-  conditional: []
-  gm_only: []
-  model_only: []
+species:
+  - id: species_id
+    name: "种族/物种名称"
+    aliases: []
+    physiology: ""
+    lifespan: ""
+    innate_abilities: []
+    innate_limits: []
+    population_ratio: ""
+    social_position: ""
+    culture: ""
+    relations_with_others: ""
+    playable_notes: ""
 
-continuity:
-  invariants: []
-  open_questions: []
+factions_and_society:
+  factions:
+    - id: faction_id
+      name: "势力名称"
+      public_goal: ""
+      hidden_goal: ""
+      methods: []
+      resources: []
+      territory_or_influence: ""
+      internal_conflicts: []
+      recruitment_and_members: ""
+      attitude_to_player: ""
+  faction_relations:
+    overall_balance: ""
+    bilateral:
+      - parties: [faction_a, faction_b]
+        relation: ""                # 盟友 / 敌对 / 竞争 / 依赖 / 脆弱平衡
+        details: ""
+        trend: ""
+        change_triggers: []
+  social_order:
+    class_structure: ""
+    mobility: ""
+    law_and_security: ""
+    justice_and_punishment: ""
+    marginalized_groups: []
 
-hooks: []
+improvised_characters:
+  capability_ceiling: ""             # AI 即兴 NPC 不得越过的能力上限
+  capability_floor: ""
+  growth_rules: ""
+  likely_backgrounds: []
+  forbidden_types: []
+  naming_style: ""
+  continuity_and_reuse: ""           # 已登场 NPC 如何保持身份与记忆一致
+  diversity_guidance: ""
+  archetypes:
+    - name: "即兴角色模板"
+      typical_affiliation: ""
+      capability_range: ""
+      typical_motivation: ""
+      suggested_entrances: []
+
+common_knowledge:
+  everyday_facts: []
+  laws_and_taboos: []
+  social_unwritten_rules: []
+  daily_life_anchors: []              # 衣食住行、气味、声音、价格、礼仪等描写锚点
+  economy:
+    currency: ""
+    price_anchors: []
+    common_jobs_and_income: ""
+    grey_and_black_markets: ""
+  language:
+    common_language: ""
+    other_languages: []
+    language_barriers: ""
+    literacy: ""
+  belief_and_ritual:
+    mainstream_beliefs: []
+    relation_to_world_rules: ""
+    festivals: []
+    etiquette_and_taboos: []
+    heresies_and_cults: []
+
+timeline:
+  calendar: ""
+  fixed_events:
+    - id: event_id
+      name: "历史事件"
+      time: ""
+      description: ""
+      present_impact: ""
+      information_level: ""
+      related_factions: []
+  current_year_and_recent_events: ""
+  imminent_crises: []
+  possible_futures: []
+  forgotten_or_rewritten_history: []
+
+change_boundaries:
+  hard_canon: []                      # 不可被即兴改写
+  soft_canon: []                      # 可补全，但不得与硬设定冲突
+  encouraged_exploration: []
+  improvisation_boundary: ""
+
+cross_world_rules: null               # 仅多世界/平行维度项目改为对象
+
+hooks: []                              # 能直接引发行动、选择或冲突的剧情钩子
+open_questions:
+  - item: ""
+    location: ""                     # 对应模板位置
+    options: []
+    recommendation: ""
+    rp_impact: ""
+    urgency: ""                      # 开局前必须决定 / 可在 RP 中明确 / 不影响开局
+
 source_refs: []
