@@ -11,7 +11,7 @@
     "narrative": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["point_of_view", "tense", "pacing", "prose_density", "dialogue_ratio", "sensory_focus", "player_agency", "information_policy"],
+      "required": ["point_of_view", "tense", "pacing", "prose_density", "dialogue_ratio", "sensory_focus", "information_policy"],
       "properties": {
         "point_of_view": { "enum": ["pending", "second_person_limited", "third_person_limited", "first_person_character", "flexible_camera"] },
         "tense": { "enum": ["pending", "present", "past"] },
@@ -45,7 +45,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "display_name", "is_default", "scene_ref", "present_character_refs", "visible_text", "immediate_change", "hook", "player_handoff", "initial_state_ref", "established_facts"],
+        "required": ["id", "display_name", "is_default", "scene_ref", "present_character_refs", "visible_text", "immediate_change", "hook", "initial_state_ref", "established_facts"],
         "properties": {
           "id": { "$ref": "#/$defs/id" },
           "display_name": { "type": "string", "minLength": 1 },

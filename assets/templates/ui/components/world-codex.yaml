@@ -9,7 +9,7 @@ ui_component:
   data_contract: { mode: stat_data, payload_format: none }
   binding_refs: []
   interactions: [local_interaction]
-  content: { eyebrow: CODEX, title: 已知世界知识, subtitle: 只呈现玩家已经获知且当前有用的规则、术语与背景条目。, body: [], primary_action: null, secondary_action: null }
+  content: { eyebrow: CODEX, title: 已知世界知识, subtitle: 只呈现当前已经揭示且仍有用的规则、术语与背景条目。, body: [], primary_action: null, secondary_action: null }
   layout: { kind: tabs, groups: [{ id: rules, label: 规则, binding_refs: [], collapsed: false }, { id: lore, label: 知识, binding_refs: [], collapsed: false }] }
   states: { loading: 正在检索知识, empty: 尚无已知条目, error: 知识数据读取失败, degraded: 请查看普通文本知识摘要 }
   source: { mode: generated, html: "", css: "", js: "" }

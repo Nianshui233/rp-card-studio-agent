@@ -281,7 +281,7 @@ geography:
 history:
   events: []
 knowledge:
-  player_visible: []
+  publicly_known: []
   conditional: []
   gm_only: []
   model_only: []

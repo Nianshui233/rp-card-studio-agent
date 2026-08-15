@@ -704,7 +704,7 @@ test("medium UI capability can be concentrated into one multi-module workspace p
     (entry) => entry.value.ui_component?.id === "intro",
   ).value.ui_component;
   intro.role = "setup";
-  intro.preset = "player_setup";
+  intro.preset = "introduction_page";
   intro.layout = { kind: "form", groups: [] };
 
   const status = consolidated.ui.find(

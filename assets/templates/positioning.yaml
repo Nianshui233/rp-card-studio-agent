@@ -7,11 +7,6 @@ premise: ""
 target_users: []
 card_mode: pending
 
-user_role:
-  label: ""
-  agency: ""
-  description: ""
-
 experience_pillars: []
 
 tone:
@@ -21,4 +16,3 @@ tone:
 expected_span: pending
 scope_notes: []
 source_refs: []
-

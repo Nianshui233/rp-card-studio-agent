@@ -4,7 +4,7 @@
   "title": "Scene Source",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "id", "display_name", "status", "purpose", "context", "entrances", "exits", "zones", "player_visible", "gm_only", "risks", "clues", "events", "state_bindings", "source_refs"],
+  "required": ["schema_version", "id", "display_name", "status", "purpose", "context", "entrances", "exits", "zones", "surface_layer", "gm_only", "risks", "clues", "events", "state_bindings", "source_refs"],
   "properties": {
     "schema_version": { "const": "1.0.0" },
     "id": { "$ref": "#/$defs/id" },
@@ -24,7 +24,7 @@
     "entrances": { "type": "array", "items": { "$ref": "#/$defs/entrance" } },
     "exits": { "type": "array", "items": { "$ref": "#/$defs/exit" } },
     "zones": { "type": "array", "items": { "$ref": "#/$defs/zone" } },
-    "player_visible": {
+    "surface_layer": {
       "type": "object",
       "additionalProperties": false,
       "required": ["first_impression", "sensory_cues", "affordances"],
@@ -63,11 +63,11 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "discovery", "player_information", "gm_meaning", "leads_to"],
+        "required": ["id", "discovery", "surface_information", "gm_meaning", "leads_to"],
         "properties": {
           "id": { "$ref": "#/$defs/id" },
           "discovery": { "type": "string", "minLength": 1 },
-          "player_information": { "type": "string", "minLength": 1 },
+          "surface_information": { "type": "string", "minLength": 1 },
           "gm_meaning": { "type": "string", "minLength": 1 },
           "leads_to": { "type": "array", "items": { "type": "string", "minLength": 1 } }
         }
@@ -168,4 +168,3 @@
     }
   }
 }
-

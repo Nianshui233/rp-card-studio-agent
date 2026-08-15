@@ -13,7 +13,7 @@ entrances: []
 exits: []
 zones: []
 
-player_visible:
+surface_layer:
   first_impression: ""
   sensory_cues: []
   affordances: []
@@ -29,4 +29,3 @@ events: []
 state_bindings: []
 media_slots: []
 source_refs: []
-

@@ -15071,6 +15071,7 @@ var SCHEMA_NAMES = Object.freeze([
   "character",
   "system",
   "scene",
+  "user-character",
   "mvu",
   "opening",
   "status-ui",
@@ -15105,6 +15106,7 @@ var SOURCE_SCHEMA_BY_GROUP = Object.freeze({
   positioning: "positioning",
   world: "world",
   characters: "character",
+  user_character: "user-character",
   systems: "system",
   scenes: "scene",
   mvu: "mvu",
@@ -15479,6 +15481,7 @@ function projectModelSource(group, source) {
       "world_rules",
       "species",
       "factions_and_society",
+      "autonomous_motion",
       "improvised_characters",
       "common_knowledge",
       "timeline",
@@ -15508,6 +15511,7 @@ function projectModelSource(group, source) {
       "examples",
       "nsfw",
       "story_role",
+      "autonomy",
       "behavior",
       "attitudes",
       "background",
@@ -15526,6 +15530,13 @@ function projectModelSource(group, source) {
       "invariants",
       "failure_modes"
     ]);
+  } else if (normalizedGroup === "user_character") {
+    projected = pick(source, [
+      "id",
+      "display_name",
+      "usage",
+      "profile"
+    ]);
   } else if (normalizedGroup === "scene") {
     projected = pick(source, [
       "id",
@@ -15535,7 +15546,7 @@ function projectModelSource(group, source) {
       "entrances",
       "exits",
       "zones",
-      "player_visible",
+      "surface_layer",
       "gm_only",
       "risks",
       "clues",
@@ -15552,7 +15563,6 @@ function projectModelSource(group, source) {
     projected = pick(source, [
       "premise",
       "target_users",
-      "user_role",
       "experience_pillars",
       "tone",
       "expected_span",
@@ -15630,6 +15640,7 @@ var SOURCE_GROUPS = Object.freeze([
   "positioning",
   "world",
   "characters",
+  "user_character",
   "systems",
   "scenes",
   "mvu",
@@ -15685,7 +15696,6 @@ function defaultPositioning() {
     premise: "",
     target_users: [],
     card_mode: "pending",
-    user_role: { label: "", agency: "", description: "" },
     experience_pillars: [],
     tone: { primary: "", secondary: "" },
     expected_span: "pending",
@@ -15711,7 +15721,7 @@ function worldSourceFromBook(payload) {
     society: { norms: [], institutions: [], factions: [] },
     geography: { locations: [] },
     history: { events: [] },
-    knowledge: { player_visible: [], gm_only: [], model_only: [] },
+    knowledge: { publicly_known: [], gm_only: [], model_only: [] },
     continuity: { invariants: [], open_questions: [] },
     hooks: [],
     source_refs: [],
@@ -15978,6 +15988,7 @@ function validateProjectModel(project, state, root) {
   for (const group of SOURCE_GROUPS) {
     const groupEntries = project?.source_manifest?.[group];
     if (group === "assembly" && groupEntries === void 0) continue;
+    if (group === "user_character" && groupEntries === void 0) continue;
     if (!Array.isArray(groupEntries)) issues.push(modelIssue(`/source_manifest/${group}`, "type", "\u6E90\u7801\u6E05\u5355\u5FC5\u987B\u662F\u6570\u7EC4"));
     for (const entry of groupEntries ?? []) {
       if (typeof entry !== "string" || entry === "") issues.push(modelIssue(`/source_manifest/${group}`, "type", "\u6E90\u7801\u8DEF\u5F84\u5FC5\u987B\u662F\u975E\u7A7A\u5B57\u7B26\u4E32"));
@@ -16366,6 +16377,7 @@ function assembleCharacterCard(sources, project, state, originalPayload = null) 
   const bookSources = [
     ...sources.positioning.filter((entry) => Object.keys(projectModelSource("positioning", entry.value)).length > 0).map((entry) => ["positioning", entry, projectTitle]),
     ...sources.world.map((entry) => ["world", entry]),
+    ...(sources.user_character ?? []).map((entry) => ["user_character", entry]),
     ...sources.characters.map((entry) => ["character", entry]),
     ...sources.systems.map((entry) => ["system", entry]),
     ...sources.scenes.map((entry) => ["scene", entry]),
@@ -16430,7 +16442,7 @@ function assembleWorldbook(sources) {
   return payload;
 }
 function positioningIsMeaningful(source) {
-  return Boolean(source?.card_entry) || Boolean(source?.premise) || (source?.target_users?.length ?? 0) > 0 || source?.card_mode !== "pending" || Boolean(source?.user_role?.label || source?.user_role?.agency || source?.user_role?.description) || (source?.experience_pillars?.length ?? 0) > 0 || Boolean(source?.tone?.primary || source?.tone?.secondary) || source?.expected_span !== "pending" || (source?.scope_notes?.length ?? 0) > 0;
+  return Boolean(source?.card_entry) || Boolean(source?.premise) || (source?.target_users?.length ?? 0) > 0 || source?.card_mode !== "pending" || (source?.experience_pillars?.length ?? 0) > 0 || Boolean(source?.tone?.primary || source?.tone?.secondary) || source?.expected_span !== "pending" || (source?.scope_notes?.length ?? 0) > 0;
 }
 function hasAdditionalAssemblySources(sources, target) {
   if (sources.positioning.some((entry) => positioningIsMeaningful(entry.value))) return true;
@@ -16467,15 +16479,15 @@ function characterBookEntry(group, source, index, characterBookId = null, option
     constant: config.constant,
     selective: false,
     insertion_order: config.order,
-    enabled: true,
+    enabled: config.enabled,
     position: config.position,
     use_regex: false,
     useProbability: true,
-    probability: 100,
+    probability: config.probability,
     excludeRecursion: config.recursion.preventIncoming,
     preventRecursion: config.recursion.preventOutgoing,
     delayUntilRecursion: false,
-    depth: null,
+    depth: config.depth,
     role: 0,
     selectiveLogic: 0,
     caseSensitive: false,
@@ -16483,11 +16495,11 @@ function characterBookEntry(group, source, index, characterBookId = null, option
     extensions: {
       position: config.position === "after_char" ? 1 : 0,
       useProbability: true,
-      probability: 100,
+      probability: config.probability,
       exclude_recursion: config.recursion.preventIncoming,
       prevent_recursion: config.recursion.preventOutgoing,
       delay_until_recursion: false,
-      depth: null,
+      depth: config.depth,
       role: 0,
       selectiveLogic: 0,
       case_sensitive: false,
@@ -16512,10 +16524,10 @@ function characterBookEntry(group, source, index, characterBookId = null, option
         insertion: {
           position: config.position,
           order: config.order,
-          depth: null,
+          depth: config.depth,
           role: "system"
         },
-        probability: 100,
+        probability: config.probability,
         scan_depth: config.scanDepth,
         ignore_budget: config.ignoreBudget,
         recursion: {
@@ -16532,6 +16544,7 @@ function characterBookGroupLabel(group) {
     world: "\u4E16\u754C\u8BBE\u5B9A",
     character: "\u4EBA\u7269\u6863\u6848",
     characters: "\u4EBA\u7269\u6863\u6848",
+    user_character: "\u7528\u6237\u89D2\u8272\u6A21\u677F",
     system: "\u7CFB\u7EDF\u89C4\u5219",
     systems: "\u7CFB\u7EDF\u89C4\u5219",
     scene: "\u573A\u666F\u8D44\u6599",
@@ -16545,6 +16558,24 @@ function characterBookGroupLabel(group) {
   }[group] ?? "\u8D44\u6599\u6761\u76EE";
 }
 function automaticCharacterBookConfig(group, source, index, cardMode = "pending") {
+  if (group === "user_character") {
+    const contract = source.worldbook ?? {};
+    return {
+      enabled: contract.enabled_by_default === true,
+      constant: contract.constant !== false,
+      keys: Array.isArray(contract.keys) ? contract.keys : ["<user>", "user"],
+      order: Number.isInteger(contract.order) ? contract.order : 9995,
+      position: contract.position === "before_char" ? "before_char" : "after_char",
+      depth: Number.isInteger(contract.depth) ? contract.depth : 4,
+      probability: Number.isInteger(contract.probability) ? contract.probability : 100,
+      scanDepth: null,
+      ignoreBudget: false,
+      recursion: {
+        preventIncoming: contract.recursion?.prevent_incoming !== false,
+        preventOutgoing: contract.recursion?.prevent_outgoing !== false
+      }
+    };
+  }
   const displayName = source.display_name ?? source.openings?.[0]?.display_name ?? source.id;
   const aliases = group === "character" ? source.identity?.aliases ?? [] : [];
   const keywords = [displayName, ...aliases].filter((value, keyIndex, values) => typeof value === "string" && value.trim() && values.indexOf(value) === keyIndex);
@@ -16554,10 +16585,13 @@ function automaticCharacterBookConfig(group, source, index, cardMode = "pending"
   const protocolEntry = ["positioning", "system", "prompt"].includes(group);
   const baseOrder = { positioning: 50, world: 100, character: 300, scene: 400, system: 500, prompt: 600 }[group] ?? 900;
   return {
+    enabled: true,
     constant,
     keys: constant ? [] : keywords,
     order: baseOrder + index,
     position: ["positioning", "system", "prompt"].includes(group) || singleCharacter ? "after_char" : "before_char",
+    depth: null,
+    probability: 100,
     scanDepth: constant ? null : 4,
     ignoreBudget,
     recursion: {

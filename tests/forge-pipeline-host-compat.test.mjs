@@ -66,7 +66,7 @@ identity:
   appearance: []
 narrative_function:
   purpose: 为管线测试提供显式人物源。
-  pressure_on_player: ""
+  narrative_pressure: ""
 goals:
   immediate: []
   long_term: []
@@ -90,7 +90,7 @@ speech:
   avoid: []
 relationships: []
 knowledge:
-  player_visible: []
+  publicly_known: []
   gm_only: []
   model_only: []
   mistaken: []

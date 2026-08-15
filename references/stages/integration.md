@@ -120,16 +120,16 @@ media_manifest:
 
 ### 卡面投影与源码覆盖
 
-- 新卡只把已锁定的非空 `positioning.card_entry` 投影到 `data.description`。它是完整 RP 包的用途、用户入口与模块路由意图的简短常驻合同，不是任何角色的人设，也不能假装 SillyTavern 会据此执行动态路由。默认开场投影到 `data.first_mes`，备选开场按锁定顺序投影到 `data.alternate_greetings`；开场正文不得重复装入世界书。
+- 新卡只把已锁定的非空 `positioning.card_entry` 投影到 `data.description`。它是完整 RP 包用途与模块路由意图的简短常驻合同，不是任何角色的人设，也不能假装 SillyTavern 会据此执行动态路由。默认开场投影到 `data.first_mes`，备选开场按锁定顺序投影到 `data.alternate_greetings`；开场正文不得重复装入世界书。
 - 卡名按已锁定承载类型决定：只有 `single_character_card` 且角色源码确实只有一个时使用该角色中文显示名；世界、场景、玩法、群像、叙事者、锚点角色项目或任何多角色模式都使用 `project.project.display_name` 的项目标题。不得因为存在一个锚点角色就把完整项目误命名为人名，也不得默认用某个单一地区名代替概括世界、玩法、主题或体验的项目标题。
 - 新卡高级定义字段默认留空，但可以通过 `assembly.card_fields` 有意写入；传统卡兼容、短常驻合同、作者备注、示例对白、系统提示、插件行为都属于合法用途。导入旧卡继续保留既有值，除非显式字段覆盖或迁移策略授权修改。
 - `project.yaml.source_manifest` 登记的所有维护源码都要有明确去向：CharacterBook 优先，但也可以进入卡面高级定义、greeting、regex、script、UI、runtime/build-only 或 deliberate exclusion。具名角色默认一人一条世界书条目只是推荐。CharacterBook 覆盖缺口产生提醒；只有源码没有任何投影去向、会实际丢失时才阻断。
-- 无显式 assembly 的新项目可由 Forge 生成保守的中文命名条目；存在显式 assembly 时，任何漏掉的可装配源码都是 blocker，必须补齐来源映射和宿主调度，不能靠高级定义字段兜底。
+- 无显式 assembly 的新项目可由 Forge 生成保守的中文命名条目；其中 `user_character` 投影为默认关闭的“用户角色模板”，采用 `<user>`/`user` 关键词、`after_char`、深度 4、顺序 9995，填写后再启用。存在显式 assembly 时，任何漏掉且未声明 deliberate exclusion 的可装配源码都是 blocker，必须补齐来源映射和宿主调度，不能靠高级定义字段兜底。
 - 一个条目用 `selector` 拆取注册源码时，Forge 会在选中内容外包裹模块身份：模块类型、源码稳定 ID/显示名（如有）、中文条目名和 selector。这样分片仍能说明自己属于哪个 RP 模块，不需要制造孤立的 `/id` 或 `/display_name` 小条目；任何丢失身份包络的分片都视为投影不完整。
 
 ### 世界书
 
-- 读取前序阶段给出的稳定内容 ID 和可见性，不在这里扩写内容语义。
+- 读取前序阶段给出的稳定内容 ID 和可见性，不在这里扩写内容语义。用户角色模板独立于世界、NPC 与场景；它可以与创角 UI 采用 worldbook-only、ui-only、either 或 merge，但只有 merge 需要明确字段冲突优先级。
 - Forge 生成或管理的内嵌 CharacterBook 只要含有条目，就必须绑定为卡的主世界书。有名书写入同名的 `data.extensions.world`；无名书先按 SillyTavern 基于 `<data.name>` 形成的 `<data.name>'s Lorebook` 规则固化名称，非单人项目中的 `data.name` 就是项目标题。导入旧卡已有不同主世界书时保留原值并阻断，当前阶段必须明确选择，不得静默覆盖。不能把“条目已嵌入”当作“宿主已导入并加载”。
 - 在 `worldbook_manifest.entries[]` 中决定 `activation`、`insertion`、条目级 `scan_depth`、`probability`、`recursion` 与 `fallback`。当前 SillyTavern 原生路径固定使用 `recipient: shared` 和 `visibility: model`；其他路由或隔离语义需要另有已验证的外部 router，Forge 默认阻断，不能把它们当作普通选项询问。
 - `worldbook_manifest.scan_depth`、`token_budget` 与 `recursive_scanning` 只保留宿主默认值 `null`、`null`、`false`。当前宿主实际读取全局世界书设置；扫描范围需要逐条控制时使用 `entries[].scan_depth`，范围为 `0..1000`，其中 `0` 是真实的零深度，只有 `null` 表示继承全局。

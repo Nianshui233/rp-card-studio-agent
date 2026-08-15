@@ -22,6 +22,7 @@ const sourcePaths = Object.freeze({
   system: 'src/systems/night_shift.yaml',
   scene: 'src/scenes/last_platform.yaml',
   prompt: 'src/prompts/narrative-opening.yaml',
+  userCharacter: 'src/user-character.yaml',
   assembly: 'src/integration/assembly.yaml',
 });
 
@@ -118,10 +119,10 @@ test('model projections retain RP package identities and every non-empty scene s
     entrances: [{ id: 'street_gate', from_ref: 'location:street', access: 'open' }],
     exits: [{ id: 'service_tunnel', to_ref: 'scene:tunnel', condition: 'Gate unlocked', fallback: 'Remain here' }],
     zones: [{ id: 'ticket_office', display_name: 'Ticket Office', description: 'A sealed booth.', connections: [] }],
-    player_visible: { first_impression: 'The platform is empty.' },
+    surface_layer: { first_impression: 'The platform is empty.' },
     gm_only: { truth: 'The broadcast comes from the tunnel.' },
     risks: [{ id: 'memory_loss', trigger: 'Answer the broadcast', consequence: 'Lose a name', escape: 'Hang up' }],
-    clues: [{ id: 'wet_ticket', discovery: 'Inspect the booth', player_information: 'A fresh ticket', gm_meaning: 'Someone passed through', leads_to: ['scene:tunnel'] }],
+    clues: [{ id: 'wet_ticket', discovery: 'Inspect the booth', surface_information: 'A fresh ticket', gm_meaning: 'Someone passed through', leads_to: ['scene:tunnel'] }],
     events: [{ id: 'bell', trigger: 'Midnight', result: 'The bell rings', writes: [] }],
     state_bindings: [{ source_path: 'world.tide', access: 'read', purpose: 'Gate tunnel access' }],
     media_slots: [{
@@ -143,10 +144,10 @@ test('model projections retain RP package identities and every non-empty scene s
     entrances: [{ id: 'street_gate', from_ref: 'location:street', access: 'open' }],
     exits: [{ id: 'service_tunnel', to_ref: 'scene:tunnel', condition: 'Gate unlocked', fallback: 'Remain here' }],
     zones: [{ id: 'ticket_office', display_name: 'Ticket Office', description: 'A sealed booth.' }],
-    player_visible: { first_impression: 'The platform is empty.' },
+    surface_layer: { first_impression: 'The platform is empty.' },
     gm_only: { truth: 'The broadcast comes from the tunnel.' },
     risks: [{ id: 'memory_loss', trigger: 'Answer the broadcast', consequence: 'Lose a name', escape: 'Hang up' }],
-    clues: [{ id: 'wet_ticket', discovery: 'Inspect the booth', player_information: 'A fresh ticket', gm_meaning: 'Someone passed through', leads_to: ['scene:tunnel'] }],
+    clues: [{ id: 'wet_ticket', discovery: 'Inspect the booth', surface_information: 'A fresh ticket', gm_meaning: 'Someone passed through', leads_to: ['scene:tunnel'] }],
     events: [{ id: 'bell', trigger: 'Midnight', result: 'The bell rings' }],
     state_bindings: [{ source_path: 'world.tide', access: 'read', purpose: 'Gate tunnel access' }],
     media_slots: [{
@@ -256,7 +257,7 @@ function characterSource({ id, displayName, role, marker, aliases = [] }) {
     },
     narrative_function: {
       purpose: `${marker}-叙事功能`,
-      pressure_on_player: `${marker}-玩家压力`,
+      narrative_pressure: `${marker}-叙事压力`,
     },
     goals: {
       immediate: [`${marker}-即时目标`],
@@ -298,7 +299,7 @@ function characterSource({ id, displayName, role, marker, aliases = [] }) {
     },
     relationships: [],
     knowledge: {
-      player_visible: [`${marker}-公开知识`],
+      publicly_known: [`${marker}-公开知识`],
       gm_only: [`${marker}-幕后知识`],
       model_only: [`${marker}-模型知识`],
       mistaken: [`${marker}-错误认知`],
@@ -324,7 +325,7 @@ function minimalCharacterSource({ id, displayName, role = 'npc' }) {
     status: 'locked',
     role,
     identity: { aliases: [], age: null, species: '', occupation: '', appearance: [] },
-    narrative_function: { purpose: '', pressure_on_player: '' },
+    narrative_function: { purpose: '', narrative_pressure: '' },
     goals: { immediate: [], long_term: [], hidden: [] },
     psychology: { needs: [], fears: [], weaknesses: [], biases: [], self_deceptions: [] },
     value_priority: [],
@@ -335,7 +336,7 @@ function minimalCharacterSource({ id, displayName, role = 'npc' }) {
     ooc_guardrails: [],
     speech: { register: '', rhythm: '', habits: [], avoid: [] },
     relationships: [],
-    knowledge: { player_visible: [], gm_only: [], model_only: [], mistaken: [], forbidden: [] },
+    knowledge: { publicly_known: [], gm_only: [], model_only: [], mistaken: [], forbidden: [] },
     state_bindings: [],
     examples: [],
     tags: [],
@@ -349,11 +350,10 @@ function richSources() {
       schema_version: '1.0.0',
       id: 'project_positioning',
       status: 'locked',
-      card_entry: '整卡入口唯一标记：你将进入雾港夜班，在受规则约束的调查中主动决定核验与行动顺序。角色、地点与规则由绑定世界书按当前上下文装载。',
-      premise: '用户在雾港夜班中调查会吞掉错误记忆的海雾。',
+      card_entry: '整卡入口唯一标记：雾港夜班以受规则约束的调查、关系变化与长期后果为核心。角色、地点与规则由绑定世界书按当前上下文装载。',
+      premise: '会吞掉错误记忆的海雾正在改变雾港夜班秩序。',
       target_users: ['偏好主动调查的用户'],
       card_mode: 'world_scenario_with_anchor_character',
-      user_role: { label: '夜班员', agency: '主动调查者', description: '负责选择核验与行动顺序。' },
       experience_pillars: [{ id: 'investigation', priority: 1, description: '通过证据推进调查。' }],
       tone: { primary: '悬疑', secondary: '克制' },
       expected_span: 'medium_form',
@@ -404,7 +404,7 @@ function richSources() {
       society: { norms: [], institutions: [], factions: [] },
       geography: { locations: [] },
       history: { events: [] },
-      knowledge: { player_visible: [], conditional: [], gm_only: [], model_only: [] },
+      knowledge: { publicly_known: [], conditional: [], gm_only: [], model_only: [] },
       continuity: { invariants: ['海雾不进入亮灯的值班室。'], open_questions: [] },
       hooks: ['寻找上一任夜班员。'],
       source_refs: [],
@@ -437,7 +437,7 @@ function richSources() {
       entrances: [],
       exits: [],
       zones: [],
-      player_visible: {
+      surface_layer: {
         first_impression: '空站台上只有一盏绿灯。',
         sensory_cues: ['咸湿铁锈味'],
         affordances: ['检查值班簿'],
@@ -467,11 +467,6 @@ function richSources() {
         prose_density: 'medium',
         dialogue_ratio: 'balanced',
         sensory_focus: ['声音', '触感'],
-        player_agency: {
-          never_decide: ['用户的台词和决定'],
-          npc_permissions: ['对已发生行为作出反应'],
-          handoff: '在需要用户决定时停下。',
-        },
         information_policy: { reveal: ['现场可感知事实'], withhold: ['幕后真相'] },
       },
       openings: [
@@ -483,10 +478,9 @@ function richSources() {
           present_character_refs: ['character:shen_huai', 'character:lin_zhou'],
           visible_text: '默认开场唯一文本',
           immediate_change: '潮钟开始倒计时。',
-          hook: '值班簿上出现了用户的名字。',
-          player_handoff: '等待用户决定是否翻开值班簿。',
+          hook: '值班簿上出现了一个已被注销十年的名字。',
           initial_state_ref: null,
-          established_facts: ['这是用户第一晚值班。'],
+          established_facts: ['夜班员名册正在被未知力量改写。'],
         },
         {
           id: 'tunnel_call',
@@ -497,14 +491,13 @@ function richSources() {
           visible_text: '备选开场唯一文本',
           immediate_change: '封闭隧道的电话响起。',
           hook: '听筒里传来上一任夜班员的声音。',
-          player_handoff: '等待用户决定是否接听。',
           initial_state_ref: null,
           established_facts: ['隧道已封闭十年。'],
         },
       ],
       dialogue_examples: [{
         character_ref: 'character:shen_huai',
-        context: '用户想跳过巡检。',
+        context: '林舟想跳过巡检。',
         line: '对白示例唯一标记：灯可以晚开，名字不能晚记。',
         demonstrates: '克制而明确的警告。',
       }],
@@ -516,7 +509,7 @@ function richSources() {
 function configureRichProject(root, { assembly = null } = {}) {
   const sources = richSources();
   for (const [key, relativePath] of Object.entries(sourcePaths)) {
-    if (key === 'assembly') continue;
+    if (key === 'assembly' || key === 'userCharacter') continue;
     writeYaml(root, relativePath, sources[key]);
   }
 
@@ -712,7 +705,7 @@ test('new character cards use a card-level entry on-card and project every chara
   assert.equal(entries.filter(entry => entry.comment.startsWith('人物档案：')).length, 3);
 
   const expectedContent = new Map([
-    ['项目定位：雾港夜班', '用户在雾港夜班中调查'],
+    ['项目定位：雾港夜班', '海雾正在改变雾港夜班秩序'],
     ['世界设定：雾港世界', '世界唯一标记'],
     ['人物档案：沈槐', '主角唯一标记'],
     ['人物档案：林舟', '林舟唯一标记'],
@@ -730,7 +723,7 @@ test('new character cards use a card-level entry on-card and project every chara
   const positioningEntry = entries.find(entry => entry.comment === '项目定位：雾港夜班');
   assert.doesNotMatch(positioningEntry.content, /整卡入口唯一标记/);
   assert.doesNotMatch(positioningEntry.content, /card_mode/);
-  assert.match(positioningEntry.content, /夜班员/);
+  assert.doesNotMatch(positioningEntry.content, /夜班员/);
   const primaryEntry = entries.find(entry => entry.comment === '人物档案：沈槐');
   assert.equal(primaryEntry.constant, false);
   assert.deepEqual(primaryEntry.keys, ['沈槐', '阿槐']);
@@ -815,6 +808,37 @@ test('a world-shaped RP package can have no fixed character and still uses its p
   assert.equal(card.data.character_book.entries.some(entry => entry.comment.startsWith('人物档案：')), false);
 });
 
+test('optional user-character source becomes a disabled Chinese CharacterBook template', t => {
+  const root = tempRoot(t, 'user-character-template');
+  runForge(['init', root, '--nsfw', 'disabled', '--type', 'character'], { expectSuccess: true });
+  const sources = richSources();
+  sources.positioning.card_mode = 'world_package';
+  writeYaml(root, sourcePaths.positioning, sources.positioning);
+  writeYaml(root, sourcePaths.world, sources.world);
+  const template = parseYaml(readFileSync(path.join(skillRoot, 'assets', 'templates', 'user-character.yaml'), 'utf8'));
+  template.status = 'locked';
+  template.profile.name = '林默';
+  writeYaml(root, sourcePaths.userCharacter, template);
+
+  const project = readYaml(root, 'project.yaml');
+  project.project.display_name = '雾港夜班';
+  project.source_manifest.world = [sourcePaths.world];
+  project.source_manifest.user_character = [sourcePaths.userCharacter];
+  writeYaml(root, 'project.yaml', project);
+
+  runForge(['build', root], { expectSuccess: true });
+  const entry = readBuiltCard(root).data.character_book.entries.find(candidate => candidate.comment === '用户角色模板：用户角色定义模板');
+  assert.ok(entry);
+  assert.equal(entry.enabled, false);
+  assert.equal(entry.constant, true);
+  assert.deepEqual(entry.keys, ['<user>', 'user']);
+  assert.equal(entry.position, 'after_char');
+  assert.equal(entry.depth, 4);
+  assert.equal(entry.insertion_order, 9995);
+  assert.equal(entry.probability, 100);
+  assert.match(entry.content, /林默/);
+  assert.doesNotMatch(entry.content, /enabled_by_default|insertion_order|9995/);
+});
 test('locked positioning requires a non-empty RP package entry', t => {
   const root = tempRoot(t, 'required-card-entry');
   runForge(['init', root, '--nsfw', 'disabled', '--type', 'character'], { expectSuccess: true });

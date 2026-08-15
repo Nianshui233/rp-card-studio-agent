@@ -2,22 +2,35 @@ schema_version: 2.0.0
 status: draft
 ui_component:
   id: player_setup
-  display_name: 玩家创建页
+  display_name: 自定义角色创建页
   role: setup
-  preset: player_setup
+  preset: form_setup
   trigger: { kind: self_closing, marker: RPPlayerSetup, producer: opening }
   data_contract: { mode: none, payload_format: none }
+  # 把本项目真正需要的创角字段登记为 UI binding；不强制照搬固定问卷。
   binding_refs: []
-  interactions: [local_interaction, message_write, slash_command]
+  interactions: [local_interaction, message_write, slash_command, host_bridge]
   content:
-    eyebrow: 玩家设定
-    title: 建立玩家资料
-    subtitle: 字段由本组件的 binding_refs 决定，提交时通过酒馆助手公开消息接口发送。
-    body: [只收集玩法真正需要的资料，不把完整角色设计问卷塞进开场。]
-    primary_action: 保存并开始
-    secondary_action: null
-  layout: { kind: form, groups: [] }
-  states: { loading: 正在准备表单, empty: 暂无字段, error: 提交失败, degraded: 请按普通文本格式发送玩家资料 }
+    eyebrow: 自定义开局
+    title: 建立角色档案
+    subtitle: 填写后的资料通过已登记的 Tavern Helper/宿主桥接交给当前聊天；世界与 NPC 不依赖这份档案才开始运转。
+    body:
+      - 可与预制开场并存，也可作为唯一的自由创角入口。
+      - 字段应与“用户角色定义模板”兼容；两者可二选一，也可合并。
+    primary_action: 确认档案并开始
+    secondary_action: 返回开场选择
+  layout:
+    kind: form
+    groups:
+      - { id: identity, label: 身份与外观, binding_refs: [], collapsed: false }
+      - { id: history, label: 经历与关系, binding_refs: [], collapsed: false }
+      - { id: capability, label: 物品与能力, binding_refs: [], collapsed: false }
+      - { id: entry, label: 起点与异常, binding_refs: [], collapsed: false }
+  states:
+    loading: 正在准备创角表单
+    empty: 尚未配置本项目所需的创角字段
+    error: 档案提交失败，请保留当前填写内容后重试
+    degraded: 请按普通文本格式发送角色档案
   source: { mode: generated, html: "", css: "", js: "" }
   delivery: { surface: message, adapter: tavern_helper_message, level: host_required, run_on_edit: true, min_depth: null, max_depth: 5 }
-  acceptance: { runtime: not_run, fallback: 以普通文本列出玩家资料字段，并让用户直接回复。 }
+  acceptance: { runtime: not_run, fallback: 以普通文本列出项目所需字段，让用户直接回复角色档案。 }

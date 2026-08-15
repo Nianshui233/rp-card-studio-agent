@@ -14,7 +14,7 @@
 
 - 需要哪些场景，以及每个场景承担的游玩功能。
 - 场景的空间结构、入口、出口、阻隔、可互动对象和时间窗口。
-- 玩家初次进入时能感知什么，深入调查后能发现什么。
+- 场景表层首先呈现什么，进一步调查后能发现什么。
 - 危险、线索、资源、事件、访问权限和场景间转移。
 - 已锁定变量在场景中的读取点、写入事件和失败回退。
 - 场景是否需要背景、肖像、音频或其他媒体叙事槽位，以及每个槽位的用途、出现条件、必要性和无媒体时的文本表达。
@@ -74,7 +74,7 @@ zones:
     display_name: "观察舱"
     description: "布满冷凝水的狭长舱室，尽头是事故记录台。"
     connections: []
-player_visible:
+surface_layer:
   first_impression: "空气中残留着金属冷却后的气味。"
   sensory_cues:
     - "断电时，墙面会浮现延迟半秒的人影。"
@@ -94,13 +94,13 @@ risks:
 clues:
   - id: erased_dispatch_code
     discovery: "关闭记录台背光后检查玻璃倒影。"
-    player_information: "日志里有一段被覆盖的调度编号。"
+    surface_information: "日志里有一段被覆盖的调度编号。"
     gm_meaning: "编号属于调度静默前最后一条外部指令。"
     leads_to:
       - "scene:control_room"
 events:
   - id: inspect_accident_echo
-    trigger: "用户完成残影追踪。"
+    trigger: "残影追踪完成。"
     result: "确认事故发生时有人从乘务通道离开。"
     writes:
       - path: investigation.carriage_13_examined
@@ -114,7 +114,7 @@ media_slots:
   - id: accident_echo_ambient
     kind_hint: audio
     purpose: "提示事故残影即将重演，不承载唯一线索。"
-    trigger: "玩家进入观察舱且断电窗口仍有效。"
+    trigger: "观察舱有人进入且断电窗口仍有效。"
     required: false
     text_fallback: "墙体深处传来逐渐逼近的金属摩擦声。"
 source_refs: []
@@ -142,7 +142,7 @@ source_refs: []
 
 - 每个场景都有稳定英文 ID、中文显示名、明确用途和至少一个可执行行动。
 - 所有入口与出口均能解析；目标场景不存在时有明确说明。
-- 玩家初见信息与 GM 秘密分层，玩家层不会直接泄露真相。
+- 场景表层信息与 GM 秘密分层，表层不会直接泄露真相。
 - 线索有发现方式和去向，危险有触发、后果与退路。
 - 引用的角色、世界条目和变量路径均已存在。
 - 场景事件若写变量，使用已经锁定的 writer 与合法操作。
@@ -151,7 +151,7 @@ source_refs: []
 
 ## 阶段总汇
 
-使用 `assets/templates/stage-summary.md`，并额外列出：场景导航表、权限矩阵、线索流向、玩家/GM 信息差、变量读写表、媒体叙事槽位与纯文本回退、不可达场景。总汇先让用户查缺补漏；只有用户确认或已授权 AI 全权决定时才标记完成。
+使用 `assets/templates/stage-summary.md`，并额外列出：场景导航表、权限矩阵、线索流向、表层/GM 信息差、变量读写表、媒体叙事槽位与纯文本回退、不可达场景。总汇先让用户查缺补漏；只有用户确认或已授权 AI 全权决定时才标记完成。
 
 ## 下一阶段方向
 

@@ -46,7 +46,7 @@
 可以询问：
 
 - 哪些状态值得跨轮追踪，它们各自解决什么 RP 判定问题。
-- 状态属于全局、用户、某角色、某段关系、某场景还是某资源实例。
+- 状态属于全局、某角色、某段关系、某场景还是某资源实例。
 - 使用整数、枚举、布尔、集合、计时器或其他语义类型。
 - 数值范围、初始值和初始化依据。
 - 哪些可观察事件增加、减少或重置状态。
@@ -177,7 +177,7 @@ schema_version: 1.0.0
 id: relationship_dynamics
 display_name: 关系动态
 status: draft
-purpose: 分别追踪列车长对用户可靠性的判断与身份风险判断，避免二者被单一好感值混淆。
+purpose: 分别追踪列车长对副车长可靠性的判断与渎职风险判断，避免二者被单一好感值混淆。
 axes:
   - id: trust
     display_name: 信任
@@ -190,13 +190,13 @@ axes:
     visibility: descriptive_band
     updates:
       - id: verified_honesty
-        when: 用户提供的信息被独立证据验证
+        when: 副车长提供的信息被独立证据验证
         operation: add
         value: 6
         frequency: 每项独立事实仅结算一次
         maximum_change: 6
       - id: betray_confidence
-        when: 用户主动泄露角色明确托付的秘密
+        when: 副车长主动泄露列车长明确托付的秘密
         operation: subtract
         value: 18
         frequency: 每个泄密事件一次
@@ -230,13 +230,13 @@ axes:
     visibility: change_cues
     updates:
       - id: record_mismatch
-        when: 用户陈述与可核验记录出现实质矛盾
+        when: 副车长陈述与可核验记录出现实质矛盾
         operation: add
         value: 12
         frequency: 同一矛盾仅结算一次
         maximum_change: 12
       - id: credible_explanation
-        when: 用户解释同时得到记录和第三方证词支持
+        when: 副车长解释同时得到记录和第三方证词支持
         operation: subtract
         value: 10
         frequency: 每条独立证据链一次
@@ -245,7 +245,7 @@ axes:
       - id: suspicion_low
         minimum: 0
         maximum: 39
-        effect: 不主动核查用户身份。
+        effect: 不主动核查副车长的值班记录。
       - id: suspicion_watch
         minimum: 40
         maximum: 69

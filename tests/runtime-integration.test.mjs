@@ -73,7 +73,7 @@ identity:
   appearance: []
 narrative_function:
   purpose: 为需要人物来源的整合测试提供显式夹具。
-  pressure_on_player: ""
+  narrative_pressure: ""
 goals:
   immediate: []
   long_term: []
@@ -89,7 +89,7 @@ speech:
   avoid: []
 relationships: []
 knowledge:
-  player_visible: []
+  publicly_known: []
   gm_only: []
   model_only: []
 state_bindings: []
@@ -209,10 +209,6 @@ narrative:
   prose_density: medium
   dialogue_ratio: balanced
   sensory_focus: [sound]
-  player_agency:
-    never_decide: [player dialogue]
-    npc_permissions: [react]
-    handoff: End before the player's decision.
   information_policy:
     reveal: [immediate surroundings]
     withhold: [hidden motives]
@@ -225,7 +221,6 @@ openings:
     visible_text: A bell rings beyond the closed door.
     immediate_change: The corridor becomes quiet.
     hook: Someone waits outside.
-    player_handoff: The player chooses whether to open the door.
     initial_state_ref: mvu_init:not_defined
     established_facts: [The door is closed.]
 dialogue_examples: []
@@ -245,7 +240,7 @@ context:
 entrances: []
 exits: []
 zones: []
-player_visible:
+surface_layer:
   first_impression: A closed door stands at the end of the corridor.
   sensory_cues: [A bell rings.]
   affordances: [Approach the door.]
@@ -281,7 +276,7 @@ geography:
 history:
   events: []
 knowledge:
-  player_visible: []
+  publicly_known: []
   conditional: []
   gm_only: []
   model_only: []

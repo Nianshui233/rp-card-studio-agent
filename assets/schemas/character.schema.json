@@ -17,7 +17,8 @@
     "schema_version": {
       "enum": [
         "1.0.0",
-        "1.1.0"
+        "1.1.0",
+        "1.2.0"
       ]
     },
     "id": {
@@ -40,7 +41,6 @@
         "companion",
         "antagonist",
         "npc",
-        "player_template",
         "ensemble"
       ]
     },
@@ -135,13 +135,13 @@
       "additionalProperties": false,
       "required": [
         "purpose",
-        "pressure_on_player"
+        "narrative_pressure"
       ],
       "properties": {
         "purpose": {
           "type": "string"
         },
-        "pressure_on_player": {
+        "narrative_pressure": {
           "type": "string"
         }
       }
@@ -327,7 +327,7 @@
           },
           "visibility": {
             "enum": [
-              "player",
+              "public",
               "gm",
               "model"
             ]
@@ -484,7 +484,7 @@
         "properties": {
           "target_ref": {
             "type": "string",
-            "pattern": "^(character|player):[a-z][a-z0-9_]*$"
+            "pattern": "^(character|faction|organization):[a-z][a-z0-9_]*$"
           },
           "public_relation": {
             "type": "string"
@@ -511,12 +511,11 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "player_visible",
         "gm_only",
         "model_only"
       ],
       "properties": {
-        "player_visible": {
+        "publicly_known": {
           "$ref": "#/$defs/stringList"
         },
         "gm_only": {
@@ -615,17 +614,100 @@
       "additionalProperties": false,
       "required": [
         "function",
-        "connection_to_user",
         "current_stakes"
       ],
       "properties": {
         "function": {
           "type": "string"
         },
-        "connection_to_user": {
+        "place_in_world": {
           "type": "string"
         },
         "current_stakes": {
+          "type": "string"
+        }
+      }
+    },
+    "autonomy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current_agenda",
+        "obligations",
+        "routines",
+        "resources",
+        "dependencies",
+        "active_plans",
+        "offscreen_actions",
+        "priority_rules",
+        "self_preservation",
+        "private_life"
+      ],
+      "properties": {
+        "current_agenda": {
+          "type": "string"
+        },
+        "obligations": {
+          "$ref": "#/$defs/stringList"
+        },
+        "routines": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "period",
+              "activity",
+              "location_ref",
+              "companions",
+              "interruption_threshold"
+            ],
+            "properties": {
+              "period": { "type": "string" },
+              "activity": { "type": "string" },
+              "location_ref": { "type": "string" },
+              "companions": { "type": "array", "items": { "type": "string" } },
+              "interruption_threshold": { "type": "string" }
+            }
+          }
+        },
+        "resources": {
+          "$ref": "#/$defs/stringList"
+        },
+        "dependencies": {
+          "$ref": "#/$defs/stringList"
+        },
+        "active_plans": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "goal",
+              "next_action",
+              "deadline",
+              "success_condition",
+              "failure_consequence"
+            ],
+            "properties": {
+              "goal": { "type": "string" },
+              "next_action": { "type": "string" },
+              "deadline": { "type": "string" },
+              "success_condition": { "type": "string" },
+              "failure_consequence": { "type": "string" }
+            }
+          }
+        },
+        "offscreen_actions": {
+          "$ref": "#/$defs/stringList"
+        },
+        "priority_rules": {
+          "$ref": "#/$defs/stringList"
+        },
+        "self_preservation": {
+          "type": "string"
+        },
+        "private_life": {
           "type": "string"
         }
       }
@@ -954,7 +1036,11 @@
           "behavioral_rules": {},
           "speech": {},
           "relationships": {},
-          "knowledge": {},
+          "knowledge": {
+            "type": "object",
+            "properties": { "publicly_known": {} },
+            "required": ["publicly_known"]
+          },
           "state_bindings": {},
           "examples": {},
           "tags": {},
@@ -1026,7 +1112,11 @@
             ],
             "type": "object"
           },
-          "story_role": {},
+          "story_role": {
+            "type": "object",
+            "properties": { "place_in_world": {} },
+            "required": ["place_in_world"]
+          },
           "psychology": {
             "properties": {
               "motivations": {},
@@ -1063,7 +1153,146 @@
           },
           "background": {},
           "relationships": {},
-          "knowledge": {},
+          "knowledge": {
+            "type": "object",
+            "properties": { "publicly_known": {} },
+            "required": ["publicly_known"]
+          },
+          "growth_arc": {},
+          "anti_ooc": {},
+          "state_bindings": {},
+          "tags": {},
+          "source_refs": {}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": "1.2.0"
+          }
+        },
+        "required": [
+          "schema_version"
+        ]
+      },
+      "then": {
+        "required": [
+          "schema_version",
+          "id",
+          "display_name",
+          "status",
+          "role",
+          "identity",
+          "story_role",
+          "autonomy",
+          "psychology",
+          "behavior",
+          "attitudes",
+          "speech",
+          "background",
+          "relationships",
+          "knowledge",
+          "growth_arc",
+          "anti_ooc",
+          "state_bindings",
+          "tags",
+          "source_refs"
+        ],
+        "properties": {
+          "schema_version": {},
+          "id": {},
+          "display_name": {},
+          "status": {},
+          "role": {},
+          "identity": {
+            "properties": {
+              "aliases": {},
+              "age": {},
+              "gender": {},
+              "species": {},
+              "occupation": {},
+              "appearance": {},
+              "body": {},
+              "clothing": {},
+              "impression": {}
+            },
+            "required": [
+              "aliases",
+              "age",
+              "gender",
+              "species",
+              "occupation",
+              "appearance",
+              "body",
+              "clothing",
+              "impression"
+            ],
+            "type": "object"
+          },
+          "story_role": {
+            "type": "object",
+            "properties": {
+              "place_in_world": {}
+            },
+            "required": ["place_in_world"]
+          },
+          "autonomy": {},
+          "psychology": {
+            "properties": {
+              "motivations": {},
+              "fears": {},
+              "values": {},
+              "taboos": {},
+              "internal_conflict": {}
+            },
+            "required": [
+              "motivations",
+              "fears",
+              "values",
+              "taboos",
+              "internal_conflict"
+            ],
+            "type": "object"
+          },
+          "behavior": {},
+          "attitudes": {},
+          "speech": {
+            "properties": {
+              "style": {},
+              "catchphrases": {},
+              "rules": {},
+              "quotes": {}
+            },
+            "required": [
+              "style",
+              "catchphrases",
+              "rules",
+              "quotes"
+            ],
+            "type": "object"
+          },
+          "background": {},
+          "relationships": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "target_ref": {
+                  "type": "string",
+                  "pattern": "^(character|faction|organization):[a-z][a-z0-9_]*$"
+                }
+              }
+            }
+          },
+          "knowledge": {
+            "type": "object",
+            "properties": {
+              "publicly_known": {}
+            },
+            "required": ["publicly_known"]
+          },
           "growth_arc": {},
           "anti_ooc": {},
           "state_bindings": {},

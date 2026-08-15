@@ -16,7 +16,7 @@
         "id": { "$ref": "#/$defs/id" },
         "display_name": { "type": "string", "minLength": 1 },
         "role": { "enum": ["entry", "guide", "setup", "dashboard", "workspace", "narrative_component", "notification"] },
-        "preset": { "enum": ["launch_screen", "introduction_page", "opening_selector", "player_setup", "status_terminal", "update_report", "roll_result", "choice_panel", "task_center", "inventory_center", "relationship_center", "intelligence_center", "investigation_board", "map_center", "battle_report", "notification", "custom_panel"] },
+        "preset": { "enum": ["launch_screen", "introduction_page", "opening_selector", "form_setup", "status_terminal", "update_report", "roll_result", "choice_panel", "task_center", "inventory_center", "relationship_center", "intelligence_center", "investigation_board", "map_center", "battle_report", "notification", "custom_panel"] },
         "trigger": {
           "type": "object", "additionalProperties": false, "required": ["kind", "marker", "producer"],
           "properties": {
@@ -35,7 +35,17 @@
           "type": "object", "additionalProperties": false, "required": ["eyebrow", "title", "subtitle", "body", "primary_action", "secondary_action"],
           "properties": {
             "eyebrow": { "type": "string" }, "title": { "type": "string", "minLength": 1 }, "subtitle": { "type": "string" }, "body": { "type": "array", "items": { "type": "string" } },
-            "primary_action": { "type": ["string", "null"] }, "secondary_action": { "type": ["string", "null"] }
+            "primary_action": { "type": ["string", "null"] }, "secondary_action": { "type": ["string", "null"] },
+            "sections": {
+              "type": "array",
+              "items": {
+                "type": "object", "additionalProperties": false, "required": ["id", "title", "body", "collapsed"],
+                "properties": {
+                  "id": { "$ref": "#/$defs/id" }, "title": { "type": "string", "minLength": 1 },
+                  "body": { "type": "array", "items": { "type": "string" } }, "collapsed": { "type": "boolean" }
+                }
+              }
+            }
           }
         },
         "layout": {

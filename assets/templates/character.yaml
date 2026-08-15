@@ -1,11 +1,11 @@
-schema_version: 1.1.0
+schema_version: 1.2.0
 id: character_id
 display_name: 未命名角色
 status: draft
 role: pending
 
 # 角色模板的目标是让 AI 稳定地“成为这个人”，而不是填写人物数据库。
-# 描述尽量落到：触发条件 → 可观察行为 → 语言变化 → 结果或代价。
+# 角色先拥有自己的生活、职责、关系与计划，再进入任何具体场景。
 identity:
   aliases: []
   age: ""
@@ -27,8 +27,31 @@ identity:
 
 story_role:
   function: ""                      # 该角色为 RP 带来什么冲突、关系或体验
-  connection_to_user: ""
+  place_in_world: ""                # 所属群体、职业位置、社会作用与现实处境
   current_stakes: ""
+
+# 角色不是等待互动的静态接口；没有出场时也会生活、行动、选择并承担后果。
+autonomy:
+  current_agenda: ""                # 当下正在主动推进的核心事项
+  obligations: []                    # 对职业、组织、家人、同伴、债务或信念的责任
+  routines:
+    - period: ""                    # 每日 / 每周 / 特定时段 / 事件后
+      activity: ""
+      location_ref: location:location_id
+      companions: []
+      interruption_threshold: ""    # 什么程度的事情才会让角色改变原定安排
+  resources: []                      # 能独立调动的人脉、权限、金钱、物品与知识
+  dependencies: []                   # 真实依赖的角色、组织、地点、资源或制度
+  active_plans:
+    - goal: ""
+      next_action: ""
+      deadline: ""
+      success_condition: ""
+      failure_consequence: ""
+  offscreen_actions: []              # 离开当前场景后仍可能采取的行动
+  priority_rules: []                 # 多项职责、关系和利益冲突时如何排序
+  self_preservation: ""
+  private_life: ""                  # 不服务于主要冲突，但使其像真实生活者的部分
 
 psychology:
   motivations:
@@ -97,17 +120,10 @@ background:
   current_situation: ""
   unresolved_past: []
 
-relationships:
-  - target_ref: player:user           # 或 character:角色ID
-    public_relation: ""
-    private_relation: ""
-    current_dynamic: ""
-    behavioral_effect: ""
-    change_basis: ""
-    prohibited_shortcuts: []
+relationships: []
 
 knowledge:
-  player_visible: []
+  publicly_known: []
   gm_only: []
   model_only: []
   mistaken: []                        # 角色坚信但并不正确的事

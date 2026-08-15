@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rp-card-studio.local/schemas/user-character.schema.json",
+  "title": "Optional User Character Worldbook Template",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "display_name", "status", "worldbook", "usage", "profile", "source_refs"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "id": { "$ref": "#/$defs/id" },
+    "display_name": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["draft", "locked"] },
+    "worldbook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled_by_default", "keys", "constant", "position", "depth", "order", "probability", "recursion"],
+      "properties": {
+        "enabled_by_default": { "const": false },
+        "keys": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1, "uniqueItems": true },
+        "constant": { "const": true },
+        "position": { "const": "after_char" },
+        "depth": { "type": "integer", "minimum": 0 },
+        "order": { "type": "integer", "minimum": 0 },
+        "probability": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "recursion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["prevent_incoming", "prevent_outgoing"],
+          "properties": {
+            "prevent_incoming": { "type": "boolean" },
+            "prevent_outgoing": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["optional", "activation_instruction", "ui_sync_policy"],
+      "properties": {
+        "optional": { "const": true },
+        "activation_instruction": { "type": "string", "minLength": 1 },
+        "ui_sync_policy": { "enum": ["worldbook_only", "ui_only", "either", "merge"] }
+      }
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "aliases", "age", "gender", "identity", "biography", "current_state", "personality", "habits", "appearance", "relationships", "abilities", "inventory", "entry_point", "notes"],
+      "properties": {
+        "name": { "type": "string" },
+        "aliases": { "$ref": "#/$defs/stringList" },
+        "age": { "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "string" }, { "type": "null" }] },
+        "gender": { "type": "string" },
+        "identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["public", "hidden"],
+          "properties": { "public": { "type": "string" }, "hidden": { "type": "string" } }
+        },
+        "biography": { "$ref": "#/$defs/stringList" },
+        "current_state": { "type": "string" },
+        "personality": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["summary", "core_traits", "conditional_traits", "hidden_traits"],
+          "properties": {
+            "summary": { "type": "string" },
+            "core_traits": { "$ref": "#/$defs/stringList" },
+            "conditional_traits": { "$ref": "#/$defs/stringList" },
+            "hidden_traits": { "$ref": "#/$defs/stringList" }
+          }
+        },
+        "habits": { "$ref": "#/$defs/stringList" },
+        "appearance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["height", "weight", "build", "hair", "face", "skin", "eyes", "distinctive_features", "clothing"],
+          "properties": {
+            "height": { "type": "string" }, "weight": { "type": "string" }, "build": { "type": "string" },
+            "hair": { "type": "string" }, "face": { "type": "string" }, "skin": { "type": "string" },
+            "eyes": { "type": "string" }, "distinctive_features": { "$ref": "#/$defs/stringList" }, "clothing": { "type": "string" }
+          }
+        },
+        "relationships": { "$ref": "#/$defs/stringList" },
+        "abilities": { "$ref": "#/$defs/stringList" },
+        "inventory": { "$ref": "#/$defs/stringList" },
+        "entry_point": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["location", "current_activity", "awareness_of_anomaly"],
+          "properties": {
+            "location": { "type": "string" },
+            "current_activity": { "type": "string" },
+            "awareness_of_anomaly": { "type": "string" }
+          }
+        },
+        "notes": { "$ref": "#/$defs/stringList" }
+      }
+    },
+    "source_refs": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "extensions": { "type": "object" }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "stringList": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+  }
+}

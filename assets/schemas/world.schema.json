@@ -15,7 +15,8 @@
     "schema_version": {
       "enum": [
         "1.0.0",
-        "1.1.0"
+        "1.1.0",
+        "1.2.0"
       ]
     },
     "id": {
@@ -120,12 +121,12 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "player_visible",
+        "publicly_known",
         "gm_only",
         "model_only"
       ],
       "properties": {
-        "player_visible": {
+        "publicly_known": {
           "$ref": "#/$defs/contentList"
         },
         "conditional": {
@@ -789,8 +790,7 @@
               "resources",
               "territory_or_influence",
               "internal_conflicts",
-              "recruitment_and_members",
-              "attitude_to_player"
+              "recruitment_and_members"
             ],
             "properties": {
               "id": {
@@ -830,7 +830,7 @@
               "recruitment_and_members": {
                 "type": "string"
               },
-              "attitude_to_player": {
+              "public_reputation": {
                 "type": "string"
               }
             }
@@ -919,6 +919,155 @@
               }
             }
           }
+        }
+      }
+    },
+    "autonomous_motion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current_momentum",
+        "daily_rhythms",
+        "active_clocks",
+        "faction_agendas",
+        "resource_flows",
+        "information_flows",
+        "offscreen_event_rules",
+        "update_cadence"
+      ],
+      "properties": {
+        "current_momentum": {
+          "type": "string"
+        },
+        "daily_rhythms": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "scope_ref",
+              "rhythm",
+              "participants",
+              "visible_signs",
+              "disruption_effect"
+            ],
+            "properties": {
+              "scope_ref": { "type": "string" },
+              "rhythm": { "type": "string" },
+              "participants": { "type": "array", "items": { "type": "string" } },
+              "visible_signs": { "type": "array", "items": { "type": "string" } },
+              "disruption_effect": { "type": "string" }
+            }
+          }
+        },
+        "active_clocks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name",
+              "owner_ref",
+              "current_stage",
+              "next_step",
+              "advance_trigger",
+              "deadline",
+              "consequence",
+              "visible_signs",
+              "interference_points"
+            ],
+            "properties": {
+              "id": { "$ref": "#/$defs/id" },
+              "name": { "type": "string" },
+              "owner_ref": { "type": "string" },
+              "current_stage": { "type": "string" },
+              "next_step": { "type": "string" },
+              "advance_trigger": { "type": "string" },
+              "deadline": { "type": "string" },
+              "consequence": { "type": "string" },
+              "visible_signs": { "type": "array", "items": { "type": "string" } },
+              "interference_points": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "faction_agendas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "faction_ref",
+              "current_goal",
+              "current_operation",
+              "resources_committed",
+              "next_action",
+              "success_consequence",
+              "failure_consequence"
+            ],
+            "properties": {
+              "faction_ref": { "type": "string" },
+              "current_goal": { "type": "string" },
+              "current_operation": { "type": "string" },
+              "resources_committed": { "type": "array", "items": { "type": "string" } },
+              "next_action": { "type": "string" },
+              "success_consequence": { "type": "string" },
+              "failure_consequence": { "type": "string" }
+            }
+          }
+        },
+        "resource_flows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "resource",
+              "source",
+              "route",
+              "controllers",
+              "pressure",
+              "disruption_consequence"
+            ],
+            "properties": {
+              "resource": { "type": "string" },
+              "source": { "type": "string" },
+              "route": { "type": "string" },
+              "controllers": { "type": "array", "items": { "type": "string" } },
+              "pressure": { "type": "string" },
+              "disruption_consequence": { "type": "string" }
+            }
+          }
+        },
+        "information_flows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "information",
+              "origin",
+              "carriers",
+              "spread_pattern",
+              "distortion",
+              "consequence"
+            ],
+            "properties": {
+              "information": { "type": "string" },
+              "origin": { "type": "string" },
+              "carriers": { "type": "array", "items": { "type": "string" } },
+              "spread_pattern": { "type": "string" },
+              "distortion": { "type": "string" },
+              "consequence": { "type": "string" }
+            }
+          }
+        },
+        "offscreen_event_rules": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "update_cadence": {
+          "type": "string"
         }
       }
     },
@@ -1396,7 +1545,7 @@
           },
           "visibility": {
             "enum": [
-              "player",
+              "public",
               "gm",
               "model"
             ]
@@ -1487,7 +1636,7 @@
         },
         "visibility": {
           "enum": [
-            "player",
+            "public",
             "gm",
             "model"
           ]
@@ -1584,7 +1733,93 @@
           "core_conflict": {},
           "world_rules": {},
           "species": {},
-          "factions_and_society": {},
+          "factions_and_society": {
+            "type": "object",
+            "properties": {
+              "factions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["public_reputation"],
+                  "properties": {
+                    "public_reputation": {}
+                  }
+                }
+              }
+            }
+          },
+          "improvised_characters": {},
+          "common_knowledge": {},
+          "timeline": {},
+          "change_boundaries": {},
+          "cross_world_rules": {},
+          "hooks": {},
+          "open_questions": {},
+          "source_refs": {}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": "1.2.0"
+          }
+        },
+        "required": [
+          "schema_version"
+        ]
+      },
+      "then": {
+        "required": [
+          "schema_version",
+          "id",
+          "display_name",
+          "status",
+          "world_identity",
+          "setting_scope",
+          "information_layers",
+          "core_conflict",
+          "world_rules",
+          "species",
+          "factions_and_society",
+          "autonomous_motion",
+          "improvised_characters",
+          "common_knowledge",
+          "timeline",
+          "change_boundaries",
+          "cross_world_rules",
+          "hooks",
+          "open_questions",
+          "source_refs"
+        ],
+        "properties": {
+          "schema_version": {},
+          "id": {},
+          "display_name": {},
+          "status": {},
+          "world_identity": {},
+          "setting_scope": {},
+          "information_layers": {},
+          "core_conflict": {},
+          "world_rules": {},
+          "species": {},
+          "factions_and_society": {
+            "type": "object",
+            "properties": {
+              "factions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["public_reputation"],
+                  "properties": {
+                    "public_reputation": {}
+                  }
+                }
+              }
+            }
+          },
+          "autonomous_motion": {},
           "improvised_characters": {},
           "common_knowledge": {},
           "timeline": {},

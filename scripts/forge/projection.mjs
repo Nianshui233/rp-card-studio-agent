@@ -64,6 +64,7 @@ export function projectModelSource(group, source) {
       "world_rules",
       "species",
       "factions_and_society",
+      "autonomous_motion",
       "improvised_characters",
       "common_knowledge",
       "timeline",
@@ -93,6 +94,7 @@ export function projectModelSource(group, source) {
       "examples",
       "nsfw",
       "story_role",
+      "autonomy",
       "behavior",
       "attitudes",
       "background",
@@ -111,6 +113,13 @@ export function projectModelSource(group, source) {
       "invariants",
       "failure_modes",
     ]);
+  } else if (normalizedGroup === "user_character") {
+    projected = pick(source, [
+      "id",
+      "display_name",
+      "usage",
+      "profile",
+    ]);
   } else if (normalizedGroup === "scene") {
     projected = pick(source, [
       "id",
@@ -120,7 +129,7 @@ export function projectModelSource(group, source) {
       "entrances",
       "exits",
       "zones",
-      "player_visible",
+      "surface_layer",
       "gm_only",
       "risks",
       "clues",
@@ -139,7 +148,6 @@ export function projectModelSource(group, source) {
     projected = pick(source, [
       "premise",
       "target_users",
-      "user_role",
       "experience_pillars",
       "tone",
       "expected_span",

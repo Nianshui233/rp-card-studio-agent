@@ -178,7 +178,7 @@ test("UI stage asks for light, medium, or heavy without imposing fixed architect
     skill,
     /first question batch must ask which UI scale the project needs: `light`, `medium`, or `heavy`/,
   );
-  assert.match(skill, /mention `basic_status` only as a compatibility route/);
+  assert.match(skill, /mention `basic_status` only as a compatibility route/i);
   assert.match(skill, /page counts, module counts, navigation counts[\s\S]*recommendations selected by project intent, never universal blockers/);
   assert.match(skill, /Large integrated pages, many tabs, technical views, remote libraries[\s\S]*are allowed/);
   assert.match(skill, /Missing real-host evidence never blocks design, implementation, building, or candidate delivery/);

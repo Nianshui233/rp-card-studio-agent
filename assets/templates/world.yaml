@@ -1,10 +1,10 @@
-schema_version: 1.1.0
+schema_version: 1.2.0
 id: world_main
 display_name: 未命名世界
 status: draft
 
 # 这是一份供 AI 实际执行 RP 的 World Bible，不是百科目录。
-# 每项内容优先回答：玩家能做什么、会遇到什么阻力、世界会怎样回应。
+# 世界先作为一个独立整体成立：即使镜头没有照到，它也有自己的生活、节奏、行动与后果。
 world_identity:
   rp_format: ""                    # 如：开放世界探索 / 单城群像 / 生存经营 / 悬疑调查
   ai_core_instruction: ""           # 游玩模型执行本世界时最重要的一条总指令
@@ -21,7 +21,7 @@ setting_scope:
   main_locations:
     - id: location_id
       name: "地点名"
-      role_in_rp: ""               # 玩家为什么会来这里、这里能发生什么
+      role_in_rp: ""               # 这里在世界运行、冲突与日常生活中承担什么作用
       public_impression: ""        # 普通人眼中的样子
       hidden_reality: ""           # 可选；未揭示前不可直接泄露
   environment:
@@ -124,7 +124,7 @@ factions_and_society:
       territory_or_influence: ""
       internal_conflicts: []
       recruitment_and_members: ""
-      attitude_to_player: ""
+      public_reputation: ""
   faction_relations:
     overall_balance: ""
     bilateral:
@@ -139,6 +139,52 @@ factions_and_society:
     law_and_security: ""
     justice_and_punishment: ""
     marginalized_groups: []
+
+# 世界不是等待外部触发的静态背景。这里记录正在自行推进的生活、计划、资源与危机。
+autonomous_motion:
+  current_momentum: ""              # 此刻哪些变化已经开始，为什么不会自行停下
+  daily_rhythms:
+    - scope_ref: location:location_id
+      rhythm: ""                    # 一日、一周或季节性循环
+      participants: []               # 哪些群体、机构或职业参与其中
+      visible_signs: []              # 在场景中可被自然观察到的迹象
+      disruption_effect: ""         # 循环被打断后，生活和秩序如何改变
+  active_clocks:
+    - id: clock_id
+      name: "推进中的事件"
+      owner_ref: faction:faction_id
+      current_stage: ""
+      next_step: ""                 # 无需旁观或介入也会发生的下一步
+      advance_trigger: ""           # 时间、资源、行动或局势条件
+      deadline: ""
+      consequence: ""
+      visible_signs: []
+      interference_points: []        # 哪些既存力量或事件能够改变其走向
+  faction_agendas:
+    - faction_ref: faction:faction_id
+      current_goal: ""
+      current_operation: ""
+      resources_committed: []
+      next_action: ""
+      success_consequence: ""
+      failure_consequence: ""
+  resource_flows:
+    - resource: ""
+      source: ""
+      route: ""
+      controllers: []
+      pressure: ""
+      disruption_consequence: ""
+  information_flows:
+    - information: ""
+      origin: ""
+      carriers: []
+      spread_pattern: ""
+      distortion: ""
+      consequence: ""
+  offscreen_event_rules:
+    - "离开镜头的势力和人物仍按目标、资源、阻力与时间推进，不冻结在上次出场状态"
+  update_cadence: ""                # 每轮、每场景、每日或关键事件后如何结算世界变化
 
 improvised_characters:
   capability_ceiling: ""             # AI 即兴 NPC 不得越过的能力上限

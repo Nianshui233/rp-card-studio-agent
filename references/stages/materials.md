@@ -172,7 +172,7 @@ cross_stage_backlog:
   - id: conductor_identity_conflict
     source_stage: materials
     target_stage: character
-    summary: "source_card_v2 与 source_notes 对列车长是否识破用户身份表述不一致。"
+    summary: "source_card_v2 与 source_notes 对列车长是否识破副车长伪造记录表述不一致。"
     status: blocking
 source_manifest:
   preserved_imports:

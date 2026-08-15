@@ -9,7 +9,7 @@ ui_component:
   data_contract: { mode: current_message, payload_format: text }
   binding_refs: []
   interactions: [local_interaction, message_read]
-  content: { eyebrow: STATE CHANGE, title: 本轮变化, subtitle: 以玩家可理解的语言概括变化，不暴露内部推理。, body: [], primary_action: null, secondary_action: null }
+  content: { eyebrow: STATE CHANGE, title: 本轮变化, subtitle: 以自然中文概括变化，不暴露内部推理。, body: [], primary_action: null, secondary_action: null }
   layout: { kind: compact, groups: [] }
   states: { loading: 正在整理变化, empty: 本轮无显著变化, error: 变化报告解析失败, degraded: 保留普通文本变化说明 }
   source: { mode: generated, html: "", css: "", js: "" }

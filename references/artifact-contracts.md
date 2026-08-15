@@ -91,7 +91,7 @@ Build from `project.yaml + src/` into a candidate directory, validate it, then c
 
 Every world, character, system, scene, and narrative source must distinguish:
 
-- `player_visible`: may appear directly in openings, status UI, or player-facing explanations;
+- `surface_layer`: may appear directly in openings, status UI, or audience-facing explanations;
 - `gm_only`: may guide narration but must never be directly revealed before discovery;
 - `model_only`: routing, writing, and execution rules that are not in-world facts.
 
@@ -134,7 +134,7 @@ SillyTavern injects `description` as an always-present prompt block, so keep tha
 
 ### CharacterBook-first modularization
 
-Every eligible module other than the card-entry and greeting projections should be represented by an enabled CharacterBook entry:
+Every eligible model-facing module other than the card-entry and greeting projections should normally be represented by an enabled CharacterBook entry. The optional user-character definition is the deliberate exception: it is projected as a disabled template until filled and enabled:
 
 - every authored character, including any `primary_character`, one named character per entry by default;
 - world facts and continuity rules;
@@ -142,7 +142,8 @@ Every eligible module other than the card-entry and greeting projections should 
 - each independently triggerable scene or location module;
 - narrative rules and dialogue examples;
 - MVU initialization/update/output contracts and EJS templates;
-- the status-bar reply-format contract when status UI is enabled without MVU.
+- the status-bar reply-format contract when status UI is enabled without MVU;
+- an optional `user_character` source as a Chinese-named, disabled-by-default template, separate from world/NPC/scene sources and compatible with the creation UI.
 
 Openings remain in greeting fields because SillyTavern selects them as chat entry points. All authored characters belong in CharacterBook. A `primary_character` marker means narrative anchor only; it does not grant ownership of `data.description`, priority over unrelated modules, or the card name outside a true single-character project. A true single-character card keeps its sole character in a compact constant 100% entry because that definition is the entire interaction's stable actor contract. In a world, gameplay, scenario, or ensemble project, even an anchor character may use constant, keyword, or scene routing according to whether that character is actually needed every turn.
 
@@ -187,7 +188,7 @@ Change propagation:
 
 ### `worldbook_manifest`
 
-Map every locked source other than the card entry and openings to one or more CharacterBook entries. For every entry, explicitly design and record:
+Map every locked source other than the card entry and openings to one or more deliberate projection destinations. Model-facing modules normally use CharacterBook; the optional `user_character` template may intentionally remain disabled until filled. For every CharacterBook entry, explicitly design and record:
 
 - `activation.mode`, primary/secondary keys, selectivity, key logic, case sensitivity, and whole-word behavior;
 - `insertion.position`, explicit `insertion.depth` (`null` for every non-`at_depth` position; a non-negative integer for `at_depth`), role, and `insertion.order`;

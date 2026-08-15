@@ -268,6 +268,9 @@
         "characters": {
           "$ref": "#/$defs/pathList"
         },
+        "user_character": {
+          "$ref": "#/$defs/pathList"
+        },
         "systems": {
           "$ref": "#/$defs/pathList"
         },

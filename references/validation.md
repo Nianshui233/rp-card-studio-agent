@@ -111,7 +111,7 @@ NSFW 开关不是运行时内容门禁：`disabled` 不得因为产物自然包�
 每个阶段结束时至少执行：
 
 1. 本阶段 Schema 与必填项检查。
-2. 当前阶段 ID、引用与玩家/GM 可见性检查。
+2. 当前阶段 ID、引用与表层/GM 信息边界检查。
 3. 与所有上游锁定决定的一致性检查。
 4. 跨阶段待办分类：`blocking`、`deferred`、`resolved`。
 5. 阶段总汇完整性检查。
@@ -155,10 +155,10 @@ NSFW 开关不是运行时内容门禁：`disabled` 不得因为产物自然包�
 
 ### 叙事、开场与 UI
 
-- 叙事合同保护玩家代理权，开场有可接管的行动空间。
+- 叙事合同不定义任何未创作主体的身份、心理、语言、行动或入场方式；开场只呈现既有世界状态、已创作角色行动与未解决压力。
 - 开场公开文本不泄露 GM 真相，描述与初始状态一致。
 - `openings[].presentations.default_variant_id` 指向同 opening 内唯一变体；所有 `fallback_variant_ref` 可解析、无环，并最终到达不依赖脚本或媒体的纯文本 `prose` 变体。
-- 呈现变体只改变表达形式，不改变父 opening 的 `established_facts`、`initial_state_ref`、`immediate_change`、`hook` 或 `player_handoff`。
+- 呈现变体只改变表达形式，不改变父 opening 的 `established_facts`、`initial_state_ref`、`immediate_change` 或 `hook`。
 - 每个 `media_refs` 均在 `assembly.yaml.media_manifest` 中有同 ID 资产；该资产以父 opening 的 `opening:*` 作为 consumer ref，并在 slot 中定位呈现变体。没有媒体时回退文本仍保持父 opening 语义。
 - UI 展示模型不直接修改原始状态；需要命令或 writer 的交互只能走 `tavern_helper_message + host_required`。
 - 纯 Regex 项目的空值、加载、错误和依赖不可用文案只作为设计元数据检查，不要求伪造可见运行结果，也不能标记 `runtime: pass`；消息级实现承诺这些能力时才逐项验证可见结果。
@@ -168,7 +168,7 @@ NSFW 开关不是运行时内容门禁：`disabled` 不得因为产物自然包�
 - `basic_status` 与完整 UI 2.0 明确区分；新建完整 UI 的首批等级决定已锁定为 `light`、`medium` 或 `heavy`，且未用源代码行数替代能力验收。
 - UI 2.0 的 `experience -> theme/bindings/components` 引用闭合，组件 marker 与稳定正则 UUID 唯一，模型生产者拥有对应中文 CharacterBook 协议；重复构建保持幂等。
 - 主题的颜色、字体、形状、纹理、动效和唯一签名来自项目内容而非通用模板；远程资源为空，375px 窄屏、至少 44px 触控目标、可见键盘焦点、非颜色语义、减少动画和体积预算均有明确合同。
-- 玩家一级入口不超过 5 个，内部模块通过二级结构承载；可见文案为自然中文且不暴露开发字段。地点、人物、玩家档案、情报、事务、旅行、物品和证据采用语义专用视图，不递归转储变量对象。
+- 一级入口不超过 5 个，内部模块通过二级结构承载；可见文案为自然中文且不暴露开发字段。地点、人物、情报、事务、旅行、物品和证据采用语义专用视图，不递归转储变量对象。
 - 每个组件的数据模式、payload 格式、binding、布局和交互相符；动态值只用安全文本/DOM 节点写入，消息 ID 严格绑定当前楼，静态交互可重复执行且不会重复触发，MVU listener 在实例替换或真正卸载时释放。inline 脚本通过布尔运算符空格扫描和最终脚本语法检查。
 - 每个完整组件都有加载、引导性空状态、错误、降级与纯文本 fallback；空数组/对象和 `uninitialized` 不生成空卡。未进行真实宿主验收时，源码和产物通过也必须保持 `runtime: not_run`。
 

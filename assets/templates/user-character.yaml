@@ -1,0 +1,59 @@
+schema_version: 1.0.0
+id: user_character_template
+display_name: 用户角色定义模板
+status: draft
+
+# 该条目独立于世界观、NPC 与普通场景；默认关闭，填写完成后再启用。
+worldbook:
+  enabled_by_default: false
+  keys: ["<user>", user]
+  constant: true
+  position: after_char
+  depth: 4
+  order: 9995
+  probability: 100
+  recursion:
+    prevent_incoming: true
+    prevent_outgoing: true
+
+usage:
+  optional: true
+  activation_instruction: 填写需要固定的角色信息后启用本条目；未填写时保持关闭，不影响世界与 NPC 自主运转。
+  ui_sync_policy: either
+
+profile:
+  name: ""
+  aliases: []
+  age: null
+  gender: ""
+  identity:
+    public: ""
+    hidden: ""
+  biography: []
+  current_state: ""
+  personality:
+    summary: ""
+    core_traits: []
+    conditional_traits: []
+    hidden_traits: []
+  habits: []
+  appearance:
+    height: ""
+    weight: ""
+    build: ""
+    hair: ""
+    face: ""
+    skin: ""
+    eyes: ""
+    distinctive_features: []
+    clothing: ""
+  relationships: []
+  abilities: []
+  inventory: []
+  entry_point:
+    location: ""
+    current_activity: ""
+    awareness_of_anomaly: ""
+  notes: []
+
+source_refs: []

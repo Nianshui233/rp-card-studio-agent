@@ -1,6 +1,6 @@
 # 叙事与开场阶段
 
-本阶段确定模型如何叙述、如何保护玩家代理权，以及每条开场如何把用户带入已经锁定的世界状态。同一条开场可以提供 `prose`、`chat`、`galgame` 或 `custom` 呈现变体，但事实、初始状态、即时变化、钩子和玩家交接点只在父 opening 定义一次。
+本阶段确定模型如何叙述，以及每条开场如何把已经自行运转的世界交给实际游玩。同一条开场可以提供 `prose`、`chat`、`galgame` 或 `custom` 呈现变体，但事实、初始状态、即时变化和钩子只在父 opening 定义一次。世界、NPC 与普通场景不能依赖某个用户角色才成立；但开场本身可以提供预制视角、自由创角或两者并存，并明确用户接手行动的位置。
 
 本阶段同时标记内容归属，但不做宿主调度：默认开场最终进入 `data.first_mes`，备选开场按锁定顺序进入 `data.alternate_greetings`；全局叙事合同和跨场景对话示例成为独立 CharacterBook 内容模块。新卡不把这些内容写入 `data.mes_example`、`data.system_prompt` 或 `data.post_history_instructions`。
 
@@ -14,9 +14,9 @@
 ### 允许询问
 
 - 叙述视角、时态、语言密度、节奏、感官重点和对白比例。
-- 玩家代理权边界、NPC 行动尺度、信息揭示节奏和失败呈现。
-- 默认开场及备选开场的切入时刻、冲突、钩子、长度和互动余地。
-- 开场所需的已锁定事实、初始场景、在场角色与初始状态引用。
+- 已创作角色的行动尺度、信息揭示节奏和失败呈现。
+- 默认开场及备选开场的切入时刻、冲突、钩子、长度、局势开放度，以及采用预制视角、自由创角还是两者并存。
+- 开场所需的已锁定事实、初始场景、在场角色与初始状态引用。`player_agency` 只约束叙事不替用户决定什么，`player_handoff` 说明开场在哪个问题、动作或选择点把控制权交回。
 - 同一开场需要哪些呈现模式、各模式的文本组织方式、能力需求、媒体叙事槽位和纯文本回退。
 - 示例对话应展示哪些声音特征与行为规则。
 - 动态人物如何从已锁定的居民类型与生成事实中获得可辨认但不越界的外观、语言、欲望和反应，以及再次出现时如何保持连续。
@@ -39,8 +39,8 @@
 ### 本轮目标：叙事合同
 | 问题 | 方向 | 影响 | 推荐 |
 |---|---|---|---|
-| 采用何种视角？ | 第二人称近距 / 第三人称限知 / 灵活镜头 | 决定沉浸感与信息边界 | 推荐第二人称近距，因为项目强调玩家临场判断 |
-| 每轮结尾如何留白？ | 明确问题 / 可行动环境 / 突发事件 | 决定用户接管空间 | 推荐可行动环境，避免替用户作决定 |
+| 采用何种视角？ | 第三人称限知 / 已创作角色第一人称 / 灵活镜头 | 决定沉浸感与信息边界 | 推荐灵活镜头，因为项目强调群像与世界自主推进 |
+| 每轮结尾如何收束？ | 未解事实 / 环境变化 / 角色行动 / 突发事件 | 决定局势张力 | 推荐环境变化，让世界继续推进而不预写不存在主体的反应 |
 ```
 
 用户选择后立即生成可合并片段。开场的 `visible_text` 是不依赖脚本、媒体或自定义组件的纯文本基线；每个呈现变体只能改变表达形式，不能改变父 opening 的共享语义。例如：
@@ -50,22 +50,19 @@
 schema_version: 1.0.0
 status: locked
 narrative:
-  point_of_view: second_person_limited
+  point_of_view: flexible_camera
   tense: present
   pacing: gradual_tension
   prose_density: concise
   dialogue_ratio: balanced
   sensory_focus: [sound, temperature]
   player_agency:
-    never_decide:
-      - 玩家的内心结论
-      - 玩家未表达的行动
-    npc_permissions:
-      - NPC 可以制造压力并回应玩家已经表达的行动
-    handoff: 每轮以可感知变化和至少一个开放行动点收束
+    never_decide: [用户对白, 用户心理, 用户行动结果]
+    npc_permissions: [主动行动, 继续既有计划, 对用户输入作出反应]
+    handoff: 每轮在需要用户表达、选择或行动的位置收束。
   information_policy:
     reveal:
-      - 玩家当下能够感知的事实
+      - 当前镜头中已经显露的事实
     withhold:
       - 尚未通过线索揭示的 GM 真相
 openings:
@@ -75,14 +72,14 @@ openings:
     scene_ref: scene:abandoned_platform
     present_character_refs:
       - character:night_dispatcher
-    visible_text: "站台灯在你身后依次熄灭。调度员抬起手，示意你先别靠近轨道。"
+    visible_text: "站台灯从入口方向依次熄灭。夜间调度员放下记录板，盯着轨道间逐渐逼近的黑暗。"
     presentations:
       default_variant_id: galgame_enhanced
       variants:
         - id: prose_plain
           display_name: "纯文本"
           mode: prose
-          visible_text: "站台灯在你身后依次熄灭。调度员抬起手，示意你先别靠近轨道。"
+          visible_text: "站台灯从入口方向依次熄灭。夜间调度员放下记录板，盯着轨道间逐渐逼近的黑暗。"
           requirements: []
           media_refs: []
           fallback_variant_ref: null
@@ -90,7 +87,7 @@ openings:
         - id: galgame_enhanced
           display_name: "Galgame 呈现"
           mode: galgame
-          visible_text: "【调度员】先别靠近轨道。你身后的站台灯正一盏盏熄灭。"
+          visible_text: "【调度员】又提前了三分钟……\n【旁白】入口方向的站台灯一盏盏熄灭。"
           requirements:
             - galgame_presenter
           media_refs:
@@ -99,7 +96,7 @@ openings:
           delivery: embedded
     immediate_change: "站台照明从入口方向开始连续熄灭。"
     hook: "调度员知道断电的规律，却拒绝立刻解释。"
-    player_handoff: "玩家可追问调度员、检查灯轨或退回入口。"
+    player_handoff: "镜头停在站台边缘，让用户决定如何回应这次异常。"
     initial_state_ref: null
     established_facts:
       - "站台正在发生有规律的断电。"
@@ -114,23 +111,24 @@ source_refs:
 
 ## 建议的问题批次
 
-1. 叙事合同：视角、时态、密度、节奏、代理权。
+1. 叙事合同：视角、时态、密度、节奏和信息边界。
 2. 表现规则：对白、动作、感官、内心信息与段落结构。
-3. 默认开场：切入时刻、场景、冲突、钩子和交接点。
+3. 默认开场：切入时刻、场景、冲突、即时变化和钩子。
 4. 备选开场：差异价值、状态覆盖和是否值得保留。
 5. 呈现变体：`prose`、`chat`、`galgame` 或 `custom` 的文本结构、能力需求、媒体叙事槽位和纯文本回退。
-6. 示例对话：角色声音、行为后果和不应出现的 OOC 模式。
+6. 用户交接：哪些行为绝不代写、自由创角需要哪些叙事字段、开场以什么问题或行动点收束。
+7. 示例对话：角色声音、行为后果和不应出现的 OOC 模式。
 
 ## 开场片段规则
 
-- 开场展示处境，不代替玩家作出关键选择、说话或形成感受。
-- 第一轮就提供可回应对象、可行动线索或迫近变化。
+- 开场展示正在发生的处境。对预制视角，只使用已经锁定的人物事实；对自由创角入口，可以询问身份、地点、当时正在做什么、如何察觉异常，但不能替用户填写或替其作出行动。
+- 第一轮就呈现已创作角色的行动、可调查事实或迫近变化。
 - 开场中的事实必须来自已锁定源文件。
 - 启用 MVU 时，每条开场引用一个合法初始化配置；文本描述与初始值一致。
 - 备选开场只有在切入点、关系状态或玩法明显不同的情况下保留。
-- GM 秘密不得直接写入玩家可见开场；可以通过现象和线索间接表现。
+- GM 秘密不得直接写入开场表层文本；可以通过现象和线索间接表现。
 - 父 opening 的 `visible_text` 始终是纯文本基线；`presentations.default_variant_id` 必须指向本 opening 内存在的变体。
-- `prose`、`chat`、`galgame` 与 `custom` 变体共享父 opening 的 `established_facts`、`initial_state_ref`、`immediate_change`、`hook` 和 `player_handoff`，不得各自发明不同剧情状态。
+- `prose`、`chat`、`galgame` 与 `custom` 变体共享父 opening 的 `established_facts`、`initial_state_ref`、`immediate_change` 和 `hook`，不得各自发明不同剧情状态。
 - 任何依赖脚本、媒体或宿主能力的增强变体都必须通过 `fallback_variant_ref` 指向同 opening 内可独立工作的纯文本 `prose` 变体；回退链不能成环。
 - 本阶段只登记能力需求与 `media:*` 叙事引用。媒体文件、URL、完整性、预加载、实际交付与适配器由整合阶段决定。
 - 开场源码保持纯文本，不手写状态栏 HTML。项目启用状态栏时，Forge 在最终角色卡的默认与备选开场末尾幂等追加消息占位符；状态栏阶段与整合阶段负责对应角色正则。
@@ -140,11 +138,11 @@ source_refs:
 ## 完成门槛
 
 - 叙事合同可执行，不只有“细腻”“沉浸”等无边界形容词。
-- 玩家代理权、NPC 权限、知识视角和输出收束规则明确。
-- 默认开场具有地点、在场者、即时变化、互动钩子和玩家接管空间。
+- 已创作角色的行动权限、知识视角和输出收束规则明确。
+- 默认开场具有地点、在场者、即时变化、未解决压力、钩子与清晰的用户交接点。
 - 所有备选开场都有独立价值，并与各自初始化状态一致。
 - 每条开场的父级共享语义只有一份；所有呈现变体与它一致，默认变体和回退引用均可解析。
-- 每个增强呈现都有纯文本回退，且在依赖或媒体缺失时仍保留相同的玩家接管空间。
+- 每个增强呈现都有纯文本回退，且在依赖或媒体缺失时仍保留相同的事实、压力与钩子。
 - 存在固定角色时，示例对话覆盖主要声音特征且不与角色行为规则冲突；零固定角色项目只校验其叙事者、主持或世界声音合同。
 - 无未解析 ID、变量路径、模板占位符或 GM 信息直泄。
 - 已明确唯一默认 opening、备选 opening 的锁定顺序，以及各自到 `first_mes`/`alternate_greetings` 的投影关系。
@@ -152,7 +150,7 @@ source_refs:
 
 ## 阶段总汇
 
-总汇包含：叙事合同、禁止替玩家决定的事项、开场索引、`data.first_mes` 与 `data.alternate_greetings` 投影表、每条开场的共享事实与初始状态、钩子对比、呈现变体矩阵、默认/回退关系、媒体叙事引用、叙事/示例 CharacterBook 内容候选及缺漏。总汇还要列出可能进入高级定义字段的候选片段，但不在本阶段锁定宿主分摊；世界书 activation、keys、position、depth、order、probability、scan depth 与 recursion 也尚未在本阶段决定。用户确认后锁定文本；后续若更改开场状态，必须重新检查 MVU 初始化，若更改呈现能力则重新检查状态栏/UI 和整合装配。
+总汇包含：叙事合同、世界/NPC 自主运转检查、预制视角与自由创角路线、用户交接合同、开场索引、`data.first_mes` 与 `data.alternate_greetings` 投影表、每条开场的共享事实与初始状态、钩子对比、呈现变体矩阵、默认/回退关系、媒体叙事引用、叙事/示例 CharacterBook 内容候选及缺漏。总汇还要列出可能进入高级定义字段的候选片段，但不在本阶段锁定宿主分摊；世界书 activation、keys、position、depth、order、probability、scan depth 与 recursion 也尚未在本阶段决定。用户确认后锁定文本；后续若更改开场状态，必须重新检查 MVU 初始化，若更改呈现能力则重新检查状态栏/UI 和整合装配。
 
 ## 下一阶段方向
 

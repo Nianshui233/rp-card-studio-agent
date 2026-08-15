@@ -68,7 +68,7 @@
       "files": [],
       "expectations": [
         "报告 AI 选择 heavy 的理由并锁定，不重复询问用户",
-        "至少包含入口、玩家设置、综合状态、十二个有真实绑定的页内工作区模块、三类 narrative component 和 hub/mixed 导航",
+        "至少包含入口、开场选择、综合状态、十二个有真实绑定的页内工作区模块、三类 narrative component 和 hub/mixed 导航",
         "任务、物品、关系、情报、地图、调查、资源等共享生命周期的功能整合进少量完整 HTML 页面，不按功能名拆成重复外壳正则",
         "主题含项目专属颜色、字体、形状、纹理、动效和唯一视觉签名，不以 HTML 行数作为验收",
         "所有动态字段有 source_path 到 runtime_path 映射且只读取玩家可见 stat_data",

@@ -12,7 +12,6 @@
     "premise",
     "target_users",
     "card_mode",
-    "user_role",
     "experience_pillars",
     "tone",
     "expected_span",
@@ -41,16 +40,6 @@
         "gameplay_with_anchor_character",
         "hybrid_package"
       ]
-    },
-    "user_role": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["label", "agency", "description"],
-      "properties": {
-        "label": { "type": "string" },
-        "agency": { "type": "string" },
-        "description": { "type": "string" }
-      }
     },
     "experience_pillars": {
       "type": "array",

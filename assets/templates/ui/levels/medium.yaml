@@ -1,6 +1,6 @@
 schema_version: 1.0.0
 level: medium
-description: 在轻型基础上增加玩家配置、开场分流和更深的综合工作区；业务功能优先成为主页面内的页签或分区。
+description: 在轻型基础上增加开场分流和更深的综合工作区；业务功能优先成为主页面内的页签或分区。
 component_templates:
   - launch-screen.yaml
   - introduction-page.yaml

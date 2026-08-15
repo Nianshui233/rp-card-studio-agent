@@ -35,6 +35,7 @@ const KNOWN_REFERENCE_PREFIXES = new Set([
   "material",
   "world",
   "character",
+  "user_character",
   "system",
   "scene",
   "opening",

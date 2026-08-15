@@ -12,7 +12,7 @@ ui_component:
   content:
     eyebrow: 项目入口
     title: 项目标题
-    subtitle: 用一句具体的话说明玩家即将进入什么体验。
+    subtitle: 用一句具体的话说明该项目即将呈现什么体验。
     body: [列出必要依赖、玩法范围和进入前须知，不写营销空话。]
     primary_action: 进入项目
     secondary_action: null

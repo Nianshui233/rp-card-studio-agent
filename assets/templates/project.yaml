@@ -55,6 +55,7 @@ source_manifest:
   positioning: []
   world: []
   characters: []
+  user_character: []
   systems: []
   scenes: []
   mvu: []
