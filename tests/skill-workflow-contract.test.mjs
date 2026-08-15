@@ -45,7 +45,7 @@ test("skill remains explicit-only and rejects natural-language auto invocation",
   );
 });
 
-test("first turn is restricted to the five project preflight decisions", () => {
+test("first turn includes the project stage route alongside the other preflight decisions", () => {
   const entryGate = skill.match(
     /## Invocation Gate(?<body>[\s\S]*?)## Sources of Truth/,
   )?.groups?.body;
@@ -55,6 +55,7 @@ test("first turn is restricted to the five project preflight decisions", () => {
     "NSFW",
     "operation type",
     "existing materials",
+    "project stage route",
     "default single character-card `.json`",
   ]) {
     assert.ok(
@@ -68,7 +69,9 @@ test("first turn is restricted to the five project preflight decisions", () => {
   );
   assert.match(preflight, /项目预检是每次调用的第一阶段/);
   assert.match(preflight, /只允许询问以下事项/);
-  assert.match(preflight, /工作区.*NSFW.*任务类型.*已有材料.*交付目标/s);
+  assert.match(preflight, /工作区.*NSFW.*任务类型.*已有材料.*阶段路线.*交付目标/s);
+  assert.match(preflight, /workflow.selected_stages/);
+  assert.match(preflight, /没有 `workflow_confirmed` 和 `workflow.selected_stages` 时，不得进入项目定位/);
 });
 
 test("new character-card projects default to one JSON artifact and require explicit opt-in for PNG", () => {
@@ -164,13 +167,13 @@ test("MVU and EJS remain one optional stage with a direct skip path", () => {
   assert.match(skill, /MVU\/EJS \(optional\)/);
   assert.match(
     skill,
-    /ask only whether to enter or skip it, not its internal design questions/,
+    /whether it is entered is already locked in `workflow.selected_stages` during preflight/,
   );
   assert.match(
     skill,
-    /creates no disabled placeholders or pseudo-implementation/,
+    /create no disabled placeholders or pseudo-implementation/,
   );
-  assert.match(skill, /proceeds to `narrative_opening`/);
+  assert.match(skill, /proceed to `narrative_opening`/);
 });
 
 test("UI stage asks for five complete UI levels without imposing fixed architecture", () => {

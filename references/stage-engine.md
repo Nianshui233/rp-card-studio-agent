@@ -18,14 +18,14 @@
 10. 状态栏/UI（可选）
 11. 整合交付
 
-可选阶段可以跳过。角色阶段不是可选阶段，而是一次角色资产盘点关口：定位允许零固定角色时，可以锁定空角色清单并当轮完成，不创建占位角色或假主角。修改、转换或审查已有项目时，可以从最相关的阶段切入，但仍需先完成项目预检并检查前置依赖。
+可选阶段可以跳过，但必须在项目预检中先记录路线。角色阶段不是可选阶段，而是一次角色资产盘点关口：定位允许零固定角色时，可以锁定空角色清单并当轮完成，不创建占位角色或假主角。修改、转换或审查已有项目时，可以从最相关的阶段切入，但仍需先完成项目预检并检查前置依赖。
 
 ### MVU/EJS 可选路由
 
-前一阶段收尾时只决定“进入或跳过” `mvu_ejs`，并给出结合已锁定需求的推荐；MVU、EJS 或组合的能力选择属于该阶段本身，不得提前询问。普通模式由用户确认路线；AI 只在覆盖该路线或后续阶段的明确授权内代为决定，报告理由后锁定且不再追问。
+是否进入 `mvu_ejs` 已在项目预检的 `workflow.selected_stages` 中锁定。前一阶段收尾不得重新询问或改回默认路线；MVU、EJS 或组合的能力选择仍属于该阶段本身，不得提前询问。若新依赖要求调整路线，返回预检重新锁定。
 
-- 进入：激活 `mvu_ejs` 后再处理能力组合、运行时契约和实现细节；进入前无需把任一 feature 预先设为 `true`。
-- 新建且无既有实现时跳过：保持 `features.mvu: false` 与 `features.ejs: false`，在 `.rp-card-state.json` 写入 `stages.mvu_ejs.status: skipped` 和简短理由，不开始访谈，不生成禁用片段、依赖说明或阶段总汇，直接把 `narrative_opening` 作为下一阶段。
+- 路线已选择进入：激活 `mvu_ejs` 后再处理能力组合、运行时契约和实现细节；进入前无需把任一 feature 预先设为 `true`。
+- 路线已选择跳过且新建项目无既有实现：保持 `features.mvu: false` 与 `features.ejs: false`，在 `.rp-card-state.json` 写入 `stages.mvu_ejs.status: skipped` 和简短理由，不开始访谈，不生成禁用片段、依赖说明或阶段总汇，直接把 `narrative_opening` 作为下一阶段。
 - 非新建项目本轮跳过：保留既有 feature、源码、依赖和未知字段，并继续校验实际交付物。既有状态为 `complete` 时不要降级为 `skipped`；尚未处理时可记 `skipped`，但摘要必须说明“本轮未修改、既有实现保留”。修改、禁用或移除既有实现不属于跳过，必须进入 `mvu_ejs` 完成迁移、清理和验证。
 
 ## 五条不变规则
@@ -42,7 +42,7 @@
 
 | 对话语义 | 语义真源 `project.yaml` | 技术真源 `.rp-card-state.json` |
 | --- | --- | --- |
-| 固定阶段路线 | `workflow.stage_order`、`workflow.optional_stages` | 不重复保存路线 |
+| 固定阶段路线 | `workflow.stage_order`、`workflow.optional_stages`、`workflow.selected_stages` | `stages.<stage>.status: skipped` 反映未选的可选阶段 |
 | 当前阶段 | 不保存临时游标 | `active_stage` |
 | 各阶段进度与轮次 | 不保存工具进度 | `stages.<stage>.status`、`round`、`summary` |
 | 已锁定决定及最终值 | `decisions[]` 的 `value`、`decided_by`、`locked`、`status`、`rationale`、`history` | `decision_locks[]` 仅保存 ID、值哈希、锁定来源和时间 |
@@ -50,11 +50,11 @@
 | 跨阶段待办正文 | `cross_stage_backlog[]` | 同名数组只保存 `project_decision_id` 与技术处理状态 |
 | 当前阶段未决缺口 | 保留在阶段总汇；若会影响其他阶段，再写入 `cross_stage_backlog[]` | 用当前阶段的 `status: blocked` 或 `awaiting_user` 与 `summary` 表达 |
 
-`phase`、`stage_route`、`locks`、`open_gaps` 和单数 `delegation` 只是便于讨论的概念名，不是可写入文件的字段。落盘前必须分别读取 `assets/schemas/project.schema.json` 与 `assets/schemas/state.schema.json`；创作语义以 `project.yaml` 为准，Forge 只从它生成技术锁，不能从技术状态反向发明或修改决定。
+`phase`、`locks`、`open_gaps` 和单数 `delegation` 只是便于讨论的概念名，不是可写入文件的字段；`workflow.selected_stages` 是项目路线的正式语义字段。落盘前必须分别读取 `assets/schemas/project.schema.json` 与 `assets/schemas/state.schema.json`；创作语义以 `project.yaml` 为准，Forge 只从它生成技术锁，不能从技术状态反向发明或修改决定。
 
 ## 进入一个阶段
 
-进入阶段时依次执行：
+进入阶段时先读取并核对 `project.yaml.workflow.selected_stages`。未列入路线的可选阶段保持 `skipped`，不能因为默认流程或对话记忆缺失而进入。然后依次执行：
 
 1. 读取项目状态、当前阶段文件和已确认源码。
 2. 汇总会约束本阶段的前置硬设定，但不要把它们改写成新问题。

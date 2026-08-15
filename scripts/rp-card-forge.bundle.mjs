@@ -15597,6 +15597,8 @@ var STAGES = Object.freeze([
 ]);
 var WORKFLOW_STAGES = Object.freeze(STAGES.slice(1));
 var OPTIONAL_STAGES = Object.freeze(["materials", "systems", "scenes", "mvu_ejs", "status_ui"]);
+var REQUIRED_WORKFLOW_STAGES = Object.freeze(["positioning", "worldbuilding", "character", "narrative_opening", "integration"]);
+var DEFAULT_STAGE_ROUTE = Object.freeze([...WORKFLOW_STAGES]);
 var SINGLE_CHARACTER_CARD_MODES = /* @__PURE__ */ new Set(["single_character_card"]);
 var ANCHOR_CHARACTER_CARD_MODES = /* @__PURE__ */ new Set([
   "world_scenario_with_anchor_character",
@@ -15735,16 +15737,49 @@ function machineId(name) {
 function emptySourceManifest() {
   return Object.fromEntries(SOURCE_GROUPS.map((key) => [key, []]));
 }
-function initialStages() {
+function normalizeStageRoute(route) {
+  if (!Array.isArray(route)) throw inputError("\u9636\u6BB5\u8DEF\u7EBF\u5FC5\u987B\u662F\u6309\u89C4\u8303\u987A\u5E8F\u6392\u5217\u7684\u6570\u7EC4");
+  const selected = [...route];
+  if (selected.some((stage) => !WORKFLOW_STAGES.includes(stage))) {
+    throw inputError("\u9636\u6BB5\u8DEF\u7EBF\u5305\u542B\u672A\u77E5\u9636\u6BB5", { supported: WORKFLOW_STAGES });
+  }
+  if (new Set(selected).size !== selected.length) throw inputError("\u9636\u6BB5\u8DEF\u7EBF\u4E0D\u80FD\u5305\u542B\u91CD\u590D\u9636\u6BB5");
+  const canonical = WORKFLOW_STAGES.filter((stage) => selected.includes(stage));
+  if (!semanticEqual(selected, canonical)) throw inputError("\u9636\u6BB5\u8DEF\u7EBF\u5FC5\u987B\u4FDD\u6301\u89C4\u8303\u987A\u5E8F\uFF0C\u4E0D\u80FD\u91CD\u6392\u9636\u6BB5");
+  const missing = REQUIRED_WORKFLOW_STAGES.filter((stage) => !selected.includes(stage));
+  if (missing.length > 0) throw inputError("\u9636\u6BB5\u8DEF\u7EBF\u7F3A\u5C11\u5FC5\u7ECF\u9636\u6BB5", { missing });
+  return selected;
+}
+function applyStageRoute(project, state, route) {
+  const selected = normalizeStageRoute(route);
+  project.workflow.selected_stages = [...selected];
+  project.preflight.workflow_confirmed = true;
+  const selectedSet = new Set(selected);
+  for (const stage of OPTIONAL_STAGES) {
+    if (!selectedSet.has(stage)) {
+      state.stages[stage] = {
+        status: "skipped",
+        round: Math.max(1, state.stages[stage]?.round ?? 0),
+        summary: "\u9879\u76EE\u9884\u68C0\u9636\u6BB5\u8DEF\u7EBF\u672A\u9009\u62E9"
+      };
+    } else if (state.stages[stage]?.status === "skipped" && state.stages[stage]?.summary === "\u9879\u76EE\u9884\u68C0\u9636\u6BB5\u8DEF\u7EBF\u672A\u9009\u62E9") {
+      state.stages[stage] = { status: "not_started", round: 0, summary: null };
+    }
+  }
+  return selected;
+}
+function initialStages(selectedStages = WORKFLOW_STAGES) {
+  const selected = new Set(selectedStages);
   return Object.fromEntries(STAGES.map((stage) => [stage, {
-    status: stage === "preflight" ? "complete" : stage === "positioning" ? "in_progress" : "not_started",
-    round: stage === "preflight" || stage === "positioning" ? 1 : 0,
-    summary: stage === "preflight" ? "\u9879\u76EE\u9884\u68C0\u5DF2\u7531\u7528\u6237\u786E\u8BA4" : null
+    status: stage === "preflight" ? "complete" : stage === "positioning" ? "in_progress" : OPTIONAL_STAGES.includes(stage) && !selected.has(stage) ? "skipped" : "not_started",
+    round: stage === "preflight" || stage === "positioning" || OPTIONAL_STAGES.includes(stage) && !selected.has(stage) ? 1 : 0,
+    summary: stage === "preflight" ? "\u9879\u76EE\u9884\u68C0\u5DF2\u7531\u7528\u6237\u786E\u8BA4" : OPTIONAL_STAGES.includes(stage) && !selected.has(stage) ? "\u9879\u76EE\u9884\u68C0\u9636\u6BB5\u8DEF\u7EBF\u672A\u9009\u62E9" : null
   }]));
 }
-function makeProject({ name, target = "character_card", nsfw, operation = "create" }) {
+function makeProject({ name, target = "character_card", nsfw, operation = "create", stageRoute = DEFAULT_STAGE_ROUTE }) {
   if (typeof nsfw !== "boolean") throw inputError("\u521B\u5EFA\u9879\u76EE\u5FC5\u987B\u660E\u786E\u63D0\u4F9B NSFW enabled \u6216 disabled");
   const projectId = machineId(name);
+  const selectedStages = normalizeStageRoute(stageRoute);
   const isWorldbook = target === "worldbook";
   const sourceManifest = emptySourceManifest();
   sourceManifest.positioning.push("src/positioning.yaml");
@@ -15765,11 +15800,13 @@ function makeProject({ name, target = "character_card", nsfw, operation = "creat
       workspace_confirmed: true,
       nsfw: { confirmed: true, enabled: nsfw, decision_source: "user" },
       input_materials_confirmed: true,
-      deliverables_confirmed: true
+      deliverables_confirmed: true,
+      workflow_confirmed: true
     },
     workflow: {
       stage_order: [...WORKFLOW_STAGES],
-      optional_stages: [...OPTIONAL_STAGES]
+      optional_stages: [...OPTIONAL_STAGES],
+      selected_stages: [...selectedStages]
     },
     features: {
       materials: false,
@@ -15792,6 +15829,17 @@ function makeProject({ name, target = "character_card", nsfw, operation = "creat
       rationale: "\u7528\u6237\u5728\u9879\u76EE\u9884\u68C0\u4E2D\u660E\u786E\u9009\u62E9",
       round: 1,
       history: []
+    }, {
+      id: "preflight.stage_route",
+      stage: "preflight",
+      summary: `\u9636\u6BB5\u8DEF\u7EBF = ${selectedStages.join(" -> ")}`,
+      value: [...selectedStages],
+      decided_by: "user",
+      locked: true,
+      status: "active",
+      rationale: "\u9879\u76EE\u521B\u5EFA\u65F6\u8BB0\u5F55\u7684\u9636\u6BB5\u8DEF\u7EBF\uFF1B\u6B63\u5F0F\u521B\u4F5C\u524D\u5E94\u7531\u9884\u68C0\u56DE\u7B54\u8986\u76D6\u9ED8\u8BA4\u503C",
+      round: 1,
+      history: []
     }],
     cross_stage_backlog: [],
     source_manifest: sourceManifest,
@@ -15804,14 +15852,14 @@ function makeProject({ name, target = "character_card", nsfw, operation = "creat
   };
 }
 function makeState(project, { revision = 0 } = {}) {
-  const nsfwDecision = project.decisions.find((decision) => decision.id === "preflight_nsfw");
+  const preflightDecisions = project.decisions.filter((decision) => decision.stage === "preflight" && decision.locked && decision.status === "active");
   return {
     schema_version: STATE_SCHEMA_VERSION,
     project_id: project.project.id,
     revision,
     active_stage: "positioning",
-    stages: initialStages(),
-    decision_locks: nsfwDecision ? [decisionLock(nsfwDecision)] : [],
+    stages: initialStages(project.workflow.selected_stages),
+    decision_locks: preflightDecisions.map((decision) => decisionLock(decision)),
     delegations: [],
     cross_stage_backlog: [],
     dirty_sources: [],
@@ -15959,8 +16007,8 @@ function validateProjectModel(project, state, root) {
     }
   }
   if (typeof project?.project?.locale !== "string" || project.project.locale.trim() === "") issues.push(modelIssue("/project/locale", "type", "locale \u5FC5\u987B\u662F\u975E\u7A7A\u5B57\u7B26\u4E32"));
-  if (!project?.preflight?.workspace_confirmed || !project?.preflight?.input_materials_confirmed || !project?.preflight?.deliverables_confirmed) {
-    issues.push(modelIssue("/preflight", "confirmed", "\u5DE5\u4F5C\u533A\u3001\u8F93\u5165\u6750\u6599\u72B6\u6001\u548C\u4EA4\u4ED8\u7269\u5FC5\u987B\u5B8C\u6210\u9884\u68C0\u786E\u8BA4"));
+  if (!project?.preflight?.workspace_confirmed || !project?.preflight?.input_materials_confirmed || !project?.preflight?.deliverables_confirmed || !project?.preflight?.workflow_confirmed) {
+    issues.push(modelIssue("/preflight", "confirmed", "\u5DE5\u4F5C\u533A\u3001\u8F93\u5165\u6750\u6599\u3001\u4EA4\u4ED8\u7269\u548C\u9636\u6BB5\u8DEF\u7EBF\u5FC5\u987B\u5B8C\u6210\u9884\u68C0\u786E\u8BA4"));
   }
   if (project?.preflight?.nsfw?.confirmed !== true || !["user"].includes(project?.preflight?.nsfw?.decision_source)) {
     issues.push(modelIssue("/preflight/nsfw", "confirmed", "NSFW \u5FC5\u987B\u7531\u7528\u6237\u660E\u786E\u9501\u5B9A"));
@@ -15968,6 +16016,11 @@ function validateProjectModel(project, state, root) {
   if (typeof project?.preflight?.nsfw?.enabled !== "boolean") issues.push(modelIssue("/preflight/nsfw/enabled", "type", "NSFW enabled \u5FC5\u987B\u662F\u5E03\u5C14\u503C"));
   if (!semanticEqual(project?.workflow?.stage_order, WORKFLOW_STAGES)) issues.push(modelIssue("/workflow/stage_order", "const", "\u9636\u6BB5\u987A\u5E8F\u4E0E\u89C4\u8303\u4E0D\u4E00\u81F4"));
   if (!semanticEqual(project?.workflow?.optional_stages, OPTIONAL_STAGES)) issues.push(modelIssue("/workflow/optional_stages", "const", "\u53EF\u9009\u9636\u6BB5\u6E05\u5355\u4E0E\u89C4\u8303\u4E0D\u4E00\u81F4"));
+  try {
+    normalizeStageRoute(project?.workflow?.selected_stages);
+  } catch (error) {
+    issues.push(modelIssue("/workflow/selected_stages", "route", error.message));
+  }
   for (const feature of ["materials", "systems", "scenes", "mvu", "ejs", "status_ui"]) {
     if (typeof project?.features?.[feature] !== "boolean") issues.push(modelIssue(`/features/${feature}`, "type", "\u529F\u80FD\u5F00\u5173\u5FC5\u987B\u662F\u5E03\u5C14\u503C"));
   }
@@ -16817,7 +16870,33 @@ async function runProjectMutation(root, callback, options = {}) {
   return withProjectLock(absolute, () => callback(absolute), options);
 }
 function migrateProject(project) {
-  if (project?.schema_version === PROJECT_SCHEMA_VERSION) return { value: project, migrated: false };
+  if (project?.schema_version === PROJECT_SCHEMA_VERSION) {
+    if (project?.preflight?.workflow_confirmed === false) return { value: project, migrated: false };
+    const hasRoute = Array.isArray(project?.workflow?.selected_stages);
+    const hasRouteDecision = (project?.decisions ?? []).some((decision) => decision.id === "preflight.stage_route");
+    if (project?.preflight?.workflow_confirmed === true && hasRoute && hasRouteDecision) return { value: project, migrated: false };
+    const migrated = structuredClone(project);
+    migrated.preflight ??= {};
+    migrated.preflight.workflow_confirmed = true;
+    migrated.workflow ??= { stage_order: [...WORKFLOW_STAGES], optional_stages: [...OPTIONAL_STAGES] };
+    migrated.workflow.stage_order = [...WORKFLOW_STAGES];
+    migrated.workflow.optional_stages = [...OPTIONAL_STAGES];
+    migrated.workflow.selected_stages = [...DEFAULT_STAGE_ROUTE];
+    migrated.decisions ??= [];
+    if (!hasRouteDecision) migrated.decisions.push({
+      id: "preflight.stage_route",
+      stage: "preflight",
+      summary: `\u9636\u6BB5\u8DEF\u7EBF = ${DEFAULT_STAGE_ROUTE.join(" -> ")}`,
+      value: [...DEFAULT_STAGE_ROUTE],
+      decided_by: "imported",
+      locked: true,
+      status: "active",
+      rationale: "\u65E7\u9879\u76EE\u517C\u5BB9\u8FC1\u79FB\uFF1A\u672A\u53D1\u73B0\u9996\u8F6E\u8DEF\u7EBF\u8BB0\u5F55\uFF0C\u6682\u4FDD\u7559\u5B8C\u6574\u9ED8\u8BA4\u8DEF\u7EBF\uFF1B\u540E\u7EED\u53EF\u5728\u9884\u68C0\u4E2D\u91CD\u65B0\u9501\u5B9A",
+      round: 1,
+      history: []
+    });
+    return { value: migrated, migrated: true };
+  }
   if (![0, "0", "0.1.0"].includes(project?.schema_version)) {
     throw validationError(`\u65E0\u6CD5\u8FC1\u79FB project.yaml \u7248\u672C: ${project?.schema_version}`);
   }
@@ -16840,7 +16919,15 @@ function migrateProject(project) {
   };
 }
 function migrateState(state, project) {
-  if (state?.schema_version === STATE_SCHEMA_VERSION) return { value: state, migrated: false };
+  if (state?.schema_version === STATE_SCHEMA_VERSION) {
+    const existingIds = new Set((state?.decision_locks ?? []).map((lock) => lock.decision_id));
+    const missing = (project?.decisions ?? []).filter((decision) => decision.locked && !existingIds.has(decision.id));
+    if (missing.length === 0) return { value: state, migrated: false };
+    const migrated2 = structuredClone(state);
+    migrated2.decision_locks ??= [];
+    migrated2.decision_locks.push(...missing.map((decision) => decisionLock(decision)));
+    return { value: migrated2, migrated: true };
+  }
   if (![0, "0", "0.1.0", 1].includes(state?.schema_version)) {
     throw validationError(`\u65E0\u6CD5\u8FC1\u79FB\u72B6\u6001\u7248\u672C: ${state?.schema_version}`);
   }
@@ -16959,6 +17046,7 @@ var HELP_TEXT = `rp-card-forge - \u79BB\u7EBF\u3001\u4E8B\u52A1\u5F0F SillyTaver
   diff <left> <right>                \u6BD4\u8F83\u8BED\u4E49 JSON
   roundtrip <input>                  \u9A8C\u8BC1 JSON/PNG \u8BED\u4E49\u5F80\u8FD4\u4E0E PNG \u56FE\u50CF\u6570\u636E
   state <project-dir> [action]       show/migrate/operation/lock/unlock/stage
+  state <project-dir> lock preflight.stage_route <json-array> --force
   doctor [project-dir]               \u68C0\u67E5 Node\u3001\u4F9D\u8D56\u4E0E\u9879\u76EE\u5065\u5EB7
 
 \u901A\u7528\u9009\u9879:
@@ -17548,6 +17636,10 @@ async function commandState(args, options) {
       const [, , id, rawValue] = args;
       assertDecisionId(id);
       let value = parseCliValue(rawValue);
+      if (id === "preflight.stage_route") {
+        if (nextState.active_stage !== "positioning" && !options.force) throw conflictError("\u9636\u6BB5\u8DEF\u7EBF\u53EA\u80FD\u5728\u8FDB\u5165\u9879\u76EE\u521B\u4F5C\u524D\u9501\u5B9A\uFF1B\u5982\u786E\u9700\u4FEE\u6539\uFF0C\u8BF7\u4F7F\u7528 --force");
+        value = applyStageRoute(nextProject, nextState, value);
+      }
       if (id === "positioning.project_title") {
         if (typeof value !== "string" || value.trim() === "") {
           throw inputError("positioning.project_title \u5FC5\u987B\u662F\u975E\u7A7A\u9879\u76EE\u6807\u9898");
@@ -17581,27 +17673,27 @@ async function commandState(args, options) {
             superseded_at: (/* @__PURE__ */ new Date()).toISOString()
           });
           Object.assign(existing, {
-            stage: nextState.active_stage,
+            stage: id.startsWith("preflight.") ? "preflight" : nextState.active_stage,
             summary: `${id} = ${JSON.stringify(value)}`,
             value,
             decided_by: decidedBy,
             locked: true,
             status: "active",
             rationale,
-            round: nextState.stages[nextState.active_stage].round
+            round: nextState.stages[id.startsWith("preflight.") ? "preflight" : nextState.active_stage].round
           });
         }
       } else {
         nextProject.decisions.push({
           id,
-          stage: nextState.active_stage,
+          stage: id.startsWith("preflight.") ? "preflight" : nextState.active_stage,
           summary: `${id} = ${JSON.stringify(value)}`,
           value,
           decided_by: decidedBy,
           locked: true,
           status: "active",
           rationale,
-          round: nextState.stages[nextState.active_stage].round,
+          round: nextState.stages[id.startsWith("preflight.") ? "preflight" : nextState.active_stage].round,
           history: []
         });
       }
@@ -17629,6 +17721,9 @@ async function commandState(args, options) {
       }
       if (status === "skipped" && !loaded.project.workflow.optional_stages.includes(stage)) {
         throw conflictError(`\u5FC5\u7ECF\u9636\u6BB5\u4E0D\u80FD\u6807\u8BB0\u4E3A skipped: ${stage}`);
+      }
+      if (["in_progress", "complete"].includes(status) && stage !== "preflight" && !loaded.project.workflow.selected_stages.includes(stage)) {
+        throw conflictError(`\u9636\u6BB5 ${stage} \u672A\u5728\u9879\u76EE\u9884\u68C0\u8DEF\u7EBF\u4E2D\u9009\u62E9\uFF0C\u4E0D\u80FD\u8FDB\u5165\uFF1B\u5982\u9700\u4FEE\u6539\u8DEF\u7EBF\uFF0C\u8BF7\u91CD\u65B0\u9501\u5B9A preflight.stage_route`);
       }
       if (["complete", "skipped"].includes(status) && (!options.summary || options.summary.trim() === "")) {
         throw inputError(`state stage ${stage} ${status} \u5FC5\u987B\u901A\u8FC7 --summary \u8BB0\u5F55\u9636\u6BB5\u603B\u6C47\u6216\u8DF3\u8FC7\u7406\u7531`);

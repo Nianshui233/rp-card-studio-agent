@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
 import { projectModelSource } from '../scripts/forge/projection.mjs';
-import { makeProject, makeState, validateProjectModel } from '../scripts/forge/project.mjs';
+import { makeProject, makeState, migrateProject, migrateState, validateProjectModel } from '../scripts/forge/project.mjs';
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sourceForge = path.join(skillRoot, 'scripts', 'rp-card-forge.mjs');
@@ -1426,4 +1426,62 @@ test('a true single-character project keeps its sole character definition consta
   const result = runForge(['build', root]);
   assert.notEqual(result.status, 0);
   assert.match(result.output, /assembly\.single_character/);
+});
+
+
+test('preflight stage route is persisted and unselected optional stages are skipped', () => {
+  const route = ['positioning', 'worldbuilding', 'character', 'narrative_opening', 'status_ui', 'integration'];
+  const project = makeProject({ name: '阶段路线测试', nsfw: false, stageRoute: route });
+  const state = makeState(project);
+  assert.deepEqual(project.workflow.selected_stages, route);
+  assert.equal(project.preflight.workflow_confirmed, true);
+  assert.deepEqual(project.decisions.find(decision => decision.id === 'preflight.stage_route')?.value, route);
+  assert.equal(state.stages.materials.status, 'skipped');
+  assert.equal(state.stages.systems.status, 'skipped');
+  assert.equal(state.stages.scenes.status, 'skipped');
+  assert.equal(state.stages.mvu_ejs.status, 'skipped');
+  assert.equal(state.stages.status_ui.status, 'not_started');
+  const validation = validateProjectModel(project, state, process.cwd());
+  assert.deepEqual(validation.issues, []);
+});
+
+test('stage route rejects omission of required stages', () => {
+  assert.throws(() => makeProject({ name: '缺路线测试', nsfw: false, stageRoute: ['positioning', 'character', 'narrative_opening', 'integration'] }), /缺少必经阶段/);
+});
+
+
+test('Forge route lock updates project workflow and blocks unselected stage entry', t => {
+  const root = tempRoot(t, 'route-lock');
+  runForge(['init', root, '--nsfw', 'disabled', '--type', 'character'], { expectSuccess: true });
+  const route = ['positioning', 'worldbuilding', 'character', 'narrative_opening', 'integration'];
+  runForge(['state', root, 'lock', 'preflight.stage_route', JSON.stringify(route), '--force'], { expectSuccess: true });
+  const project = readYaml(root, 'project.yaml');
+  const state = JSON.parse(readFileSync(path.join(root, '.rp-card-state.json'), 'utf8'));
+  assert.deepEqual(project.workflow.selected_stages, route);
+  assert.equal(project.preflight.workflow_confirmed, true);
+  for (const stage of ['materials', 'systems', 'scenes', 'mvu_ejs', 'status_ui']) {
+    assert.equal(state.stages[stage].status, 'skipped');
+    assert.equal(state.stages[stage].summary, '项目预检阶段路线未选择');
+  }
+  const forbidden = runForge(['state', root, 'stage', 'systems', 'in_progress']);
+  assert.notEqual(forbidden.status, 0);
+  assert.match(forbidden.output, /未在项目预检路线中选择/);
+});
+
+
+test('same-version legacy projects gain a compatibility route and matching technical lock', () => {
+  const project = makeProject({ name: '旧路线迁移测试', nsfw: false });
+  const state = makeState(project);
+  delete project.preflight.workflow_confirmed;
+  delete project.workflow.selected_stages;
+  project.decisions = project.decisions.filter(decision => decision.id !== 'preflight.stage_route');
+  state.decision_locks = state.decision_locks.filter(lock => lock.decision_id !== 'preflight.stage_route');
+  const migratedProject = migrateProject(project);
+  const migratedState = migrateState(state, migratedProject.value);
+  assert.equal(migratedProject.migrated, true);
+  assert.equal(migratedState.migrated, true);
+  assert.equal(migratedProject.value.preflight.workflow_confirmed, true);
+  assert.deepEqual(migratedProject.value.workflow.selected_stages, migratedProject.value.workflow.stage_order);
+  assert.ok(migratedState.value.decision_locks.some(lock => lock.decision_id === 'preflight.stage_route'));
+  assert.deepEqual(validateProjectModel(migratedProject.value, migratedState.value, process.cwd()).issues, []);
 });

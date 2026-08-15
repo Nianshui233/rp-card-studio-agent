@@ -77,7 +77,8 @@
         "workspace_confirmed",
         "nsfw",
         "input_materials_confirmed",
-        "deliverables_confirmed"
+        "deliverables_confirmed",
+        "workflow_confirmed"
       ],
       "properties": {
         "workspace_confirmed": {
@@ -111,6 +112,9 @@
         },
         "deliverables_confirmed": {
           "type": "boolean"
+        },
+        "workflow_confirmed": {
+          "type": "boolean"
         }
       }
     },
@@ -119,7 +123,8 @@
       "additionalProperties": false,
       "required": [
         "stage_order",
-        "optional_stages"
+        "optional_stages",
+        "selected_stages"
       ],
       "properties": {
         "stage_order": {
@@ -144,6 +149,16 @@
             "mvu_ejs",
             "status_ui"
           ]
+        },
+        "selected_stages": {
+          "type": "array",
+          "minItems": 5,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "positioning", "materials", "worldbuilding", "character", "systems", "scenes", "mvu_ejs", "narrative_opening", "status_ui", "integration"
+            ]
+          }
         }
       }
     },

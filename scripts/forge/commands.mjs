@@ -14,6 +14,7 @@ import {
   STAGE_STATUSES,
   addPreservedImport,
   applyNsfwTemplates,
+  applyStageRoute,
   assertDecisionId,
   assertValidSource,
   collectPreserved,
@@ -65,6 +66,7 @@ export var HELP_TEXT = `rp-card-forge - 离线、事务式 SillyTavern 制卡工
   diff <left> <right>                比较语义 JSON
   roundtrip <input>                  验证 JSON/PNG 语义往返与 PNG 图像数据
   state <project-dir> [action]       show/migrate/operation/lock/unlock/stage
+  state <project-dir> lock preflight.stage_route <json-array> --force
   doctor [project-dir]               检查 Node、依赖与项目健康
 
 通用选项:
@@ -658,6 +660,10 @@ async function commandState(args, options) {
       const [, , id, rawValue] = args;
       assertDecisionId(id);
       let value = parseCliValue(rawValue);
+      if (id === "preflight.stage_route") {
+        if (nextState.active_stage !== "positioning" && !options.force) throw conflictError("阶段路线只能在进入项目创作前锁定；如确需修改，请使用 --force");
+        value = applyStageRoute(nextProject, nextState, value);
+      }
       if (id === "positioning.project_title") {
         if (typeof value !== "string" || value.trim() === "") {
           throw inputError("positioning.project_title 必须是非空项目标题");
@@ -691,27 +697,27 @@ async function commandState(args, options) {
             superseded_at: (/* @__PURE__ */ new Date()).toISOString()
           });
           Object.assign(existing, {
-            stage: nextState.active_stage,
+            stage: id.startsWith("preflight.") ? "preflight" : nextState.active_stage,
             summary: `${id} = ${JSON.stringify(value)}`,
             value,
             decided_by: decidedBy,
             locked: true,
             status: "active",
             rationale,
-            round: nextState.stages[nextState.active_stage].round
+            round: nextState.stages[id.startsWith("preflight.") ? "preflight" : nextState.active_stage].round
           });
         }
       } else {
         nextProject.decisions.push({
           id,
-          stage: nextState.active_stage,
+          stage: id.startsWith("preflight.") ? "preflight" : nextState.active_stage,
           summary: `${id} = ${JSON.stringify(value)}`,
           value,
           decided_by: decidedBy,
           locked: true,
           status: "active",
           rationale,
-          round: nextState.stages[nextState.active_stage].round,
+          round: nextState.stages[id.startsWith("preflight.") ? "preflight" : nextState.active_stage].round,
           history: []
         });
       }
@@ -739,6 +745,9 @@ async function commandState(args, options) {
       }
       if (status === "skipped" && !loaded.project.workflow.optional_stages.includes(stage)) {
         throw conflictError(`必经阶段不能标记为 skipped: ${stage}`);
+      }
+      if (["in_progress", "complete"].includes(status) && stage !== "preflight" && !loaded.project.workflow.selected_stages.includes(stage)) {
+        throw conflictError(`阶段 ${stage} 未在项目预检路线中选择，不能进入；如需修改路线，请重新锁定 preflight.stage_route`);
       }
       if (["complete", "skipped"].includes(status) && (!options.summary || options.summary.trim() === "")) {
         throw inputError(`state stage ${stage} ${status} 必须通过 --summary 记录阶段总汇或跳过理由`);

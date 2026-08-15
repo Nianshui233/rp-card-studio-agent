@@ -154,6 +154,6 @@ source_refs:
 
 ## 下一阶段方向
 
-- 项目启用状态栏/UI 时，推荐进入 `status_ui`，只把已锁定变量做成展示模型。
-- 项目不需要状态栏/UI 时，推荐跳过并记录理由，进入 `integration`。
+- 路线包含 `status_ui`：进入该阶段，只把已锁定变量做成展示模型。
+- 路线跳过 `status_ui`：保持预检记录的 `skipped` 状态并进入 `integration`，不得重新询问。
 - 若开场与初始化冲突，返回 `mvu_ejs`；若角色声音冲突，返回 `character`。
