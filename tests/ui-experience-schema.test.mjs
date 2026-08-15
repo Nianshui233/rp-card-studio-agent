@@ -76,7 +76,14 @@ function experience(level = "light", count = 6) {
 }
 
 test("UI experience levels describe ambition without imposing fixed page floors", () => {
-  for (const level of ["basic_status", "light", "medium", "heavy"]) {
+  for (const level of [
+    "basic_status",
+    "light",
+    "light_medium",
+    "medium",
+    "heavy",
+    "super_heavy",
+  ]) {
     const document = experience(level, 1);
     assert.equal(
       validators["ui-experience"](document),
@@ -89,8 +96,10 @@ test("UI experience levels describe ambition without imposing fixed page floors"
 test("full UI levels accept a small number of complete pages instead of forcing one regex per feature", () => {
   for (const [level, count] of [
     ["light", 3],
+    ["light_medium", 3],
     ["medium", 4],
     ["heavy", 5],
+    ["super_heavy", 1],
   ]) {
     const document = experience(level, count);
     assert.equal(
@@ -211,13 +220,50 @@ test("level manifests keep entry and status applications integrated without page
   const directory = path.join(root, "assets", "templates", "ui");
   const componentDirectory = path.join(directory, "components");
   const expected = {
-    light: { surfaces: 4, modules: 4, visual: "restrained", interaction: "practical" },
-    medium: { surfaces: 6, modules: 8, visual: "polished", interaction: "rich" },
-    heavy: { surfaces: 7, modules: 12, visual: "immersive", interaction: "advanced" },
+    light: {
+      file: "light.yaml",
+      surfaces: 4,
+      modules: 4,
+      visual: "complete_restrained",
+      interaction: "practical_polished",
+      runtime: "not_required",
+    },
+    light_medium: {
+      file: "light-medium.yaml",
+      surfaces: 6,
+      modules: 7,
+      visual: "themed_tactile",
+      interaction: "practical_connected",
+      runtime: "not_required",
+    },
+    medium: {
+      file: "medium.yaml",
+      surfaces: 6,
+      modules: 8,
+      visual: "polished_layered",
+      interaction: "rich",
+      runtime: "optional",
+    },
+    heavy: {
+      file: "heavy.yaml",
+      surfaces: 7,
+      modules: 12,
+      visual: "immersive_cinematic",
+      interaction: "advanced",
+      runtime: "advanced_optional",
+    },
+    super_heavy: {
+      file: "super-heavy.yaml",
+      surfaces: 7,
+      modules: 14,
+      visual: "application_grade",
+      interaction: "runtime_deep",
+      runtime: "required",
+    },
   };
   for (const [level, expectation] of Object.entries(expected)) {
     const manifest = parseYaml(
-      readFileSync(path.join(directory, "levels", `${level}.yaml`), "utf8"),
+      readFileSync(path.join(directory, "levels", expectation.file), "utf8"),
     );
     assert.equal(manifest.level, level);
     assert.equal(manifest.component_templates.length, expectation.surfaces);
@@ -234,10 +280,18 @@ test("level manifests keep entry and status applications integrated without page
     assert.equal(manifest.requirements.feature_reduction, "none");
     assert.equal(manifest.requirements.visual_richness, expectation.visual);
     assert.equal(manifest.requirements.interaction_richness, expectation.interaction);
+    assert.equal(manifest.requirements.application_runtime, expectation.runtime);
     assert.equal(manifest.workspace_modules.length, expectation.modules);
     assert.ok(manifest.component_templates.includes("project-portal.yaml"));
     assert.ok(manifest.component_templates.includes("status-terminal.yaml"));
     assert.equal(manifest.component_templates.includes("introduction-page.yaml"), false);
     assert.equal(manifest.component_templates.includes("player-setup.yaml"), false);
   }
+});
+
+test("super-heavy manifest defines independent frontend lifecycle acceptance", () => {
+  const manifest = parseYaml(readFileSync(path.join(root, "assets", "templates", "ui", "levels", "super-heavy.yaml"), "utf8"));
+  assert.equal(manifest.requirements.zero_layer_play, "supported");
+  assert.ok(manifest.requirements.qa_focus.length >= 8);
+  assert.ok(manifest.requirements.qa_focus.some((item) => item.includes("聊天切换隔离")));
 });

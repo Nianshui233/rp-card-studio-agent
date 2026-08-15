@@ -45,8 +45,10 @@
             "pending",
             "basic_status",
             "light",
+            "light_medium",
             "medium",
-            "heavy"
+            "heavy",
+            "super_heavy"
           ]
         },
         "goals": {

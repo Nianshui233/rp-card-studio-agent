@@ -1,6 +1,6 @@
 schema_version: 1.0.0
 level: medium
-description: 在完整功能基础上提供成熟精致的主题包装、视觉层次、切换、筛选、弹窗、反馈、搜索、快捷操作和适度动效。
+description: 在完整功能基础上形成明显的产品级交互系统：成熟精致的主题包装、视觉层次、切换、筛选、弹窗、反馈、搜索、快捷操作、语义化数据视图和连贯动效。
 component_templates:
   - project-portal.yaml
   - status-terminal.yaml
@@ -9,4 +9,11 @@ component_templates:
   - choice-panel.yaml
   - notification.yaml
 workspace_modules: [overview, character, world, objectives, inventory, relationships, intelligence, location]
-requirements: { page_count_rule: none, feature_reduction: none, visual_richness: polished, interaction_richness: rich, theme_fit: strong }
+requirements:
+  page_count_rule: none
+  feature_reduction: none
+  visual_richness: polished_layered
+  interaction_richness: rich
+  theme_fit: strong
+  application_runtime: optional
+  player_impression: 像一套完整的题材化游戏伴随界面，而不是若干独立小组件

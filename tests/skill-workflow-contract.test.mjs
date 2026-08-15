@@ -173,18 +173,22 @@ test("MVU and EJS remain one optional stage with a direct skip path", () => {
   assert.match(skill, /proceeds to `narrative_opening`/);
 });
 
-test("UI stage asks for light, medium, or heavy without imposing fixed architecture", () => {
+test("UI stage asks for five complete UI levels without imposing fixed architecture", () => {
   assert.match(
     skill,
-    /first question batch must ask which UI scale the project needs: `light`, `medium`, or `heavy`/,
+    /first question batch must ask which UI scale the project needs: `light`, `light_medium`, `medium`, `heavy`, or `super_heavy`/,
   );
+  assert.match(skill, /Treat `light` as a mature complete frontend baseline/);
+  assert.match(skill, /independent frontend, also known as a zero-layer play card/);
   assert.match(skill, /mention `basic_status` only as a compatibility route/i);
   assert.match(skill, /The RP itself determines necessary information and functions[\s\S]*Page counts, module counts, navigation counts[\s\S]*project-specific recommendations, never universal blockers/);
   assert.match(skill, /Default message UI to two lifecycle-based applications[\s\S]*Split out only components with genuinely different output timing/);
   assert.match(skill, /Large integrated HTML, remote libraries, local preferences, host DOM bridges[\s\S]*are allowed/);
   assert.match(skill, /Missing real-host evidence never blocks design, implementation, building, or candidate delivery/);
   assert.match(statusUi, /进入本阶段后的第一批必须询问/);
-  assert.match(statusUi, /轻型、中型还是重型/);
+  assert.match(statusUi, /轻型、轻中型、中型、重型还是超重型/);
+  assert.match(statusUi, /独立前端 \/ 0层游玩卡/);
+  assert.match(statusUi, /集中状态、路由、弹窗、持久化、全屏、多视图与宿主桥接/);
   assert.match(statusUi, /不决定页面数、模块数、字段数、功能数、导航结构、adapter 或代码量/);
   assert.match(statusUi, /够不够华丽、炫酷、好看[\s\S]*JavaScript 联动、便利性和趣味性/);
   assert.ok(statusUi.includes("父页面/宿主 DOM"));

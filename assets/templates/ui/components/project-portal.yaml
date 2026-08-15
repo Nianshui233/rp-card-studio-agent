@@ -48,7 +48,7 @@ ui_component:
     empty: 尚未配置项目入口内容
     error: 入口交互暂时不可用，请保留填写内容后重试
     degraded: 请阅读普通文本说明并直接发送角色档案
-  # light / medium / heavy 最终成品应在这里写入项目专属的完整 HTML/CSS/JS。
+  # light / light_medium / medium / heavy / super_heavy 最终成品应在这里写入项目专属的完整 HTML/CSS/JS。
   # 空白 inline 只是一份待创作模板，不是可交付成品。
   source: { mode: inline, html: "", css: "", js: "" }
   delivery: { surface: message, adapter: tavern_helper_message, level: host_required, run_on_edit: true, min_depth: null, max_depth: 1 }

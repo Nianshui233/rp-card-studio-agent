@@ -1,0 +1,19 @@
+schema_version: 1.0.0
+level: light_medium
+description: 介于轻型与中型之间。保留轻型的清楚、稳定和快速，但加强题材拟物、直接行动按钮、反馈、页内功能联动与 SillyTavern/酒馆助手协作，让界面开始像题材中的真实工具或场所。
+component_templates:
+  - project-portal.yaml
+  - status-terminal.yaml
+  - update-report.yaml
+  - roll-result.yaml
+  - choice-panel.yaml
+  - notification.yaml
+workspace_modules: [overview, character, world, objectives, inventory, relationships, intelligence]
+requirements:
+  page_count_rule: none
+  feature_reduction: none
+  visual_richness: themed_tactile
+  interaction_richness: practical_connected
+  theme_fit: strong
+  application_runtime: not_required
+  player_impression: 不只是在看状态，而是在使用与题材一致的档案、终端、手册或操作台

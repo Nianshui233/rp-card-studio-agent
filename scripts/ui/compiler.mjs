@@ -251,7 +251,7 @@ export function validateUiExperienceSources({
   const workspaceComponents = selectedComponents.filter((component) =>
     ["dashboard", "workspace"].includes(component.role),
   );
-  if (["light", "medium", "heavy"].includes(experience.experience_level)) {
+  if (["light", "light_medium", "medium", "heavy", "super_heavy"].includes(experience.experience_level)) {
     for (const component of selectedComponents.filter((candidate) =>
       ["project_portal", "status_terminal"].includes(candidate.preset)
     )) {
@@ -262,7 +262,7 @@ export function validateUiExperienceSources({
         warnings.push(issue(
           `${base}/components/${component.id}/source`,
           "ui.quality.generic_frontend",
-          `${component.display_name} 仍是通用脚手架；light/medium/heavy 成品应提供项目专属的完整 HTML/CSS/JS`
+          `${component.display_name} 仍是通用脚手架；完整 UI 成品应提供项目专属的完整 HTML/CSS/JS`
         ));
       }
     }

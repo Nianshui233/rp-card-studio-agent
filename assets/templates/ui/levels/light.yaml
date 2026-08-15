@@ -1,10 +1,17 @@
 schema_version: 1.0.0
 level: light
-description: 功能完整、主题明确、排版成熟，采用克制的装饰、动效和 JS 交互；不因轻型删减卡本身需要的功能。
+description: 成熟完整的配套前端基线。主题、排版、入口、状态、数据绑定与必要宿主联动全部做实，只在视觉演出、交互层级和应用运行时复杂度上保持克制；不因轻型删减卡本身需要的功能。
 component_templates:
   - project-portal.yaml
   - status-terminal.yaml
   - roll-result.yaml
   - choice-panel.yaml
 workspace_modules: [overview, character, world, objectives]
-requirements: { page_count_rule: none, feature_reduction: none, visual_richness: restrained, interaction_richness: practical, theme_fit: required }
+requirements:
+  page_count_rule: none
+  feature_reduction: none
+  visual_richness: complete_restrained
+  interaction_richness: practical_polished
+  theme_fit: cohesive
+  application_runtime: not_required
+  player_impression: 完整、顺手、有主题，不像通用模板或调试面板
