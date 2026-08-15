@@ -1,11 +1,8 @@
 schema_version: 1.0.0
 level: heavy
-description: 面向开放世界和复杂系统的完整 RP 产品界面；以少量高密度完整页面组织大量内部模块，独立正则只留给不同触发时机的剧情组件。
+description: 在完整功能基础上追求华丽、炫酷、沉浸和强主题化，允许复杂动效、趣味交互、可视化、深度 JS 联动与宿主协作。
 component_templates:
-  - launch-screen.yaml
-  - introduction-page.yaml
-  - opening-selector.yaml
-  - player-setup.yaml
+  - project-portal.yaml
   - status-terminal.yaml
   - update-report.yaml
   - roll-result.yaml
@@ -13,4 +10,4 @@ component_templates:
   - battle-report.yaml
   - notification.yaml
 workspace_modules: [overview, character, world, objectives, inventory, relationships, intelligence, investigation, map, factions, chronology, travel]
-requirements: { minimum_surfaces: 5, minimum_workspace_modules: 12, entry: 1, setup: 1, integrated_dashboard: 1, narrative_component: 3, navigation: hub_or_mixed }
+requirements: { page_count_rule: none, feature_reduction: none, visual_richness: immersive, interaction_richness: advanced, theme_fit: signature }

@@ -16,11 +16,11 @@
         "id": { "$ref": "#/$defs/id" },
         "display_name": { "type": "string", "minLength": 1 },
         "role": { "enum": ["entry", "guide", "setup", "dashboard", "workspace", "narrative_component", "notification"] },
-        "preset": { "enum": ["launch_screen", "introduction_page", "opening_selector", "form_setup", "status_terminal", "update_report", "roll_result", "choice_panel", "task_center", "inventory_center", "relationship_center", "intelligence_center", "investigation_board", "map_center", "battle_report", "notification", "custom_panel"] },
+        "preset": { "enum": ["project_portal", "launch_screen", "introduction_page", "opening_selector", "form_setup", "status_terminal", "update_report", "roll_result", "choice_panel", "task_center", "inventory_center", "relationship_center", "intelligence_center", "investigation_board", "map_center", "battle_report", "notification", "custom_panel"] },
         "trigger": {
           "type": "object", "additionalProperties": false, "required": ["kind", "marker", "producer"],
           "properties": {
-            "kind": { "enum": ["placeholder", "self_closing", "block"] },
+            "kind": { "enum": ["literal", "placeholder", "self_closing", "block"] },
             "marker": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]*$" },
             "producer": { "enum": ["opening", "model", "runtime"] }
           }

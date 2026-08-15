@@ -24,6 +24,8 @@ ui_component:
       - { id: world, label: 世界, binding_refs: [], collapsed: false }
       - { id: objectives, label: 目标, binding_refs: [], collapsed: false }
   states: { loading: 正在读取当前楼状态, empty: 暂无可显示状态, error: 当前楼变量读取失败, degraded: 状态终端暂时不可用 }
-  source: { mode: generated, html: "", css: "", js: "" }
+  # 参考成熟卡的做法：用一份完整 HTML 应用解析状态块或读取 MVU，
+  # 再把任务、物品、关系、情报、地图等聚合成页签/分区。
+  source: { mode: inline, html: "", css: "", js: "" }
   delivery: { surface: message, adapter: tavern_helper_message, level: host_required, run_on_edit: true, min_depth: null, max_depth: 5 }
   acceptance: { runtime: not_run, fallback: 使用普通文本概括当前状态。 }

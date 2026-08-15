@@ -1,12 +1,10 @@
 schema_version: 1.0.0
 level: light
-description: 社区所谓“轻度前端”的最低完整产品线；少量完整页面承载多个页内模块，不把每个功能拆成一条正则。
+description: 功能完整、主题明确、排版成熟，采用克制的装饰、动效和 JS 交互；不因轻型删减卡本身需要的功能。
 component_templates:
-  - launch-screen.yaml
-  - introduction-page.yaml
+  - project-portal.yaml
   - status-terminal.yaml
-  - update-report.yaml
   - roll-result.yaml
   - choice-panel.yaml
 workspace_modules: [overview, character, world, objectives]
-requirements: { minimum_surfaces: 3, minimum_workspace_modules: 4, entry: 1, setup: 0, integrated_dashboard: 1, narrative_component: 1, navigation: mixed }
+requirements: { page_count_rule: none, feature_reduction: none, visual_richness: restrained, interaction_richness: practical, theme_fit: required }

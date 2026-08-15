@@ -578,6 +578,11 @@ function completeAssembly() {
   return {
     schema_version: '1.0.0',
     status: 'locked',
+    card_entry: {
+      mode: 'core_world_contract',
+      content: '雾港夜班核心入口合同：海雾、潮钟与被吞没的记忆共同约束这座港城。公开信息、调查所得与幕后秘密必须分层；世界、人物与夜班秩序在视角之外继续运行。',
+      source_refs: ['world:mist_harbor'],
+    },
     worldbook_manifest: {
       id: 'mist_harbor_book',
       display_name: '雾港夜班世界书',
@@ -716,6 +721,7 @@ test('new character cards use a card-level entry on-card and project every chara
   ]);
   for (const entry of entries) {
     assert.match(entry.content, new RegExp(expectedContent.get(entry.comment)), `${entry.comment} contains the wrong source`);
+    assert.doesNotMatch(entry.content, /^\s*\{/, `${entry.comment} was serialized as JSON instead of YAML`);
     assertCompleteAutomaticSchedule(entry);
   }
   const promptEntry = entries.find(entry => entry.comment === '叙事规则：夜班报到');
@@ -749,7 +755,20 @@ test('assembly card_fields can intentionally populate advanced-definition host s
   configureRichProject(root, { assembly });
   runForge(['build', root], { expectSuccess: true });
   const data = readBuiltCard(root).data;
+  assert.equal(data.description, assembly.card_entry.content);
   for (const [field, value] of Object.entries(assembly.card_fields)) assert.equal(data[field], value);
+});
+
+test('a locked world-package assembly requires a final core card entry', t => {
+  const root = tempRoot(t, 'required-final-card-entry');
+  runForge(['init', root, '--nsfw', 'disabled', '--type', 'character'], { expectSuccess: true });
+  const assembly = completeAssembly();
+  delete assembly.card_entry;
+  configureRichProject(root, { assembly });
+
+  const result = runForge(['validate', root, '--force']);
+  assert.notEqual(result.status, 0);
+  assert.match(result.output, /assembly\.card_entry/);
 });
 
 test('a true single-character card uses the sole primary character name', t => {
@@ -1105,7 +1124,7 @@ test('a registered minimal NPC remains a CharacterBook module in a converted pro
   const entry = readBuiltCard(root).data.character_book.entries.find(candidate => candidate.comment === '人物档案：守门人');
   assert.ok(entry, 'registered minimal NPC was silently omitted');
   assert.match(entry.content, /守门人/);
-  assert.match(entry.content, /"role": "npc"/);
+  assert.match(entry.content, /role: npc/);
 });
 
 test('character extensions cannot become the project card payload', t => {
@@ -1271,7 +1290,7 @@ test('scene media contracts stay in the RP package and assembly consumers must b
   runForge(['build', root], { expectSuccess: true });
   const sceneEntry = readBuiltCard(root).data.character_book.entries
     .find(entry => entry.comment === '场景资料：末班站台');
-  const sceneContent = JSON.parse(sceneEntry.content);
+  const sceneContent = parseYaml(sceneEntry.content);
   assert.equal(sceneContent.media_slots[0].id, 'last_platform_ambience');
   assert.match(sceneContent.media_slots[0].text_fallback, /钢轮余响/);
 });
@@ -1326,7 +1345,7 @@ test('explicit assembly reports CharacterBook omissions while allowing other pro
   assert.ok(contents.some(content => /叙事唯一标记/.test(content)), 'narrative contract was not assembled');
   assert.ok(contents.some(content => /对白示例唯一标记/.test(content)), 'dialogue examples were not assembled');
   assert.ok(contents.every(content => !/默认开场唯一文本|备选开场唯一文本/.test(content)), 'opening text leaked into CharacterBook');
-  const primaryContent = JSON.parse(card.data.character_book.entries.find(entry => entry.comment === '人物档案：沈槐').content);
+  const primaryContent = parseYaml(card.data.character_book.entries.find(entry => entry.comment === '人物档案：沈槐').content);
   for (const maintenanceKey of ['schema_version', 'status', 'source_refs', 'extensions', 'tags']) {
     assert.equal(Object.hasOwn(primaryContent, maintenanceKey), false, `explicit character projection leaked ${maintenanceKey}`);
   }
@@ -1361,7 +1380,7 @@ test('multiple world selectors may jointly cover one maintained source', t => {
   for (const [, displayName, selector] of worldParts) {
     const entry = entries.find(candidate => candidate.comment === displayName);
     assert.ok(entry, `missing selected world entry ${displayName}`);
-    const content = JSON.parse(entry.content);
+    const content = parseYaml(entry.content);
     assert.deepEqual(content.module, {
       type: 'world',
       id: 'mist_harbor',

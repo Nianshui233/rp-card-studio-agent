@@ -8,9 +8,9 @@
       "files": [],
       "expectations": [
         "data.name 使用概括世界或玩法的项目标题，而不是叙事锚点或任一 NPC 的姓名",
-        "data.description 只包含紧凑的项目级入口，不包含任何人物档案、世界模块正文、系统规则或开场正文",
+        "data.description 对大型项目包含完整、非人物化的核心世界合同，而不是只有一两百字的模块路由简介",
         "data.personality、scenario、mes_example、creator_notes、system_prompt、post_history_instructions 全部为空",
-        "项目定位、世界、每个具名人物、系统、场景、叙事规则和对白示例均由中文命名的 CharacterBook 条目覆盖，并显式记录触发、插入、深度、顺序、概率、扫描深度、预算与递归策略",
+        "最终整合把完整 YAML 按运行职责切片：世界观按共同触发主题切块，固定角色/NPC通常整块放入，完整系统和场景可整块按需触发；条目正文保持 YAML/自然语言而非 JSON",
         "锚点人物在大型项目中不会因 primary_character 身份被强制常驻或忽略预算",
         "AI 根据世界/玩法规模自行选择并说明 light、medium 或 heavy UI 等级；完整 UI 使用多个消息内 Tavern Helper fenced-HTML 组件，真实宿主验收前保持 runtime: not_run",
         "UI 拥有项目专属主题与唯一视觉签名，不创建页面级常驻状态栏/面板，不使用失控远程字体图标或通用黑底霓虹模板；正常父页面/宿主 DOM 联动允许",
@@ -26,7 +26,7 @@
       "expectations": [
         "unpack 后不会仅凭 data.name 或角色形状字段虚构 primary_character，原始卡保存在 src/import/original.json",
         "定位尚未锁定时往返构建保留旧 name、description、高级定义、用户正则和未知扩展",
-        "定位完成并锁定项目标题后，convert、continue 和 edit 都用项目标题与 positioning.card_entry 接管 name/description",
+        "定位完成并锁定项目标题后，name 使用项目标题；description 优先使用 assembly.card_entry，positioning.card_entry 仅作为兼容回退",
         "锁定标题本身不会删除高级定义；只有 integration.advanced_definition_policy 明确为 clear_after_migration 或 migrate_to_characterbook 后才清空",
         "每个确认存在的人物都成为独立 CharacterBook 模块，人物扩展中的伪 character_card payload 不能接管项目容器",
         "用户正则与未知扩展保持原内容和相对顺序，技能自有规则按稳定 UUID 幂等合并",

@@ -1,15 +1,12 @@
 schema_version: 1.0.0
 level: medium
-description: 在轻型基础上增加开场分流和更深的综合工作区；业务功能优先成为主页面内的页签或分区。
+description: 在完整功能基础上提供成熟精致的主题包装、视觉层次、切换、筛选、弹窗、反馈、搜索、快捷操作和适度动效。
 component_templates:
-  - launch-screen.yaml
-  - introduction-page.yaml
-  - opening-selector.yaml
-  - player-setup.yaml
+  - project-portal.yaml
   - status-terminal.yaml
   - update-report.yaml
   - roll-result.yaml
   - choice-panel.yaml
   - notification.yaml
 workspace_modules: [overview, character, world, objectives, inventory, relationships, intelligence, location]
-requirements: { minimum_surfaces: 4, minimum_workspace_modules: 8, entry: 1, setup: 1, integrated_dashboard: 1, narrative_component: 2, navigation: mixed }
+requirements: { page_count_rule: none, feature_reduction: none, visual_richness: polished, interaction_richness: rich, theme_fit: strong }

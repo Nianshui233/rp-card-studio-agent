@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { parse as parseYaml } from 'yaml';
 
 import {
   applyAssemblyManifest,
@@ -201,7 +202,7 @@ test('registered assembly sources resolve source_ref and JSON Pointer selector',
     target: 'character',
   });
   assert.deepEqual(result.issues, []);
-  assert.deepEqual(JSON.parse(result.payload.data.character_book.entries[0].content), {
+  assert.deepEqual(parseYaml(result.payload.data.character_book.entries[0].content), {
     module: {
       type: 'world',
       id: 'realm',

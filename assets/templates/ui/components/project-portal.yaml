@@ -1,0 +1,55 @@
+schema_version: 2.0.0
+status: draft
+ui_component:
+  id: project_portal
+  display_name: 项目入口与创角
+  role: entry
+  preset: project_portal
+  trigger: { kind: literal, marker: Create_character, producer: opening }
+  data_contract: { mode: none, payload_format: none }
+  binding_refs: []
+  interactions: [local_interaction, message_write, slash_command, opening_swipe, host_bridge]
+  content:
+    eyebrow: 项目入口
+    title: 项目标题
+    subtitle: 在同一份完整消息应用中完成项目介绍、世界导览、游玩指南、开场选择、角色创建、实时预览与确认入局。
+    body:
+      - 这是默认入口母型。不要把介绍页、启动页、开场选择和创角表单拆成多条彼此割裂的正则，除非它们确实需要不同触发时机。
+      - 页面应先让玩家理解世界与玩法，再自然进入身份、经历、能力、外观、补充设定和最终确认。
+    primary_action: 确认角色并开始
+    secondary_action: null
+    sections:
+      - id: project_info
+        title: 版本、依赖与游玩说明
+        body: [说明当前版本、必要插件、已知兼容条件、更新信息和游玩方式。]
+        collapsed: false
+      - id: world_prologue
+        title: 世界观序章
+        body: [用面向玩家的叙事与视觉分区介绍世界现状、核心矛盾、阵营、时间线和体验边界。]
+        collapsed: false
+      - id: entry_routes
+        title: 开场与入局方式
+        body: [说明预制开场、自由创角或其他入口如何选择，以及确认后如何进入聊天。]
+        collapsed: false
+  layout:
+    kind: form
+    groups:
+      - { id: prologue, label: 世界观序章, binding_refs: [], collapsed: false }
+      - { id: identity, label: 基础身份, binding_refs: [], collapsed: false }
+      - { id: background, label: 生存背景, binding_refs: [], collapsed: false }
+      - { id: affiliation, label: 阵营归属, binding_refs: [], collapsed: false }
+      - { id: capability, label: 能力设定, binding_refs: [], collapsed: false }
+      - { id: personality, label: 性格与信念, binding_refs: [], collapsed: false }
+      - { id: appearance, label: 装备与外观, binding_refs: [], collapsed: false }
+      - { id: extras, label: 补充设定, binding_refs: [], collapsed: false }
+      - { id: summary, label: 角色总览, binding_refs: [], collapsed: false }
+  states:
+    loading: 正在载入项目入口
+    empty: 尚未配置项目入口内容
+    error: 入口交互暂时不可用，请保留填写内容后重试
+    degraded: 请阅读普通文本说明并直接发送角色档案
+  # light / medium / heavy 最终成品应在这里写入项目专属的完整 HTML/CSS/JS。
+  # 空白 inline 只是一份待创作模板，不是可交付成品。
+  source: { mode: inline, html: "", css: "", js: "" }
+  delivery: { surface: message, adapter: tavern_helper_message, level: host_required, run_on_edit: true, min_depth: null, max_depth: 1 }
+  acceptance: { runtime: not_run, fallback: 保留世界介绍、游玩说明和创角字段的普通文本版本。 }

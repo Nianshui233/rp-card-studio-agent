@@ -179,12 +179,14 @@ test("UI stage asks for light, medium, or heavy without imposing fixed architect
     /first question batch must ask which UI scale the project needs: `light`, `medium`, or `heavy`/,
   );
   assert.match(skill, /mention `basic_status` only as a compatibility route/i);
-  assert.match(skill, /page counts, module counts, navigation counts[\s\S]*recommendations selected by project intent, never universal blockers/);
-  assert.match(skill, /Large integrated pages, many tabs, technical views, remote libraries[\s\S]*are allowed/);
+  assert.match(skill, /The RP itself determines necessary information and functions[\s\S]*Page counts, module counts, navigation counts[\s\S]*project-specific recommendations, never universal blockers/);
+  assert.match(skill, /Default message UI to two lifecycle-based applications[\s\S]*Split out only components with genuinely different output timing/);
+  assert.match(skill, /Large integrated HTML, remote libraries, local preferences, host DOM bridges[\s\S]*are allowed/);
   assert.match(skill, /Missing real-host evidence never blocks design, implementation, building, or candidate delivery/);
   assert.match(statusUi, /进入本阶段后的第一批必须询问/);
   assert.match(statusUi, /轻型、中型还是重型/);
-  assert.match(statusUi, /不是固定页数、模块数、导航结构、adapter 或代码量门槛/);
+  assert.match(statusUi, /不决定页面数、模块数、字段数、功能数、导航结构、adapter 或代码量/);
+  assert.match(statusUi, /够不够华丽、炫酷、好看[\s\S]*JavaScript 联动、便利性和趣味性/);
   assert.ok(statusUi.includes("父页面/宿主 DOM"));
   assert.ok(statusUi.includes("页面级常驻状态栏/面板没有被创建"));
 });

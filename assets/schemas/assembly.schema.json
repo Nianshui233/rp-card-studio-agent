@@ -86,6 +86,22 @@
     "extensions": {
       "type": "object"
     },
+    "card_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "content", "source_refs"],
+      "properties": {
+        "mode": {
+          "enum": [
+            "core_world_contract",
+            "compact_package_entry",
+            "preserve_imported"
+          ]
+        },
+        "content": { "type": "string" },
+        "source_refs": { "$ref": "#/$defs/stringList" }
+      }
+    },
     "card_fields": {
       "type": "object",
       "additionalProperties": false,

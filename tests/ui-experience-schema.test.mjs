@@ -180,7 +180,7 @@ test("all bundled UI component templates satisfy the UI 2.0 schema", () => {
   const files = readdirSync(directory)
     .filter((name) => name.endsWith(".yaml"))
     .sort();
-  assert.equal(files.length, 24);
+  assert.equal(files.length, 25);
   const ids = new Set();
   const markers = new Set();
   for (const file of files) {
@@ -207,13 +207,13 @@ test("all bundled UI component templates satisfy the UI 2.0 schema", () => {
   }
 });
 
-test("level manifests define complete light, medium, and heavy capability sets", () => {
+test("level manifests keep entry and status applications integrated without page-count quotas", () => {
   const directory = path.join(root, "assets", "templates", "ui");
   const componentDirectory = path.join(directory, "components");
   const expected = {
-    light: { surfaces: 6, minimum: 3, modules: 4 },
-    medium: { surfaces: 9, minimum: 4, modules: 8 },
-    heavy: { surfaces: 10, minimum: 5, modules: 12 },
+    light: { surfaces: 4, modules: 4, visual: "restrained", interaction: "practical" },
+    medium: { surfaces: 6, modules: 8, visual: "polished", interaction: "rich" },
+    heavy: { surfaces: 7, modules: 12, visual: "immersive", interaction: "advanced" },
   };
   for (const [level, expectation] of Object.entries(expected)) {
     const manifest = parseYaml(
@@ -230,14 +230,14 @@ test("level manifests define complete light, medium, and heavy capability sets",
         readFileSync(path.join(componentDirectory, template), "utf8"),
       );
     }
-    assert.equal(
-      manifest.requirements.minimum_surfaces,
-      expectation.minimum,
-    );
-    assert.equal(
-      manifest.requirements.minimum_workspace_modules,
-      expectation.modules,
-    );
+    assert.equal(manifest.requirements.page_count_rule, "none");
+    assert.equal(manifest.requirements.feature_reduction, "none");
+    assert.equal(manifest.requirements.visual_richness, expectation.visual);
+    assert.equal(manifest.requirements.interaction_richness, expectation.interaction);
     assert.equal(manifest.workspace_modules.length, expectation.modules);
+    assert.ok(manifest.component_templates.includes("project-portal.yaml"));
+    assert.ok(manifest.component_templates.includes("status-terminal.yaml"));
+    assert.equal(manifest.component_templates.includes("introduction-page.yaml"), false);
+    assert.equal(manifest.component_templates.includes("player-setup.yaml"), false);
   }
 });

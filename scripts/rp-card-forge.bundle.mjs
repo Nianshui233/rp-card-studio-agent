@@ -16319,6 +16319,15 @@ function projectClearsAdvancedDefinitions(project, projectOwnsSurface) {
   if (!projectOwnsSurface) return false;
   return (project?.decisions ?? []).some((decision) => decision.id === "integration.advanced_definition_policy" && decision.status === "active" && decision.locked === true && ADVANCED_DEFINITION_CLEAR_POLICIES.has(decision.value));
 }
+function assembledCardEntry(sources, positioning, payload, projectOwnsSurface) {
+  if (!projectOwnsSurface) return payload?.data?.description ?? "";
+  const contract = sources.assembly[0]?.value?.card_entry;
+  if (contract?.mode === "preserve_imported") return payload?.data?.description ?? "";
+  if (["core_world_contract", "compact_package_entry"].includes(contract?.mode) && typeof contract?.content === "string" && contract.content.trim()) {
+    return contract.content;
+  }
+  return typeof positioning?.card_entry === "string" ? positioning.card_entry : "";
+}
 function assembleCharacterCard(sources, project, state, originalPayload = null) {
   const characters = sources.characters.map((entry) => entry.value);
   const primary = characters.find((source) => source.role === "primary_character");
@@ -16336,7 +16345,7 @@ function assembleCharacterCard(sources, project, state, originalPayload = null) 
   payload.data = isPlainObject(payload.data) ? payload.data : {};
   payload.data.name = projectOwnsSurface ? cardName : payload.data.name ?? cardName;
   if (projectOwnsSurface) {
-    payload.data.description = typeof positioning?.card_entry === "string" ? positioning.card_entry : "";
+    payload.data.description = assembledCardEntry(sources, positioning, payload, projectOwnsSurface);
   }
   const advancedDefinitionFields = [
     "personality",
@@ -16452,7 +16461,7 @@ function hasAdditionalAssemblySources(sources, target) {
   return Object.entries(sources).some(([group, entries]) => !ignored.has(group) && entries.length > 0);
 }
 function renderStructured(value) {
-  return JSON.stringify(value, null, 2);
+  return stringifyYaml(value).trimEnd();
 }
 function structuredSources(sources) {
   return Object.fromEntries(Object.entries(sources).map(([group, entries]) => [

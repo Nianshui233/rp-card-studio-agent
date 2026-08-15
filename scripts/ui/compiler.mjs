@@ -1,12 +1,7 @@
 import { createHash } from "node:crypto";
 import { Script } from "node:vm";
 
-const LEVEL_REQUIREMENTS = Object.freeze({
-  basic_status: { minimumSurfaces: 1, workspaceModules: 1, narrative: 0 },
-  light: { minimumSurfaces: 3, workspaceModules: 4, narrative: 1 },
-  medium: { minimumSurfaces: 4, workspaceModules: 8, narrative: 2 },
-  heavy: { minimumSurfaces: 5, workspaceModules: 12, narrative: 3 },
-});
+const FORM_PRESETS = new Set(["form_setup", "project_portal"]);
 const DASHBOARD_PRESETS = new Set([
   "status_terminal",
   "task_center",
@@ -238,17 +233,12 @@ export function validateUiExperienceSources({
       );
   }
 
-  const levelRequirements = LEVEL_REQUIREMENTS[experience.experience_level] ?? {
-    minimumSurfaces: 0,
-    workspaceModules: 0,
-    narrative: 0,
-  };
-  if ((experience.surfaces ?? []).length < levelRequirements.minimumSurfaces) {
+  if ((experience.surfaces ?? []).length === 0) {
     warnings.push(
       issue(
         `${base}/surfaces`,
         "ui.experience_level",
-        `${experience.experience_level} UI requires at least ${levelRequirements.minimumSurfaces} complete message pages`,
+        "Enabled UI has no player-visible message surface",
       ),
     );
   }
@@ -258,24 +248,25 @@ export function validateUiExperienceSources({
   const selectedIds = new Set(
     selectedComponents.map((component) => component.id),
   );
-  const roleCount = (role) =>
-    selectedComponents.filter((component) => component.role === role).length;
-  const presetCount = (preset) =>
-    selectedComponents.filter((component) => component.preset === preset)
-      .length;
   const workspaceComponents = selectedComponents.filter((component) =>
     ["dashboard", "workspace"].includes(component.role),
   );
-  const workspaceModuleCount = workspaceComponents.reduce(
-    (count, component) =>
-      count +
-      new Set(
-        (component.layout?.groups ?? []).flatMap(
-          (group) => group.binding_refs ?? [],
-        ),
-      ).size,
-    0,
-  );
+  if (["light", "medium", "heavy"].includes(experience.experience_level)) {
+    for (const component of selectedComponents.filter((candidate) =>
+      ["project_portal", "status_terminal"].includes(candidate.preset)
+    )) {
+      const source = component.source ?? {};
+      const hasProjectSpecificFrontend = [source.html, source.css, source.js]
+        .some((value) => typeof value === "string" && value.trim());
+      if (!hasProjectSpecificFrontend) {
+        warnings.push(issue(
+          `${base}/components/${component.id}/source`,
+          "ui.quality.generic_frontend",
+          `${component.display_name} 仍是通用脚手架；light/medium/heavy 成品应提供项目专属的完整 HTML/CSS/JS`
+        ));
+      }
+    }
+  }
   for (const component of workspaceComponents) {
     const primaryEntries = component.layout?.groups ?? [];
     if (primaryEntries.length > 5)
@@ -284,69 +275,6 @@ export function validateUiExperienceSources({
           `${base}/components/${component.id}/layout/groups`,
           "ui.navigation.player_entry_limit",
           "A player-facing workspace may expose at most five primary entries; map additional internal modules into sections, secondary tabs, folds, or contextual entry points",
-        ),
-      );
-  }
-  const narrativeCount = roleCount("narrative_component");
-  if (["light", "medium", "heavy"].includes(experience.experience_level)) {
-    if (roleCount("entry") < 1)
-      warnings.push(
-        issue(
-          `${base}/surfaces`,
-          "ui.capability_floor",
-          `${experience.experience_level} UI requires an entry surface`,
-        ),
-      );
-    if (presetCount("status_terminal") < 1)
-      warnings.push(
-        issue(
-          `${base}/surfaces`,
-          "ui.capability_floor",
-          `${experience.experience_level} UI requires a status terminal`,
-        ),
-      );
-    if (narrativeCount < levelRequirements.narrative)
-      warnings.push(
-        issue(
-          `${base}/surfaces`,
-          "ui.capability_floor",
-          `${experience.experience_level} UI requires at least ${levelRequirements.narrative} message-bound narrative components`,
-        ),
-      );
-    if (workspaceModuleCount < levelRequirements.workspaceModules)
-      warnings.push(
-        issue(
-          `${base}/surfaces`,
-          "ui.capability_floor",
-          `${experience.experience_level} UI requires at least ${levelRequirements.workspaceModules} populated modules inside its dashboard/workspace pages`,
-        ),
-      );
-  }
-  if (["medium", "heavy"].includes(experience.experience_level)) {
-    if (roleCount("setup") < 1)
-      warnings.push(
-        issue(
-          `${base}/surfaces`,
-          "ui.capability_floor",
-          `${experience.experience_level} UI requires a setup surface`,
-        ),
-      );
-    if (workspaceComponents.length < 1)
-      warnings.push(
-        issue(
-          `${base}/surfaces`,
-          "ui.capability_floor",
-          `${experience.experience_level} UI requires an integrated dashboard/workspace page`,
-        ),
-      );
-  }
-  if (experience.experience_level === "heavy") {
-    if (!["hub", "mixed"].includes(experience.navigation?.kind))
-      warnings.push(
-        issue(
-          `${base}/navigation/kind`,
-          "ui.capability_floor",
-          "heavy UI requires hub or mixed navigation",
         ),
       );
   }
@@ -492,7 +420,9 @@ function componentHtml(component) {
   const action = component.content.primary_action
     ? `<div class="rp-actions"><button class="rp-action" type="button" data-rp-primary>${escapeHtml(component.content.primary_action)}</button></div>`
     : "";
-  if (component.preset === "form_setup")
+  if (component.preset === "project_portal")
+    return body + (sections ? '<div class="rp-grid rp-sections">' + sections + '</div>' : '') + '<div class="rp-form" data-rp-form></div>' + action;
+  if (FORM_PRESETS.has(component.preset))
     return `${body}<div class="rp-form" data-rp-form></div>${action}`;
   if (component.preset === "introduction_page")
     return `${body}${sections ? `<div class="rp-grid rp-sections">${sections}</div>` : ""}${action}`;
@@ -532,7 +462,8 @@ function runtimeSource(component, componentBindings, theme, experience) {
   const config = {
     id: component.id,
     marker: component.trigger.marker,
-    preset: component.preset,
+    preset: FORM_PRESETS.has(component.preset) ? "form_setup" : component.preset,
+    sourcePreset: component.preset,
     dataMode: component.data_contract.mode,
     payloadFormat: component.data_contract.payload_format,
     bindings: componentBindings.map((binding) => clone(binding)),
@@ -630,7 +561,10 @@ function componentFrontend(component, componentBindings, theme, experience) {
       ? '<script type="application/json" data-rp-captured-payload>$1</script>'
       : "";
   return [
-    "```",
+    "```html",
+    "<!DOCTYPE html>",
+    '<html lang="zh-CN">',
+    '<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RP UI</title></head>',
     `<body data-rp-ui-component="${escapeHtml(component.id)}">`,
     `<style>${css}</style>`,
     capturedPayload,
@@ -639,6 +573,7 @@ function componentFrontend(component, componentBindings, theme, experience) {
     `<div class="rp-state" data-rp-state hidden></div><div class="rp-body">${body}${customHtml}</div></main>`,
     `<script>${runtime}</script>`,
     "</body>",
+    "</html>",
     "```",
   ].join("\n");
 }
@@ -665,6 +600,7 @@ function validateCompiledFrontend(replaceString, componentId) {
 
 function triggerRegex(trigger) {
   const marker = trigger.marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (trigger.kind === "literal") return "/" + marker + "/g";
   return trigger.kind === "block"
     ? `/<${marker}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${marker}>/gi`
     : `/<${marker}\\s*\\/?>/gi`;

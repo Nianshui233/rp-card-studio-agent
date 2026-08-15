@@ -408,7 +408,7 @@ test("UI compiler emits stable Chinese-named component regexes with self-contain
   );
   assert.match(
     status.replaceString,
-    /^```\n<body[\s\S]*<style>[\s\S]*<script>[\s\S]*<\/body>\n```$/,
+    /^```html\n<!DOCTYPE html>\n<html lang="zh-CN">[\s\S]*<body[\s\S]*<style>[\s\S]*<script>[\s\S]*<\/body>\n<\/html>\n```$/,
   );
   assert.match(status.replaceString, /getCurrentMessageId/);
   assert.match(status.replaceString, /getVariables/);
@@ -429,6 +429,32 @@ test("UI compiler emits stable Chinese-named component regexes with self-contain
     1,
   );
   assert.doesNotMatch(status.replaceString, /https?:\/\//i);
+});
+
+test("project portal uses one literal opening marker for an integrated guide and setup application", () => {
+  const input = sources("light", 2);
+  const portal = component("portal", "project_portal", "Create_character");
+  portal.value.ui_component.trigger.kind = "literal";
+  portal.value.ui_component.content.sections = [{
+    id: "world_intro",
+    title: "世界观序章",
+    body: ["先理解世界，再建立角色。"],
+    collapsed: false,
+  }];
+  input.ui = input.ui.filter((entry) => !entry.value.ui_component);
+  input.ui.push(portal);
+  input.ui[0].value.ui_experience.surfaces = ["ui_component:portal"];
+  input.ui[0].value.ui_experience.navigation.primary_surface = "ui_component:portal";
+
+  const compiled = compileUiExperienceRegexes({
+    project: { features: { status_ui: true } },
+    sources: input,
+  });
+  assert.deepEqual(compiled.issues, []);
+  assert.equal(compiled.scripts.length, 1);
+  assert.equal(compiled.scripts[0].findRegex, "/Create_character/g");
+  assert.match(compiled.scripts[0].replaceString, /世界观序章/);
+  assert.match(compiled.scripts[0].replaceString, /data-rp-form/);
 });
 
 test("model block components carry their captured payload into the replacement iframe", async () => {
@@ -550,7 +576,7 @@ test("UI validation allows parent-page host bridging without turning level guida
     projectRoot: process.cwd(),
   });
   assert.equal(result.issues.some((item) => item.rule === "ui.capability_floor"), false);
-  assert.ok(result.warnings.some((item) => item.rule === "ui.capability_floor"));
+  assert.equal(result.warnings.some((item) => item.rule === "ui.capability_floor"), false);
   assert.equal(
     result.issues.some(
       (item) => item.rule === "ui.user_constraint.persistent_status_panel",
@@ -812,7 +838,7 @@ test("player workspaces may exceed five primary entries with a UX warning", () =
   assert.ok(result.warnings.some((item) => item.rule === "ui.navigation.player_entry_limit"));
 });
 
-test("UI level capability gaps are advisory rather than build blockers", async () => {
+test("UI levels do not impose page, component, or module-count quotas", async () => {
   const hollow = sources("heavy", 24);
   for (const entry of hollow.ui.filter((item) => item.value.ui_component)) {
     entry.value.ui_component.role = "workspace";
@@ -829,5 +855,6 @@ test("UI level capability gaps are advisory rather than build blockers", async (
     projectRoot: process.cwd(),
   });
   assert.equal(result.issues.some((item) => item.rule === "ui.capability_floor"), false);
-  assert.ok(result.warnings.filter((item) => item.rule === "ui.capability_floor").length >= 4);
+  assert.equal(result.warnings.some((item) => item.rule === "ui.capability_floor"), false);
+  assert.equal(result.warnings.some((item) => item.rule === "ui.experience_level"), false);
 });

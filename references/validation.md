@@ -31,7 +31,9 @@
 - YAML/JSON/HTML/JavaScript/正则无法解析，Schema 版本不受支持，或最终角色卡无法被重新读取。
 - 稳定 ID 重复造成真实碰撞，强引用、变量绑定、脚本入口、媒体 consumer、开场引用或 adapter 引用不存在或类型不匹配。
 - 已锁定决定互相矛盾，`project.yaml` 与源码 feature 生命周期冲突，或构建会确定性丢失/覆盖用户维护内容。
-- 新卡的 `positioning.card_entry` 为空、仍是占位符，或 `data.description` 被误写成人物档案；卡名与真正单人卡/完整 RP 包的类型判断冲突。
+- 新卡的 `positioning.card_entry` 为空或仍是占位符；完整世界/玩法/群像项目缺少锁定的 `assembly.card_entry`；`data.description` 被压成无实际世界约束的短简介或被误写成人物档案；卡名与真正单人卡/完整 RP 包的类型判断冲突。
+- CharacterBook 正文被机械序列化为 JSON，或完整 YAML 没有按运行职责切片；世界观被整块常驻导致上下文膨胀，或固定角色/NPC被按模板字段切碎导致人格、动机和关系规则无法同时到达。
+- 完整入口旅程被无必要地拆成启动、介绍、开场选择、创角等多条独立正则；状态功能被拆成大量小组件，而不是由一份综合 HTML 解析状态块或 MVU 数据。
 - 默认与备选开场没有正确投影到 `data.first_mes` / `data.alternate_greetings`，或顺序、占位符和初始化绑定会导致开局失效。
 - 某份维护源码既没有 CharacterBook 条目，也没有 card field、greeting、regex、script、UI、runtime/build-only 或 deliberate exclusion 等明确投影去向，导致内容无意丢失。CharacterBook 未完整覆盖本身只作为提示，不垄断合法投影位置。
 - 高级定义字段与其他投影发生无法解释的冲突或重复，或显式 `assembly.card_fields` 没有按值写入。字段非空本身不是错误。

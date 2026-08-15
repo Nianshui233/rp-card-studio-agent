@@ -112,7 +112,7 @@ Use the sole character's name only when the locked mode is truly single-characte
 | Field | Allowed content |
 | --- | --- |
 | `data.name` | Sole character's visible name only for a true single-character card with exactly one authored character; otherwise the locked project title |
-| `data.description` | Compact actor-free package entry from the non-empty `positioning.card_entry`: purpose, user entry, interaction mode, and routing intent only |
+| `data.description` | Final actor-free `assembly.card_entry`; substantial packages normally use a complete always-on core world contract rather than a compact summary |
 | `data.first_mes` | The selected default opening text |
 | `data.alternate_greetings` | Alternate opening texts in locked order |
 | metadata fields | Packaging identity such as tags, creator, and version; not world or behavior modules |
@@ -130,13 +130,13 @@ data.post_history_instructions
 
 Leave them empty when CharacterBook routing is cleaner, but use them when a compact always-on contract, traditional card compatibility, a plugin behavior, creator notes, example dialogue, or project-specific host semantics benefit from them. A maintained project writes them deliberately through `assembly.card_fields`; absence means “preserve or use the default,” while an explicitly present string means “project this value.” Avoid accidental duplication, but never reject a card merely because an advanced-definition field is intentionally populated.
 
-SillyTavern injects `description` as an always-present prompt block, so keep that field as the compact actor-free package entry. Do not turn it into a character dossier. Imported legacy advanced definitions remain lossless unless a deliberate migration or explicit `card_fields` override authorizes change.
+SillyTavern injects `description` as an always-present prompt block. Use that property deliberately: a substantial world, scenario, gameplay, or ensemble package should keep its stable world skeleton, information boundaries, conflict, rule priority, hard boundaries, and autonomous-motion contract there. It may be long. Do not turn it into a character dossier. Imported legacy advanced definitions remain lossless unless a deliberate migration or explicit override authorizes change.
 
 ### CharacterBook-first modularization
 
 Every eligible model-facing module other than the card-entry and greeting projections should normally be represented by an enabled CharacterBook entry. The optional user-character definition is the deliberate exception: it is projected as a disabled template until filled and enabled:
 
-- every authored character, including any `primary_character`, one named character per entry by default;
+- every authored character or coherent NPC group at the granularity that preserves portrayal continuity; an authored character is normally kept whole rather than split by template section;
 - world facts and continuity rules;
 - each system or coherent system module;
 - each independently triggerable scene or location module;
@@ -147,7 +147,7 @@ Every eligible model-facing module other than the card-entry and greeting projec
 
 Openings remain in greeting fields because SillyTavern selects them as chat entry points. All authored characters belong in CharacterBook. A `primary_character` marker means narrative anchor only; it does not grant ownership of `data.description`, priority over unrelated modules, or the card name outside a true single-character project. A true single-character card keeps its sole character in a compact constant 100% entry because that definition is the entire interaction's stable actor contract. In a world, gameplay, scenario, or ensemble project, even an anchor character may use constant, keyword, or scene routing according to whether that character is actually needed every turn.
 
-Do not create a single catch-all entry when different content needs different triggers or insertion positions. Do not split one coherent rule so finely that a triggered fragment becomes misleading without its dependencies. Character and narrative stages classify the modules and assign stable IDs; the integration stage performs host scheduling.
+Start from the complete authored YAML and cut only where runtime scheduling benefits. Split worldbuilding by co-activation topic; normally keep an authored character/NPC whole; keep a coherent system or scene whole when it is consumed as one unit. CharacterBook content is compact YAML or purpose-written natural language, not JSON serialization of the maintenance object. Do not create a single catch-all entry when different content needs different triggers, and do not split coherent content merely to satisfy a component count.
 
 When an assembly entry selects only part of a registered source, materialize an identity envelope around that fragment. The envelope records the normalized module type, stable `id` and `display_name` when the source defines them, the Chinese entry name, and the selected pointer. This keeps independently scheduled fragments attributable to their RP module without creating tiny standalone identity entries. A selected fragment is complete only when both the envelope and the selected semantics reach the CharacterBook artifact.
 

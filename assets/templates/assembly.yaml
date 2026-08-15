@@ -1,6 +1,13 @@
 schema_version: 1.0.0
 status: draft
 
+# 最终 data.description 的维护源。大型世界、玩法、群像和长期 RP 包通常使用
+# core_world_contract：写完整的常驻世界核心合同，而不是一两百字简介。
+card_entry:
+  mode: core_world_contract
+  content: ""
+  source_refs: []
+
 card_fields: {}
 
 worldbook_manifest:
@@ -16,4 +23,3 @@ worldbook_manifest:
 media_manifest:
   enabled: false
   assets: []
-

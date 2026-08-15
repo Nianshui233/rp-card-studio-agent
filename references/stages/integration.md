@@ -1,6 +1,6 @@
 # 整合交付阶段
 
-本阶段把已锁定的完整 RP 包装配为 SillyTavern 可导入产物，维护 `src/integration/assembly.yaml`，并完成静态、产物和真实运行证据的分级报告。它负责卡面字段投影、把内容 ID 映射为世界书宿主参数、把媒体叙事槽位映射为实际资源、按契约生成适配器；不是最后一轮临时创作，也不把项目重新收缩成某个角色的人设卡。
+本阶段把已锁定的完整 RP 包装配为 SillyTavern 可导入产物，维护 `src/integration/assembly.yaml`，并完成静态、产物和真实运行证据的分级报告。核心工作很直接：把前面已经写好的完整 YAML 按运行需要切片，给每一块设置触发与插入策略，再装入角色卡；同时生成最终核心入口合同、正则、MVU/EJS、Tavern Helper 与完整 HTML。它不是最后一轮重写内容，也不把项目重新收缩成某个角色的人设卡。
 
 ## 进入条件
 
@@ -39,6 +39,7 @@
 | 问题 | 方向 | 影响 | 推荐 |
 |---|---|---|---|
 | 世界书条目怎样分层调度？ | 基础常驻 + 人物/场景关键词 / 全部常驻 / 深度触发 | 影响上下文预算、可达性和误触发 | 推荐只让整包基础合同常驻，其余按内容边界精确触发 |
+| `data.description` 如何组成？ | 完整核心世界合同 / 紧凑入口 / 保留导入值 | 影响每轮都存在的世界骨架与规则一致性 | 世界、玩法、群像和长期项目推荐完整核心世界合同 |
 | 警告如何处理？ | 全修 / 接受指定项 / 延期 | 影响报告状态 | 推荐修复玩家可见问题，记录纯风格警告 |
 ```
 
@@ -48,6 +49,12 @@
 ```yaml
 schema_version: 1.0.0
 status: locked
+card_entry:
+  mode: core_world_contract
+  content: |-
+    [从已锁定世界观中整理出的完整常驻核心合同：AI核心指令、类型基调、时空范围、信息分层、核心矛盾、规则裁决、硬设定、软设定和禁止走向。不是短简介，也不放任何角色档案。]
+  source_refs:
+    - world:midnight_railway
 worldbook_manifest:
   id: midnight_railway_worldbook
   display_name: "午夜铁路世界书"
@@ -120,10 +127,10 @@ media_manifest:
 
 ### 卡面投影与源码覆盖
 
-- 新卡只把已锁定的非空 `positioning.card_entry` 投影到 `data.description`。它是完整 RP 包用途与模块路由意图的简短常驻合同，不是任何角色的人设，也不能假装 SillyTavern 会据此执行动态路由。默认开场投影到 `data.first_mes`，备选开场按锁定顺序投影到 `data.alternate_greetings`；开场正文不得重复装入世界书。
+- 新卡把 `assembly.card_entry.content` 投影到 `data.description`。大型世界、玩法、群像、场景和长期 RP 包默认使用 `core_world_contract`：它是从完整世界 YAML 中整理出的常驻核心合同，可以很长，包含每轮都必须成立的世界骨架、信息边界、核心冲突、规则裁决、硬/软设定与自主运行原则；“入口”绝不等于“短简介”。`positioning.card_entry` 只在旧项目或未完成装配时回退。默认开场投影到 `data.first_mes`；当完整入口 HTML 接管开场时，可只投影稳定字面标记并由一条正则替换整页。
 - 卡名按已锁定承载类型决定：只有 `single_character_card` 且角色源码确实只有一个时使用该角色中文显示名；世界、场景、玩法、群像、叙事者、锚点角色项目或任何多角色模式都使用 `project.project.display_name` 的项目标题。不得因为存在一个锚点角色就把完整项目误命名为人名，也不得默认用某个单一地区名代替概括世界、玩法、主题或体验的项目标题。
 - 新卡高级定义字段默认留空，但可以通过 `assembly.card_fields` 有意写入；传统卡兼容、短常驻合同、作者备注、示例对白、系统提示、插件行为都属于合法用途。导入旧卡继续保留既有值，除非显式字段覆盖或迁移策略授权修改。
-- `project.yaml.source_manifest` 登记的所有维护源码都要有明确去向：CharacterBook 优先，但也可以进入卡面高级定义、greeting、regex、script、UI、runtime/build-only 或 deliberate exclusion。具名角色默认一人一条世界书条目只是推荐。CharacterBook 覆盖缺口产生提醒；只有源码没有任何投影去向、会实际丢失时才阻断。
+- `project.yaml.source_manifest` 登记的维护源码都要有明确去向。世界 YAML 按共同触发主题切片；固定角色/NPC通常整块投影以保持连续性；完整系统和场景可整块按需触发。条目正文保持紧凑 YAML/自然语言，不使用 JSON 序列化。只有确实不同触发时机、插入位置或上下文用途的内容才拆开。
 - 无显式 assembly 的新项目可由 Forge 生成保守的中文命名条目；其中 `user_character` 投影为默认关闭的“用户角色模板”，采用 `<user>`/`user` 关键词、`after_char`、深度 4、顺序 9995，填写后再启用。存在显式 assembly 时，任何漏掉且未声明 deliberate exclusion 的可装配源码都是 blocker，必须补齐来源映射和宿主调度，不能靠高级定义字段兜底。
 - 一个条目用 `selector` 拆取注册源码时，Forge 会在选中内容外包裹模块身份：模块类型、源码稳定 ID/显示名（如有）、中文条目名和 selector。这样分片仍能说明自己属于哪个 RP 模块，不需要制造孤立的 `/id` 或 `/display_name` 小条目；任何丢失身份包络的分片都视为投影不完整。
 

@@ -4,9 +4,8 @@ status: draft
 ui_experience:
   enabled: true
   # UI 阶段首批锁定：basic_status / light / medium / heavy。
-  # 等级衡量完整页面内的模块深度与交互复杂度，不按独立正则数量凑数。
-  # light / medium / heavy 的完整页面最低数分别为 3 / 4 / 5，
-  # 综合工作区内至少承载 4 / 8 / 12 个有真实数据绑定的功能模块。
+  # 等级衡量视觉华丽度、主题贴合、动效、交互、JS便利性与趣味性。
+  # 它不删减功能，也不规定页面数、正则数、代码行数、字段数或模块数。
   experience_level: light
   goals:
     - world_immersion
@@ -16,15 +15,14 @@ ui_experience:
   theme_ref: ui_theme:main
   bindings_ref: ui_bindings:main
   surfaces:
-    - ui_component:launch_screen
-    - ui_component:introduction_page
+    - ui_component:project_portal
     - ui_component:status_terminal
     - ui_component:update_report
     - ui_component:roll_result
     - ui_component:choice_panel
   navigation:
     kind: mixed
-    primary_surface: ui_component:launch_screen
+    primary_surface: ui_component:project_portal
     routes: []
   host_policy:
     adapter: tavern_helper_message

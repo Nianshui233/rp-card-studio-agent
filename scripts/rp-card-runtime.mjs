@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
+import YAML from "yaml";
 
 import { projectModelSource, semanticLeafPointers } from "./forge/projection.mjs";
 import {
@@ -1223,6 +1224,14 @@ function assemblySources(sources) {
   return values(sources, "assembly");
 }
 
+function stringifyWorldbookYaml(value) {
+  return YAML.stringify(value, {
+    indent: 2,
+    lineWidth: 0,
+    sortMapEntries: false,
+  }).trimEnd();
+}
+
 function normalizeAssemblySelector(value) {
   if (typeof value !== "string" || value === "") return "";
   return value.startsWith("/") ? value : `/${value}`;
@@ -1604,6 +1613,35 @@ async function validateAssembly(sources, projectRoot, issues, warnings, target, 
     issues.push(issue("/runtime/assembly", "assembly.configuration", "Exactly one assembly source may own the integration manifest"));
   }
   for (const [sourceIndex, assembly] of assemblies.entries()) {
+    const positioning = entries(sources, "positioning")[0]?.value;
+    const packageMode = positioning?.card_mode;
+    const isProjectShapedCard = target === "character"
+      && packageMode
+      && packageMode !== "pending"
+      && packageMode !== "single_character_card";
+    if (
+      assembly?.status === "locked"
+      && project?.project?.operation === "create"
+      && isProjectShapedCard
+      && !assembly.card_entry
+    ) {
+      issues.push(issue(
+        `/runtime/assembly/${sourceIndex}/card_entry`,
+        "assembly.card_entry",
+        "完整世界、玩法、群像或长期 RP 包必须在整合阶段维护最终 card_entry；不要把定位阶段的短摘要直接当作 data.description"
+      ));
+    }
+    if (
+      assembly?.status === "locked"
+      && ["core_world_contract", "compact_package_entry"].includes(assembly.card_entry?.mode)
+      && (typeof assembly.card_entry?.content !== "string" || !assembly.card_entry.content.trim())
+    ) {
+      issues.push(issue(
+        `/runtime/assembly/${sourceIndex}/card_entry/content`,
+        "assembly.card_entry",
+        "锁定的 card_entry 必须包含最终可投影内容"
+      ));
+    }
     const manifest = assembly.worldbook_manifest;
     issues.push(...worldbookHostIssues(manifest, target, `/runtime/assembly/${sourceIndex}`));
     const enabledEntries = (manifest?.entries ?? []).filter((entry) => entry?.enabled !== false);
@@ -1763,7 +1801,7 @@ async function resolveAssemblyContent(source, sources, projectRoot) {
     const direct = Object.values(sources ?? {}).flat().find((entry) => entry.relativePath === reference);
     if (direct) {
       const selected = selectPointer(direct.value, source.selector, reference);
-      return typeof selected === "string" ? selected : JSON.stringify(selected, null, 2);
+      return typeof selected === "string" ? selected : stringifyWorldbookYaml(selected);
     }
     const match = /^([a-z_]+):([a-z][a-z0-9_]*)(?:#\/(.*))?$/.exec(reference);
     if (!match) throw new Error(`Unknown structured source path: ${reference}`);
@@ -1774,7 +1812,7 @@ async function resolveAssemblyContent(source, sources, projectRoot) {
     if (!candidate) throw new Error(`Unknown structured source: ${group}:${id}`);
     const pointer = source.selector ? source.selector.replace(/^\//, "") : inlinePointer;
     const selected = selectPointer(candidate, pointer, reference);
-    return typeof selected === "string" ? selected : JSON.stringify(selected, null, 2);
+    return typeof selected === "string" ? selected : stringifyWorldbookYaml(selected);
   }
   throw new Error(`Unsupported worldbook source kind: ${source.kind ?? "missing"}`);
 }
@@ -1814,7 +1852,7 @@ async function resolveWorldbookContent(source, sources, projectRoot, entryDispla
     selected,
     entryDisplayName,
   );
-  return typeof content === "string" ? content : JSON.stringify(content, null, 2);
+  return typeof content === "string" ? content : stringifyWorldbookYaml(content);
 }
 
 function selectPointer(value, pointer, reference) {
