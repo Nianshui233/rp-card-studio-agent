@@ -51,6 +51,9 @@ test("user-facing skill docs do not direct to the former external sample names",
     join("references", "stages", "mvu-ejs.md"),
     join("references", "validation.md"),
     join("references", "stages", "materials.md"),
+    join("references", "host", "mvu-runtime.md"),
+    join("references", "host", "tavern-helper-runtime.md"),
+    join("references", "host", "ejs-runtime.md"),
   ];
   for (const file of files) {
     const text = await readFile(join(process.cwd(), file), "utf8");

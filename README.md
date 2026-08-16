@@ -113,6 +113,11 @@ $rp-card-studio
 
 ## MVU 与 EJS 的正确做法
 
+技术实现阶段可按需读取 `references/host/mvu-runtime.md` 和
+`references/host/tavern-helper-runtime.md`。它们是本地自包含的运行时行为摘要，专门说明
+MVU 初始化/覆盖/回读、消息楼层、iframe 生命周期、宿主事件、正则重应用和按钮回退；不复制插件源码，也不把插件仓库变成卡片运行依赖。
+涉及 EJS 时再读取 `references/host/ejs-runtime.md`，确认执行阶段、变量作用域、装饰器、世界书读取路线、缓存和失败回退。
+
 MVU/EJS 阶段直接维护真实文件，例如：
 
 ```text

@@ -2,6 +2,11 @@
 
 本阶段只做两件事：把已经确认的 RP 内容切分并排进 CharacterBook；把已经写好的真实运行组件原样装入角色卡。
 
+涉及卡内脚本、消息前端、宿主按钮或 MVU 写入时，先读取
+[酒馆助手运行时参考](../host/tavern-helper-runtime.md) 与
+[MVU 运行时参考](../host/mvu-runtime.md)；涉及 EJS 时再读取
+[EJS 运行时参考](../host/ejs-runtime.md)，再按目标环境实测结果装配；不要把聊天楼 `data`、iframe 本地对象或未经验证的私有 API 当成持久状态。
+
 ## 内容装配
 
 按内容责任而不是模板字段切分：

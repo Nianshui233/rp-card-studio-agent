@@ -159,6 +159,11 @@ invent an abstract adapter and later pretend it is equivalent.
 ### MVU and EJS
 
 Read [mvu-ejs.md](references/stages/mvu-ejs.md).
+For host-facing lifecycle, iframe, message, and event behavior, also read
+[mvu-runtime.md](references/host/mvu-runtime.md) and
+[tavern-helper-runtime.md](references/host/tavern-helper-runtime.md).
+For EJS execution stages, variable scopes, decorators, world-info access, and
+template diagnostics, also read [ejs-runtime.md](references/host/ejs-runtime.md).
 
 An MVU implementation is a closed chain: framework loading, actual initial data, the selected native/MVU_ZOD/hybrid/existing schema route, model-visible update rules, output format, per-opening initialization, prompt routing, and UI readers. `stat_data` is the primary game-state tree unless the target project proves another shape. For every new MVU route, maintain a real initial-values file and project it through `worldbook_manifest.entries` as a CharacterBook entry whose name contains `[initvar]`. MVU_ZOD registers project structure; it does not replace initial data. Treat opening `<initvar>` as an override after lorebook initialization, never as a standalone bootstrap when no primary lorebook is installed and linked. Never confuse the project schema script with the MVU framework loader. Preserve real Tavern Helper Script/ScriptFolder trees.
 
