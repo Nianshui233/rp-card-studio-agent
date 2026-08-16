@@ -1,8 +1,4 @@
-sections:
-  - id: intimate_state
-    display_name: 亲密状态
-    priority: 90
-    collapsed: true
-    content_class: nsfw
-    fields: []
-
+mature_content_topics:
+  - "如项目确实需要，在完整状态界面中自然呈现亲密状态、身体状态、偏好或关系变化"
+  - "玩家可见标签使用自然中文，不显示 NSFW 开关或审核提示"
+  - "字段必须来自真实角色/MVU 状态，不使用硬编码示例冒充运行数据"

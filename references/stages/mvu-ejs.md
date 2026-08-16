@@ -1,258 +1,107 @@
-# MVU/EJS 阶段（可选）
+# MVU / EJS 阶段（可选）
 
-本阶段把已经确定的变量和业务状态机映射成可验证的运行时契约，并决定 EJS 是否以及如何按状态选择已存在的内容。MVU 管 storage、状态生命周期与版本化更新协议，EJS 管条件化读取与路由；两者互不冒充，也不创作呈现正文。
+本阶段把已经完成的 RP 状态需求做成目标 SillyTavern 环境真正能运行的组件。它不再发明玩法语义，也不使用本技能自创的运行时框架。
 
-## 进入条件
+## 先选择真实路线
 
-- 用户已选择进入本阶段，或 AI 在覆盖该路线的明确授权内决定进入并已报告理由；也可以因为既有 MVU/EJS 实现需要修改、审查、禁用或迁移而进入。
-- 世界观与角色盘点阶段已经完成；角色盘点可以明确得到零固定角色，不能因此阻塞本阶段。
-- 系统或场景若启用，其稳定 ID、变量含义和事件已经锁定。
-- 已知目标运行环境；未知时可在本阶段询问版本与可用能力，但不得假定扩展已安装。
+根据项目需要和目标环境，选择：
 
-路线选择只表达“本项目是否需要本阶段工作”，无需预先把任一 feature 锁定为 `true`。新建项目可在进入时暂时保持模板默认的两个 `false`，然后在本阶段首轮选择并锁定 MVU、EJS 或两者。
+- 不使用变量；
+- MVU；
+- MVU Zod；
+- EJS；
+- MVU/MVU Zod + EJS；
+- 保留并修订导入卡已有实现。
 
-若前一阶段已经选择跳过，不要激活或读取本阶段来补问能力组合：
+MVU 负责 `stat_data` 的初始化、更新和持久状态。Zod 负责实际结构注册与校验。EJS 是 ST-Prompt-Template 执行的真实模板源，常用于上下文投影、压缩、条件文本或提示词路由；它不是 MVU storage，也不是“条件配置表”。
 
-- 新建且没有既有实现：保持两个 feature 为 `false`，把 `stages.mvu_ejs.status` 记为 `skipped` 并记录简短理由，直接进入 `narrative_opening`；不要生成禁用片段、依赖说明或本阶段总汇。
-- 续作、转换、修改或审查已有项目：本轮跳过只表示不改该层，必须保留既有 feature、源码与依赖，并继续验证实际交付物；既有阶段已 `complete` 时保持原状态，否则以 `skipped` 摘要说明保留情况。
-- 用户要求关闭或移除既有能力：这不是跳过。进入本阶段，制定迁移与清理方案，更新引用和依赖，验证无残留后再完成。
+## 第一批问题
 
-若已进入后用户撤回运行时需求，且项目没有任何既有实现需要清理，按新建跳过分支结束，不生成本阶段产物。AI 完全放权时也遵守同一分支，只是不再逐项询问，而是报告决定和理由后锁定。
+只问会改变运行实现的事项：
 
-## 本阶段边界
+1. 目标 SillyTavern、Tavern Helper、MVU、ST-Prompt-Template 版本或当前可用能力；
+2. 是否使用额外更新模型，还是与正文同轮更新；
+3. 哪些已确定状态需要持久化，哪些只是派生显示；
+4. 每条开场需要什么完整初始状态；
+5. EJS 是否需要、它具体向哪个模型/阶段投影什么内容；
+6. 依赖是卡内脚本、宿主必需、远程加载还是沿用已有实现。
 
-### 允许询问
+版本敏感 API 不凭记忆编造。目标版本未知时可以先设计文件边界，但精确函数、事件和值保持待验证。
 
-- 在已确认进入本阶段的前提下，启用 MVU、EJS 或两者中的哪种组合。
-- 目标运行时、`storage.scope`、snapshot 选择、merge policy、变量更新模式与宿主依赖。
-- 已有语义字段映射到哪些稳定运行时路径。
-- 版本化 `protocol` 的 envelope、path syntax、operations、atomicity、precondition、revision guard 与 error policy。
-- 默认初始化、具名 profiles、opening bindings、writer、reader、renderer、清理和迁移。
-- EJS 条目显隐、段落分支、动态文本、默认值与失败回退。
-- plot/update 模型分别接收哪些条目，以及共享内容的成本。
-- 是否需要 Tavern Helper 等宿主适配器；需要时只定义 adapter ID、版本、交付类别、entrypoint、readiness probe、超时和回退契约。
+## MVU 必须形成的闭环
 
-### 禁止询问
+按项目实际需要创建真实文件，常见结构为：
 
-- 不在此阶段发明新的好感轴、经济规则或剧情判定公式。
-- 不询问角色动机、说话方式、世界历史或场景美术。
-- 不询问状态栏配色、组件布局或开场白文风。
-- 不创作 `prose`、`chat`、`galgame` 等呈现正文，也不决定媒体文件或世界书激活参数。
-- 不把自定义叙事推理提示词当作 MVU 更新规则。
-
-缺少语义字段时返回 `systems` 或原字段所属阶段；缺少运行时事实时标记为待验证，不用猜测填满。
-
-## 多轮工作循环
-
-每轮集中一个技术层面，并提供推荐：
-
-```markdown
-### 本轮目标：storage、协议与字段所有权
-| 问题 | 方向 | 影响 | 推荐 |
-|---|---|---|---|
-| 状态快照属于哪里？ | message / chat / character | 影响存档隔离、覆盖顺序和迁移 | 默认 message；确有跨消息合并需求再扩大 scope |
-| 变量由谁写入？ | 剧情模型 / 独立更新模型 / 确定性脚本 | 影响提示词路由与竞争写入风险 | 公式派生值推荐脚本独占 |
-| 开场如何初始化？ | 共用 profile / 具名差异 profile | 影响开场一致性与迁移 | 逐开场核对地点、时间、在途状态和既定事实；只有完整状态确实相同才共用 profile |
-| 更新在哪次请求完成？ | 同轮生成 / 独立更新请求 | 影响调用链、失败处理和可验证性 | 当前 Forge 只实现 `same_generation`；没有完整独立请求链时不得选择后者 |
+```text
+src/runtime/mvu/
+  初始变量.yaml
+  变量结构.js
+  变量更新规则.yaml
+  变量输出格式.yaml
+  上下文.ejs                 # 仅在使用 EJS 时
+  变量框架脚本.js             # 仅在项目确实需要卡内脚本时
 ```
 
-收到选择后给出本轮片段：
+闭环检查：
 
-<!-- validate: mvu.schema.json -->
-```yaml
-schema_version: 1.2.0
-status: locked
-mvu:
-  enabled: true
-  implementation: "内嵌同轮状态更新契约"
-  update_mode: same_generation
-  output_dialect: mvu_json_patch
-  storage:
-    scope: message
-    namespace: stat_data
-    snapshot_selector: current_message
-    merge_policy: message_over_chat
-  protocol:
-    id: mvu_json_patch
-    version: 1.0.0
-    envelope: UpdateVariable
-    path_syntax: json_pointer
-    operations: [replace, delta, insert, remove, move]
-    atomicity: batch
-    precondition: validate_before_commit
-    revision_guard: if_present
-    error_policy: reject_batch
-  prompt_history:
-    update_visibility: hide_all
-  variables:
-    - source_path: relationship.trust
-      runtime_path: stat_data.relationship.trust
-      type: integer
-      default: 10
-      constraints:
-        minimum: 0
-        maximum: 100
-      writer:
-        kind: update_model
-        id: relationship_update
-        operations: [set, add, subtract]
-      readers: [plot_model, update_model, ejs, status_ui]
-      renderer: status_ui.relationship_trust
-      cleanup: retain
-      migration: clamp_to_current_range
-      visibility: player
-  initialization:
-    defaults:
-      relationship:
-        trust: 10
-    opening_overrides: []
-    profiles:
-      - id: default
-        extends: null
-        strategy: complete_replace
-        values:
-          relationship:
-            trust: 10
-    opening_bindings:
-      - opening_ref: opening:default
-        profile_ref: mvu_init:default
-        strategy: complete_replace
-  update_rules:
-    - id: trust_after_kept_promise
-      trigger: "用户兑现对列车长作出的明确承诺。"
-      writer_id: relationship_update
-      reads: [relationship.trust]
-      writes:
-        - source_path: relationship.trust
-          operation: add
-          value: 5
-      failure: "保留原值并记录本次更新未执行。"
-  routing:
-    entries:
-      - id: relationship_state_route
-        source_ref: "relationship.trust"
-        recipient: shared
-        reason: "剧情模型需要读取，更新模型拥有写入权。"
-ejs:
-  enabled: true
-  entries:
-    - id: low_trust_dialogue
-      source_ref: "character:conductor"
-      complexity: section_branch
-      engine: st_prompt_template
-      placement: after
-      insertion_order: 120
-      condition:
-        runtime_path: stat_data.relationship.trust
-        operator: lt
-        value: 30
-      reads: [stat_data.relationship.trust]
-      target: both
-      branches:
-        when_true: "使用低信任版本的既有对话段。"
-        when_false: "使用普通版本的既有对话段。"
-        fallback: "使用不依赖信任值的中性对话段。"
-      missing_dependency: omit_dynamic
-runtime_contract:
-  adapter:
-    id: tavern_helper
-    version: 1.0.0
-    delivery: embedded
-    entrypoint: rp_card_studio_runtime_guard
-    load_order: 20
-    readiness_probe: globalThis.Mvu
-    timeout_ms: 10000
-    fallback: "MVU 不可用时保留上一份合法状态，明确报告运行时未就绪。"
-  dependencies:
-    - id: tavern_helper
-      class: host_required
-      delivery: "SillyTavern Tavern Helper 4.9.1"
-      version: 4.9.1
-      load_order: 10
-      readiness_probe: globalThis.waitGlobalInitialized
-      timeout_ms: 10000
-      fallback: "依赖缺失时不启动 MVU，保留纯文本叙事。"
-    - id: st_prompt_template
-      class: host_required
-      delivery: "SillyTavern ST-Prompt-Template（版本按项目登记；1.17.6.8 为已验证基线）"
-      version: 1.17.6.8
-      readiness_probe: globalThis.EjsTemplate
-      timeout_ms: 10000
-      fallback: "EJS 不可用时省略动态条目，保留静态正文。"
-  assumptions:
-    - "每轮最多只有一个 writer 提交 relationship.trust 的更新。"
-  fallbacks:
-    - "状态更新不可用时保留上一轮合法值，并继续生成叙事。"
+```text
+初始值
+→ 实际 Schema/Zod 注册
+→ 模型能看到的当前状态
+→ 更新规则
+→ <UpdateVariable> 或目标方言的输出格式
+→ MVU 解析与写入
+→ 下一轮读取
+→ UI/脚本按同一路径读取
 ```
 
-MVU 引擎与变量结构注册器不要求创作代理手写进 `dependencies`。Forge 会从内建白名单生成固定版本脚本；项目只需登记 Tavern Helper 等宿主依赖和实际启用的 EJS 依赖。这样可避免把 MVU 错标为 `embedded` 却漏掉引擎，或让项目自行选择漂移 URL。
+每个变量至少知道：真实路径、初值、类型/形状、谁更新、何时更新、允许操作、模型是否需要看到、UI/脚本是否读取。无需为此建立通用 `writer/readers/cleanup` 配置表；直接在相邻的规则和源码中表达。
 
-片段后报告已锁定决定、字段生命周期缺口、运行时假设和下一批本阶段问题。用户完全放权时，先一次性列出选择与理由，再锁定授权范围内的全部决定，之后不重复询问。
+## 新 MVU Zod 的实际内容
 
-Forge 内置维护路线是 `same_generation`：同一次助手生成同时输出叙事与合法变量更新块，宿主从原始消息解析并提交；启用状态栏时，占位符由 MVU 运行时追加。
+- 使用目标环境真实提供或明确加载的 `z`；
+- 使用目标 MVU Zod 路线真实要求的注册函数；
+- Schema 直接对应 `stat_data` 的纯值结构，新项目不主动制造旧式 `[value, description]` 二元组；
+- 初始变量与 Schema 默认值一一对应；
+- 动态对象/数组写清模板、额外字段和长度策略；
+- 不在实际实现之外追加第二套合成校验层、事件层或改写层；
+- 不让 LLM 与脚本同时写同一字段；确定性派生值可由明确脚本独占。
 
-`extra_pass` 与 `both` 是正式可选路线，但必须登记一个自定义 adapter，实际提供独立请求触发、提示词/接收者路由、响应解析、协议校验、原子提交与失败回退。没有 adapter 时阻断是因为功能链不存在；登记并实现后正常构建，不需要退回内置路线。
+## EJS 的实际内容
 
-## 建议的问题批次
+`.ejs` 文件必须是可直接交给 ST-Prompt-Template 的模板，不把表达式翻译成技能私有 YAML。
 
-1. 能力与开关：MVU/EJS 组合、运行时实现、版本和依赖。
-2. Storage：scope、namespace、snapshot selector 与明确的 merge policy。
-3. 字段账本：路径、类型、默认值、唯一 writer、reader、renderer、清理与迁移。
-4. 初始化：共享默认、具名 profiles、opening bindings、继承、旧存档升级和失败策略。
-5. 更新协议：协议 ID/版本、envelope、路径语法、操作、原子性、前置条件、修订保护与错误策略。
-6. 状态机映射：把 `system.yaml.state_machines` 映射为运行时字段、guard、effects 与失败回退，不改变业务语义。
-7. EJS 设计：条目显隐、段落控制、动态文本、默认值和完整分支。
-8. Adapter 与降级：宿主适配器契约、plot/update/shared 接收表、依赖缺失和脚本失败时的行为。
+典型用途：
 
-## 实现约束
+- 将 `stat_data` 压缩成给剧情模型看的上下文；
+- 对长字符串和大列表做明确截断；
+- 根据真实状态选择提示片段；
+- 将更新模型与剧情模型需要的内容分开。
 
-- 一个变量只有一个 writer；脚本派生值不得同时交给模型修改。
-- 启用 MVU 后，Forge 必须随卡生成并按稳定 ID 排序三条 Tavern Helper 角色脚本：固定版本 MVU 引擎、由变量账本生成的 Zod 结构注册、运行守卫。仅有守卫或仅有离线 `runtime-state.schema.json` 都是不完整实现。
-- 运行时结构脚本必须调用 `registerMvuSchema(Schema)`，覆盖每条声明变量路径并保留类型、枚举、范围、正则和集合上限等可表达约束。必须在守卫前执行，并使用固定版本 URL；禁止 `main`、`latest` 或未登记地址。
-- 模型提示词必须同时包含 D1/D0 的“变量列表（当前状态）”、变量更新规则和回复输出格式。变量列表使用 `{{format_message_variable::stat_data}}` 发送最新快照；离线 Schema 不能代替这三项中的任何一项。
-- `source_path` 是语义路径，`runtime_path` 是运行时路径，两者通过显式映射连接。
-- `storage` 必须声明单一可信 scope；跨 scope 读取只有在 `merge_policy` 明确时允许，不能依赖宿主的隐式覆盖顺序。
-- `protocol.id + protocol.version` 构成稳定协议身份。新项目使用结构化、可校验的协议；`output_dialect` 仅作为兼容摘要，不能替代 `protocol`。
-- 新项目的 `mvu_json_patch` 输出固定推荐 `replace`、`delta`、`insert`、`remove`、`move` 五种操作。导入或审计上游已有卡时接受 `add` 作为 `insert` 的兼容别名，但不得因此让新卡提示词改用 `add`，也不能把合法旧卡误报成未知操作。
-- `prompt_history.update_visibility` 默认 `hide_all`，整合后对应 prompt-only 更新过滤正则 `minDepth: null`。只有项目明确需要模型看到近期变化痕迹并接受额外 token 与注意力占用时，才锁定 `keep_recent_updates`，对应 `minDepth: 4`，大致保留最近一至两轮更新。
-- `same_generation` 使用 Forge 内置链。`extra_pass` 或 `both` 使用已登记自定义 adapter；检查请求、路由、解析、校验、提交和回退是否完整。缺链时阻断，链完整时允许并记录真实宿主证据。
-- 纯 EJS 读取必须有与类型一致的默认值；MVU 联动读取必须有可证明的初始化先序和明确 `branches.fallback`，不得用默认值掩盖缺失快照或路径。
-- 每个 profile 有稳定 ID；`opening_bindings` 只引用已存在 opening 与 profile，继承不得成环。开场 `<initvar>` 完整替代角色主 CharacterBook 中的保底 `[initvar]`，不与该主书保底初始化 merge；其他当前启用的全局世界书仍遵循 MVU 自身的初始化加载规则。每个 `strategy` 固定为 `complete_replace`，替代后的完整状态必须通过运行时 Schema。
-- 每条开场必须解析为一份完整合法状态。跨场景共用 profile 前逐项核对地点、时间、在途状态和 `established_facts`；不一致时拆分 profile 或使用 opening override。非空变量默认对象/数组不得被初始化中的空容器无意覆盖。
-- EJS 的 `truthy`/`falsy` 对集合使用内容语义：空数组和空对象为假，非空集合为真；其他值才使用普通 JavaScript truthiness。
-- EJS 条件只读取已登记字段并覆盖所有分支。纯 EJS 通过 `getvar(runtime_path, { defaults })` 读取；MVU 联动当前只允许 `message/stat_data/current|latest message`，有界等待 `Mvu` 后读取快照。`current_message` 的 render 条目使用 ST-Prompt-Template 提供的数字 `message_id`；generate 上下文没有楼层号时明确降级到 latest。宿主、namespace 或路径缺失时进入 `branches.fallback`。
-- 条目路由与条目激活是两个维度；路由不能替代关键词、深度、顺序等激活规则。
-- 未确认的宿主能力进入 `runtime_contract.assumptions`，不得写成已经验证。
-- Tavern Helper 是内置 MVU 角色脚本路线的宿主依赖；项目也可登记其他 embedded、host_required 或 remote adapter。实际入口装配和碰撞扫描留到 `integration`，并记录 URL/版本、入口、依赖与失败表现。
-- 真实验收分别记录角色主世界书、局部正则授权、Tavern Helper 角色脚本、酒馆助手宏和 MVU 启动观察。Blob URL 渲染不是通用前置条件；仅当宿主观察到 MVU 未启动且该选项开启时，推荐关闭、刷新并重新观察。
-- Tavern Helper 角色脚本验收必须拆成两个层次：当前角色的脚本集合是否启用，以及 `rp_card_studio_00_mvu_runtime`、`rp_card_studio_10_mvu_schema`、`rp_card_studio_runtime_guard` 三条受管脚本自身是否分别启用。审计输入使用归一化的 `runtime_observation.character_scripts_enabled` 与 `runtime_observation.managed_scripts`，不把这些字段冒充为酒馆助手内部设置的原始结构。
-- EJS 使用 ST-Prompt-Template 时确认插件已启用；`getwi` 会绕过 SillyTavern 原生世界书激活与预算，`activewi` 进入原生激活，`@@preprocessing` 仅在满足宿主版本要求时使用。不得把三者当作等价入口。
-- 每条实际开场的完整 `<initvar>...</initvar>` 块保留在原始消息供 MVU 初始化；整合时必须生成分别作用于送模副本和玩家显示副本的隐藏正则。两条规则都不得吞掉未闭合块或改写原始记录。
+每份 EJS 说明它读取哪些真实变量、输出到哪里、失败时输出什么。不要假设消息 iframe 的 API、脚本 iframe 的 API 和 EJS 上下文相同。
+
+## 世界书与脚本投影
+
+MVU 更新规则、输出格式、当前状态投影、EJS 模板等通常作为中文命名的 CharacterBook 条目装配。条目名称中的 `[mvu_update]` / `[mvu_plot]` 等路由标记是否有效，必须以目标 MVU 实现为准。
+
+卡内 Tavern Helper 脚本使用真实 `data.extensions.tavern_helper` 结构，保留 `type/enabled/name/id/content/info/button/data/export_with`。不要改造成技能私有脚本对象。
+
+## 正则交接
+
+本阶段只确定原始块长什么样以及显示/提示词需要怎样处理。例如：
+
+- `<initvar>...</initvar>`；
+- `<UpdateVariable>...</UpdateVariable>`；
+- 状态占位或自定义状态块。
+
+实际 `findRegex`、display-only、prompt-only、深度和流式兜底在正则/UI与整合中按真实样本编写和测试，不自动套固定规则组。
 
 ## 完成门槛
 
-- MVU 与 EJS 开关有明确值，禁用项不残留配置。
-- 每个变量完成默认值、writer、reader、renderer/无渲染理由、清理和迁移登记。
-- 默认初始化与每个开场覆盖都符合字段类型和约束。
-- 每个开场的初始化与其场景、地点、时间、在途状态和既定事实一致；没有用空容器覆盖非空变量默认值。
-- profiles、opening bindings 和继承图可解析，且每个开场合并后的状态合法。
-- 所有更新操作属于锁定的协议版本，更新边界、原子性、修订保护和失败行为已定义。
-- `update_mode` 与真实请求链一致；当前项目使用 `same_generation`，或对尚无独立请求链的 `extra_pass`/`both` 给出 blocker。
-- 已启用的变量账本能确定性生成 `reports/runtime-state.schema.json`；跳过本阶段且没有既有实现时不生成该报告。
-- 构建产物包含顺序正确的 MVU 引擎、变量结构和守卫脚本，以及变量列表、更新规则和输出格式三类 CharacterBook 条目。
-- 每个业务状态机映射保持原状态、转换与后果，不新增或改写系统语义。
-- 所有 EJS 读取路径存在；纯 EJS 条件具备类型匹配的默认值，MVU 联动条件具备安全 fallback，且两者都有完整分支。
-- plot、update、shared 三类接收者有清单，无模糊双写。
-- 依赖被分类为内置、随卡嵌入、宿主必需或远程加载，并写明交付方式。
-- 需要 adapter 时其 ID、版本、entrypoint、readiness probe、timeout 和 fallback 完整；实际文件仍标记为待整合，不能提前声称可运行。
-- 静态检查通过；真实运行时尚未执行时明确标记 `not_run`。
-
-## 阶段总汇
-
-除通用阶段总汇外，必须包含：能力矩阵、storage 契约、字段生命周期账本、profiles 与 opening bindings、协议版本、状态机映射、更新路由表、EJS 条件清单、adapter/依赖与降级表、`runtime-state.schema.json` 生成状态和尚未获得的运行时证据。
-
-## 下一阶段方向
-
-- 推荐进入 `narrative_opening`，用已锁定初始化状态检查每条开场白的一致性。
-- 若字段缺少语义来源，推荐返回 `systems`；若条件内容缺少场景事实，推荐返回 `scenes`。
-- 不在下一阶段继续改变变量结构；结构变更必须重新打开本阶段并传播修改。
+- 选择的运行路线与目标环境一致；
+- 初始数据、Schema、更新规则、输出格式和每条开场初始化闭合；
+- EJS 是真实源码且有明确输入输出；
+- 所需卡内脚本是真实 Tavern Helper 格式；
+- 没有技能自创运行时、重复 writer、虚构 API 或无人读取的变量；
+- 已列出需要的正则与 UI 读取路径；
+- 未验证版本事实明确标为待真机，而不是伪装成通用正确。

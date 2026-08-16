@@ -1,11 +1,6 @@
 import {
   applyAssemblyManifest,
-  applyEjsTemplates,
-  applyMvuArtifacts,
-  applySillyTavernRegexAdapter,
-  applyTavernHelperAdapter,
   createCharacterBookIdAllocator,
-  generateRuntimeStateSchema,
   selectOpeningMessages,
 } from '../rp-card-runtime.mjs';
 
@@ -148,18 +143,19 @@ function projectCharacterCardVersion(project) {
 function defaultWorldbook(name) {
   return { name, description: "", entries: {} };
 }
-export function defaultPositioning() {
+export function defaultPositioning(projectTitle = "未命名项目") {
   return {
-    schema_version: "1.0.0",
+    schema_version: "2.0.0",
     id: "project_positioning",
     status: "draft",
+    project_title: projectTitle,
     card_entry: "",
     premise: "",
-    target_users: [],
     card_mode: "pending",
-    experience_pillars: [],
-    tone: { primary: "", secondary: "" },
-    expected_span: "pending",
+    core_experiences: [],
+    tone: [],
+    play_rhythm: "",
+    autonomous_world: "",
     scope_notes: [],
     source_refs: []
   };
@@ -196,7 +192,7 @@ function machineId(name) {
 function emptySourceManifest() {
   return Object.fromEntries(SOURCE_GROUPS.map((key) => [key, []]));
 }
-function normalizeStageRoute(route) {
+export function normalizeStagePlan(route) {
   if (!Array.isArray(route)) throw inputError("阶段路线必须是按规范顺序排列的数组");
   const selected = [...route];
   if (selected.some((stage) => !WORKFLOW_STAGES.includes(stage))) {
@@ -209,36 +205,24 @@ function normalizeStageRoute(route) {
   if (missing.length > 0) throw inputError("阶段路线缺少必经阶段", { missing });
   return selected;
 }
-export function applyStageRoute(project, state, route) {
-  const selected = normalizeStageRoute(route);
-  project.workflow.selected_stages = [...selected];
+export function applyStagePlan(project, route) {
+  const selected = normalizeStagePlan(route);
+  project.workflow.planned_stages = [...selected];
   project.preflight.workflow_confirmed = true;
-  const selectedSet = new Set(selected);
-  for (const stage of OPTIONAL_STAGES) {
-    if (!selectedSet.has(stage)) {
-      state.stages[stage] = {
-        status: "skipped",
-        round: Math.max(1, state.stages[stage]?.round ?? 0),
-        summary: "项目预检阶段路线未选择"
-      };
-    } else if (state.stages[stage]?.status === "skipped" && state.stages[stage]?.summary === "项目预检阶段路线未选择") {
-      state.stages[stage] = { status: "not_started", round: 0, summary: null };
-    }
-  }
   return selected;
 }
-function initialStages(selectedStages = WORKFLOW_STAGES) {
-  const selected = new Set(selectedStages);
+export const applyStageRoute = applyStagePlan;
+function initialStages() {
   return Object.fromEntries(STAGES.map((stage) => [stage, {
-    status: stage === "preflight" ? "complete" : stage === "positioning" ? "in_progress" : OPTIONAL_STAGES.includes(stage) && !selected.has(stage) ? "skipped" : "not_started",
-    round: stage === "preflight" || stage === "positioning" || OPTIONAL_STAGES.includes(stage) && !selected.has(stage) ? 1 : 0,
-    summary: stage === "preflight" ? "项目预检已由用户确认" : OPTIONAL_STAGES.includes(stage) && !selected.has(stage) ? "项目预检阶段路线未选择" : null
+    status: stage === "preflight" ? "complete" : stage === "positioning" ? "in_progress" : "not_started",
+    round: stage === "preflight" || stage === "positioning" ? 1 : 0,
+    summary: stage === "preflight" ? "项目预检已记录，阶段计划可随项目需要调整" : null
   }]));
 }
 export function makeProject({ name, target = "character_card", nsfw, operation = "create", stageRoute = DEFAULT_STAGE_ROUTE }) {
   if (typeof nsfw !== "boolean") throw inputError("创建项目必须明确提供 NSFW enabled 或 disabled");
   const projectId = machineId(name);
-  const selectedStages = normalizeStageRoute(stageRoute);
+  const selectedStages = normalizeStagePlan(stageRoute);
   const isWorldbook = target === "worldbook";
   const sourceManifest = emptySourceManifest();
   sourceManifest.positioning.push("src/positioning.yaml");
@@ -265,7 +249,7 @@ export function makeProject({ name, target = "character_card", nsfw, operation =
     workflow: {
       stage_order: [...WORKFLOW_STAGES],
       optional_stages: [...OPTIONAL_STAGES],
-      selected_stages: [...selectedStages]
+      planned_stages: [...selectedStages]
     },
     features: {
       materials: false,
@@ -288,17 +272,6 @@ export function makeProject({ name, target = "character_card", nsfw, operation =
       rationale: "用户在项目预检中明确选择",
       round: 1,
       history: []
-    }, {
-      id: "preflight.stage_route",
-      stage: "preflight",
-      summary: `阶段路线 = ${selectedStages.join(" -> ")}`,
-      value: [...selectedStages],
-      decided_by: "user",
-      locked: true,
-      status: "active",
-      rationale: "项目创建时记录的阶段路线；正式创作前应由预检回答覆盖默认值",
-      round: 1,
-      history: []
     }],
     cross_stage_backlog: [],
     source_manifest: sourceManifest,
@@ -317,7 +290,7 @@ export function makeState(project, { revision = 0 } = {}) {
     project_id: project.project.id,
     revision,
     active_stage: "positioning",
-    stages: initialStages(project.workflow.selected_stages),
+    stages: initialStages(),
     decision_locks: preflightDecisions.map((decision) => decisionLock(decision)),
     delegations: [],
     cross_stage_backlog: [],
@@ -328,7 +301,7 @@ export function makeState(project, { revision = 0 } = {}) {
     updated_at: null
   };
 }
-async function projectFilesForInit(root, { type = "character", nsfw } = {}) {
+async function projectFilesForInit(root, { type = "character", nsfw, stageRoute = DEFAULT_STAGE_ROUTE } = {}) {
   const name = path.basename(path.resolve(root));
   if (!["character", "worldbook"].includes(type)) {
     throw inputError(`init --type 仅支持 character 或 worldbook，收到: ${type}`);
@@ -336,13 +309,14 @@ async function projectFilesForInit(root, { type = "character", nsfw } = {}) {
   const project = makeProject({
     name,
     target: type === "worldbook" ? "worldbook" : "character_card",
-    nsfw
+    nsfw,
+    stageRoute
   });
   const state = makeState(project);
   const source = type === "worldbook" ? worldSourceFromBook(defaultWorldbook(name)) : null;
   const nsfwSources = await applyNsfwTemplates(project, source);
   const sourcePath = type === "worldbook" ? projectSourcePath(project) : null;
-  const positioning = defaultPositioning();
+  const positioning = defaultPositioning(name);
   return {
     project,
     state,
@@ -380,18 +354,8 @@ export async function applyNsfwTemplates(project, characterSource) {
     const characterMixin = await readYaml(await templateAssetUrl("nsfw/character.mixin.yaml"));
     characterSource.nsfw = structuredClone(characterMixin.nsfw);
   }
-  statusUi.status_ui.enabled = true;
-  statusUi.status_ui.mode = "embedded";
-  statusUi.status_ui.delivery = {
-    level: "embedded",
-    adapter: "sillytavern_regex",
-    surface: "message",
-    entrypoint: "generated",
-    artifact: "inline",
-    placeholder: "<StatusPlaceHolderImpl/>"
-  };
-  statusUi.status_ui.sections.push(...structuredClone(statusMixin.sections));
-  project.features.status_ui = true;
+  if (!project.workflow.planned_stages.includes("status_ui")) return { uiSource: null };
+  statusUi.status_ui.mature_content_topics = structuredClone(statusMixin.mature_content_topics ?? []);
   project.source_manifest.ui.push("src/ui/status-ui.yaml");
   return { uiSource: statusUi };
 }
@@ -477,7 +441,7 @@ export function validateProjectModel(project, state, root) {
   if (typeof project?.preflight?.nsfw?.enabled !== "boolean") issues.push(modelIssue("/preflight/nsfw/enabled", "type", "NSFW enabled 必须是布尔值"));
   if (!semanticEqual(project?.workflow?.stage_order, WORKFLOW_STAGES)) issues.push(modelIssue("/workflow/stage_order", "const", "阶段顺序与规范不一致"));
   if (!semanticEqual(project?.workflow?.optional_stages, OPTIONAL_STAGES)) issues.push(modelIssue("/workflow/optional_stages", "const", "可选阶段清单与规范不一致"));
-  try { normalizeStageRoute(project?.workflow?.selected_stages); } catch (error) { issues.push(modelIssue("/workflow/selected_stages", "route", error.message)); }
+  try { normalizeStagePlan(project?.workflow?.planned_stages); } catch (error) { issues.push(modelIssue("/workflow/planned_stages", "route", error.message)); }
   for (const feature of ["materials", "systems", "scenes", "mvu", "ejs", "status_ui"]) {
     if (typeof project?.features?.[feature] !== "boolean") issues.push(modelIssue(`/features/${feature}`, "type", "功能开关必须是布尔值"));
   }
@@ -669,31 +633,11 @@ export async function loadProjectSource(loaded) {
     projectRoot: loaded.projectRoot,
     target
   });
-  const mvuArtifacts = applyMvuArtifacts(assembled.payload, {
-    project: loaded.project,
-    sources,
-    target
-  });
-  const ejsTemplates = applyEjsTemplates(mvuArtifacts.payload, {
-    project: loaded.project,
-    sources,
-    target
-  });
   const relativePreserved = projectPreservedPath(loaded.project);
   const preservedPath = relativePreserved ? resolveWithin(loaded.projectRoot, relativePreserved) : null;
   const preserved = preservedPath && await pathExists(preservedPath) ? await readJson(preservedPath) : null;
-  const restored = applyPreserved(ejsTemplates.payload, preserved);
-  const adapted = applyTavernHelperAdapter(restored.payload, {
-    project: loaded.project,
-    sources,
-    target
-  });
-  const regexAdapted = applySillyTavernRegexAdapter(adapted.payload, {
-    project: loaded.project,
-    sources,
-    target
-  });
-  const worldbookBound = bindEmbeddedCharacterBook(regexAdapted.payload, { target });
+  const restored = applyPreserved(assembled.payload, preserved);
+  const worldbookBound = bindEmbeddedCharacterBook(restored.payload, { target });
   const format = target === "worldbook" ? Format.WORLDBOOK : detectJsonFormat(worldbookBound.payload);
   if (!format) throw validationError("装配后的角色卡版本无法识别", {
     issues: [issue("/spec", "unsupported", "仅支持 Character Card V2 或 V3")]
@@ -701,18 +645,10 @@ export async function loadProjectSource(loaded) {
   const payloadValidation = validatePayload(worldbookBound.payload, format);
   payloadValidation.issues.push(
     ...assembled.issues,
-    ...mvuArtifacts.issues,
-    ...ejsTemplates.issues,
-    ...adapted.issues,
-    ...regexAdapted.issues,
     ...worldbookBound.issues,
   );
   payloadValidation.warnings.push(
     ...(assembled.warnings ?? []),
-    ...(mvuArtifacts.warnings ?? []),
-    ...(ejsTemplates.warnings ?? []),
-    ...(adapted.warnings ?? []),
-    ...(regexAdapted.warnings ?? []),
     ...(worldbookBound.warnings ?? []),
   );
   return {
@@ -724,7 +660,6 @@ export async function loadProjectSource(loaded) {
     payload: worldbookBound.payload,
     restoredPaths: restored.restoredPaths,
     validation: payloadValidation,
-    runtimeStateSchema: generateRuntimeStateSchema(sources),
     format
   };
 }
@@ -945,7 +880,7 @@ function assembleCharacterCard(sources, project, state, originalPayload = null) 
   }
   const bookSources = [
     ...sources.positioning
-      .filter((entry) => Object.keys(projectModelSource("positioning", entry.value)).length > 0)
+      .filter((entry) => positioningIsMeaningful(entry.value))
       .map((entry) => ["positioning", entry, projectTitle]),
     ...sources.world.map((entry) => ["world", entry]),
     ...(sources.user_character ?? []).map((entry) => ["user_character", entry]),
@@ -1017,7 +952,14 @@ function assembleWorldbook(sources) {
   return payload;
 }
 function positioningIsMeaningful(source) {
-  return Boolean(source?.card_entry) || Boolean(source?.premise) || (source?.target_users?.length ?? 0) > 0 || source?.card_mode !== "pending" || (source?.experience_pillars?.length ?? 0) > 0 || Boolean(source?.tone?.primary || source?.tone?.secondary) || source?.expected_span !== "pending" || (source?.scope_notes?.length ?? 0) > 0;
+  return Boolean(source?.card_entry)
+    || Boolean(source?.premise)
+    || source?.card_mode !== "pending"
+    || (source?.core_experiences?.length ?? 0) > 0
+    || (source?.tone?.length ?? 0) > 0
+    || Boolean(source?.play_rhythm)
+    || Boolean(source?.autonomous_world)
+    || (source?.scope_notes?.length ?? 0) > 0;
 }
 function hasAdditionalAssemblySources(sources, target) {
   if (sources.positioning.some((entry) => positioningIsMeaningful(entry.value))) return true;
@@ -1390,30 +1332,20 @@ export async function runProjectMutation(root, callback, options = {}) {
 }
 export function migrateProject(project) {
   if (project?.schema_version === PROJECT_SCHEMA_VERSION) {
-    if (project?.preflight?.workflow_confirmed === false) return { value: project, migrated: false };
-    const hasRoute = Array.isArray(project?.workflow?.selected_stages);
-    const hasRouteDecision = (project?.decisions ?? []).some((decision) => decision.id === "preflight.stage_route");
-    if (project?.preflight?.workflow_confirmed === true && hasRoute && hasRouteDecision) return { value: project, migrated: false };
+    const hasPlan = Array.isArray(project?.workflow?.planned_stages);
+    const legacyRoute = Array.isArray(project?.workflow?.selected_stages) ? project.workflow.selected_stages : null;
+    const hasLegacyDecision = (project?.decisions ?? []).some((decision) => decision.id === "preflight.stage_route");
+    if (project?.preflight?.workflow_confirmed === true && hasPlan && !legacyRoute && !hasLegacyDecision) return { value: project, migrated: false };
     const migrated = structuredClone(project);
     migrated.preflight ??= {};
     migrated.preflight.workflow_confirmed = true;
     migrated.workflow ??= { stage_order: [...WORKFLOW_STAGES], optional_stages: [...OPTIONAL_STAGES] };
     migrated.workflow.stage_order = [...WORKFLOW_STAGES];
     migrated.workflow.optional_stages = [...OPTIONAL_STAGES];
-    migrated.workflow.selected_stages = [...DEFAULT_STAGE_ROUTE];
+    migrated.workflow.planned_stages = normalizeStagePlan(legacyRoute ?? migrated.workflow.planned_stages ?? DEFAULT_STAGE_ROUTE);
+    delete migrated.workflow.selected_stages;
     migrated.decisions ??= [];
-    if (!hasRouteDecision) migrated.decisions.push({
-      id: "preflight.stage_route",
-      stage: "preflight",
-      summary: `阶段路线 = ${DEFAULT_STAGE_ROUTE.join(" -> ")}`,
-      value: [...DEFAULT_STAGE_ROUTE],
-      decided_by: "imported",
-      locked: true,
-      status: "active",
-      rationale: "旧项目兼容迁移：未发现首轮路线记录，暂保留完整默认路线；后续可在预检中重新锁定",
-      round: 1,
-      history: []
-    });
+    migrated.decisions = migrated.decisions.filter((decision) => decision.id !== "preflight.stage_route");
     return { value: migrated, migrated: true };
   }
   if (![0, "0", "0.1.0"].includes(project?.schema_version)) {
@@ -1439,12 +1371,21 @@ export function migrateProject(project) {
 }
 export function migrateState(state, project) {
   if (state?.schema_version === STATE_SCHEMA_VERSION) {
-    const existingIds = new Set((state?.decision_locks ?? []).map((lock) => lock.decision_id));
+    const cleaned = (state?.decision_locks ?? []).filter((lock) => lock.decision_id !== "preflight.stage_route");
+    const existingIds = new Set(cleaned.map((lock) => lock.decision_id));
     const missing = (project?.decisions ?? []).filter((decision) => decision.locked && !existingIds.has(decision.id));
-    if (missing.length === 0) return { value: state, migrated: false };
+    const legacySkipped = Object.values(state?.stages ?? {}).some((stage) => stage?.summary === "项目预检阶段路线未选择");
+    if (missing.length === 0 && cleaned.length === (state?.decision_locks ?? []).length && !legacySkipped) return { value: state, migrated: false };
     const migrated = structuredClone(state);
-    migrated.decision_locks ??= [];
+    migrated.decision_locks = cleaned;
     migrated.decision_locks.push(...missing.map((decision) => decisionLock(decision)));
+    for (const stage of Object.values(migrated.stages ?? {})) {
+      if (stage?.summary === "项目预检阶段路线未选择") {
+        stage.status = "not_started";
+        stage.round = 0;
+        stage.summary = null;
+      }
+    }
     return { value: migrated, migrated: true };
   }
   if (![0, "0", "0.1.0", 1].includes(state?.schema_version)) {

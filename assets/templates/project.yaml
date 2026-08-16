@@ -35,6 +35,17 @@ workflow:
     - scenes
     - mvu_ejs
     - status_ui
+  planned_stages:
+    - positioning
+    - materials
+    - worldbuilding
+    - character
+    - systems
+    - scenes
+    - mvu_ejs
+    - narrative_opening
+    - status_ui
+    - integration
 
 features:
   materials: false

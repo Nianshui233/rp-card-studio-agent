@@ -1,13 +1,16 @@
-schema_version: 1.0.0
+schema_version: 2.0.0
 id: system_id
 display_name: 未命名系统
 status: draft
-purpose: ""
 
-axes: []
-rules: []
-state_machines: []
-settlement_order: []
-invariants: []
-failure_modes: []
+purpose: ""
+roleplay_experience: ""
+core_rules: []
+triggers: []
+consequences: []
+world_and_npc_motion: []
+exceptions: []
+anti_exploitation: []
+state_to_remember: []
+examples: []
 source_refs: []

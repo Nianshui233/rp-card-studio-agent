@@ -1,202 +1,52 @@
-# 材料整理阶段
+# 材料整理阶段（可选）
 
-本阶段把旧卡、世界书、小说、设定文档和已有工程整理成可追踪的输入。它决定“哪些材料可信、哪些内容要保留、冲突怎样排队处理”，不在这里重新创作世界或人物。
+本阶段只把已有材料变成后续可用的创作输入，不创建一套笨重的证据数据库。
 
-## 本阶段产物
+## 允许讨论
 
-- 材料清单与格式识别结果。
-- 每份材料的用途、权威级与可修改策略。
-- 已提取事实的索引及目标阶段。
-- 冲突、缺损、不可解析内容和未知字段清单。
-- 原件保护与后续转换策略。
+- 哪些文件是主材料、辅助参考、旧版本或仅供取材；
+- 哪些内容必须原样保留，哪些可吸收、改写、压缩或舍弃；
+- 同一设定冲突时以哪份为准，还是留到所属创作阶段裁决；
+- 旧卡、世界书、脚本、HTML、正则和未知扩展怎样只读保存；
+- 材料中已经成熟的世界、角色、系统、场景、运行组件分别送往哪里。
 
-所有检查默认只读。原始文件不作为直接修改目标。
+不讨论如何新增世界、重塑角色、设计变量或美化 UI。
 
-## 允许问题
+## 工作方式
 
-可以询问：
+1. 只读盘点明确路径，识别格式、编码、版本和可访问性；
+2. 给每份材料一句人能看懂的用途说明；
+3. 提取“已确认内容 / 候选内容 / 冲突 / 需要保留的原始组件”；
+4. 按目标阶段分组，不把所有事实拆成原子化数据库记录；
+5. 原文件保持不动，后续成果写进项目工作区。
 
-- 哪些路径属于本次输入，哪些只是参考。
-- 多个版本中哪一份更新、哪一份更权威。
-- 哪些名称、专有词、事件或字段必须原样保留。
-- 哪些内容允许重写、压缩、拆分或废弃。
-- 原文事实、作者备注、旧模型提示和机器配置之间的优先级。
-- 遇到冲突时采用“指定来源优先”“较新版本优先”还是“逐项待裁决”。
-- 本次需要从材料中提取哪些类型的信息。
-- 旧卡未知字段是无损保留、单独归档还是明确丢弃。
+## 推荐片段
 
-## 禁止问题
-
-不得询问：
-
-- 世界规则应该新增什么或哪个创作方向更有趣。
-- 角色应当拥有什么新动机、性格或关系发展。
-- 系统变量的范围、公式、阈值或联动。
-- 场景地图、线索设计或事件内容。
-- MVU/EJS 的新实现方案。
-- 叙事文风、开场白内容或 UI 视觉。
-
-材料之间出现创作冲突时，本阶段只识别、归类并路由到目标阶段，不替目标阶段做创作裁决。
-
-## 建议轮次
-
-### 第一轮：盘点与识别
-
-1. 只读扫描用户给出的明确路径。
-2. 按角色卡、世界书、文本、工程配置、图片和未知格式分类。
-3. 报告不可访问、重复、疑似损坏或编码异常的材料。
-4. 对仍不清楚用途的材料提出一组问题，并给出保留策略推荐。
-
-### 第二轮：权威与保留
-
-围绕以下事项提供方向：
-
-- 来源权威级。
-- 术语和字段保留程度。
-- 版本冲突优先级。
-- 未知字段处理。
-- 是否需要无损往返。
-
-### 第三轮：提取与路由
-
-生成事实索引，把每条内容送往世界观、角色、系统、场景、MVU/EJS、叙事或 UI。只在事实归属无法判断时询问，不对事实本身进行创作扩写。
-
-## 充分性门槛
-
-以下条件全部满足，本阶段才算充分：
-
-- 所有声明为输入的材料都有稳定 ID、绝对路径、识别类型和读取状态。
-- 每份材料都已标明权威级与用途。
-- 必须原样保留、允许改写和明确忽略的范围可区分。
-- 版本或来源冲突已有处理策略；创作性冲突已进入对应阶段待办。
-- 重要事实已经提取并标明目标阶段与可见性来源。
-- 未知字段、损坏项和编码问题有明确处置结论。
-- 原始文件保护策略与输出位置明确。
-
-## 轮次输出格式
-
-````markdown
-## 本轮已锁定
-- [来源权威或保留决定]
-
-## 本轮生成片段
-<!-- validate: project.schema.json; merge: assets/templates/project.yaml -->
 ```yaml
-materials:
-  - id: source_old_card
-    path: "[绝对路径]"
-    kind: character_card_json
-    read_only: true
-    notes: "主材料；原件只读，未知字段进入保留导入区。"
-decisions:
-  - id: materials.source_old_card_policy
-    stage: materials
-    summary: "旧卡是本轮主材料，并执行未知字段保留。"
-    value:
-      authority: primary
-      handling: read_only
-      preserve_unknown_fields: true
-    decided_by: user
-    locked: true
-    status: active
-    rationale: "保护原件并为无损往返保留未识别扩展。"
-    round: 1
-    history: []
+材料:
+  - 名称: "旧版角色卡"
+    路径: "D:/.../旧卡.json"
+    用途: "主材料"
+    处理: "只读保留；世界书、正则、脚本和未知扩展先完整拆出"
+  - 名称: "补充设定"
+    路径: "D:/.../设定.md"
+    用途: "补充世界与事件"
+    处理: "可重组措辞，不改变明确事实"
+
+优先级:
+  - "同名角色资料以旧卡为准"
+  - "世界历史以补充设定为准"
+
+待后续处理:
+  世界观:
+    - "两份材料对潮雾来源冲突，进入世界观阶段裁决"
+  运行组件:
+    - "保留原正则、Tavern Helper 脚本和完整 HTML，先验证再决定是否改写"
 ```
 
-## 本阶段检查
-- 已识别：[数量与类型]
-- 仍缺少：[仅列材料处理问题]
-- 已路由待办：[目标阶段 + 摘要]
+## 完成门槛
 
-## 下一批问题
-[只问材料的来源、权威、保留或冲突处理]
-````
-
-## 示例片段
-
-以下内容是合并到 `project.yaml` 的片段：文件元数据写入 `materials[]`，来源权威、保留方式和冲突策略写入 `decisions[]`，待目标阶段处理的事实或冲突写入 `cross_stage_backlog[]`。
-
-<!-- validate: project.schema.json; merge: assets/templates/project.yaml -->
-```yaml
-materials:
-  - id: source_card_v2
-    path: "D:/RP/input/conductor-v2.json"
-    kind: character_card_json
-    read_only: true
-    notes: "主材料；保留未知字段和扩展对象。"
-  - id: source_notes
-    path: "D:/RP/input/列车设定.md"
-    kind: text
-    read_only: true
-    notes: "辅助材料；提取事实后按目标阶段重组。"
-decisions:
-  - id: materials.source_precedence
-    stage: materials
-    summary: "角色卡版本是主来源，设定笔记是辅助来源。"
-    value:
-      primary: source_card_v2
-      secondary:
-        - source_notes
-      same_authority_conflicts: route_to_target_stage
-    decided_by: user
-    locked: true
-    status: active
-    rationale: "优先保留较完整的角色卡结构，同时让设定笔记补充世界事实。"
-    round: 2
-    history: []
-  - id: materials.preservation_policy
-    stage: materials
-    summary: "所有输入只读，未知字段与扩展对象必须无损保留。"
-    value:
-      original_inputs: read_only
-      preserve_unknown_fields: true
-      preserve_extensions: true
-    decided_by: user
-    locked: true
-    status: active
-    rationale: "避免转换过程破坏原件或丢失尚未识别的数据。"
-    round: 2
-    history: []
-cross_stage_backlog:
-  - id: train_stop_fact
-    source_stage: materials
-    target_stage: worldbuilding
-    summary: "source_notes：列车不能通过常规制动主动停靠；在世界观阶段确认可见性和例外。"
-    status: open
-  - id: conductor_oath_fact
-    source_stage: materials
-    target_stage: character
-    summary: "source_card_v2：列车长把维持乘客安全视为首要职责；在角色阶段纳入价值排序。"
-    status: open
-  - id: conductor_identity_conflict
-    source_stage: materials
-    target_stage: character
-    summary: "source_card_v2 与 source_notes 对列车长是否识破副车长伪造记录表述不一致。"
-    status: blocking
-source_manifest:
-  preserved_imports:
-    - src/import/preserved.json
-```
-
-这里仅记录“存在冲突”，不在材料阶段追问列车长的判断逻辑。
-
-## 阶段总汇
-
-总汇应包含：
-
-- 完整材料清单与读取状态。
-- 权威顺序和保留策略。
-- 提取事实按目标阶段分组后的索引。
-- 冲突、损坏、未知字段与缺失材料。
-- 原件不被修改的确认。
-- 下一阶段读取哪些材料、暂不读取哪些材料的建议。
-
-## 下一阶段建议
-
-- 新建或重构项目：推荐进入“世界观”，先消费世界层事实和冲突。
-- 仅修改角色且世界规则已完整：可以建议进入“角色”，但要说明跳过世界观复核的依据。
-- 材料中存在致命解析问题：留在本阶段解决格式或获取可读版本，不以猜测代替内容。
-- 没有材料：本阶段应在定位阶段直接标为 `skipped`，不创建空清单来增加流程负担。
-
-本阶段完成后按 `workflow.selected_stages` 进入下一个已选阶段，不再询问路线。
+- 所有输入都知道是什么、用于什么、是否只读；
+- 原样保留与可改写范围明确；
+- 冲突送到了正确阶段；
+- 旧运行组件已完整保存，不因当前工具不理解就删除或重新生成。

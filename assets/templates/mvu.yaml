@@ -1,53 +1,29 @@
-schema_version: 1.2.0
+schema_version: 2.0.0
 status: draft
 
 mvu:
   enabled: false
-  implementation: unverified
-  update_mode: disabled
-  output_dialect: mvu_json_patch
-  storage:
-    scope: message
-    namespace: stat_data
-    snapshot_selector: current_message
-    merge_policy: message_over_chat
-  protocol:
-    id: mvu_json_patch
-    version: 1.0.0
-    envelope: UpdateVariable
-    path_syntax: json_pointer
-    operations: [replace, delta, insert, remove, move]
-    atomicity: batch
-    precondition: validate_before_commit
-  prompt_history:
-    # 默认不把历史更新块送回模型。只有项目明确需要近期变化痕迹时，
-    # 才改为 keep_recent_updates（映射为 SillyTavern minDepth: 4）。
-    update_visibility: hide_all
-  variables: []
-  initialization:
-    defaults: {}
-    opening_overrides: []
-    profiles: []
-    opening_bindings: []
-  update_rules: []
-  routing:
-    entries: []
+  state_root: stat_data
+  files:
+    initial_values: null
+    schema_script: null
+    update_rules: null
+    output_format: null
+    helper_scripts: []
+    supporting_files: []
+  implementation_notes: []
 
 ejs:
   enabled: false
-  # 启用后，每条 entry 使用 condition.runtime_path/operator/value 与
-  # branches.when_true/when_false/fallback；不要使用旧的字符串 condition。
-  # 与 MVU 同时启用时仅使用上方 message/stat_data/current_message 契约；
-  # 状态或路径缺失会进入 branches.fallback。纯 EJS 才使用账本默认值。
-  entries: []
+  engine: st_prompt_template
+  files: []
+  implementation_notes: []
 
-runtime_contract:
-  adapter: null
-  # mvu.enabled=true 且交付角色卡时，改为 tavern_helper/embedded；
-  # Forge 会自动生成固定版本 MVU 引擎、变量结构注册和运行守卫三条脚本。
-  # 不要自行添加 main/latest MVU 或 mvu_zod 远程依赖。
-  # EJS 启用时登记 id=st_prompt_template、实际 version、
-  # readiness_probe=globalThis.EjsTemplate 的 host_required 依赖；1.17.6.8 是已验证基线。
-  dependencies: []
-  assumptions: []
-  fallbacks: []
+runtime_target:
+  sillytavern: unverified
+  tavern_helper: unverified
+  mvu: unverified
+  st_prompt_template: unverified
+
+dependencies: []
+source_refs: []

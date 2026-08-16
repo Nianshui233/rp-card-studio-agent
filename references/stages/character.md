@@ -366,7 +366,7 @@ source_refs: []
 
 - 路线包含 `systems`：进入“系统”；若角色结果显示路线依赖不成立，登记返回预检调整，不在本阶段临时跳过。
 - 路线跳过 `systems` 但包含 `scenes`：直接进入“场景”。
-- 路线同时跳过系统与场景：按 `workflow.selected_stages` 进入 `mvu_ejs` 或直接进入 `narrative_opening`，不得重新询问路线或回退到默认流程。
+- 计划同时跳过系统与场景：按 `workflow.planned_stages` 进入 `mvu_ejs` 或直接进入 `narrative_opening`，不得因遗忘回退到默认流程。
 - 角色能力与世界规则冲突：先返回世界观做最小补丁，再恢复角色阶段。
 
-正常模式下由用户选择是否补漏；阶段完成后按 `workflow.selected_stages` 自动进入下一个已选阶段，不再询问路线。
+正常模式下由用户选择是否补漏；阶段完成后按 `workflow.planned_stages` 进入下一个计划阶段，不再重复询问。新证据确需调整时更新计划并说明原因。

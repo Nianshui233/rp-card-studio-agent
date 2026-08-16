@@ -1,7 +1,7 @@
 import { usageError } from './errors.mjs';
 
 var BOOLEAN_OPTIONS = /* @__PURE__ */ new Set(["json", "dry-run", "force", "help", "version"]);
-var VALUE_OPTIONS = /* @__PURE__ */ new Set(["output", "type", "nsfw", "source", "rationale", "summary"]);
+var VALUE_OPTIONS = /* @__PURE__ */ new Set(["output", "type", "nsfw", "stages", "source", "rationale", "summary"]);
 function setOption(options, name, value) {
   if (Object.hasOwn(options, name)) {
     throw usageError(`选项重复: --${name}`);

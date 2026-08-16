@@ -3,91 +3,85 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "显式使用 $rp-card-studio，在一个空工作区创建完整的世界/玩法型 SillyTavern RP 项目，包含一个叙事锚点、若干 NPC、MVU 和消息内 HTML 状态栏。本次全部创作决定交给 AI，不要提问，直接完成维护源码、角色卡 JSON、验证和交付报告。",
-      "expected_output": "生成可导入的完整 RP 部署包；卡面只是项目入口与开场，全部人物和其他模块由 CharacterBook 独立调度，状态栏位于 AI 消息内。",
+      "prompt": "显式使用 $rp-card-studio，从零创建一个 SillyTavern 开放世界 RP 项目。我还没有指定目录，也没有说是否需要 NSFW。现在只进行第一轮。",
+      "expected_output": "只询问项目工作区、NSFW、任务类型、材料、可选阶段计划和附加交付物，不进入任何创作阶段。",
       "files": [],
       "expectations": [
-        "data.name 使用概括世界或玩法的项目标题，而不是叙事锚点或任一 NPC 的姓名",
-        "data.description 对大型项目包含完整、非人物化的核心世界合同，而不是只有一两百字的模块路由简介",
-        "data.personality、scenario、mes_example、creator_notes、system_prompt、post_history_instructions 全部为空",
-        "最终整合把完整 YAML 按运行职责切片：世界观按共同触发主题切块，固定角色/NPC通常整块放入，完整系统和场景可整块按需触发；条目正文保持 YAML/自然语言而非 JSON",
-        "锚点人物在大型项目中不会因 primary_character 身份被强制常驻或忽略预算",
-        "AI 根据题材、审美、期望体验与维护成本，在 light、light_medium、medium、heavy、super_heavy 中自行选择并说明；完整 UI 使用消息内 Tavern Helper fenced-HTML 应用，真实宿主验收前保持 runtime: not_run",
-        "UI 拥有项目专属主题与唯一视觉签名，不创建页面级常驻状态栏/面板，不使用失控远程字体图标或通用黑底霓虹模板；正常父页面/宿主 DOM 联动允许",
-        "MVU 初始化块同时具有 Prompt 与显示隐藏正则，回复格式合同位于 CharacterBook 而不是高级定义字段",
-        "项目校验、角色卡制品校验和 roundtrip 均通过"
+        "首轮一次列出工作区、NSFW、任务类型、材料、可选阶段计划和附加交付物",
+        "不询问题材、世界规则、人物、系统、变量、开场、正则或 UI 视觉",
+        "说明默认最终只交付一个角色卡 JSON",
+        "阶段计划被描述为可调整导航，不是不可变技术锁"
       ]
     },
     {
       "id": 2,
-      "prompt": "显式使用 $rp-card-studio，把一张已有的单人物旧卡重定位成世界/玩法型完整 RP 项目。保留未知扩展和用户正则，把旧高级定义内容迁入维护源码与 CharacterBook；迁移核对完成后清理旧高级定义，再构建两次验证幂等性。",
-      "expected_output": "原始输入保留在项目级导入区；锁定新定位后项目接管卡名和入口，只有明确迁移策略获批后才清空已迁移的高级定义。",
+      "prompt": "显式使用 $rp-card-studio，在指定工作区自主完成一张带 MVU、EJS 和消息内中型 UI 的开放世界卡。所有创作决定和技术路线都交给 AI，不要再问我。",
+      "expected_output": "AI 报告选择与理由后直接推进，维护真实 YAML/JS/EJS/HTML/正则源码，并默认交付一个可导入 JSON。",
       "files": [],
       "expectations": [
-        "unpack 后不会仅凭 data.name 或角色形状字段虚构 primary_character，原始卡保存在 src/import/original.json",
-        "定位尚未锁定时往返构建保留旧 name、description、高级定义、用户正则和未知扩展",
-        "定位完成并锁定项目标题后，name 使用项目标题；description 优先使用 assembly.card_entry，positioning.card_entry 仅作为兼容回退",
-        "锁定标题本身不会删除高级定义；只有 integration.advanced_definition_policy 明确为 clear_after_migration 或 migrate_to_characterbook 后才清空",
-        "每个确认存在的人物都成为独立 CharacterBook 模块，人物扩展中的伪 character_card payload 不能接管项目容器",
-        "用户正则与未知扩展保持原内容和相对顺序，技能自有规则按稳定 UUID 幂等合并",
-        "显式 assembly 漏掉任何项目模块时，所有项目 operation 都会因 coverage blocker 失败",
-        "重复构建不会新增重复世界书条目、正则或回复合同"
+        "项目标题概括整体世界或玩法，卡面 description 是项目入口而不是 NPC 档案",
+        "世界按主题切分，NPC 保持连续完整，系统和场景按职责进入 CharacterBook",
+        "MVU 阶段产出真实初始值、Schema JS、更新规则、输出格式和脚本文件",
+        "EJS 是真实 .ejs 文件并装入明确的 CharacterBook 条目",
+        "UI 是一份或少量完整项目专属 HTML，不由通用组件配置编译",
+        "正则从实际标记和变量块协议反推，包含需要的显示、提示词、完整块和流式块规则",
+        "没有真实 SillyTavern 证据时运行状态为 not_run",
+        "默认交付物只有一个角色卡 JSON"
       ]
     },
     {
       "id": 3,
-      "prompt": "显式使用 $rp-card-studio，创建一个真正的单人物 RP 项目：只预先创作一个角色，启用 MVU，但明确不需要状态栏/UI。全部决定交给 AI，并完成构建验证。",
-      "expected_output": "生成以唯一人物名命名的单人部署包；唯一人物定义稳定常驻，存在 MVU 过滤与更新合同，但不存在任何状态栏投影。",
+      "prompt": "显式使用 $rp-card-studio，继续一个已完成叙事与开场的项目，现在进入状态栏/UI 阶段第一轮。用户没有放权。不要讨论其他阶段。",
+      "expected_output": "只询问 UI 规模、玩家旅程、主题、设备优先和完整功能面，给出方向差异与推荐后等待用户选择。",
       "files": [],
       "expectations": [
-        "只有 card_mode=single_character_card 且恰好一个角色源码、一个 primary_character 时才使用人物名作为 data.name",
-        "data.description 仍是项目入口而不是人物档案，人物完整定义位于独立 CharacterBook 条目",
-        "唯一人物条目为启用、常驻、100% 概率且 ignore_budget=true",
-        "MVU Prompt 过滤、初始化隐藏和变量更新显示折叠规则存在",
-        "不存在消息状态栏正则、StatusPlaceHolderImpl 占位符、状态栏回复合同或页面级常驻状态栏/面板脚本",
-        "项目与制品验证通过"
+        "询问轻型、轻中型、中型、重型或超重型，并解释体验差异",
+        "等级按视觉、信息、交互和 JS 深度判断，不按代码行数或页面数量",
+        "不询问世界历史、人物动机、剧情走向或变量业务语义",
+        "推荐基于已锁定项目的玩家端体验",
+        "不把简单需求降格成模板化基础状态条"
       ]
     },
     {
       "id": 4,
-      "prompt": "显式使用 $rp-card-studio，继续一个已经完成叙事与开场的开放世界项目并进入状态栏/UI 阶段。用户没有放权。请只进行 UI 阶段的第一轮，不要询问任何世界观、角色、系统、变量语义或剧情问题。",
-      "expected_output": "第一轮只询问轻型、轻中型、中型、重型或超重型及本批 UI 体验目标，结合已锁定项目给出差异、后果和推荐，等待用户选择后再生成片段。",
+      "prompt": "显式使用 $rp-card-studio，把一张已有复杂 JSON 卡拆包后修改。它已经有角色正则、Tavern Helper 脚本、内嵌世界书和大段 HTML。要求保留未知扩展并重复构建两次。",
+      "expected_output": "完整保留已有实现并迁移为真实维护源，只有用户明确接管的部分被修改；两次构建幂等。",
       "files": [],
       "expectations": [
-        "第一批明确询问配套 UI 希望是轻型、轻中型、中型、重型还是超重型，并解释独立前端/0层游玩卡",
-        "说明 basic_status 只是旧项目或明确极简需求的兼容路线，不把它当成轻型",
-        "问题只属于等级、体验目标、设备优先级、使用频率和宿主依赖接受度",
-        "不询问角色动机、世界历史、剧情走向、变量含义、初值、阈值、公式或 storage",
-        "给出基于已锁定项目范围的推荐，并等待用户选择"
+        "原卡保存在 src/import/original.json",
+        "未知字段、已有正则、脚本和 CharacterBook 原样保留",
+        "已有 HTML/JS/EJS 作为真实源码维护，不转换成通用配置",
+        "data.name 不被自动解释为人物",
+        "未明确迁移的高级定义不被静默清空",
+        "重复构建不新增重复条目、正则或脚本"
       ]
     },
     {
       "id": 5,
-      "prompt": "显式使用 $rp-card-studio，为一个复杂开放世界项目全面设计重型 UI。UI 阶段全部交给 AI，不要提问；完成 UI 源码、编译、验证和最终单 JSON 交付。",
-      "expected_output": "AI 报告重型等级及理由后锁定，以少量完整消息页面承载高密度页内模块，生成项目专属主题、显式绑定和安全运行合同，并编译进一个角色卡 JSON。",
+      "prompt": "显式使用 $rp-card-studio，创建真正的单人物卡：只有一个预先创作角色，几个场景和一套规则，不需要 MVU/EJS，也不需要 UI。全部决定交给 AI。",
+      "expected_output": "使用唯一人物名作为卡名，人物完整定义进入稳定 CharacterBook 条目，不生成任何未选择的运行组件。",
       "files": [],
       "expectations": [
-        "报告 AI 选择 heavy 的理由并锁定，不重复询问用户",
-        "以少量完整消息应用承载项目真正需要的高密度页内模块、剧情组件与 hub/mixed 导航，不按固定页数或模块数凑档位",
-        "任务、物品、关系、情报、地图、调查、资源等共享生命周期的功能整合进少量完整 HTML 页面，不按功能名拆成重复外壳正则",
-        "主题含项目专属颜色、字体、形状、纹理、动效和唯一视觉签名，不以 HTML 行数作为验收",
-        "所有动态字段有 source_path 到 runtime_path 映射且只读取玩家可见 stat_data",
-        "生成稳定中文命名正则和所需 CharacterBook 组件协议；父页面/宿主 DOM、远程资源与动态 HTML 可按项目需要使用，但不得创建页面级常驻状态栏/面板，且必须保证数据流、转义、生命周期与宿主调用正确",
-        "真实 SillyTavern 验收前 runtime 保持 not_run，默认最终交付一个角色卡 JSON"
+        "只有真单人卡才使用唯一人物名",
+        "description 仍是项目入口而不是人物档案",
+        "唯一人物条目常驻、100% 概率且不因预算丢失",
+        "未选择 MVU/EJS 和 UI 时不生成对应脚本、正则或占位实现",
+        "默认只交付 JSON"
       ]
     },
     {
       "id": 6,
-      "prompt": "显式使用 $rp-card-studio，为一个希望主要在前端内游玩的长期经营与开放世界项目设计超重型 UI。UI 阶段全部交给 AI，不要提问；请完成到可构建候选，并列出真实 SillyTavern 验收清单。",
-      "expected_output": "AI 选择并锁定 super_heavy，把角色卡设计为独立前端/0层游玩卡候选：消息 HTML 是主要游玩应用，聊天层承担叙事与数据通道，同时保持对 SillyTavern 和酒馆助手的单向兼容。",
+      "prompt": "显式使用 $rp-card-studio，为一张主要在消息前端内游玩的长期经营卡设计超重型 UI，并允许父页面 DOM、插件 API、浏览器存储和远程依赖。",
+      "expected_output": "创建项目专属独立前端/0层游玩候选，记录依赖和生命周期，保持对宿主单向兼容，不因过度安全删减功能。",
       "files": [],
       "expectations": [
-        "明确报告 super_heavy 及独立前端/0层游玩卡定位，不把它描述成重型加特效或按代码行数判定",
-        "使用完整 HTML 文档和应用级挂载，允许内联框架或依赖、集中状态仓库、路由或多视图、复杂弹窗、持久化、全屏和观察器",
-        "具备 SillyTavern/酒馆助手消息读取、写入或命令桥接合同，但不修改宿主或插件本体",
-        "定义重复挂载、消息编辑、聊天切换隔离、状态同步、存储命名空间、监听清理和资源失败策略",
-        "玩家主要在前端中理解、操作和获得反馈；界面中文化、主题化且不暴露调试字段",
-        "离线构建通过时仍保持 runtime: not_run，并列出真实宿主逐项点击、重载、切聊、窄屏和失败路径验收"
+        "完整 HTML 包含 CSS、body、JavaScript 和应用级导航/视图",
+        "允许父页面 DOM、插件 API、存储和远程资源",
+        "定义消息编辑、Swipe、重载、聊天切换、重复挂载和监听清理",
+        "中文字段、CJK 排版、窄屏、触控和失败反馈完整",
+        "不修改 SillyTavern 或插件本体",
+        "不创建脱离消息的页面级常驻状态面板",
+        "真实宿主验收前保持 runtime: not_run"
       ]
     }
   ]

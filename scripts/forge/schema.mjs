@@ -14,10 +14,6 @@ var SCHEMA_NAMES = Object.freeze([
   "mvu",
   "opening",
   "status-ui",
-  "ui-experience",
-  "ui-theme",
-  "ui-bindings",
-  "ui-component",
   "assembly"
 ]);
 var ajv = new Ajv2020({ allErrors: true, strict: true, allowUnionTypes: true });
@@ -55,11 +51,5 @@ export var SOURCE_SCHEMA_BY_GROUP = Object.freeze({
 });
 
 export function schemaNameForSource(group, value) {
-  if (group !== "ui") return SOURCE_SCHEMA_BY_GROUP[group];
-  if (value?.status_ui !== undefined) return "status-ui";
-  if (value?.ui_experience !== undefined) return "ui-experience";
-  if (value?.ui_theme !== undefined) return "ui-theme";
-  if (value?.ui_bindings !== undefined) return "ui-bindings";
-  if (value?.ui_component !== undefined) return "ui-component";
-  return "status-ui";
+  return SOURCE_SCHEMA_BY_GROUP[group];
 }

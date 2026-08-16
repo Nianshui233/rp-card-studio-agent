@@ -23,3 +23,10 @@ worldbook_manifest:
 media_manifest:
   enabled: false
   assets: []
+
+# authored 表示把已经创作完成的真实 HTML/JS/正则原样装入。
+runtime_manifest:
+  mode: authored
+  regex_scripts: []
+  tavern_helper_scripts: []
+  extension_fields: {}

@@ -102,17 +102,7 @@ export function projectModelSource(group, source) {
       "anti_ooc",
     ]);
   } else if (normalizedGroup === "system") {
-    projected = pick(source, [
-      "id",
-      "display_name",
-      "purpose",
-      "axes",
-      "rules",
-      "state_machines",
-      "settlement_order",
-      "invariants",
-      "failure_modes",
-    ]);
+    projected = withoutMaintenance(source);
   } else if (normalizedGroup === "user_character") {
     projected = pick(source, [
       "id",
@@ -121,39 +111,18 @@ export function projectModelSource(group, source) {
       "profile",
     ]);
   } else if (normalizedGroup === "scene") {
-    projected = pick(source, [
-      "id",
-      "display_name",
-      "purpose",
-      "context",
-      "entrances",
-      "exits",
-      "zones",
-      "surface_layer",
-      "gm_only",
-      "risks",
-      "clues",
-      "events",
-      "state_bindings",
-      "media_slots",
-    ]);
+    projected = withoutMaintenance(source);
     // Older projects stored this typed scene contract in the opaque extension
     // bag. Keep it readable while new projects use the first-class field.
     if (projected.media_slots === undefined && Array.isArray(source?.extensions?.media_slots)) {
       projected.media_slots = source.extensions.media_slots;
     }
   } else if (normalizedGroup === "prompt") {
-    projected = pick(source, ["narrative", "dialogue_examples"]);
+    projected = withoutMaintenance(source);
   } else if (normalizedGroup === "positioning") {
-    projected = pick(source, [
-      "premise",
-      "target_users",
-      "experience_pillars",
-      "tone",
-      "expected_span",
-      "scope_notes",
-    ]);
-    if (projected.expected_span === "pending") delete projected.expected_span;
+    projected = withoutMaintenance(source);
+    delete projected.card_entry;
+    delete projected.card_mode;
   } else {
     projected = withoutMaintenance(source);
   }

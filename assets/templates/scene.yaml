@@ -1,31 +1,17 @@
-schema_version: 1.0.0
+schema_version: 2.0.0
 id: scene_id
 display_name: 未命名场景
 status: draft
+
 purpose: ""
-
-context:
-  world_ref: world:world_main
-  time_window: ""
-  location_ref: ""
-
-entrances: []
-exits: []
-zones: []
-
-surface_layer:
-  first_impression: ""
-  sensory_cues: []
-  affordances: []
-
-gm_only:
-  truth: ""
-  hidden_events: []
-  concealed_connections: []
-
+daily_life: ""
+atmosphere: []
+space_and_access: []
+actors_and_motion: []
+interactions: []
 risks: []
 clues: []
 events: []
-state_bindings: []
-media_slots: []
+secrets: []
+long_term_changes: []
 source_refs: []

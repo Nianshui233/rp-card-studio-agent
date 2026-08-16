@@ -66,7 +66,7 @@ function regexScript(overrides = {}) {
   return {
     id: '666902d9-29fc-49c6-b70e-0a9c26932b09',
     scriptName: '[UI] Message status',
-    findRegex: '/<StatusPlaceHolderImpl\\s*\\/?>/gi',
+    findRegex: '/<自定义状态块\\s*\\/?>/gi',
     replaceString: '<div>Status</div>',
     trimStrings: [],
     placement: [2],

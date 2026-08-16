@@ -124,7 +124,7 @@
       "required": [
         "stage_order",
         "optional_stages",
-        "selected_stages"
+        "planned_stages"
       ],
       "properties": {
         "stage_order": {
@@ -150,7 +150,7 @@
             "status_ui"
           ]
         },
-        "selected_stages": {
+        "planned_stages": {
           "type": "array",
           "minItems": 5,
           "uniqueItems": true,

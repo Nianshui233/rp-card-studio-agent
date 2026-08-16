@@ -14554,7 +14554,7 @@ function normalizeError(error) {
 
 // scripts/forge/args.mjs
 var BOOLEAN_OPTIONS = /* @__PURE__ */ new Set(["json", "dry-run", "force", "help", "version"]);
-var VALUE_OPTIONS = /* @__PURE__ */ new Set(["output", "type", "nsfw", "source", "rationale", "summary"]);
+var VALUE_OPTIONS = /* @__PURE__ */ new Set(["output", "type", "nsfw", "stages", "source", "rationale", "summary"]);
 function setOption(options, name, value) {
   if (Object.hasOwn(options, name)) {
     throw usageError(`\u9009\u9879\u91CD\u590D: --${name}`);
@@ -15075,10 +15075,6 @@ var SCHEMA_NAMES = Object.freeze([
   "mvu",
   "opening",
   "status-ui",
-  "ui-experience",
-  "ui-theme",
-  "ui-bindings",
-  "ui-component",
   "assembly"
 ]);
 var ajv = new import__.default({ allErrors: true, strict: true, allowUnionTypes: true });
@@ -15115,13 +15111,7 @@ var SOURCE_SCHEMA_BY_GROUP = Object.freeze({
   assembly: "assembly"
 });
 function schemaNameForSource(group, value) {
-  if (group !== "ui") return SOURCE_SCHEMA_BY_GROUP[group];
-  if (value?.status_ui !== void 0) return "status-ui";
-  if (value?.ui_experience !== void 0) return "ui-experience";
-  if (value?.ui_theme !== void 0) return "ui-theme";
-  if (value?.ui_bindings !== void 0) return "ui-bindings";
-  if (value?.ui_component !== void 0) return "ui-component";
-  return "status-ui";
+  return SOURCE_SCHEMA_BY_GROUP[group];
 }
 
 // scripts/forge/formats.mjs
@@ -15392,12 +15382,7 @@ async function loadArtifact(inputPath) {
 // scripts/forge/project.mjs
 import {
   applyAssemblyManifest,
-  applyEjsTemplates,
-  applyMvuArtifacts,
-  applySillyTavernRegexAdapter,
-  applyTavernHelperAdapter,
   createCharacterBookIdAllocator,
-  generateRuntimeStateSchema,
   selectOpeningMessages
 } from "./rp-card-runtime.mjs";
 
@@ -15519,17 +15504,7 @@ function projectModelSource(group, source) {
       "anti_ooc"
     ]);
   } else if (normalizedGroup === "system") {
-    projected = pick(source, [
-      "id",
-      "display_name",
-      "purpose",
-      "axes",
-      "rules",
-      "state_machines",
-      "settlement_order",
-      "invariants",
-      "failure_modes"
-    ]);
+    projected = withoutMaintenance(source);
   } else if (normalizedGroup === "user_character") {
     projected = pick(source, [
       "id",
@@ -15538,37 +15513,16 @@ function projectModelSource(group, source) {
       "profile"
     ]);
   } else if (normalizedGroup === "scene") {
-    projected = pick(source, [
-      "id",
-      "display_name",
-      "purpose",
-      "context",
-      "entrances",
-      "exits",
-      "zones",
-      "surface_layer",
-      "gm_only",
-      "risks",
-      "clues",
-      "events",
-      "state_bindings",
-      "media_slots"
-    ]);
+    projected = withoutMaintenance(source);
     if (projected.media_slots === void 0 && Array.isArray(source?.extensions?.media_slots)) {
       projected.media_slots = source.extensions.media_slots;
     }
   } else if (normalizedGroup === "prompt") {
-    projected = pick(source, ["narrative", "dialogue_examples"]);
+    projected = withoutMaintenance(source);
   } else if (normalizedGroup === "positioning") {
-    projected = pick(source, [
-      "premise",
-      "target_users",
-      "experience_pillars",
-      "tone",
-      "expected_span",
-      "scope_notes"
-    ]);
-    if (projected.expected_span === "pending") delete projected.expected_span;
+    projected = withoutMaintenance(source);
+    delete projected.card_entry;
+    delete projected.card_mode;
   } else {
     projected = withoutMaintenance(source);
   }
@@ -15689,18 +15643,19 @@ function projectCharacterCardVersion(project) {
 function defaultWorldbook(name) {
   return { name, description: "", entries: {} };
 }
-function defaultPositioning() {
+function defaultPositioning(projectTitle = "\u672A\u547D\u540D\u9879\u76EE") {
   return {
-    schema_version: "1.0.0",
+    schema_version: "2.0.0",
     id: "project_positioning",
     status: "draft",
+    project_title: projectTitle,
     card_entry: "",
     premise: "",
-    target_users: [],
     card_mode: "pending",
-    experience_pillars: [],
-    tone: { primary: "", secondary: "" },
-    expected_span: "pending",
+    core_experiences: [],
+    tone: [],
+    play_rhythm: "",
+    autonomous_world: "",
     scope_notes: [],
     source_refs: []
   };
@@ -15737,7 +15692,7 @@ function machineId(name) {
 function emptySourceManifest() {
   return Object.fromEntries(SOURCE_GROUPS.map((key) => [key, []]));
 }
-function normalizeStageRoute(route) {
+function normalizeStagePlan(route) {
   if (!Array.isArray(route)) throw inputError("\u9636\u6BB5\u8DEF\u7EBF\u5FC5\u987B\u662F\u6309\u89C4\u8303\u987A\u5E8F\u6392\u5217\u7684\u6570\u7EC4");
   const selected = [...route];
   if (selected.some((stage) => !WORKFLOW_STAGES.includes(stage))) {
@@ -15750,36 +15705,24 @@ function normalizeStageRoute(route) {
   if (missing.length > 0) throw inputError("\u9636\u6BB5\u8DEF\u7EBF\u7F3A\u5C11\u5FC5\u7ECF\u9636\u6BB5", { missing });
   return selected;
 }
-function applyStageRoute(project, state, route) {
-  const selected = normalizeStageRoute(route);
-  project.workflow.selected_stages = [...selected];
+function applyStagePlan(project, route) {
+  const selected = normalizeStagePlan(route);
+  project.workflow.planned_stages = [...selected];
   project.preflight.workflow_confirmed = true;
-  const selectedSet = new Set(selected);
-  for (const stage of OPTIONAL_STAGES) {
-    if (!selectedSet.has(stage)) {
-      state.stages[stage] = {
-        status: "skipped",
-        round: Math.max(1, state.stages[stage]?.round ?? 0),
-        summary: "\u9879\u76EE\u9884\u68C0\u9636\u6BB5\u8DEF\u7EBF\u672A\u9009\u62E9"
-      };
-    } else if (state.stages[stage]?.status === "skipped" && state.stages[stage]?.summary === "\u9879\u76EE\u9884\u68C0\u9636\u6BB5\u8DEF\u7EBF\u672A\u9009\u62E9") {
-      state.stages[stage] = { status: "not_started", round: 0, summary: null };
-    }
-  }
   return selected;
 }
-function initialStages(selectedStages = WORKFLOW_STAGES) {
-  const selected = new Set(selectedStages);
+var applyStageRoute = applyStagePlan;
+function initialStages() {
   return Object.fromEntries(STAGES.map((stage) => [stage, {
-    status: stage === "preflight" ? "complete" : stage === "positioning" ? "in_progress" : OPTIONAL_STAGES.includes(stage) && !selected.has(stage) ? "skipped" : "not_started",
-    round: stage === "preflight" || stage === "positioning" || OPTIONAL_STAGES.includes(stage) && !selected.has(stage) ? 1 : 0,
-    summary: stage === "preflight" ? "\u9879\u76EE\u9884\u68C0\u5DF2\u7531\u7528\u6237\u786E\u8BA4" : OPTIONAL_STAGES.includes(stage) && !selected.has(stage) ? "\u9879\u76EE\u9884\u68C0\u9636\u6BB5\u8DEF\u7EBF\u672A\u9009\u62E9" : null
+    status: stage === "preflight" ? "complete" : stage === "positioning" ? "in_progress" : "not_started",
+    round: stage === "preflight" || stage === "positioning" ? 1 : 0,
+    summary: stage === "preflight" ? "\u9879\u76EE\u9884\u68C0\u5DF2\u8BB0\u5F55\uFF0C\u9636\u6BB5\u8BA1\u5212\u53EF\u968F\u9879\u76EE\u9700\u8981\u8C03\u6574" : null
   }]));
 }
 function makeProject({ name, target = "character_card", nsfw, operation = "create", stageRoute = DEFAULT_STAGE_ROUTE }) {
   if (typeof nsfw !== "boolean") throw inputError("\u521B\u5EFA\u9879\u76EE\u5FC5\u987B\u660E\u786E\u63D0\u4F9B NSFW enabled \u6216 disabled");
   const projectId = machineId(name);
-  const selectedStages = normalizeStageRoute(stageRoute);
+  const selectedStages = normalizeStagePlan(stageRoute);
   const isWorldbook = target === "worldbook";
   const sourceManifest = emptySourceManifest();
   sourceManifest.positioning.push("src/positioning.yaml");
@@ -15806,7 +15749,7 @@ function makeProject({ name, target = "character_card", nsfw, operation = "creat
     workflow: {
       stage_order: [...WORKFLOW_STAGES],
       optional_stages: [...OPTIONAL_STAGES],
-      selected_stages: [...selectedStages]
+      planned_stages: [...selectedStages]
     },
     features: {
       materials: false,
@@ -15829,17 +15772,6 @@ function makeProject({ name, target = "character_card", nsfw, operation = "creat
       rationale: "\u7528\u6237\u5728\u9879\u76EE\u9884\u68C0\u4E2D\u660E\u786E\u9009\u62E9",
       round: 1,
       history: []
-    }, {
-      id: "preflight.stage_route",
-      stage: "preflight",
-      summary: `\u9636\u6BB5\u8DEF\u7EBF = ${selectedStages.join(" -> ")}`,
-      value: [...selectedStages],
-      decided_by: "user",
-      locked: true,
-      status: "active",
-      rationale: "\u9879\u76EE\u521B\u5EFA\u65F6\u8BB0\u5F55\u7684\u9636\u6BB5\u8DEF\u7EBF\uFF1B\u6B63\u5F0F\u521B\u4F5C\u524D\u5E94\u7531\u9884\u68C0\u56DE\u7B54\u8986\u76D6\u9ED8\u8BA4\u503C",
-      round: 1,
-      history: []
     }],
     cross_stage_backlog: [],
     source_manifest: sourceManifest,
@@ -15858,7 +15790,7 @@ function makeState(project, { revision = 0 } = {}) {
     project_id: project.project.id,
     revision,
     active_stage: "positioning",
-    stages: initialStages(project.workflow.selected_stages),
+    stages: initialStages(),
     decision_locks: preflightDecisions.map((decision) => decisionLock(decision)),
     delegations: [],
     cross_stage_backlog: [],
@@ -15869,7 +15801,7 @@ function makeState(project, { revision = 0 } = {}) {
     updated_at: null
   };
 }
-async function projectFilesForInit(root, { type = "character", nsfw } = {}) {
+async function projectFilesForInit(root, { type = "character", nsfw, stageRoute = DEFAULT_STAGE_ROUTE } = {}) {
   const name = path3.basename(path3.resolve(root));
   if (!["character", "worldbook"].includes(type)) {
     throw inputError(`init --type \u4EC5\u652F\u6301 character \u6216 worldbook\uFF0C\u6536\u5230: ${type}`);
@@ -15877,13 +15809,14 @@ async function projectFilesForInit(root, { type = "character", nsfw } = {}) {
   const project = makeProject({
     name,
     target: type === "worldbook" ? "worldbook" : "character_card",
-    nsfw
+    nsfw,
+    stageRoute
   });
   const state = makeState(project);
   const source = type === "worldbook" ? worldSourceFromBook(defaultWorldbook(name)) : null;
   const nsfwSources = await applyNsfwTemplates(project, source);
   const sourcePath = type === "worldbook" ? projectSourcePath(project) : null;
-  const positioning = defaultPositioning();
+  const positioning = defaultPositioning(name);
   return {
     project,
     state,
@@ -15921,18 +15854,8 @@ async function applyNsfwTemplates(project, characterSource) {
     const characterMixin = await readYaml(await templateAssetUrl("nsfw/character.mixin.yaml"));
     characterSource.nsfw = structuredClone(characterMixin.nsfw);
   }
-  statusUi.status_ui.enabled = true;
-  statusUi.status_ui.mode = "embedded";
-  statusUi.status_ui.delivery = {
-    level: "embedded",
-    adapter: "sillytavern_regex",
-    surface: "message",
-    entrypoint: "generated",
-    artifact: "inline",
-    placeholder: "<StatusPlaceHolderImpl/>"
-  };
-  statusUi.status_ui.sections.push(...structuredClone(statusMixin.sections));
-  project.features.status_ui = true;
+  if (!project.workflow.planned_stages.includes("status_ui")) return { uiSource: null };
+  statusUi.status_ui.mature_content_topics = structuredClone(statusMixin.mature_content_topics ?? []);
   project.source_manifest.ui.push("src/ui/status-ui.yaml");
   return { uiSource: statusUi };
 }
@@ -16017,9 +15940,9 @@ function validateProjectModel(project, state, root) {
   if (!semanticEqual(project?.workflow?.stage_order, WORKFLOW_STAGES)) issues.push(modelIssue("/workflow/stage_order", "const", "\u9636\u6BB5\u987A\u5E8F\u4E0E\u89C4\u8303\u4E0D\u4E00\u81F4"));
   if (!semanticEqual(project?.workflow?.optional_stages, OPTIONAL_STAGES)) issues.push(modelIssue("/workflow/optional_stages", "const", "\u53EF\u9009\u9636\u6BB5\u6E05\u5355\u4E0E\u89C4\u8303\u4E0D\u4E00\u81F4"));
   try {
-    normalizeStageRoute(project?.workflow?.selected_stages);
+    normalizeStagePlan(project?.workflow?.planned_stages);
   } catch (error) {
-    issues.push(modelIssue("/workflow/selected_stages", "route", error.message));
+    issues.push(modelIssue("/workflow/planned_stages", "route", error.message));
   }
   for (const feature of ["materials", "systems", "scenes", "mvu", "ejs", "status_ui"]) {
     if (typeof project?.features?.[feature] !== "boolean") issues.push(modelIssue(`/features/${feature}`, "type", "\u529F\u80FD\u5F00\u5173\u5FC5\u987B\u662F\u5E03\u5C14\u503C"));
@@ -16199,31 +16122,11 @@ async function loadProjectSource(loaded) {
     projectRoot: loaded.projectRoot,
     target
   });
-  const mvuArtifacts = applyMvuArtifacts(assembled.payload, {
-    project: loaded.project,
-    sources,
-    target
-  });
-  const ejsTemplates = applyEjsTemplates(mvuArtifacts.payload, {
-    project: loaded.project,
-    sources,
-    target
-  });
   const relativePreserved = projectPreservedPath(loaded.project);
   const preservedPath = relativePreserved ? resolveWithin(loaded.projectRoot, relativePreserved) : null;
   const preserved = preservedPath && await pathExists(preservedPath) ? await readJson(preservedPath) : null;
-  const restored = applyPreserved(ejsTemplates.payload, preserved);
-  const adapted = applyTavernHelperAdapter(restored.payload, {
-    project: loaded.project,
-    sources,
-    target
-  });
-  const regexAdapted = applySillyTavernRegexAdapter(adapted.payload, {
-    project: loaded.project,
-    sources,
-    target
-  });
-  const worldbookBound = bindEmbeddedCharacterBook(regexAdapted.payload, { target });
+  const restored = applyPreserved(assembled.payload, preserved);
+  const worldbookBound = bindEmbeddedCharacterBook(restored.payload, { target });
   const format = target === "worldbook" ? Format.WORLDBOOK : detectJsonFormat(worldbookBound.payload);
   if (!format) throw validationError("\u88C5\u914D\u540E\u7684\u89D2\u8272\u5361\u7248\u672C\u65E0\u6CD5\u8BC6\u522B", {
     issues: [issue("/spec", "unsupported", "\u4EC5\u652F\u6301 Character Card V2 \u6216 V3")]
@@ -16231,18 +16134,10 @@ async function loadProjectSource(loaded) {
   const payloadValidation = validatePayload(worldbookBound.payload, format);
   payloadValidation.issues.push(
     ...assembled.issues,
-    ...mvuArtifacts.issues,
-    ...ejsTemplates.issues,
-    ...adapted.issues,
-    ...regexAdapted.issues,
     ...worldbookBound.issues
   );
   payloadValidation.warnings.push(
     ...assembled.warnings ?? [],
-    ...mvuArtifacts.warnings ?? [],
-    ...ejsTemplates.warnings ?? [],
-    ...adapted.warnings ?? [],
-    ...regexAdapted.warnings ?? [],
     ...worldbookBound.warnings ?? []
   );
   return {
@@ -16254,7 +16149,6 @@ async function loadProjectSource(loaded) {
     payload: worldbookBound.payload,
     restoredPaths: restored.restoredPaths,
     validation: payloadValidation,
-    runtimeStateSchema: generateRuntimeStateSchema(sources),
     format
   };
 }
@@ -16437,7 +16331,7 @@ function assembleCharacterCard(sources, project, state, originalPayload = null) 
     if (payload.data[key] === void 0) payload.data[key] = structuredClone(value);
   }
   const bookSources = [
-    ...sources.positioning.filter((entry) => Object.keys(projectModelSource("positioning", entry.value)).length > 0).map((entry) => ["positioning", entry, projectTitle]),
+    ...sources.positioning.filter((entry) => positioningIsMeaningful(entry.value)).map((entry) => ["positioning", entry, projectTitle]),
     ...sources.world.map((entry) => ["world", entry]),
     ...(sources.user_character ?? []).map((entry) => ["user_character", entry]),
     ...sources.characters.map((entry) => ["character", entry]),
@@ -16504,7 +16398,7 @@ function assembleWorldbook(sources) {
   return payload;
 }
 function positioningIsMeaningful(source) {
-  return Boolean(source?.card_entry) || Boolean(source?.premise) || (source?.target_users?.length ?? 0) > 0 || source?.card_mode !== "pending" || (source?.experience_pillars?.length ?? 0) > 0 || Boolean(source?.tone?.primary || source?.tone?.secondary) || source?.expected_span !== "pending" || (source?.scope_notes?.length ?? 0) > 0;
+  return Boolean(source?.card_entry) || Boolean(source?.premise) || source?.card_mode !== "pending" || (source?.core_experiences?.length ?? 0) > 0 || (source?.tone?.length ?? 0) > 0 || Boolean(source?.play_rhythm) || Boolean(source?.autonomous_world) || (source?.scope_notes?.length ?? 0) > 0;
 }
 function hasAdditionalAssemblySources(sources, target) {
   if (sources.positioning.some((entry) => positioningIsMeaningful(entry.value))) return true;
@@ -16871,30 +16765,20 @@ async function runProjectMutation(root, callback, options = {}) {
 }
 function migrateProject(project) {
   if (project?.schema_version === PROJECT_SCHEMA_VERSION) {
-    if (project?.preflight?.workflow_confirmed === false) return { value: project, migrated: false };
-    const hasRoute = Array.isArray(project?.workflow?.selected_stages);
-    const hasRouteDecision = (project?.decisions ?? []).some((decision) => decision.id === "preflight.stage_route");
-    if (project?.preflight?.workflow_confirmed === true && hasRoute && hasRouteDecision) return { value: project, migrated: false };
+    const hasPlan = Array.isArray(project?.workflow?.planned_stages);
+    const legacyRoute = Array.isArray(project?.workflow?.selected_stages) ? project.workflow.selected_stages : null;
+    const hasLegacyDecision = (project?.decisions ?? []).some((decision) => decision.id === "preflight.stage_route");
+    if (project?.preflight?.workflow_confirmed === true && hasPlan && !legacyRoute && !hasLegacyDecision) return { value: project, migrated: false };
     const migrated = structuredClone(project);
     migrated.preflight ??= {};
     migrated.preflight.workflow_confirmed = true;
     migrated.workflow ??= { stage_order: [...WORKFLOW_STAGES], optional_stages: [...OPTIONAL_STAGES] };
     migrated.workflow.stage_order = [...WORKFLOW_STAGES];
     migrated.workflow.optional_stages = [...OPTIONAL_STAGES];
-    migrated.workflow.selected_stages = [...DEFAULT_STAGE_ROUTE];
+    migrated.workflow.planned_stages = normalizeStagePlan(legacyRoute ?? migrated.workflow.planned_stages ?? DEFAULT_STAGE_ROUTE);
+    delete migrated.workflow.selected_stages;
     migrated.decisions ??= [];
-    if (!hasRouteDecision) migrated.decisions.push({
-      id: "preflight.stage_route",
-      stage: "preflight",
-      summary: `\u9636\u6BB5\u8DEF\u7EBF = ${DEFAULT_STAGE_ROUTE.join(" -> ")}`,
-      value: [...DEFAULT_STAGE_ROUTE],
-      decided_by: "imported",
-      locked: true,
-      status: "active",
-      rationale: "\u65E7\u9879\u76EE\u517C\u5BB9\u8FC1\u79FB\uFF1A\u672A\u53D1\u73B0\u9996\u8F6E\u8DEF\u7EBF\u8BB0\u5F55\uFF0C\u6682\u4FDD\u7559\u5B8C\u6574\u9ED8\u8BA4\u8DEF\u7EBF\uFF1B\u540E\u7EED\u53EF\u5728\u9884\u68C0\u4E2D\u91CD\u65B0\u9501\u5B9A",
-      round: 1,
-      history: []
-    });
+    migrated.decisions = migrated.decisions.filter((decision) => decision.id !== "preflight.stage_route");
     return { value: migrated, migrated: true };
   }
   if (![0, "0", "0.1.0"].includes(project?.schema_version)) {
@@ -16920,12 +16804,21 @@ function migrateProject(project) {
 }
 function migrateState(state, project) {
   if (state?.schema_version === STATE_SCHEMA_VERSION) {
-    const existingIds = new Set((state?.decision_locks ?? []).map((lock) => lock.decision_id));
+    const cleaned = (state?.decision_locks ?? []).filter((lock) => lock.decision_id !== "preflight.stage_route");
+    const existingIds = new Set(cleaned.map((lock) => lock.decision_id));
     const missing = (project?.decisions ?? []).filter((decision) => decision.locked && !existingIds.has(decision.id));
-    if (missing.length === 0) return { value: state, migrated: false };
+    const legacySkipped = Object.values(state?.stages ?? {}).some((stage) => stage?.summary === "\u9879\u76EE\u9884\u68C0\u9636\u6BB5\u8DEF\u7EBF\u672A\u9009\u62E9");
+    if (missing.length === 0 && cleaned.length === (state?.decision_locks ?? []).length && !legacySkipped) return { value: state, migrated: false };
     const migrated2 = structuredClone(state);
-    migrated2.decision_locks ??= [];
+    migrated2.decision_locks = cleaned;
     migrated2.decision_locks.push(...missing.map((decision) => decisionLock(decision)));
+    for (const stage of Object.values(migrated2.stages ?? {})) {
+      if (stage?.summary === "\u9879\u76EE\u9884\u68C0\u9636\u6BB5\u8DEF\u7EBF\u672A\u9009\u62E9") {
+        stage.status = "not_started";
+        stage.round = 0;
+        stage.summary = null;
+      }
+    }
     return { value: migrated2, migrated: true };
   }
   if (![0, "0", "0.1.0", 1].includes(state?.schema_version)) {
@@ -17037,7 +16930,7 @@ var HELP_TEXT = `rp-card-forge - \u79BB\u7EBF\u3001\u4E8B\u52A1\u5F0F SillyTaver
   rp-card-forge <command> [\u53C2\u6570] [\u9009\u9879]
 
 \u547D\u4EE4:
-  init <project-dir> --nsfw <mode>   \u521B\u5EFA project.yaml\u3001\u72B6\u6001\u4E0E YAML \u6E90\u7801\u9AA8\u67B6
+  init <project-dir> --nsfw <mode> --stages <json-array>  \u8BB0\u5F55\u9884\u68C0\u5E76\u521B\u5EFA\u9879\u76EE\u9AA8\u67B6
   inspect <input>                    \u8BC6\u522B\u9879\u76EE\u3001\u89D2\u8272\u5361 JSON/PNG \u6216\u4E16\u754C\u4E66 JSON
   unpack <input> --nsfw <mode>       \u89E3\u5305\u4E3A\u53EF\u7EF4\u62A4\u9879\u76EE\uFF0C\u4FDD\u7559\u539F\u59CB\u8F93\u5165\u4E0E\u672A\u77E5\u5B57\u6BB5
   validate <input>                   \u6821\u9A8C\u9879\u76EE\u6216\u5236\u54C1
@@ -17045,8 +16938,7 @@ var HELP_TEXT = `rp-card-forge - \u79BB\u7EBF\u3001\u4E8B\u52A1\u5F0F SillyTaver
   pack <project-dir>                 \u6784\u5EFA JSON\uFF0C\u6216\u5199\u5165 PNG chara/ccv3 \u53CC\u5757
   diff <left> <right>                \u6BD4\u8F83\u8BED\u4E49 JSON
   roundtrip <input>                  \u9A8C\u8BC1 JSON/PNG \u8BED\u4E49\u5F80\u8FD4\u4E0E PNG \u56FE\u50CF\u6570\u636E
-  state <project-dir> [action]       show/migrate/operation/lock/unlock/stage
-  state <project-dir> lock preflight.stage_route <json-array> --force
+  state <project-dir> [action]       show/migrate/operation/plan/lock/unlock/stage
   doctor [project-dir]               \u68C0\u67E5 Node\u3001\u4F9D\u8D56\u4E0E\u9879\u76EE\u5065\u5EB7
 
 \u901A\u7528\u9009\u9879:
@@ -17056,6 +16948,7 @@ var HELP_TEXT = `rp-card-forge - \u79BB\u7EBF\u3001\u4E8B\u52A1\u5F0F SillyTaver
   --force                            \u660E\u786E\u5141\u8BB8\u8986\u76D6\u4E0D\u540C\u5185\u5BB9\u6216\u63A5\u7BA1\u9648\u65E7\u4E8B\u52A1\u9501
   --type character|worldbook        init \u7684\u9879\u76EE\u7C7B\u578B
   --nsfw enabled|disabled           \u521B\u5EFA\u9879\u76EE\u65F6\u660E\u786E\u9501\u5B9A NSFW \u5F00\u5173
+  --stages <json-array>              \u9996\u8F6E\u8BB0\u5F55\u7684\u5B8C\u6574\u6709\u5E8F\u9636\u6BB5\u8BA1\u5212
   --source user|delegated           state lock \u7684\u51B3\u5B9A\u6765\u6E90
   --rationale <text>                state lock \u7684\u51B3\u5B9A\u7406\u7531
   --summary <text>                  state stage \u5B8C\u6210\u6216\u8DF3\u8FC7\u65F6\u7684\u9636\u6BB5\u6458\u8981
@@ -17094,6 +16987,7 @@ async function commandInit(args, options) {
   const result = await initializeProject(root, {
     type: options.type ?? "character",
     nsfw: parseNsfwOption(options, "init"),
+    stageRoute: options.stages === void 0 ? void 0 : parseCliValue(options.stages),
     force: Boolean(options.force),
     dryRun: Boolean(options["dry-run"])
   });
@@ -17418,19 +17312,11 @@ async function buildOrPack(command, root, options, allowPng) {
       outputBuffer = Buffer.from(prettyJson(source.payload), "utf8");
       outputFormat = source.format;
     }
-    const runtimeSchemaPath = path4.join(loaded.projectRoot, "reports", "runtime-state.schema.json");
-    const hasRuntimeSchema = Boolean(source.runtimeStateSchema);
-    const runtimeSchemaContent = source.runtimeStateSchema ? prettyJson(source.runtimeStateSchema) : null;
-    const runtimeSchemaEntry = hasRuntimeSchema ? { path: runtimeSchemaPath, content: runtimeSchemaContent } : { path: runtimeSchemaPath, delete: true };
     const manifestPath = path4.join(loaded.projectRoot, "reports", "build-manifest.json");
     const protectedPaths = projectProtectedPaths(loaded);
-    assertOutputDoesNotOverwriteSource(runtimeSchemaPath, protectedPaths);
     assertOutputDoesNotOverwriteSource(manifestPath, protectedPaths);
-    assertDistinctWriteTargets([outputPath, runtimeSchemaPath, manifestPath]);
-    await planWrites([
-      { path: outputPath, content: outputBuffer },
-      runtimeSchemaEntry
-    ], { force: Boolean(options.force) });
+    assertDistinctWriteTargets([outputPath, manifestPath]);
+    await planWrites([{ path: outputPath, content: outputBuffer }], { force: Boolean(options.force) });
     const artifactDigest = sha256(outputBuffer);
     const sourceDigest = sha256(prettyJson(source.payload));
     const relativeOutput = relativeOrAbsolute(loaded.projectRoot, outputPath);
@@ -17450,10 +17336,6 @@ async function buildOrPack(command, root, options, allowPng) {
       } : {},
       artifact_digest: artifactDigest,
       preserved_unknown_fields: source.restoredPaths,
-      runtime_state_schema: hasRuntimeSchema ? {
-        path: relativeOrAbsolute(loaded.projectRoot, runtimeSchemaPath),
-        digest: sha256(runtimeSchemaContent)
-      } : null,
       ...pngEvidence ? { png: pngEvidence } : {}
     };
     const nextState = structuredClone(loaded.state);
@@ -17477,7 +17359,6 @@ async function buildOrPack(command, root, options, allowPng) {
     const commit = await commitWrites([
       { path: outputPath, content: outputBuffer },
       { path: manifestPath, content: prettyJson(manifest) },
-      runtimeSchemaEntry,
       { path: loaded.projectPath, content: stringifyYaml(nextProject) },
       { path: loaded.statePath, content: prettyJson(nextState) }
     ], {
@@ -17490,7 +17371,6 @@ async function buildOrPack(command, root, options, allowPng) {
       format: outputFormat,
       sourceDigest,
       artifactDigest,
-      runtimeStateSchema: hasRuntimeSchema ? runtimeSchemaPath : null,
       preservedUnknownFieldsRestored: source.restoredPaths,
       png: pngEvidence,
       dryRun: Boolean(options["dry-run"])
@@ -17587,6 +17467,7 @@ async function commandState(args, options) {
       revision: loaded.state?.revision ?? null,
       activeStage: loaded.state?.active_stage ?? null,
       stages: loaded.state?.stages ?? null,
+      plannedStages: loaded.project?.workflow?.planned_stages ?? null,
       decisions: loaded.project?.decisions ?? [],
       decisionLocks: loaded.state?.decision_locks ?? []
     });
@@ -17631,15 +17512,21 @@ async function commandState(args, options) {
       }
       nextProject.project.operation = operation;
       projectChanged = true;
+    } else if (action === "plan") {
+      exactArgs("state plan", args, 3);
+      const plannedStages = applyStageRoute(nextProject, parseCliValue(args[2]));
+      projectChanged = true;
+      nextState.updated_at = (/* @__PURE__ */ new Date()).toISOString();
+      nextState.revision += 1;
+      const commit2 = await updateProjectAndState(loaded, nextProject, nextState, {
+        dryRun: Boolean(options["dry-run"])
+      });
+      return successReport("state", { action, plannedStages }, [], commit2.changes);
     } else if (action === "lock") {
       exactArgs("state lock", args, 4, 4);
       const [, , id, rawValue] = args;
       assertDecisionId(id);
       let value = parseCliValue(rawValue);
-      if (id === "preflight.stage_route") {
-        if (nextState.active_stage !== "positioning" && !options.force) throw conflictError("\u9636\u6BB5\u8DEF\u7EBF\u53EA\u80FD\u5728\u8FDB\u5165\u9879\u76EE\u521B\u4F5C\u524D\u9501\u5B9A\uFF1B\u5982\u786E\u9700\u4FEE\u6539\uFF0C\u8BF7\u4F7F\u7528 --force");
-        value = applyStageRoute(nextProject, nextState, value);
-      }
       if (id === "positioning.project_title") {
         if (typeof value !== "string" || value.trim() === "") {
           throw inputError("positioning.project_title \u5FC5\u987B\u662F\u975E\u7A7A\u9879\u76EE\u6807\u9898");
@@ -17722,8 +17609,12 @@ async function commandState(args, options) {
       if (status === "skipped" && !loaded.project.workflow.optional_stages.includes(stage)) {
         throw conflictError(`\u5FC5\u7ECF\u9636\u6BB5\u4E0D\u80FD\u6807\u8BB0\u4E3A skipped: ${stage}`);
       }
-      if (["in_progress", "complete"].includes(status) && stage !== "preflight" && !loaded.project.workflow.selected_stages.includes(stage)) {
-        throw conflictError(`\u9636\u6BB5 ${stage} \u672A\u5728\u9879\u76EE\u9884\u68C0\u8DEF\u7EBF\u4E2D\u9009\u62E9\uFF0C\u4E0D\u80FD\u8FDB\u5165\uFF1B\u5982\u9700\u4FEE\u6539\u8DEF\u7EBF\uFF0C\u8BF7\u91CD\u65B0\u9501\u5B9A preflight.stage_route`);
+      if (stage !== "preflight" && ["in_progress", "complete", "skipped"].includes(status)) {
+        const planned = new Set(nextProject.workflow.planned_stages);
+        if (status === "skipped") planned.delete(stage);
+        else planned.add(stage);
+        applyStageRoute(nextProject, nextProject.workflow.stage_order.filter((candidate) => planned.has(candidate)));
+        projectChanged = true;
       }
       if (["complete", "skipped"].includes(status) && (!options.summary || options.summary.trim() === "")) {
         throw inputError(`state stage ${stage} ${status} \u5FC5\u987B\u901A\u8FC7 --summary \u8BB0\u5F55\u9636\u6BB5\u603B\u6C47\u6216\u8DF3\u8FC7\u7406\u7531`);

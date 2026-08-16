@@ -57,7 +57,7 @@ export var HELP_TEXT = `rp-card-forge - 离线、事务式 SillyTavern 制卡工
   rp-card-forge <command> [参数] [选项]
 
 命令:
-  init <project-dir> --nsfw <mode>   创建 project.yaml、状态与 YAML 源码骨架
+  init <project-dir> --nsfw <mode> --stages <json-array>  记录预检并创建项目骨架
   inspect <input>                    识别项目、角色卡 JSON/PNG 或世界书 JSON
   unpack <input> --nsfw <mode>       解包为可维护项目，保留原始输入与未知字段
   validate <input>                   校验项目或制品
@@ -65,8 +65,7 @@ export var HELP_TEXT = `rp-card-forge - 离线、事务式 SillyTavern 制卡工
   pack <project-dir>                 构建 JSON，或写入 PNG chara/ccv3 双块
   diff <left> <right>                比较语义 JSON
   roundtrip <input>                  验证 JSON/PNG 语义往返与 PNG 图像数据
-  state <project-dir> [action]       show/migrate/operation/lock/unlock/stage
-  state <project-dir> lock preflight.stage_route <json-array> --force
+  state <project-dir> [action]       show/migrate/operation/plan/lock/unlock/stage
   doctor [project-dir]               检查 Node、依赖与项目健康
 
 通用选项:
@@ -76,6 +75,7 @@ export var HELP_TEXT = `rp-card-forge - 离线、事务式 SillyTavern 制卡工
   --force                            明确允许覆盖不同内容或接管陈旧事务锁
   --type character|worldbook        init 的项目类型
   --nsfw enabled|disabled           创建项目时明确锁定 NSFW 开关
+  --stages <json-array>              首轮记录的完整有序阶段计划
   --source user|delegated           state lock 的决定来源
   --rationale <text>                state lock 的决定理由
   --summary <text>                  state stage 完成或跳过时的阶段摘要
@@ -114,6 +114,7 @@ async function commandInit(args, options) {
   const result = await initializeProject(root, {
     type: options.type ?? "character",
     nsfw: parseNsfwOption(options, "init"),
+    stageRoute: options.stages === undefined ? undefined : parseCliValue(options.stages),
     force: Boolean(options.force),
     dryRun: Boolean(options["dry-run"])
   });
@@ -440,21 +441,11 @@ async function buildOrPack(command, root, options, allowPng) {
       outputBuffer = Buffer.from(prettyJson(source.payload), "utf8");
       outputFormat = source.format;
     }
-    const runtimeSchemaPath = path.join(loaded.projectRoot, "reports", "runtime-state.schema.json");
-    const hasRuntimeSchema = Boolean(source.runtimeStateSchema);
-    const runtimeSchemaContent = source.runtimeStateSchema ? prettyJson(source.runtimeStateSchema) : null;
-    const runtimeSchemaEntry = hasRuntimeSchema
-      ? { path: runtimeSchemaPath, content: runtimeSchemaContent }
-      : { path: runtimeSchemaPath, delete: true };
     const manifestPath = path.join(loaded.projectRoot, "reports", "build-manifest.json");
     const protectedPaths = projectProtectedPaths(loaded);
-    assertOutputDoesNotOverwriteSource(runtimeSchemaPath, protectedPaths);
     assertOutputDoesNotOverwriteSource(manifestPath, protectedPaths);
-    assertDistinctWriteTargets([outputPath, runtimeSchemaPath, manifestPath]);
-    await planWrites([
-      { path: outputPath, content: outputBuffer },
-      runtimeSchemaEntry
-    ], { force: Boolean(options.force) });
+    assertDistinctWriteTargets([outputPath, manifestPath]);
+    await planWrites([{ path: outputPath, content: outputBuffer }], { force: Boolean(options.force) });
     const artifactDigest = sha256(outputBuffer);
     const sourceDigest = sha256(prettyJson(source.payload));
     const relativeOutput = relativeOrAbsolute(loaded.projectRoot, outputPath);
@@ -474,10 +465,6 @@ async function buildOrPack(command, root, options, allowPng) {
       } : {},
       artifact_digest: artifactDigest,
       preserved_unknown_fields: source.restoredPaths,
-      runtime_state_schema: hasRuntimeSchema ? {
-        path: relativeOrAbsolute(loaded.projectRoot, runtimeSchemaPath),
-        digest: sha256(runtimeSchemaContent)
-      } : null,
       ...pngEvidence ? { png: pngEvidence } : {}
     };
     const nextState = structuredClone(loaded.state);
@@ -501,7 +488,6 @@ async function buildOrPack(command, root, options, allowPng) {
     const commit = await commitWrites([
       { path: outputPath, content: outputBuffer },
       { path: manifestPath, content: prettyJson(manifest) },
-      runtimeSchemaEntry,
       { path: loaded.projectPath, content: stringifyYaml(nextProject) },
       { path: loaded.statePath, content: prettyJson(nextState) }
     ], {
@@ -514,7 +500,6 @@ async function buildOrPack(command, root, options, allowPng) {
       format: outputFormat,
       sourceDigest,
       artifactDigest,
-      runtimeStateSchema: hasRuntimeSchema ? runtimeSchemaPath : null,
       preservedUnknownFieldsRestored: source.restoredPaths,
       png: pngEvidence,
       dryRun: Boolean(options["dry-run"])
@@ -611,6 +596,7 @@ async function commandState(args, options) {
       revision: loaded.state?.revision ?? null,
       activeStage: loaded.state?.active_stage ?? null,
       stages: loaded.state?.stages ?? null,
+      plannedStages: loaded.project?.workflow?.planned_stages ?? null,
       decisions: loaded.project?.decisions ?? [],
       decisionLocks: loaded.state?.decision_locks ?? []
     });
@@ -655,15 +641,21 @@ async function commandState(args, options) {
       }
       nextProject.project.operation = operation;
       projectChanged = true;
+    } else if (action === "plan") {
+      exactArgs("state plan", args, 3);
+      const plannedStages = applyStageRoute(nextProject, parseCliValue(args[2]));
+      projectChanged = true;
+      nextState.updated_at = (/* @__PURE__ */ new Date()).toISOString();
+      nextState.revision += 1;
+      const commit = await updateProjectAndState(loaded, nextProject, nextState, {
+        dryRun: Boolean(options["dry-run"])
+      });
+      return successReport("state", { action, plannedStages }, [], commit.changes);
     } else if (action === "lock") {
       exactArgs("state lock", args, 4, 4);
       const [, , id, rawValue] = args;
       assertDecisionId(id);
       let value = parseCliValue(rawValue);
-      if (id === "preflight.stage_route") {
-        if (nextState.active_stage !== "positioning" && !options.force) throw conflictError("阶段路线只能在进入项目创作前锁定；如确需修改，请使用 --force");
-        value = applyStageRoute(nextProject, nextState, value);
-      }
       if (id === "positioning.project_title") {
         if (typeof value !== "string" || value.trim() === "") {
           throw inputError("positioning.project_title 必须是非空项目标题");
@@ -746,8 +738,12 @@ async function commandState(args, options) {
       if (status === "skipped" && !loaded.project.workflow.optional_stages.includes(stage)) {
         throw conflictError(`必经阶段不能标记为 skipped: ${stage}`);
       }
-      if (["in_progress", "complete"].includes(status) && stage !== "preflight" && !loaded.project.workflow.selected_stages.includes(stage)) {
-        throw conflictError(`阶段 ${stage} 未在项目预检路线中选择，不能进入；如需修改路线，请重新锁定 preflight.stage_route`);
+      if (stage !== "preflight" && ["in_progress", "complete", "skipped"].includes(status)) {
+        const planned = new Set(nextProject.workflow.planned_stages);
+        if (status === "skipped") planned.delete(stage);
+        else planned.add(stage);
+        applyStageRoute(nextProject, nextProject.workflow.stage_order.filter((candidate) => planned.has(candidate)));
+        projectChanged = true;
       }
       if (["complete", "skipped"].includes(status) && (!options.summary || options.summary.trim() === "")) {
         throw inputError(`state stage ${stage} ${status} 必须通过 --summary 记录阶段总汇或跳过理由`);

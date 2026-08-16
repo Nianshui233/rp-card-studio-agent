@@ -1,38 +1,16 @@
-schema_version: 1.3.0
+schema_version: 2.0.0
 status: draft
 
 status_ui:
   enabled: false
-  mode: none
-  read_only: true
-  refresh: on_message
-  text_template: ""
-  sections: []
-  commands: []
-  # These four strings are design metadata until a Tavern Helper message
-  # runtime implements conditional state detection. Regex cannot switch them.
-  states:
-    loading: 正在读取状态
-    empty: 暂无可显示状态
-    error: 状态暂时不可用
-    degraded: 状态信息不可用
-  responsive:
-    narrow: single_column
-    wide: grouped_columns
-  visual:
-    density: pending
-    hierarchy: []
-    motion: pending
-  accessibility:
-    keyboard: true
-    live_updates: polite
-    color_independent: true
-  dependencies: []
-  # The default basic delivery is embedded + sillytavern_regex. An explicitly
-  # selected, unverified message iframe candidate uses level: host_required,
-  # adapter: tavern_helper_message, entrypoint: generated, artifact: inline;
-  # keep runtime evidence at not_run until its target host executes it.
-  # Generated inline delivery is read-only, on_message, command-free, and
-  # non-tabbed. A separately implemented host specification must instead use
-  # entrypoint: host_managed and artifact: host_managed.
-  delivery: null
+  authoring_mode: direct_html
+  experience_level: light
+  theme_direction: ""
+  device_priority: equal
+  surfaces: []
+  data_sources: []
+  host_interactions: []
+  lifecycle_checks: []
+  runtime: not_run
+
+source_refs: []

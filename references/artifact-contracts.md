@@ -1,283 +1,129 @@
-# Artifact Contracts
+# 制品与装配契约
 
-This reference defines fact ownership, directory responsibilities, references, and change propagation. Conversation may be flexible; persisted project structure must remain deterministic enough to resume work, revise imported cards, and prove round-trip fidelity.
+## 1. 维护源与生成物
 
-## 1. Project Layout
+- `project.yaml`：项目身份、预检、阶段计划、材料、依赖和交付物。
+- `.rp-card-state.json`：实际阶段状态、摘要、构建和验证证据。
+- `src/`：唯一维护源。
+- `dist/`：生成制品，不作为主要编辑入口。
+- `reports/`：验证和构建证据，不属于默认用户交付物。
 
-```text
-project-workspace/
-|-- project.yaml
-|-- .rp-card-state.json
-|-- src/
-|   |-- world/
-|   |-- positioning/
-|   |-- characters/
-|   |-- systems/
-|   |-- scenes/
-|   |-- mvu/
-|   |-- prompts/
-|   |-- ui/
-|   |-- integration/
-|   |   `-- assembly.yaml
-|   `-- import/                 # imported-card projects only
-|-- dist/
-|   |-- character-card.json
-|   |-- character-card.png
-|   `-- worldbook.json
-`-- reports/
-    |-- build-manifest.json
-    |-- runtime-state.schema.json  # only when runtime state is enabled
-    |-- validation.json
-    `-- handoff.md
+初始化只创建当前已有信息能支持的轻量文件。角色卡是项目容器，不代表必须立刻创建一个人物源码。
+
+## 2. 默认交付
+
+默认最终交付一个角色卡 `.json`。只有用户在预检或后续明确要求时，才增加：
+
+- PNG 角色卡；
+- 独立世界书 JSON；
+- 源码归档；
+- 其他格式。
+
+## 3. 卡面契约
+
+- `data.name`：真单人卡使用唯一人物名；其他项目使用整体标题。
+- `data.description`：项目入口或核心合同，不放 NPC 档案。
+- `data.first_mes`：默认开场的真实正文或稳定开局标记。
+- `data.alternate_greetings`：有实质差异的备选开场。
+- 高级定义字段默认不承担世界、NPC 或系统的主维护职责；是否保留由导入保真和明确迁移策略决定。
+
+## 4. CharacterBook 契约
+
+`assembly.yaml.worldbook_manifest.entries` 是世界书装配清单。每项引用真实维护源，并明确宿主调度字段。
+
+内容原则：
+
+- 世界按主题切片；
+- NPC 通常整块；
+- 系统、场景、叙事规则按职责整块；
+- 用户角色模板可独立、默认禁用；
+- EJS 和运行提示词进入明确目标条目；
+- 正则、HTML 和 Tavern Helper 脚本不塞进世界书正文。
+
+CharacterBook ID 使用稳定分配；已有受管条目尽量复用原 ID。Standalone 世界书使用规范数值 uid，并保留导入键。
+
+## 5. 真实运行组件契约
+
+`runtime_manifest.mode` 固定为 `authored`。它只登记已写好的文件：
+
+```yaml
+runtime_manifest:
+  mode: authored
+  regex_scripts: []
+  tavern_helper_scripts: []
+  extension_fields: {}
 ```
 
-Templates live under `assets/templates/`. During initialization, copy only the templates justified by information already locked in preflight. An RP project targeting character-card delivery starts with `project.yaml`, `.rp-card-state.json`, and `src/positioning.yaml`; it must not create a character source merely because the delivery format is named a character card. When NSFW is enabled, initialization may also create the status-UI source, but it still creates no placeholder character. The character template is copied only after the required character inventory checkpoint confirms a pre-authored character. Unpacking keeps the complete legacy card at project scope in `src/import/original.json`; it must not turn `data.name` into a draft person. Existing older projects with `role: pending` candidates remain compatible, but inventory must classify or remove them before locking. The template named `state.json` must become `.rp-card-state.json` in the project.
+### Regex
 
-## 2. Two Sources of Truth
+每条记录映射到 SillyTavern 角色正则字段。`replace_file` 读取完整文件进入 `replaceString`；`replace_string` 保留内联内容。两者必须实际提供其一。
 
-### `project.yaml`: semantic source of truth
+### Tavern Helper
 
-Record decisions that change what the work is:
+`content_file` 读取完整 JavaScript 进入脚本 `content`；`content` 保留内联脚本。Forge 不改写脚本语义。
 
-- project identity, workspace, deliverables, and stage route;
-- the current work-run operation (`create`, `continue`, `convert`, `edit`, `audit`, or `ui`), refreshed transactionally when an existing workspace is resumed;
-- the locked NSFW switch;
-- feature switches and optional-stage decisions;
-- locked decisions, cross-stage todos, and input-material references;
-- the source manifest, including `source_manifest.assembly`, target runtime, and delivery constraints.
+### EJS
 
-Propagate these decisions into `src/`. A build tool must never invent semantic content from `.rp-card-state.json`.
+EJS 作为真实文件，由世界书条目的 `source.kind: file` 装入指定正文。Forge 不生成 EJS 分支，不把 EJS 变成通用条件表。
 
-`project.project.operation` describes the current work run, not immutable project provenance. Forge `init` owns `create`, `unpack` owns `convert`, and `state <workspace> operation ...` owns transitions for existing projects. Lifecycle validation may use this explicit value; it must not infer a run type from revision counts, stage rounds, or prior build records.
+### 扩展字段
 
-### `.rp-card-state.json`: technical source of truth
+`extension_fields` 原样深合并到卡内扩展。它只用于项目确实需要且作者明确给出的宿主字段。
 
-Record workflow and tool state:
+## 6. 导入保真
 
-- current stage, turn number, waiting/completed state;
-- lock hashes, delegation source, and timestamps;
-- dirty-source flags, latest build, validation runs, and transaction state;
-- technical indexes for cross-stage todos, never the only copy of their content.
+解包已有 JSON/PNG 时：
 
-Forge owns this file. After a manual change, run `state` and `validate` to restore consistency. Deleting it must not delete creative content, but it does discard progress and evidence indexes.
+- 完整原制品保存在 `src/import/original.json`；
+- PNG 原图按需保留；
+- 未识别字段进入保真记录；
+- 用户正则、脚本、CharacterBook 和未知扩展保持原内容；
+- 未被项目明确接管的卡面字段保持原值；
+- 不因 `data.name` 自动创造人物；
+- 不因兼容旧卡而恢复本技能曾经的错误生成器。
 
-### Conflict resolution
+重复构建不得累计重复条目、正则或脚本。
 
-- For semantic conflicts, `project.yaml` and its locks win; invalidate stale technical state and rebuild.
-- For stage-state conflicts, inspect stage summaries, lock hashes, and validation evidence together; never silently claim completion.
-- If `project.yaml` disables a feature but `src/` or `dist/` still contains that feature in a new project, treat it as a blocker. A retained imported implementation must be explicitly recorded.
+## 7. 世界书来源
 
-## 3. `src`, `dist`, and `reports`
+来源支持：
 
-| Layer | Responsibility | Prohibited use |
-| --- | --- | --- |
-| `src/` | Human-maintained world, character, system, scene, MVU, prompt, UI, and assembly sources | Build caches; reverse-filling content from `dist/` |
-| `dist/` | Deterministically generated JSON, PNG, worldbook, and related importable artifacts | Direct editing; source for the next creative iteration |
-| `reports/` | Build inputs, differences, validation evidence, unverified items, and handoff records | Treating recommendations as locked decisions |
+- `inline`：条目内直接文本；
+- `file`：工作区真实文件；
+- `registered_source` / `path`：已登记 YAML 源或其 selector。
 
-Build from `project.yaml + src/` into a candidate directory, validate it, then commit the candidate into `dist/`. Equivalent semantic inputs and parameters must produce semantically equivalent artifacts. Timestamps and absolute paths are non-semantic and must not affect comparison.
+对结构化源使用 selector 时，装配内容保留模块身份和选择路径，避免片段失去归属。
 
-## 4. IDs, Paths, and Visible Names
+来源不存在时：
 
-- Use stable English `snake_case` for machine IDs, directories, schema keys, and field paths.
-- Use Simplified Chinese for user-visible project titles, CharacterBook names and entry comments, regex names, script names, UI labels, and creative prose whenever practical.
-- Keep an ID stable after it enters an artifact or saved state, even if its Chinese display name changes.
-- Use explicit references such as `{kind}:{id}` or schema-defined ID fields; never rely on a translated title as an implicit join key.
-- Use dot paths such as `relationship.trust` for semantic fields and separately register runtime paths such as `stat_data.relationship.trust`.
-- Use JSON Pointer only in patch protocols; do not mix it with dot paths.
-- Preserve explicit `order` when array order carries meaning. Canonically sort unordered object keys during generation.
+- `fallback: skip` 记录 warning 并跳过；
+- 其他情况阻断构建。
 
-## 5. Player, GM, and Model Layers
+## 8. 媒体
 
-Every world, character, system, scene, and narrative source must distinguish:
+媒体清单只描述项目实际使用的资源。工作区文件需要嵌入后交付；远程资源使用 HTTPS并登记回退。Forge 校验 MIME、大小、哈希、consumer 和场景槽位，不替作者创造媒体需求。
 
-- `surface_layer`: may appear directly in openings, status UI, or audience-facing explanations;
-- `gm_only`: may guide narration but must never be directly revealed before discovery;
-- `model_only`: routing, writing, and execution rules that are not in-world facts.
+## 9. 构建顺序
 
-Project by audience rather than concatenating whole source files. Status UI may bind only player-visible values, and EJS must not bypass visibility. Split mixed public/secret content at the source instead of expecting the model to redact it during projection.
+1. 读取并校验项目与源文件；
+2. 生成基础角色卡/世界书表面；
+3. 装配 CharacterBook；
+4. 原样装配 Regex、Tavern Helper 脚本和扩展字段；
+5. 恢复保真导入字段；
+6. 绑定内嵌 CharacterBook；
+7. 校验最终制品；
+8. 写入 JSON；
+9. 用户明确需要 PNG 时再嵌入图像；
+10. 执行 roundtrip 和真实宿主验收。
 
-## 6. RP Package, Card-Front, and CharacterBook Ownership
+## 10. 禁止的 Forge 职责
 
-From the host and user perspective, treat the imported SillyTavern character-card JSON/PNG artifact as the complete portable deployment package of an RP project, not an empty shell or a dossier for one person. World, authored or dynamic characters, systems, scenes, narrative contracts, regex/scripts, runtime adapters, and message UI are peer modules; none is nested under or owned by a character. Use the card front as a small, stable project-entry surface and CharacterBook as the modular instruction/content layer.
+Forge 不得：
 
-The maintained RP project is the source domain model; card JSON, card PNG, and standalone worldbook files are delivery projections. Dependency direction is one-way: maintained project modules are scheduled and adapted into a host artifact. Never reshape source ownership around the host schema. A host projection may expose character-shaped field names without changing ownership in the source model.
-
-Artifact format is project-level packaging metadata. For a new card, the locked `integration.delivery_format` decision selects Character Card V2 or V3; never store a whole card payload under one character merely to choose the host version. Imported artifacts retain their original spec unless the integration stage explicitly migrates it.
-
-Use the sole character's name only when the locked mode is truly single-character and exactly one authored character exists. World, scenario, gameplay, ensemble, narrator, anchor-character, and all multi-character projects use the locked project title. A non-single project title should identify the package's world, gameplay, theme, or experience rather than defaulting to one character or one isolated location.
-
-### Card-front fields for a new card
-
-| Field | Allowed content |
-| --- | --- |
-| `data.name` | Sole character's visible name only for a true single-character card with exactly one authored character; otherwise the locked project title |
-| `data.description` | Final actor-free `assembly.card_entry`; substantial packages normally use a complete always-on core world contract rather than a compact summary |
-| `data.first_mes` | The selected default opening text |
-| `data.alternate_greetings` | Alternate opening texts in locked order |
-| metadata fields | Packaging identity such as tags, creator, and version; not world or behavior modules |
-
-Advanced-definition fields are valid SillyTavern host slots rather than forbidden territory:
-
-```text
-data.personality
-data.scenario
-data.mes_example
-data.creator_notes
-data.system_prompt
-data.post_history_instructions
-```
-
-Leave them empty when CharacterBook routing is cleaner, but use them when a compact always-on contract, traditional card compatibility, a plugin behavior, creator notes, example dialogue, or project-specific host semantics benefit from them. A maintained project writes them deliberately through `assembly.card_fields`; absence means “preserve or use the default,” while an explicitly present string means “project this value.” Avoid accidental duplication, but never reject a card merely because an advanced-definition field is intentionally populated.
-
-SillyTavern injects `description` as an always-present prompt block. Use that property deliberately: a substantial world, scenario, gameplay, or ensemble package should keep its stable world skeleton, information boundaries, conflict, rule priority, hard boundaries, and autonomous-motion contract there. It may be long. Do not turn it into a character dossier. Imported legacy advanced definitions remain lossless unless a deliberate migration or explicit override authorizes change.
-
-### CharacterBook-first modularization
-
-Every eligible model-facing module other than the card-entry and greeting projections should normally be represented by an enabled CharacterBook entry. The optional user-character definition is the deliberate exception: it is projected as a disabled template until filled and enabled:
-
-- every authored character or coherent NPC group at the granularity that preserves portrayal continuity; an authored character is normally kept whole rather than split by template section;
-- world facts and continuity rules;
-- each system or coherent system module;
-- each independently triggerable scene or location module;
-- narrative rules and dialogue examples;
-- MVU initialization/update/output contracts and EJS templates;
-- the status-bar reply-format contract when status UI is enabled without MVU;
-- an optional `user_character` source as a Chinese-named, disabled-by-default template, separate from world/NPC/scene sources and compatible with the creation UI.
-
-Openings remain in greeting fields because SillyTavern selects them as chat entry points. All authored characters belong in CharacterBook. A `primary_character` marker means narrative anchor only; it does not grant ownership of `data.description`, priority over unrelated modules, or the card name outside a true single-character project. A true single-character card keeps its sole character in a compact constant 100% entry because that definition is the entire interaction's stable actor contract. In a world, gameplay, scenario, or ensemble project, even an anchor character may use constant, keyword, or scene routing according to whether that character is actually needed every turn.
-
-Start from the complete authored YAML and cut only where runtime scheduling benefits. Split worldbuilding by co-activation topic; normally keep an authored character/NPC whole; keep a coherent system or scene whole when it is consumed as one unit. CharacterBook content is compact YAML or purpose-written natural language, not JSON serialization of the maintenance object. Do not create a single catch-all entry when different content needs different triggers, and do not split coherent content merely to satisfy a component count.
-
-When an assembly entry selects only part of a registered source, materialize an identity envelope around that fragment. The envelope records the normalized module type, stable `id` and `display_name` when the source defines them, the Chinese entry name, and the selected pointer. This keeps independently scheduled fragments attributable to their RP module without creating tiny standalone identity entries. A selected fragment is complete only when both the envelope and the selected semantics reach the CharacterBook artifact.
-
-Scene media needs are model-facing semantics, not opaque authoring metadata. Store `media_slots` as a typed top-level scene field with a stable ID, media kind hint, narrative purpose, trigger, required flag, and non-media text fallback. Integration may bind that contract to `media_manifest`, but it must not discard the text fallback when no asset is delivered. Legacy `extensions.media_slots` remains readable only as a migration path.
-
-Procedurally generated inhabitants are not authored character modules unless a particular generated identity is deliberately promoted into a stable, pre-authored project asset. Keep population archetypes and shared social constraints in world sources, generation/uniqueness/continuity/lifecycle rules in system sources, and portrayal constraints in narrative sources. This prevents a generated crowd from becoming a fake list of fixed NPC files.
-
-## 7. Field Lifecycle Ledger
-
-For every persistent runtime field, record:
-
-| Item | Meaning |
-| --- | --- |
-| `source_path` | Stable semantic path |
-| `runtime_path` | Actual runtime path |
-| `type` | Data type and container shape |
-| `default` | Initialization value |
-| `constraints` | Range, enum, length, or shape constraints |
-| `writer` | Sole writer and allowed operations |
-| `readers` | Narration, updater, EJS, scripts, or UI consumers |
-| `renderer` | Display binding, or an explicit reason for no display |
-| `cleanup` | Retain, archive, truncate, or delete behavior |
-| `migration` | Missing, renamed, or type-changed legacy values |
-| `visibility` | `player`, `gm`, or `model` |
-
-A field may not have a schema without an initial value or a status binding without a source. When a derived field is calculated deterministically, the model must not become a second writer.
-
-Change propagation:
-
-- Add: update defaults, writer, readers, update rules, renderers, and migration.
-- Rename: preserve an alias or migration and update initialization, EJS, opening overrides, UI, and tests.
-- Change type/range: validate defaults, comparisons, formatting, and legacy saves.
-- Delete: remove writer and readers before choosing how to clean old values; leave no orphan paths.
-
-## 8. Integration Assembly
-
-`src/integration/assembly.yaml` is the assembly source of truth and must be registered at `project.yaml.source_manifest.assembly`.
-
-### `worldbook_manifest`
-
-Map every locked source other than the card entry and openings to one or more deliberate projection destinations. Model-facing modules normally use CharacterBook; the optional `user_character` template may intentionally remain disabled until filled. For every CharacterBook entry, explicitly design and record:
-
-- `activation.mode`, primary/secondary keys, selectivity, key logic, case sensitivity, and whole-word behavior;
-- `insertion.position`, explicit `insertion.depth` (`null` for every non-`at_depth` position; a non-negative integer for `at_depth`), role, and `insertion.order`;
-- `probability`;
-- entry-level `scan_depth`;
-- `recursion.prevent_incoming`, `prevent_outgoing`, and `delay_until_recursion`;
-- `fallback`.
-
-When several selector entries split one maintained module, Forge wraps every selected fragment with a `module` envelope containing the module type, stable source ID and display name when available, the Chinese entry name, and the selector path. This keeps every fragment attributable after scheduling; do not create separate always-on `/id` or `/display_name` entries merely to preserve identity.
-
-Explain the design, not only the values:
-
-- Use `constant` for compact rules that must govern every generation, such as core world invariants, narrative contracts, or output protocols. Keep this set small because every constant entry consumes context every turn.
-- Use `keywords` for an NPC, location, faction, object, scene, or specialized rule whose relevance can be identified from names, aliases, and unambiguous domain terms.
-- Permit incoming recursion only when other entries must be able to summon this entry through generated keys. Permit outgoing recursion only when this entry's injected content should intentionally activate dependent entries. Disable both for self-contained rules and contracts. Use delayed activation only when a rule should appear solely through a recursive chain, never from the initial chat scan.
-- Use probability below 100 only for deliberate stochastic variation. Never use it to hide an unresolved trigger design.
-- Choose scan depth from the expected distance between the current turn and relevant mention. `null` inherits the host global setting; `0` is a real zero-depth value.
-- Choose insertion position and order by instruction authority and dependency. Stable order is mandatory when entries share a position.
-
-Current native SillyTavern delivery fixes `recipient: shared` and `visibility: model`. Other routing or isolation semantics require a separately verified router and otherwise block. Book-level scan depth, budget, and recursive scanning remain at host defaults; use entry-level controls. Character filters apply only to standalone worldbooks: `avatar_stems` are case-sensitive avatar filenames without the final extension, and `tag_ids` are opaque IDs from the target SillyTavern instance, never display labels.
-
-The worldbuilding, character, systems, scenes, and narrative stages provide content and stable IDs only. They must not ask for or lock these host parameters.
-
-### `media_manifest`
-
-Register media IDs, type, local file or HTTPS URL, delivery, consumers, optional `preload`, integrity, and failure fallback. `preload` accepts only `none | on_opening | eager | on_demand`. Validate local existence, remote reachability when possible, digest, and every consumer reference during integration. Remote media cannot be the only path for critical semantic content.
-
-Scene-authored media requirements live in the typed `scene.media_slots[]` contract and remain model-visible with their purpose, trigger, necessity, and text fallback. Integration assets that target `scene:{id}` must name one of those declared slot IDs; every `required: true` slot must have exactly one assembled asset. Older `extensions.media_slots` remains readable for migration, but new fragments must use the first-class field.
-
-Do not create or ask for license or source-attribution fields. When an imported project contains unknown fields of that kind, preserve them under the unknown-field round-trip policy.
-
-### Binding the main CharacterBook
-
-A generated or managed non-empty embedded CharacterBook must be the card's main worldbook:
-
-- with an explicit name, require `data.extensions.world === data.character_book.name`;
-- without a name, solidify SillyTavern's `<data.name>'s Lorebook` fallback, then bind it; for a non-single project, `data.name` is the project title;
-- if an imported card already binds another worldbook, preserve it and report `character_book.binding_conflict` until integration explicitly resolves the choice.
-
-Equality proves only that the card points at a name. On first import into a clean host, confirm **Import Card Lore**. If the host already owns a worldbook with that name, the automatic prompt is skipped and SillyTavern initially uses the old file. Run **Import Card Lore** manually and confirm the explicit overwrite prompt, then inspect every managed `source_key` and its content. Name equality alone never proves runtime readiness.
-
-## 9. Runtime Projection Order
-
-Project runtime behavior in dependency order: semantic sources -> state/update contract -> adapter -> CharacterBook/model protocol -> SillyTavern regex or Tavern Helper script -> message HTML/UI. Record which layer owns each behavior so a display component never becomes the hidden source of game state.
-
-- CharacterBook is the preferred container for independently scheduled model-facing modules, not the only legal destination. Each maintained source needs an explicit projection disposition: CharacterBook, card field, greeting, regex, script, UI, runtime/build-only, or deliberate exclusion with a reason.
-- Built-in `same_generation` MVU remains the default maintained route. `extra_pass` and `both` are valid when a registered custom adapter supplies the independent request/parse/commit chain. Do not claim a capability that no adapter implements.
-- EJS requires a registered ST-Prompt-Template dependency and readiness probe. Version `1.17.6.8` is the verified baseline, not a universal lock; other versions produce compatibility notes and require real-host evidence before `runtime: pass`.
-- UI may use complete HTML/CSS/JavaScript, inline handlers, trusted HTML templates, `innerHTML`/`insertAdjacentHTML`, browser storage, indexedDB, fetch/XHR/WebSocket, remote libraries/fonts/media, parent-page DOM, plugin internals, private host APIs, dynamic code and custom bridges when they serve the project. Record dependencies, versions, portability and cleanup responsibilities instead of deleting the feature.
-- Hard-fail only confirmed breakage: invalid HTML/JavaScript/JSON, raw SillyTavern replacement tokens that corrupt replacement output, known HTML-entity operator collisions, broken references/bindings, missing required adapter entrypoints, or lifecycle behavior that demonstrably duplicates listeners, loses data or makes controls fail.
-- The only UI form explicitly prohibited by the owner is a page-level persistent status bar/panel mounted outside message content. Message-contained pages, buttons that prefill/send the SillyTavern composer, dialogs, overlays inside the message iframe and host-linked interactions are allowed.
-- Do not modify SillyTavern, Tavern Helper or another plugin to make the card work. Compatibility belongs in the card/project adapter layer.
-- Offline success may produce a candidate deliverable. Without real host evidence, keep `runtime: not_run`; this limits the claim, not the implementation or delivery.
-
-## 10. NSFW Projection
-
-Lock NSFW once during project preflight and keep the switch author-side only.
-
-- `enabled: true`: treat the mature-content dimension as fully delegated, load the authoring mix-ins when their normal modules exist, and merge their fields into ordinary character/UI design without a separate questionnaire.
-- `enabled: false`: do not proactively load specialized adult templates. Preserve mature material already supplied or naturally required by the project; do not sanitize it merely because the author-side helper was disabled.
-- Never emit an NSFW on/off flag, refusal instruction, runtime gate, player-facing switch, model-facing restriction card or repeated safety reminder unless the user explicitly designs one as gameplay.
-- Visibility remains a separate content-routing decision: private facts stay private because of audience semantics, not because of the NSFW switch.
-
-The mix-ins under `assets/templates/nsfw/` are authoring scaffolds, not runtime guards.
-
-## 11. Imported Cards and Unknown Fields
-
-- Keep the input artifact read-only and output into the project workspace by default.
-- Normalize recognized fields into `src/`. Store explainable-but-unknown fields in `src/import/preserved.json` with their original JSON paths.
-- Merge preserved fields back during rebuild. If they conflict with maintained sources, report the exact difference and require an explicit policy.
-- Preserve import order, CharacterBook entry IDs, extension enabled state, legacy advanced definitions, and unknown extension objects.
-- Any unexplained irreversible loss is a blocker; "this skill does not use that field" is not a valid deletion reason.
-
-## 12. Character Cards and PNG
-
-- JSON artifacts follow `character-card.schema.json`; preserve unknown extension fields.
-- Encode JSON as UTF-8 and preserve multiline meaning without turning line breaks into visible escape text.
-- Add or replace only declared character-card chunks in PNG and preserve original image pixels. Record chunk keys and encoding in the build manifest.
-- `pack -> unpack` must pass semantic comparison, not merely byte comparison.
-- Stop on corrupt, duplicate, or priority-ambiguous chunks; never guess which payload to overwrite.
-
-## 13. Dependency Classes
-
-Assign one primary class to every dependency:
-
-- `builtin`: standard SillyTavern capability;
-- `embedded`: delivered with the card or worldbook;
-- `host_required`: must be installed and enabled in the target host;
-- `remote`: loaded remotely at runtime, with URL, version, and fallback;
-- `development_only`: build or validation dependency absent from player handoff.
-
-A successful build does not prove a host dependency exists. Only real runtime evidence may confirm installation and compatibility. Deliver runtime code with the project/card or an explicit host dependency; do not use an unregistered remote script as an assembly shortcut. Remote media remains governed by `media_manifest`.
+- 自动创作世界、人物、系统、场景或开场；
+- 自动生成 MVU 引擎、Schema、Guard、更新规则或回复格式；
+- 自动生成 EJS 条件正文；
+- 自动发明固定状态标记或正则套件；
+- 通过通用组件配置生成模板化 UI；
+- 修改 SillyTavern 或插件本体；
+- 静默覆盖用户已有实现。
