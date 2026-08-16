@@ -1314,6 +1314,121 @@ function applyRegexPipeline(text, pipeline) {
   return pipeline.reduce((current, regex) => current.replace(regex.pattern, regex.replacement), text);
 }
 
+function markerAppearsInText(text, marker) {
+  const source = String(text ?? "");
+  const exact = String(marker ?? "").trim();
+  if (!exact) return false;
+  if (source.includes(exact)) return true;
+  const tag = exact.match(/^<([^\s/>]+)\b/)?.[1];
+  if (!tag) return false;
+  const escaped = tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const opening = new RegExp(`<${escaped}(?:\\s|/?>)`, "i");
+  if (!opening.test(source)) return false;
+  return !exact.includes(`</${tag}>`) || new RegExp(`</${escaped}\\s*>`, "i").test(source);
+}
+
+function hasOutputDirective(text) {
+  return /(?:每(?:次|轮).{0,24}回复|回复.{0,16}(?:末尾|结尾)|(?:必须|务必|始终|固定).{0,16}(?:输出|追加|附加|写入)|(?:输出|追加|附加|写入).{0,24}(?:标签|标记|XML|状态块)|(?:always|every|each).{0,24}(?:output|append|emit)|(?:output|append|emit).{0,24}(?:response|reply))/is.test(String(text ?? ""));
+}
+
+function regexMatchesMarker(pattern, marker) {
+  const candidate = new RegExp(pattern.source, pattern.flags);
+  candidate.lastIndex = 0;
+  return candidate.test(marker);
+}
+
+function uiDisplayRegexPatterns(runtime) {
+  const patterns = [];
+  for (const regex of (runtime?.regex_scripts ?? [])) {
+    if (regex?.disabled === true || regex?.prompt_only === true || regex?.markdown_only !== true || !Array.isArray(regex?.placement) || regex.placement.length === 0) continue;
+    try { patterns.push(parseRegexLiteral(regex.find_regex)); }
+    catch { /* validateAuthoredRuntime reports malformed patterns separately. */ }
+  }
+  return patterns;
+}
+
+async function validateUiSurfaceProducers(sources, projectRoot, assembly, openings, issues) {
+  const runtime = assembly?.runtime_manifest;
+  const displayPatterns = uiDisplayRegexPatterns(runtime);
+  const worldbookEntries = assembly?.worldbook_manifest?.entries ?? [];
+  const helperIds = helperRuntimeIds(runtime?.tavern_helper_scripts);
+
+  for (const [uiIndex, uiSource] of values(sources, "ui").entries()) {
+    const statusUi = uiSource.status_ui ?? {};
+    if (!statusUi.enabled) continue;
+    for (const [surfaceIndex, surface] of (statusUi.surfaces ?? []).entries()) {
+      const base = `/runtime/ui/${uiIndex}/status_ui/surfaces/${surfaceIndex}`;
+      const marker = typeof surface?.marker === "string" ? surface.marker.trim() : "";
+      if (!marker) {
+        issues.push(issue(`${base}/marker`, "ui.marker", "启用的消息 UI surface 必须声明真实捕获标记或 XML 样例"));
+        continue;
+      }
+      if (!displayPatterns.some((pattern) => regexMatchesMarker(pattern, marker))) {
+        issues.push(issue(`${base}/marker`, "ui.marker_consumer", `UI 标记 ${marker} 没有对应的启用 display 正则消费者`));
+      }
+
+      const emission = surface?.emission;
+      if (!isObject(emission)) {
+        const openingProducesMarker = openings.some((opening) => markerAppearsInText(opening.visible_text ?? opening.text, marker));
+        if (!openingProducesMarker) {
+          issues.push(issue(`${base}/emission`, "ui.marker_producer", `UI 标记 ${marker} 只有正则消费者，没有开场、模型输出契约、框架、脚本或用户动作生产者`));
+        }
+        continue;
+      }
+
+      const producer = emission.producer;
+      const cadence = emission.cadence;
+      const sourceRef = emission.source_ref;
+      const evidence = Array.isArray(emission.evidence) ? emission.evidence.filter((item) => typeof item === "string" && item.trim()) : [];
+      if (producer === "opening_message") {
+        if (cadence !== "opening_only") {
+          issues.push(issue(`${base}/emission/cadence`, "ui.marker_producer_cadence", "opening_message 生产者只能使用 opening_only"));
+        }
+        const candidates = typeof sourceRef === "string" && sourceRef
+          ? openings.filter((opening) => opening.id === sourceRef)
+          : openings;
+        if (!candidates.some((opening) => markerAppearsInText(opening.visible_text ?? opening.text, marker))) {
+          issues.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_reference", `开场生产者没有在目标 opening 中输出 UI 标记 ${marker}`));
+        }
+        continue;
+      }
+
+      if (producer === "model_output") {
+        const entry = worldbookEntries.find((candidate) => candidate?.id === sourceRef);
+        if (!entry) {
+          issues.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_reference", `模型输出生产者必须用 source_ref 指向实际 CharacterBook 条目；未找到 ${JSON.stringify(sourceRef ?? null)}`));
+          continue;
+        }
+        if (entry.enabled === false || entry.visibility !== "model") {
+          issues.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_contract", "UI 输出契约条目必须启用且对模型可见"));
+        }
+        if (entry?.activation?.mode !== "constant") {
+          issues.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_contract", "UI 输出契约条目必须常驻；关键词未触发时模型不会知道需要输出状态标记"));
+        }
+        try {
+          const content = await resolveWorldbookContent(entry.source, sources, projectRoot, entry.display_name);
+          if (!markerAppearsInText(content, marker) || !hasOutputDirective(content)) {
+            issues.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_contract", `CharacterBook 条目 ${sourceRef} 必须明确命令模型按 ${cadence} 输出同一个标记/XML块 ${marker}`));
+          }
+        } catch (error) {
+          issues.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_contract", error.message));
+        }
+        continue;
+      }
+
+      if (producer === "helper_script" && (typeof sourceRef !== "string" || !helperIds.has(sourceRef))) {
+        issues.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_reference", `helper_script 生产者必须指向实际 Tavern Helper 脚本；未找到 ${JSON.stringify(sourceRef ?? null)}`));
+      }
+      if (["framework", "helper_script", "user_action", "existing"].includes(producer) && evidence.length === 0) {
+        issues.push(issue(`${base}/emission/evidence`, "ui.marker_producer_evidence", `${producer} 生产者必须记录与正则标记完全一致的实际证据`));
+      }
+      if (producer === "user_action" && cadence === "every_assistant_message") {
+        issues.push(issue(`${base}/emission/cadence`, "ui.marker_producer_cadence", "user_action 不能保证每条 AI 回复都产生标记"));
+      }
+    }
+  }
+}
+
 async function validateMvuUpdateBlockDisplay(mvu, runtime, projectRoot, base, issues) {
   if (mvu?.update_strategy?.response_transport !== "chat_message") return;
 
@@ -1492,6 +1607,8 @@ export async function validateRuntimeSources({ project, sources, projectRoot }) 
       if (typeof text !== 'string' || !text.trim()) issues.push(issue(`/openings/${index}/visible_text`, 'opening.content', 'Opening text is empty'));
     }
   }
+
+  await validateUiSurfaceProducers(sources, projectRoot, assembly, openings, issues);
 
   validatePresentations(openingSources, assemblies, issues);
   validateMediaConsumers(sources, issues);

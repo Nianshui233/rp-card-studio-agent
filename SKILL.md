@@ -242,6 +242,8 @@ Forge must not invent RP facts, variable paths, EJS branches, extra runtime laye
 
 A technical test card may reduce story volume, UI richness, cast size, or visual polish, but it must not omit any load-bearing component of the route being tested. If a chat-message variable protocol emits a technical update block, its completed and still-streaming forms need a verified player-display cleanup path. Card regex is the default; framework cleanup, host regex, or an existing mechanism is valid only when the project records that choice and its evidence.
 
+Every message-contained UI marker also needs a real producer. An opening marker may come from the opening message. A marker or XML status block expected on every assistant reply defaults to a dedicated, constant, model-visible CharacterBook output-contract entry that explicitly commands the same marker and cadence. Framework, helper-script, user-action, and existing producers are valid when recorded with evidence. HTML plus a consuming regex is not a closed runtime path by itself; this applies equally to MVU-backed short markers and non-MVU XML status blocks.
+
 Default final delivery is exactly one character-card `.json`. Mention PNG and other
 artifacts as optional; generate them only when explicitly requested.
 

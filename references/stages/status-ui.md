@@ -74,6 +74,26 @@ src/runtime/ui/
 
 MVU 状态栏通常等待 `Mvu` 就绪，再用 `Mvu.getMvuData({ type: 'message', message_id: getCurrentMessageId() })` 读取当前楼层 `stat_data`，并监听目标版本的实际更新事件。`display_data` / `delta_data` 在当前 MVU 源码中已标为 deprecated，不作为新 UI 的唯一数据源。非 MVU 状态栏可捕获模型输出的稳定状态块。不要让正则凭空“把变量变成 HTML”，也不要把示例初值硬编码成运行数据。
 
+## 标记生产链
+
+每个 `status_ui.surfaces[]` 不仅要记录 `marker` 和 HTML 文件，还要说明谁负责在真实消息中生产这个标记：
+
+```yaml
+emission:
+  producer: model_output        # opening_message / framework / helper_script / user_action / existing
+  cadence: every_assistant_message
+  source_ref: wb_status_output_contract
+  evidence: []
+```
+
+- 开局应用通常由 `opening_message` 生产；标记必须真实存在于默认或指定开场消息。
+- 每轮消息状态栏若由模型生产，默认建立一个独立、常驻、模型可见的中文 CharacterBook 输出契约条目，明确命令模型在每次回复末尾输出同一个标记，并用 `source_ref` 指向该条目。
+- MVU 只负责变量并不等于它会输出项目自定义标记。只有目标框架确实追加与正则相同的标记时，才能选择 `framework` 并记录证据。
+- Tavern Helper 脚本、按钮或成熟既有实现也可以作为生产者，但必须记录实际脚本/行为与证据，不能只写“应该会输出”。
+- 非 MVU 卡通常让模型输出完整、稳定的 XML 状态块，例如 `<我非我状态>...</我非我状态>`；专门的世界书输出契约应说明字段、顺序、缺省值、禁止正文外泄和每轮输出位置，正则再捕获整个块并渲染 HTML。
+
+Forge 会检查生产者、标记和正则消费者是否闭合。只有 HTML 和捕获正则、却没有任何消息生产者的状态栏属于确定断链。
+
 按钮可以读取/写入消息或变量、调用 slash command、填充/发送 SillyTavern 输入框、打开弹窗、操作世界书或调用宿主 API。使用父页面 DOM 和私有 API是允许的；记录版本耦合和失败表现并真机验证即可。
 
 ## 中文玩家体验
@@ -99,4 +119,5 @@ MVU 状态栏通常等待 `Mvu` 就绪，再用 `Mvu.getMvuData({ type: 'message
 - 所有可见字段都有真实数据来源和中文显示映射；
 - 所有按钮有真实处理、反馈和失败状态；
 - 正则触发标记、提示词分离和宿主依赖明确；
+- 每个 UI 标记都有真实生产者；每轮模型输出标记有独立、常驻、模型可见的世界书输出契约，或有已验证的框架/脚本替代；
 - 没有真实宿主证据时标记 `runtime: not_run`，但仍可构建候选交付物。

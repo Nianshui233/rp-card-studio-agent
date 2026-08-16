@@ -139,11 +139,14 @@ src/runtime/scripts/雾港变量脚本.js
 
 - display 规则：把短标记或状态块替换成完整 HTML；
 - prompt 规则：避免把整页 HTML 送给模型，保留简短可理解的叙事说明；
+- 标记生产者：开场标记来自 opening；每轮状态标记默认由常驻、模型可见的 CharacterBook 输出契约命令模型生成；非 MVU 卡在该条目中定义完整 XML 状态块；
 - 完整变量块隐藏：隐藏已闭合的技术块；
 - 流式变量块隐藏：处理正在生成、尚未闭合的技术块；
 - 编辑/Swipe/重载：需要时启用 `runOnEdit` 并验证消息生命周期。
 
 聊天消息变量协议默认在 `mvu.update_strategy.display_cleanup` 选择 `card_regex`。Forge 会把本卡真实更新标签分别重放为完整块和流式半块，确认技术正文不会出现在玩家显示层。成熟卡若由 MVU 框架、宿主全局正则或既有机制清理，可改为 `framework`、`host_regex` 或 `existing`，但必须填写已经核实的 `evidence`；“测试卡所以省略”不属于有效豁免。
+
+每个 `status_ui.surfaces[]` 还应记录 `emission.producer / cadence / source_ref / evidence`。Forge 会反查同一标记是否真的存在于开场、常驻世界书输出契约、框架、Tavern Helper脚本或用户动作中。只有 HTML 和 display 正则而没有生产者时，构建链并未闭合。
 
 实际装配字段示例：
 

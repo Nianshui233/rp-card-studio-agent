@@ -15256,6 +15256,7 @@ function validatePayload(value, format = detectJsonFormat(value)) {
     issues.push(...validateNamedSchema("character-card", value));
     validateCharacterRegexScripts(value, issues);
     validateManagedMvuDisplayCleanup(value, issues);
+    validateManagedUiMarkerProducers(value, issues);
     validateEmbeddedCharacterBookBinding(value, issues, warnings);
     return { format, issues, warnings };
   }
@@ -15380,6 +15381,116 @@ _.set('\u72B6\u6001', 0,`;
         "mvu.update_block_streaming_visibility",
         `Forge-managed MVU artifact leaves streaming, unclosed <${tag}> technical content visible to the player`
       ));
+    }
+  }
+}
+function artifactMarkerAppearsInText(text, marker) {
+  const source = String(text ?? "");
+  const exact = String(marker ?? "").trim();
+  if (!exact) return false;
+  if (source.includes(exact)) return true;
+  const tag = exact.match(/^<([^\s/>]+)\b/)?.[1];
+  if (!tag) return false;
+  const escaped = tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (!new RegExp(`<${escaped}(?:\\s|/?>)`, "i").test(source)) return false;
+  return !exact.includes(`</${tag}>`) || new RegExp(`</${escaped}\\s*>`, "i").test(source);
+}
+function artifactHasOutputDirective(text) {
+  return /(?:每(?:次|轮).{0,24}回复|回复.{0,16}(?:末尾|结尾)|(?:必须|务必|始终|固定).{0,16}(?:输出|追加|附加|写入)|(?:输出|追加|附加|写入).{0,24}(?:标签|标记|XML|状态块)|(?:always|every|each).{0,24}(?:output|append|emit)|(?:output|append|emit).{0,24}(?:response|reply))/is.test(String(text ?? ""));
+}
+function artifactUiSources(value) {
+  const sources = value?.data?.extensions?.rp_card_studio?.sources?.ui;
+  if (!Array.isArray(sources)) return [];
+  return sources.map((source) => source?.value).filter((source) => isPlainObject(source?.status_ui) && source.status_ui.enabled === true);
+}
+function artifactUiDisplayPatterns(value) {
+  const scripts = value?.data?.extensions?.regex_scripts;
+  if (!Array.isArray(scripts)) return [];
+  const patterns = [];
+  for (const script of scripts) {
+    if (!isPlainObject(script) || script.disabled === true || script.promptOnly === true || script.markdownOnly !== true || !Array.isArray(script.placement) || script.placement.length === 0 || typeof script.findRegex !== "string") continue;
+    try {
+      patterns.push(compileRegexString(script.findRegex));
+    } catch {
+    }
+  }
+  return patterns;
+}
+function artifactPatternMatchesMarker(pattern, marker) {
+  const candidate = new RegExp(pattern.source, pattern.flags);
+  candidate.lastIndex = 0;
+  return candidate.test(marker);
+}
+function artifactHelperIds(nodes) {
+  const output = /* @__PURE__ */ new Set();
+  for (const node of nodes ?? []) {
+    if (typeof node?.id === "string" && node.id) output.add(node.id);
+    if (Array.isArray(node?.scripts)) {
+      for (const id of artifactHelperIds(node.scripts)) output.add(id);
+    }
+  }
+  return output;
+}
+function validateManagedUiMarkerProducers(value, issues) {
+  const uiSources = artifactUiSources(value);
+  if (uiSources.length === 0) return;
+  const displayPatterns = artifactUiDisplayPatterns(value);
+  const openings = [value?.data?.first_mes, ...Array.isArray(value?.data?.alternate_greetings) ? value.data.alternate_greetings : []];
+  const entries = worldbookEntries(value?.data?.character_book);
+  const helperIds = artifactHelperIds(value?.data?.extensions?.tavern_helper?.scripts);
+  for (const [uiIndex, source] of uiSources.entries()) {
+    for (const [surfaceIndex, surface] of (source.status_ui.surfaces ?? []).entries()) {
+      const base = `/data/extensions/rp_card_studio/sources/ui/${uiIndex}/value/status_ui/surfaces/${surfaceIndex}`;
+      const marker = typeof surface?.marker === "string" ? surface.marker.trim() : "";
+      if (!marker) {
+        issues.push(issue(`${base}/marker`, "ui.marker", "Managed message UI surface is missing its capture marker or XML sample"));
+        continue;
+      }
+      if (!displayPatterns.some((pattern) => artifactPatternMatchesMarker(pattern, marker))) {
+        issues.push(issue(`${base}/marker`, "ui.marker_consumer", `Managed UI marker ${marker} has no enabled display regex consumer`));
+      }
+      const emission = surface?.emission;
+      if (!isPlainObject(emission)) {
+        if (!openings.some((opening) => artifactMarkerAppearsInText(opening, marker))) {
+          issues.push(issue(`${base}/emission`, "ui.marker_producer", `Managed UI marker ${marker} has a regex consumer but no opening, model contract, framework, script, or user-action producer`));
+        }
+        continue;
+      }
+      const producer = emission.producer;
+      const cadence = emission.cadence;
+      const sourceRef = emission.source_ref;
+      const evidence = Array.isArray(emission.evidence) ? emission.evidence.filter((item) => typeof item === "string" && item.trim()) : [];
+      if (producer === "opening_message") {
+        if (cadence !== "opening_only") issues.push(issue(`${base}/emission/cadence`, "ui.marker_producer_cadence", "opening_message producer must use opening_only"));
+        if (!openings.some((opening) => artifactMarkerAppearsInText(opening, marker))) {
+          issues.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_reference", `No opening message emits managed UI marker ${marker}`));
+        }
+        continue;
+      }
+      if (producer === "model_output") {
+        const entry = entries.find((candidate) => candidate?.extensions?.rp_card_studio?.source_id === sourceRef);
+        if (!entry) {
+          issues.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_reference", `No embedded CharacterBook entry matches output-contract source_ref ${JSON.stringify(sourceRef ?? null)}`));
+          continue;
+        }
+        const tracking = entry?.extensions?.rp_card_studio;
+        if (entry.enabled === false || tracking?.visibility !== "model" || entry.constant !== true) {
+          issues.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_contract", "Embedded UI output-contract entry must be enabled, constant, and model-visible"));
+        }
+        if (!artifactMarkerAppearsInText(entry.content, marker) || !artifactHasOutputDirective(entry.content)) {
+          issues.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_contract", `Embedded output-contract entry must explicitly command ${cadence} emission of the same marker/XML block ${marker}`));
+        }
+        continue;
+      }
+      if (producer === "helper_script" && (typeof sourceRef !== "string" || !helperIds.has(sourceRef))) {
+        issues.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_reference", `No embedded Tavern Helper script matches producer source_ref ${JSON.stringify(sourceRef ?? null)}`));
+      }
+      if (["framework", "helper_script", "user_action", "existing"].includes(producer) && evidence.length === 0) {
+        issues.push(issue(`${base}/emission/evidence`, "ui.marker_producer_evidence", `${producer} producer must record evidence for the exact captured marker`));
+      }
+      if (producer === "user_action" && cadence === "every_assistant_message") {
+        issues.push(issue(`${base}/emission/cadence`, "ui.marker_producer_cadence", "user_action cannot guarantee a marker on every assistant message"));
+      }
     }
   }
 }

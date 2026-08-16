@@ -22,7 +22,37 @@
         "experience_level": { "enum": ["light", "light_medium", "medium", "heavy", "super_heavy"] },
         "theme_direction": { "type": "string" },
         "device_priority": { "enum": ["desktop", "mobile", "equal"] },
-        "surfaces": { "type": "array" },
+        "surfaces": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "name": { "type": "string", "minLength": 1 },
+              "marker": { "type": "string", "minLength": 1 },
+              "file": { "type": "string", "minLength": 1 },
+              "emission": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["producer", "cadence", "source_ref", "evidence"],
+                "properties": {
+                  "producer": {
+                    "enum": ["opening_message", "model_output", "framework", "helper_script", "user_action", "existing"]
+                  },
+                  "cadence": {
+                    "enum": ["opening_only", "every_assistant_message", "on_change", "on_demand"]
+                  },
+                  "source_ref": { "type": ["string", "null"] },
+                  "evidence": {
+                    "type": "array",
+                    "items": { "type": "string", "minLength": 1 }
+                  }
+                }
+              }
+            }
+          }
+        },
         "data_sources": { "type": "array" },
         "host_interactions": { "type": "array" },
         "lifecycle_checks": { "type": "array" },
