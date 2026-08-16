@@ -11,11 +11,38 @@ function payload() {
   return { spec: "chara_card_v2", spec_version: "2.0", data: { name: "技术路线测试", description: "入口", personality: "", scenario: "", first_mes: "开场", mes_example: "", creator_notes: "", system_prompt: "", post_history_instructions: "", alternate_greetings: [], tags: [], creator: "", character_version: "1.0", extensions: {} } };
 }
 
-function assembly(helperTrees = []) {
+function assembly(helperTrees = [], entries = []) {
   return {
-    worldbook_manifest: { entries: [] },
+    worldbook_manifest: { entries },
     media_manifest: { enabled: false, assets: [] },
     runtime_manifest: { mode: "authored", regex_scripts: [], tavern_helper_scripts: helperTrees, extension_fields: {} },
+  };
+}
+
+function initVarEntry(file = "src/runtime/mvu/初始变量.yaml") {
+  return {
+    id: "mvu_initvar",
+    display_name: "[initvar] 初始变量",
+    source: { kind: "file", path: file },
+    enabled: false,
+    activation: {
+      mode: "constant",
+      primary_keys: [],
+      secondary_keys: [],
+      selective: false,
+      logic: "any",
+      case_sensitive: false,
+      match_whole_words: false,
+    },
+    insertion: { position: "before_char", order: 10, depth: null, role: "system" },
+    probability: 100,
+    scan_depth: null,
+    recursion: { prevent_incoming: true, prevent_outgoing: true, delay_until_recursion: false },
+    recipient: "shared",
+    visibility: "model",
+    ignore_budget: true,
+    token_budget: null,
+    fallback: "block",
   };
 }
 
@@ -67,6 +94,23 @@ function nativeMvu(overrides = {}) {
   };
 }
 
+test("locked character integration rejects an empty CharacterBook manifest", async () => {
+  const lockedAssembly = { ...assembly(), status: "locked" };
+  const sources = sourceSet(lockedAssembly);
+  sources.world = [{
+    relativePath: "src/world/世界设定.yaml",
+    value: { id: "test_world", display_name: "测试世界", premise: { summary: "存在且需要装配的世界。" } },
+  }];
+
+  const validation = await validateRuntimeSources({
+    project: { features: {}, target: "character_card" },
+    sources,
+    projectRoot: process.cwd(),
+  });
+
+  assert.ok(validation.issues.some((entry) => entry.rule === "assembly.worldbook_empty"));
+});
+
 test("Tavern Helper ScriptFolder is preserved as a real script tree", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "rp-helper-tree-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -101,25 +145,45 @@ test("card-contained native MVU requires a real loader script and real source fi
   await writeFile(path.join(root, "src/runtime/mvu/变量更新规则.yaml"), "规则: 按事件更新", "utf8");
   await writeFile(path.join(root, "src/runtime/mvu/变量输出格式.yaml"), "格式: UpdateVariable", "utf8");
   const loader = { id: "mvu-loader", name: "加载 MVU 框架", enabled: true, content: "import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js';" };
-  const sources = sourceSet(assembly([loader]), nativeMvu());
+  const sources = sourceSet(assembly([loader], [initVarEntry()]), nativeMvu());
   const valid = await validateRuntimeSources({ project: { features: { mvu: true, ejs: false, status_ui: false } }, sources, projectRoot: root });
   assert.deepEqual(valid.issues, []);
 
-  const missingLoader = sourceSet(assembly([]), nativeMvu());
+  const missingLoader = sourceSet(assembly([], [initVarEntry()]), nativeMvu());
   const invalid = await validateRuntimeSources({ project: { features: { mvu: true, ejs: false, status_ui: false } }, sources: missingLoader, projectRoot: root });
   assert.ok(invalid.issues.some((entry) => entry.rule === "mvu.loader"));
+});
+
+test("MVU initial values must be projected into a real [initvar] CharacterBook entry", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "rp-mvu-initvar-projection-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(path.join(root, "src/runtime/mvu"), { recursive: true });
+  await writeFile(path.join(root, "src/runtime/mvu/初始变量.yaml"), "技术验收:\n  状态: 已初始化", "utf8");
+  await writeFile(path.join(root, "src/runtime/mvu/变量更新规则.yaml"), "规则: 按事件更新", "utf8");
+  await writeFile(path.join(root, "src/runtime/mvu/变量输出格式.yaml"), "格式: UpdateVariable", "utf8");
+  const loader = { id: "mvu-loader", name: "加载 MVU 框架", enabled: true, content: "import 'bundle.js';" };
+  const sources = sourceSet(assembly([loader]), nativeMvu());
+
+  const validation = await validateRuntimeSources({
+    project: { features: { mvu: true, ejs: false, status_ui: false } },
+    sources,
+    projectRoot: root,
+  });
+
+  assert.ok(validation.issues.some((entry) => entry.rule === "mvu.initial_values_projection"));
 });
 
 test("MVU_ZOD and EJS are independent optional layers", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "rp-mvu-zod-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  await mkdir(path.join(root, "src/runtime"), { recursive: true });
+  await mkdir(path.join(root, "src/runtime/mvu"), { recursive: true });
   await writeFile(path.join(root, "src/runtime/schema.js"), "registerMvuSchema({});", "utf8");
   await writeFile(path.join(root, "src/runtime/context.ejs"), "<%= JSON.stringify(stat_data) %>", "utf8");
+  await writeFile(path.join(root, "src/runtime/mvu/初始变量.yaml"), "状态:\n  天气: 雨", "utf8");
   const source = nativeMvu({
     route: "mvu_zod",
     files: {
-      initial_values: null,
+      initial_values: "src/runtime/mvu/初始变量.yaml",
       schema_script: "src/runtime/schema.js",
       update_rules: null,
       output_format: null,
@@ -134,6 +198,6 @@ test("MVU_ZOD and EJS are independent optional layers", async (t) => {
     implementation_notes: [],
   };
   const loader = { id: "mvu-loader", name: "加载 MVU 框架", enabled: true, content: "import 'bundle.js';" };
-  const validation = await validateRuntimeSources({ project: { features: { mvu: true, ejs: true, status_ui: false } }, sources: sourceSet(assembly([loader]), source), projectRoot: root });
+  const validation = await validateRuntimeSources({ project: { features: { mvu: true, ejs: true, status_ui: false } }, sources: sourceSet(assembly([loader], [initVarEntry()]), source), projectRoot: root });
   assert.deepEqual(validation.issues, []);
 });

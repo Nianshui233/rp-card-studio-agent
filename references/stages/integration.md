@@ -56,7 +56,19 @@ runtime_manifest:
 
 Forge 只读取文件内容并填入 `replaceString` / `content`。不得把这些源码再次转换成通用 UI、额外运行层、合成 EJS 条目或固定正则组。
 
-EJS 文件通常通过 `worldbook_manifest.entries[].source.kind: file` 放进明确的世界书条目。初始变量、更新规则、输出格式同理；具体启用与路由由目标实现决定。
+EJS 文件通常通过 `worldbook_manifest.entries[].source.kind: file` 放进明确的世界书条目。MVU 初始变量必须由名称含 `[initvar]` 的真实文件条目装入；更新规则和输出格式也进入各自明确目标。具体启用与路由由目标实现决定。
+
+## 内嵌、导入与挂载
+
+这三个状态不得混为一谈：
+
+1. `data.character_book` 非空：世界书内容已经内嵌进角色卡；
+2. SillyTavern 世界书列表中存在同名书：内嵌书已经执行“Import Card Lore/导入卡片世界书”；
+3. `data.extensions.world`、角色编辑页主世界书选择和实际世界书名一致：角色已经挂载该书。
+
+Forge 负责第 1 项并写出第 3 项的目标名称，但标准角色卡 JSON 不能保证目标 SillyTavern 已经存在该书。SillyTavern 默认会按 `world_import_dialog` 设置询问是否导入；没有弹窗或曾跳过时，应在角色菜单执行“Import Card Lore”。真实宿主验收必须完成导入并确认当前主世界书，而不能只检查 JSON 字段。
+
+项目若明确要求零手工导入，可以编写项目专属 Tavern Helper 脚本调用目标版本已经实测的 SillyTavern 接口完成导入与挂载；这是版本耦合的卡侧自动化，不得修改 SillyTavern 本体，也不得用未经实测的固定通用脚本冒充成功。
 
 ## 正则成组审查
 
@@ -81,12 +93,13 @@ EJS 文件通常通过 `worldbook_manifest.entries[].source.kind: file` 放进�
 4. 检查实际扩展字段结构、脚本启用状态和依赖；
 5. 重新打开产物，确认大段 HTML/JS/EJS 未被截断或重写；
 6. 需要 PNG 时再将已通过的 JSON 嵌入图像；
-7. 在真实 SillyTavern 中验证导入、首聊、变量、正则、UI、按钮与生命周期；
+7. 在真实 SillyTavern 中导入内嵌 CharacterBook、确认角色主世界书已挂载，再验证首聊、变量、正则、UI、按钮与生命周期；
 8. 没有实机只声明候选与 `runtime: not_run`。
 
 ## 完成门槛
 
-- 卡名、入口、开场与世界书投影正确；
+- 卡名、入口、开场与世界书投影正确，CharacterBook 不是空容器；
+- 内嵌书名、`data.extensions.world`、SillyTavern 世界书列表和角色当前主世界书四者一致；
 - 所有启用条目和运行组件都能追溯到维护源；
 - HTML/JS/EJS/正则是作者实际写出的内容，不是 Forge 的通用替代品；
 - 变量链与 UI 数据链闭合；

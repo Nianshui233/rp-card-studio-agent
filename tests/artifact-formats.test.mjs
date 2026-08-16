@@ -364,6 +364,28 @@ test('artifact validation rejects duplicate scoped regex UUIDs', t => {
   assert.match(result.output, /duplicate scoped regex UUID|regex\.id_duplicate/i);
 });
 
+test('artifact validation rejects an authoritative but empty embedded CharacterBook', t => {
+  const root = tempRoot(t, 'managed-empty-character-book');
+  const input = path.join(root, 'empty.json');
+  writeJson(input, characterCard(2, 'Empty managed lorebook', {
+    extensions: { rp_card_studio: { worldbook_manifest: { authoritative: true, entry_ids: [] } } },
+    character_book: {
+      name: 'Empty managed lorebook 世界书',
+      description: 'Should not pass as an embedded lorebook.',
+      scan_depth: null,
+      token_budget: null,
+      recursive_scanning: false,
+      extensions: {},
+      entries: [],
+    },
+  }));
+
+  const result = runForge(['validate', input]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.output, /character_book\.empty|nothing can be imported or linked/i);
+});
+
 test('artifact validation rejects missing or mismatched bindings for Forge-managed CharacterBooks', t => {
   const root = tempRoot(t, 'managed-character-book-binding');
   for (const version of [2, 3]) {

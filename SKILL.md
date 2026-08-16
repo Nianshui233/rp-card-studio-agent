@@ -150,7 +150,7 @@ invent an abstract adapter and later pretend it is equivalent.
 
 Read [mvu-ejs.md](references/stages/mvu-ejs.md).
 
-An MVU implementation is a closed chain: framework loading, actual initial data, the selected native/MVU_ZOD/hybrid/existing schema route, model-visible update rules, output format, per-opening initialization, prompt routing, and UI readers. `stat_data` is the primary game-state tree unless the target project proves another shape. Never treat MVU_ZOD as mandatory, and never confuse its project schema script with the MVU framework loader. Preserve real Tavern Helper Script/ScriptFolder trees.
+An MVU implementation is a closed chain: framework loading, actual initial data, the selected native/MVU_ZOD/hybrid/existing schema route, model-visible update rules, output format, per-opening initialization, prompt routing, and UI readers. `stat_data` is the primary game-state tree unless the target project proves another shape. For every new MVU route, maintain a real initial-values file and project it through `worldbook_manifest.entries` as a CharacterBook entry whose name contains `[initvar]`. MVU_ZOD registers project structure; it does not replace initial data. Treat opening `<initvar>` as an override after lorebook initialization, never as a standalone bootstrap when no primary lorebook is installed and linked. Never confuse the project schema script with the MVU framework loader. Preserve real Tavern Helper Script/ScriptFolder trees.
 
 EJS is actual ST-Prompt-Template source. It may project a compressed MVU context,
 choose text, or route prompt content, but it is not a generic condition table and it
@@ -204,10 +204,9 @@ and lifecycle-safe host actions.
 
 Read [integration.md](references/stages/integration.md).
 
-Integration cuts the confirmed RP YAML/prose into CharacterBook entries and packs the
-already-authored runtime components. It does not rewrite them through a second generic
-framework. Preserve actual JS/EJS/HTML/regex source bytes except for declared file
-materialization and unavoidable JSON escaping.
+Integration cuts the confirmed RP YAML/prose into non-empty CharacterBook entries and packs the already-authored runtime components. It does not rewrite them through a second generic framework. Preserve actual JS/EJS/HTML/regex source bytes except for declared file materialization and unavoidable JSON escaping.
+
+Keep four separate facts explicit: the card contains a non-empty `data.character_book`; `data.extensions.world` names that book; SillyTavern has imported the embedded book into its world-info list; and the character's current primary lorebook is linked to it. A standard card JSON can declare the first two but cannot prove the host has completed the latter two. During real-host acceptance, use SillyTavern's “Import Card Lore” flow and verify the live primary-world selection. If the project explicitly needs zero-click installation, author and version-test a project-specific Tavern Helper automation against the real host API; do not modify SillyTavern itself or assume one universal helper works everywhere.
 
 ## Card Projection
 
@@ -218,8 +217,8 @@ For new projects:
 - `data.description`: readable project entrance/core contract, not an NPC profile;
 - `data.first_mes` and `alternate_greetings`: actual opening messages or short stable
   UI markers with a separately tested prompt-visible fallback;
-- `data.character_book`: primary container for modular world, NPC, system, scene,
-  narrative, MVU/EJS, output, and integration entries;
+- `data.character_book`: non-empty primary container for modular world, NPC, system, scene, narrative, MVU/EJS, output, and integration entries;
+- `data.extensions.world`: exact name of the embedded CharacterBook that the character should use after the host imports it;
 - `data.extensions.regex_scripts`: authored card regexes;
 - `data.extensions.tavern_helper`: authored Tavern Helper scripts and related data.
 
@@ -249,10 +248,7 @@ artifacts as optional; generate them only when explicitly requested.
 Separate source/static, assembled-artifact, real-SillyTavern, and user-acceptance
 evidence. No real-host run means `runtime: not_run`, not failure and not proof.
 
-For runtime work, verify the imported artifact, enabled scoped regex/scripts, Blob URL
-setting when relevant, first chat, raw message data, final DOM/iframe, current
-message-floor state, interactions, edit/swipe/reload/chat-switch lifecycle, narrow
-screens, long Chinese text, and console errors.
+For runtime work, verify the imported artifact, embedded CharacterBook import, live primary-lorebook link, enabled scoped regex/scripts, Blob URL setting when relevant, first chat, raw message data, final DOM/iframe, current message-floor state, interactions, edit/swipe/reload/chat-switch lifecycle, narrow screens, long Chinese text, and console errors. Never report MVU initialization as passed merely because the loader or `window.Mvu` exists; confirm that `stat_data` contains the expected initial values.
 
 Return the project summary, files changed, decisions, dependency/install notice,
 validation evidence, unresolved host checks, and the next recommended stage or action.

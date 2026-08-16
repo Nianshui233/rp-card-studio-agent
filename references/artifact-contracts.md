@@ -40,7 +40,9 @@
 - EJS 和运行提示词进入明确目标条目；
 - 正则、HTML 和 Tavern Helper 脚本不塞进世界书正文。
 
-CharacterBook ID 使用稳定分配；已有受管条目尽量复用原 ID。Standalone 世界书使用规范数值 uid，并保留导入键。
+CharacterBook ID 使用稳定分配；已有受管条目尽量复用原 ID。Standalone 世界书使用规范数值 uid，并保留导入键。锁定整合后的 CharacterBook 必须非空；`data.extensions.world` 必须与内嵌书名一致。
+
+内嵌不等于已安装：SillyTavern 仍需把卡内 CharacterBook 导入世界书列表并设置为角色主世界书。真实宿主验收必须检查这两个现场状态；标准 JSON 只能携带书和声明目标名称。
 
 ## 5. 真实运行组件契约
 

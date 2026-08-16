@@ -112,7 +112,18 @@ function embeddedCharacterBookName(value) {
 }
 function validateEmbeddedCharacterBookBinding(value, issues, warnings) {
   const characterBook = value?.data?.character_book;
-  if (!hasWorldbookEntries(characterBook)) return;
+  if (!characterBook) return;
+  if (!hasWorldbookEntries(characterBook)) {
+    const authoritative = value?.data?.extensions?.rp_card_studio?.worldbook_manifest?.authoritative === true;
+    (authoritative ? issues : warnings).push(issue(
+      "/data/character_book/entries",
+      "character_book.empty",
+      authoritative
+        ? "Forge-managed CharacterBook is empty; nothing can be imported or linked in SillyTavern"
+        : "Embedded CharacterBook exists but contains no entries",
+    ));
+    return;
+  }
   const expectedName = embeddedCharacterBookName(value);
   const explicitName = characterBook?.name;
   if (typeof explicitName !== "string" || explicitName.trim().length === 0) {

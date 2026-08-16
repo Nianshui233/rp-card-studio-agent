@@ -614,6 +614,19 @@ async function validateAssembly(sources, projectRoot, issues, warnings, target, 
     }
     const manifest = assembly.worldbook_manifest;
     issues.push(...worldbookHostIssues(manifest, target, `/runtime/assembly/${sourceIndex}`));
+    const requiredSources = requiredCharacterBookSources(sources, project);
+    if (
+      target === "character"
+      && assembly?.status === "locked"
+      && requiredSources.length > 0
+      && (manifest?.entries ?? []).length === 0
+    ) {
+      issues.push(issue(
+        `/runtime/assembly/${sourceIndex}/worldbook_manifest/entries`,
+        "assembly.worldbook_empty",
+        "锁定的角色卡整合清单没有任何 CharacterBook 条目；卡内虽可能出现空 character_book 容器，但世界、人物、系统和场景不会被导入或挂载",
+      ));
+    }
     const enabledEntries = (manifest?.entries ?? []).filter((entry) => entry?.enabled !== false);
     const contentEntries = enabledEntries.filter((entry) => entry?.activation?.mode === "keywords");
     if (contentEntries.length >= 3 && contentEntries.every((entry) => (
@@ -1319,8 +1332,19 @@ async function validateMvuRuntimeSources(project, sources, projectRoot, assembly
       if (!mvu.route || mvu.route === "none") {
         issues.push(issue(`${base}/mvu/route`, "mvu.route", "启用 MVU 时必须选择 native_schema、mvu_zod、hybrid 或 existing 路线"));
       }
-      if (["native_schema", "hybrid"].includes(mvu.route) && !mvu.files?.initial_values) {
-        issues.push(issue(`${base}/mvu/files/initial_values`, "mvu.initial_values", "MVU 原生 Schema 路线需要实际 [initvar] 初始变量源"));
+      const initialValues = mvu.files?.initial_values;
+      if (mvu.route !== "existing" && !initialValues) {
+        issues.push(issue(`${base}/mvu/files/initial_values`, "mvu.initial_values", "新 MVU 路线必须提供实际初始变量源；MVU_ZOD 不能代替初始值"));
+      }
+      if (mvu.route !== "existing" && initialValues) {
+        const projectedInitVar = (assembly?.worldbook_manifest?.entries ?? []).some((entry) => (
+          String(entry?.display_name ?? "").toLowerCase().includes("[initvar]")
+          && entry?.source?.kind === "file"
+          && entry.source.path === initialValues
+        ));
+        if (!projectedInitVar) {
+          issues.push(issue(`${base}/mvu/files/initial_values`, "mvu.initial_values_projection", "初始变量文件必须装配为名称含 [initvar] 的 CharacterBook 条目；仅在开场放 <initvar> 会因 MVU 初始化提前返回而失效"));
+        }
       }
       if (["mvu_zod", "hybrid"].includes(mvu.route) && !mvu.files?.schema_script) {
         issues.push(issue(`${base}/mvu/files/schema_script`, "mvu.schema", "MVU_ZOD 路线需要实际变量结构脚本"));
