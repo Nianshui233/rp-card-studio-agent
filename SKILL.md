@@ -240,6 +240,8 @@ Forge is a faithful local packer and validator. It may:
 
 Forge must not invent RP facts, variable paths, EJS branches, extra runtime layers, fixed regex suites, UI components, or generic HTML on behalf of the authored project.
 
+A technical test card may reduce story volume, UI richness, cast size, or visual polish, but it must not omit any load-bearing component of the route being tested. If a chat-message variable protocol emits a technical update block, its completed and still-streaming forms need a verified player-display cleanup path. Card regex is the default; framework cleanup, host regex, or an existing mechanism is valid only when the project records that choice and its evidence.
+
 Default final delivery is exactly one character-card `.json`. Mention PNG and other
 artifacts as optional; generate them only when explicitly requested.
 

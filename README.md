@@ -143,6 +143,8 @@ src/runtime/scripts/雾港变量脚本.js
 - 流式变量块隐藏：处理正在生成、尚未闭合的技术块；
 - 编辑/Swipe/重载：需要时启用 `runOnEdit` 并验证消息生命周期。
 
+聊天消息变量协议默认在 `mvu.update_strategy.display_cleanup` 选择 `card_regex`。Forge 会把本卡真实更新标签分别重放为完整块和流式半块，确认技术正文不会出现在玩家显示层。成熟卡若由 MVU 框架、宿主全局正则或既有机制清理，可改为 `framework`、`host_regex` 或 `existing`，但必须填写已经核实的 `evidence`；“测试卡所以省略”不属于有效豁免。
+
 实际装配字段示例：
 
 ```yaml

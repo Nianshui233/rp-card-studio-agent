@@ -1275,6 +1275,88 @@ function parseRegexLiteral(value) {
   return match ? new RegExp(match[1], match[2]) : new RegExp(value);
 }
 
+function updateBlockTags(text) {
+  const tags = new Set();
+  const blocks = /<([A-Za-z_][\w:.-]*)\b[^>]*>([\s\S]*?)<\/\1\s*>/gi;
+  for (const match of String(text ?? "").matchAll(blocks)) {
+    const [, tag, body] = match;
+    if (/update.*variable|variable.*update/i.test(tag) || /_\.(?:set|assign|unset|update)\s*\(|"op"\s*:/i.test(body)) {
+      tags.add(tag);
+    }
+  }
+  return tags;
+}
+
+function isAiDisplayRegex(regex) {
+  return regex?.disabled !== true
+    && Array.isArray(regex?.placement)
+    && regex.placement.includes(2)
+    && regex?.prompt_only !== true;
+}
+
+async function authoredDisplayRegexPipeline(runtime, projectRoot) {
+  const pipeline = [];
+  for (const [index, regex] of (runtime?.regex_scripts ?? []).entries()) {
+    if (!isAiDisplayRegex(regex)) continue;
+    try {
+      pipeline.push({
+        pattern: parseRegexLiteral(regex.find_regex),
+        replacement: await authoredText(projectRoot, regex.replace_string, regex.replace_file, `regex_scripts[${index}]`),
+      });
+    } catch {
+      // validateAuthoredRuntime reports syntax and source errors separately.
+    }
+  }
+  return pipeline;
+}
+
+function applyRegexPipeline(text, pipeline) {
+  return pipeline.reduce((current, regex) => current.replace(regex.pattern, regex.replacement), text);
+}
+
+async function validateMvuUpdateBlockDisplay(mvu, runtime, projectRoot, base, issues) {
+  if (mvu?.update_strategy?.response_transport !== "chat_message") return;
+
+  const protocolParts = [];
+  for (const name of ["update_rules", "output_format"]) {
+    const relativePath = mvu?.files?.[name];
+    if (typeof relativePath !== "string" || !relativePath) continue;
+    try {
+      protocolParts.push(await readFile(resolveWithin(projectRoot, relativePath), "utf8"));
+    } catch {
+      // validateMvuRuntimeSources reports missing files separately.
+    }
+  }
+  const tags = new Set(protocolParts.flatMap((text) => [...updateBlockTags(text)]));
+  if (tags.size === 0) return;
+
+  const cleanupMode = mvu?.update_strategy?.display_cleanup?.mode
+    ?? (mvu?.route === "existing" ? "existing" : "card_regex");
+  if (cleanupMode !== "card_regex") return;
+
+  const pipeline = await authoredDisplayRegexPipeline(runtime, projectRoot);
+  for (const tag of tags) {
+    const completeSentinel = `__RP_MVU_COMPLETE_${tag}__`;
+    const streamingSentinel = `__RP_MVU_STREAMING_${tag}__`;
+    const complete = `正文\n<${tag}>\n<Analysis>${completeSentinel}</Analysis>\n_.set('状态', 0, 1);\n</${tag}>\n正文`;
+    const streaming = `正文\n<${tag}>\n<Analysis>${streamingSentinel}</Analysis>\n_.set('状态', 0,`;
+    if (applyRegexPipeline(complete, pipeline).includes(completeSentinel)) {
+      issues.push(issue(
+        `${base}/mvu/update_strategy/display_cleanup`,
+        "mvu.update_block_complete_visibility",
+        `聊天变量协议 <${tag}> 的完整技术块仍会出现在玩家显示层；请增加匹配本卡真实标签的完整块隐藏正则，或显式记录已经验证的外部清理机制`,
+      ));
+    }
+    if (applyRegexPipeline(streaming, pipeline).includes(streamingSentinel)) {
+      issues.push(issue(
+        `${base}/mvu/update_strategy/display_cleanup`,
+        "mvu.update_block_streaming_visibility",
+        `聊天变量协议 <${tag}> 在流式生成尚未闭合时仍会泄露技术正文；请增加流式半块隐藏正则，或显式记录已经验证的外部清理机制`,
+      ));
+    }
+  }
+}
+
 async function validateAuthoredRuntime(runtime, projectRoot, issues, warnings) {
   if (!runtime) return;
   if (runtime.mode !== "authored") {
@@ -1370,6 +1452,7 @@ async function validateMvuRuntimeSources(project, sources, projectRoot, assembly
           catch { issues.push(issue(`${base}/mvu/files/${name}/${fileIndex}`, "mvu.source", `MVU 源文件不存在: ${candidate}`)); }
         }
       }
+      await validateMvuUpdateBlockDisplay(mvu, assembly?.runtime_manifest, projectRoot, base, issues);
     }
     const ejs = source.ejs ?? {};
     if (ejs.enabled && (!Array.isArray(ejs.templates) || ejs.templates.length === 0)) {

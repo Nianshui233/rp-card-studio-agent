@@ -15255,6 +15255,7 @@ function validatePayload(value, format = detectJsonFormat(value)) {
   if (isCharacterFormat(format)) {
     issues.push(...validateNamedSchema("character-card", value));
     validateCharacterRegexScripts(value, issues);
+    validateManagedMvuDisplayCleanup(value, issues);
     validateEmbeddedCharacterBookBinding(value, issues, warnings);
     return { format, issues, warnings };
   }
@@ -15295,6 +15296,92 @@ function compileRegexString(source) {
   const pattern = source.slice(1, closingSlash);
   const flags = source.slice(closingSlash + 1);
   return new RegExp(pattern, flags);
+}
+function artifactUpdateBlockTags(value) {
+  const texts = [
+    value?.data?.first_mes,
+    value?.data?.system_prompt,
+    value?.data?.post_history_instructions,
+    ...Array.isArray(value?.data?.alternate_greetings) ? value.data.alternate_greetings : [],
+    ...worldbookEntries(value?.data?.character_book).map((entry) => entry?.content)
+  ];
+  const tags = /* @__PURE__ */ new Set();
+  const blocks = /<([A-Za-z_][\w:.-]*)\b[^>]*>([\s\S]*?)<\/\1\s*>/gi;
+  for (const text of texts) {
+    for (const match of String(text ?? "").matchAll(blocks)) {
+      const [, tag, body] = match;
+      if (/update.*variable|variable.*update/i.test(tag) || /_\.(?:set|assign|unset|update)\s*\(|"op"\s*:/i.test(body)) {
+        tags.add(tag);
+      }
+    }
+  }
+  return tags;
+}
+function managedMvuSources(value) {
+  const sources = value?.data?.extensions?.rp_card_studio?.sources?.mvu;
+  if (!Array.isArray(sources)) return [];
+  return sources.map((source) => source?.value).filter((source) => isPlainObject(source?.mvu) && source.mvu.enabled === true);
+}
+function artifactDisplayRegexPipeline(value) {
+  const scripts = value?.data?.extensions?.regex_scripts;
+  if (!Array.isArray(scripts)) return [];
+  const pipeline = [];
+  for (const script of scripts) {
+    if (!isPlainObject(script) || script.disabled === true || !Array.isArray(script.placement) || !script.placement.includes(2) || script.promptOnly === true || typeof script.findRegex !== "string") continue;
+    try {
+      pipeline.push({
+        pattern: compileRegexString(script.findRegex),
+        replacement: typeof script.replaceString === "string" ? script.replaceString : ""
+      });
+    } catch {
+    }
+  }
+  return pipeline;
+}
+function applyArtifactRegexPipeline(text, pipeline) {
+  return pipeline.reduce((current, regex) => current.replace(regex.pattern, regex.replacement), text);
+}
+function validateManagedMvuDisplayCleanup(value, issues) {
+  const mvuSources = managedMvuSources(value);
+  if (mvuSources.length === 0) return;
+  const tags = artifactUpdateBlockTags(value);
+  if (tags.size === 0) return;
+  const requiresCardRegex = mvuSources.some((source) => {
+    const mvu = source.mvu;
+    if (mvu?.update_strategy?.response_transport !== "chat_message") return false;
+    const mode = mvu?.update_strategy?.display_cleanup?.mode ?? (mvu?.route === "existing" ? "existing" : "card_regex");
+    return mode === "card_regex";
+  });
+  if (!requiresCardRegex) return;
+  const pipeline = artifactDisplayRegexPipeline(value);
+  for (const tag of tags) {
+    const completeSentinel = `__RP_MVU_COMPLETE_${tag}__`;
+    const streamingSentinel = `__RP_MVU_STREAMING_${tag}__`;
+    const complete = `\u6B63\u6587
+<${tag}>
+<Analysis>${completeSentinel}</Analysis>
+_.set('\u72B6\u6001', 0, 1);
+</${tag}>
+\u6B63\u6587`;
+    const streaming = `\u6B63\u6587
+<${tag}>
+<Analysis>${streamingSentinel}</Analysis>
+_.set('\u72B6\u6001', 0,`;
+    if (applyArtifactRegexPipeline(complete, pipeline).includes(completeSentinel)) {
+      issues.push(issue(
+        "/data/extensions/regex_scripts",
+        "mvu.update_block_complete_visibility",
+        `Forge-managed MVU artifact leaves completed <${tag}> technical content visible to the player`
+      ));
+    }
+    if (applyArtifactRegexPipeline(streaming, pipeline).includes(streamingSentinel)) {
+      issues.push(issue(
+        "/data/extensions/regex_scripts",
+        "mvu.update_block_streaming_visibility",
+        `Forge-managed MVU artifact leaves streaming, unclosed <${tag}> technical content visible to the player`
+      ));
+    }
+  }
 }
 function validateWorldbook(value, basePath, issues) {
   if (!isPlainObject(value)) {

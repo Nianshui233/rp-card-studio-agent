@@ -56,6 +56,8 @@ const stat = state.stat_data;
 
 MVU 自身会在部分模式下清理历史 `<UpdateVariable>` 与 `<StatusPlaceHolderImpl/>`。卡内可能采用一条规则同时处理 display/prompt、分开的规则、显示正则 + MVU 内部清理，或自定义协议。根据实际原始块和目标链路设计，不生成固定“十三件套”。
 
+在 `mvu.update_strategy.display_cleanup` 中记录玩家显示层由谁清理技术更新块：新建项目默认使用 `card_regex`；成熟实现也可以选择 `framework`、`host_regex` 或 `existing`，但后三者必须附带已经核实的证据。选择 `card_regex` 时，Forge 会用本卡真实标签重放完整块和流式未闭合块；任一测试仍残留技术正文都属于阻断问题。测试卡可以简化内容和美术，不能省略这条被测运行链。
+
 ## 完成门槛
 
 - 框架加载器、`[initvar]` CharacterBook 条目、变量结构、初始化、更新、模型上下文和 UI 读取形成真实闭环；

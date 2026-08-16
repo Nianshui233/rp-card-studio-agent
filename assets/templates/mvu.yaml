@@ -23,6 +23,9 @@ mvu:
     mode: same_turn
     response_transport: chat_message
     operation_dialect: lodash_commands
+    display_cleanup:
+      mode: card_regex
+      evidence: []
     notes: []
   implementation_notes: []
 
