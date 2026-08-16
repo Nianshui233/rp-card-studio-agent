@@ -92,7 +92,11 @@
     "card_entry": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["mode", "content", "source_refs"],
+      "required": [
+        "mode",
+        "content",
+        "source_refs"
+      ],
       "properties": {
         "mode": {
           "enum": [
@@ -101,8 +105,12 @@
             "preserve_imported"
           ]
         },
-        "content": { "type": "string" },
-        "source_refs": { "$ref": "#/$defs/stringList" }
+        "content": {
+          "type": "string"
+        },
+        "source_refs": {
+          "$ref": "#/$defs/stringList"
+        }
       }
     },
     "card_fields": {
@@ -146,66 +154,167 @@
     "runtimeManifest": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["mode", "regex_scripts", "tavern_helper_scripts", "extension_fields"],
+      "required": [
+        "mode",
+        "regex_scripts",
+        "tavern_helper_scripts",
+        "extension_fields"
+      ],
       "properties": {
-        "mode": { "const": "authored" },
+        "mode": {
+          "const": "authored"
+        },
         "regex_scripts": {
           "type": "array",
-          "items": { "$ref": "#/$defs/authoredRegex" }
+          "items": {
+            "$ref": "#/$defs/authoredRegex"
+          }
         },
         "tavern_helper_scripts": {
           "type": "array",
-          "items": { "$ref": "#/$defs/authoredHelperScript" }
+          "items": {
+            "$ref": "#/$defs/authoredHelperNode"
+          }
         },
-        "extension_fields": { "type": "object" }
+        "extension_fields": {
+          "type": "object"
+        }
       }
     },
     "authoredRegex": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "id", "script_name", "find_regex", "placement", "disabled",
-        "markdown_only", "prompt_only", "run_on_edit", "substitute_regex",
-        "min_depth", "max_depth"
+        "id",
+        "script_name",
+        "find_regex",
+        "placement",
+        "disabled",
+        "markdown_only",
+        "prompt_only",
+        "run_on_edit",
+        "substitute_regex",
+        "min_depth",
+        "max_depth"
       ],
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "script_name": { "type": "string", "minLength": 1 },
-        "find_regex": { "type": "string", "minLength": 2 },
-        "replace_string": { "type": "string" },
-        "replace_file": { "type": "string", "minLength": 1 },
-        "wrap_as_html_codeblock": { "type": "boolean" },
-        "trim_strings": { "$ref": "#/$defs/stringList" },
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+        },
+        "script_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "find_regex": {
+          "type": "string",
+          "minLength": 2
+        },
+        "replace_string": {
+          "type": "string"
+        },
+        "replace_file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "wrap_as_html_codeblock": {
+          "type": "boolean"
+        },
+        "trim_strings": {
+          "$ref": "#/$defs/stringList"
+        },
         "placement": {
           "type": "array",
           "minItems": 1,
-          "items": { "type": "integer" }
+          "items": {
+            "type": "integer"
+          }
         },
-        "disabled": { "type": "boolean" },
-        "markdown_only": { "type": "boolean" },
-        "prompt_only": { "type": "boolean" },
-        "run_on_edit": { "type": "boolean" },
-        "substitute_regex": { "type": "integer" },
-        "min_depth": { "type": ["integer", "null"] },
-        "max_depth": { "type": ["integer", "null"] },
-        "collision": { "enum": ["error", "replace", "keep"] }
+        "disabled": {
+          "type": "boolean"
+        },
+        "markdown_only": {
+          "type": "boolean"
+        },
+        "prompt_only": {
+          "type": "boolean"
+        },
+        "run_on_edit": {
+          "type": "boolean"
+        },
+        "substitute_regex": {
+          "type": "integer"
+        },
+        "min_depth": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "max_depth": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "collision": {
+          "enum": [
+            "error",
+            "replace",
+            "keep"
+          ]
+        }
       }
     },
     "authoredHelperScript": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "name", "enabled"],
+      "required": [
+        "id",
+        "name",
+        "enabled"
+      ],
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "name": { "type": "string", "minLength": 1 },
-        "enabled": { "type": "boolean" },
-        "content": { "type": "string" },
-        "content_file": { "type": "string", "minLength": 1 },
-        "info": { "type": "string" },
-        "button": { "type": "object" },
-        "data": { "type": "object" },
-        "export_with": { "type": "object" },
-        "collision": { "enum": ["error", "replace", "keep"] }
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "content": {
+          "type": "string"
+        },
+        "content_file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "info": {
+          "type": "string"
+        },
+        "button": {
+          "type": "object"
+        },
+        "data": {
+          "type": "object"
+        },
+        "export_with": {
+          "type": "object"
+        },
+        "collision": {
+          "enum": [
+            "error",
+            "replace",
+            "keep"
+          ]
+        },
+        "type": {
+          "const": "script"
+        }
       }
     },
     "source": {
@@ -377,9 +486,33 @@
               ]
             },
             "case_sensitive": {
-              "type": "boolean"
+              "type": [
+                "boolean",
+                "null"
+              ]
             },
             "match_whole_words": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "match_persona_description": {
+              "type": "boolean"
+            },
+            "match_character_description": {
+              "type": "boolean"
+            },
+            "match_character_personality": {
+              "type": "boolean"
+            },
+            "match_character_depth_prompt": {
+              "type": "boolean"
+            },
+            "match_scenario": {
+              "type": "boolean"
+            },
+            "match_creator_notes": {
               "type": "boolean"
             }
           }
@@ -400,7 +533,10 @@
                 "after_char",
                 "before_example",
                 "after_example",
-                "at_depth"
+                "author_note_top",
+                "author_note_bottom",
+                "at_depth",
+                "outlet"
               ]
             },
             "order": {
@@ -419,8 +555,17 @@
                 "user",
                 "assistant"
               ]
+            },
+            "outlet_name": {
+              "type": [
+                "string",
+                "null"
+              ]
             }
           }
+        },
+        "use_probability": {
+          "type": "boolean"
         },
         "probability": {
           "type": "number",
@@ -472,6 +617,59 @@
         },
         "ignore_budget": {
           "type": "boolean"
+        },
+        "sticky": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "cooldown": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "delay": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "group": {
+          "type": "string"
+        },
+        "group_override": {
+          "type": "boolean"
+        },
+        "group_weight": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "use_group_scoring": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "vectorized": {
+          "type": "boolean"
+        },
+        "automation_id": {
+          "type": "string"
+        },
+        "triggers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
         },
         "token_budget": {
           "type": "null"
@@ -711,6 +909,62 @@
           }
         }
       ]
+    },
+    "authoredHelperNode": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/authoredHelperScript"
+        },
+        {
+          "$ref": "#/$defs/authoredHelperFolder"
+        }
+      ]
+    },
+    "authoredHelperFolder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "id",
+        "name",
+        "enabled",
+        "scripts"
+      ],
+      "properties": {
+        "type": {
+          "const": "folder"
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "scripts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/authoredHelperScript"
+          }
+        },
+        "collision": {
+          "enum": [
+            "error",
+            "replace",
+            "keep"
+          ]
+        }
+      }
     }
   }
 }

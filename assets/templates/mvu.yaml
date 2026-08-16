@@ -1,22 +1,35 @@
-schema_version: 2.0.0
+schema_version: 3.0.0
 status: draft
 
 mvu:
   enabled: false
+  route: none
   state_root: stat_data
+  framework:
+    delivery: none
+    loader_script_id: null
+    loader_url: null
+    expected_global: null
+    notes: []
   files:
     initial_values: null
     schema_script: null
     update_rules: null
     output_format: null
+    config_override: null
     helper_scripts: []
     supporting_files: []
+  update_strategy:
+    mode: same_turn
+    response_transport: chat_message
+    operation_dialect: lodash_commands
+    notes: []
   implementation_notes: []
 
 ejs:
   enabled: false
-  engine: st_prompt_template
-  files: []
+  engine: none
+  templates: []
   implementation_notes: []
 
 runtime_target:

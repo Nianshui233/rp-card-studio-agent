@@ -270,14 +270,13 @@ test('at_depth insertion requires an explicit depth', async () => {
   assertIssue(issues, 'assembly.insertion', '/insertion/depth');
 });
 
-test('worldbook entries cannot share a display name or insertion order', async () => {
+test('worldbook entries may intentionally share a display name or insertion order', async () => {
   const issues = await runtimeIssues(completeAssembly([
     worldbookEntry(),
     worldbookEntry({ id: 'duplicate', insertion: { order: 100 } }),
   ]));
 
-  assertIssue(issues, 'assembly.entry_name', '/entries/1/display_name');
-  assertIssue(issues, 'assembly.order', '/entries/1/insertion/order');
+  assert.deepEqual(issues, []);
 });
 
 test('an entry cannot wait for recursion while preventing incoming recursion', async () => {

@@ -1,107 +1,64 @@
 # MVU / EJS 阶段（可选）
 
-本阶段把已经完成的 RP 状态需求做成目标 SillyTavern 环境真正能运行的组件。它不再发明玩法语义，也不使用本技能自创的运行时框架。
+本阶段把已经锁定的 RP 状态需求接到目标 SillyTavern 环境。只向用户询问可感知的游玩效果；由技能自行选择 Schema、更新方言、正则 placement、事件与 API，并报告选择理由。
 
-## 先选择真实路线
+## 先判断是否真的需要
 
-根据项目需要和目标环境，选择：
+可选路线是：无变量、MVU 原生 Schema、MVU_ZOD、原生 + Zod 混合、沿用已有实现；EJS 与 MVU 分开决定。不要因为卡里有状态栏就机械启用 MVU，也不要把 MVU_ZOD 当成 MVU 的默认必备层。
 
-- 不使用变量；
-- MVU；
-- MVU Zod；
-- EJS；
-- MVU/MVU Zod + EJS；
-- 保留并修订导入卡已有实现。
+用户只需决定额外模型调用、跨楼层/Swipe 状态体验、按钮效果、速度/稳定/调用成本等体验目标。技术细节由技能根据本机版本和真实源码决定。
 
-MVU 负责 `stat_data` 的初始化、更新和持久状态。Zod 负责实际结构注册与校验。EJS 是 ST-Prompt-Template 执行的真实模板源，常用于上下文投影、压缩、条件文本或提示词路由；它不是 MVU storage，也不是“条件配置表”。
+## 框架与项目 Schema 是两件事
 
-## 第一批问题
+MVU 框架加载器负责初始化、读取 `[initvar]`、监听消息、更新变量并提供 `window.Mvu`。变量结构脚本只负责项目的字段与约束。卡内自带 MVU 时，加载器必须作为真实 Tavern Helper 脚本进入依赖闭环；若依赖宿主预装，则明确记录而不伪装成自包含。
 
-只问会改变运行实现的事项：
+当前常见加载方式示例：
 
-1. 目标 SillyTavern、Tavern Helper、MVU、ST-Prompt-Template 版本或当前可用能力；
-2. 是否使用额外更新模型，还是与正文同轮更新；
-3. 哪些已确定状态需要持久化，哪些只是派生显示；
-4. 每条开场需要什么完整初始状态；
-5. EJS 是否需要、它具体向哪个模型/阶段投影什么内容；
-6. 依赖是卡内脚本、宿主必需、远程加载还是沿用已有实现。
-
-版本敏感 API 不凭记忆编造。目标版本未知时可以先设计文件边界，但精确函数、事件和值保持待验证。
-
-## MVU 必须形成的闭环
-
-按项目实际需要创建真实文件，常见结构为：
-
-```text
-src/runtime/mvu/
-  初始变量.yaml
-  变量结构.js
-  变量更新规则.yaml
-  变量输出格式.yaml
-  上下文.ejs                 # 仅在使用 EJS 时
-  变量框架脚本.js             # 仅在项目确实需要卡内脚本时
+```js
+import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js';
 ```
 
-闭环检查：
+远程 URL 与构建制品都属于版本敏感事实。验证时以实际加载的 bundle 为准，不仅看仓库 HEAD；远程 bundle 仍可能继续加载其他远程依赖。
 
-```text
-初始值
-→ 实际 Schema/Zod 注册
-→ 模型能看到的当前状态
-→ 更新规则
-→ <UpdateVariable> 或目标方言的输出格式
-→ MVU 解析与写入
-→ 下一轮读取
-→ UI/脚本按同一路径读取
+## 原生 Schema 与 MVU_ZOD
+
+MVU 原生路线从 `[initvar]` 的 `$meta` 生成内部 Schema，支持可扩展、递归可扩展、模板、严格模板、数组拼接和严格赋值等能力。MVU_ZOD 是可选的项目结构注册层。混合路线只有在两层各自有明确职责时使用。
+
+`[initvar]` 可以来自关闭的世界书条目；同一世界书的多个初始化条目会合并，数组按整体替换。开场消息中的 `<initvar>` 会覆盖角色主世界书初始化，因此每条备选开场/Swipe 可以拥有不同初态。YAML、JSON、代码块、宏等支持范围必须按目标 bundle 实测。
+
+## 更新路线
+
+更新可以随正文同轮发生，也可以由额外模型解析；额外模型还可能使用普通聊天、Tool Calling、JSON Schema、JSON Object 等响应方式。操作方言可以是 lodash 命令、MVU JSON Patch 或既有实现。技能根据目标 API、可靠性、成本和现成卡结构选路，不把这些问题抛给用户。
+
+额外模型模式下，条目名中的 `[mvu_plot]` 与 `[mvu_update]` 用于剧情模型/更新模型分流；没有标记或同时有两种标记时会进入两边。只有目标 MVU 版本实证支持时才依赖此行为。
+
+`[config_override]` 是可选的角色级配置覆盖条目，可控制更新方式、自动额外请求、世界书过滤和部分兼容行为。它不是每张卡都必须注入的固定组件。
+
+## EJS
+
+EJS 是 ST-Prompt-Template 或既有宿主执行的真实 `.ejs` 模板，不是存储层。每份模板记录：真实文件、执行宿主、读取变量、输出对象、失败回退。使用 Tavern Helper 的 `EjsTemplate.getSyntaxErrorInfo / prepareContext / evalTemplate / getFeatures` 可做目标环境诊断；离线构建不能冒充宿主执行成功。
+
+## UI 数据交接
+
+新 MVU UI 优先等待 `Mvu` 初始化，再按当前楼层读取：
+
+```js
+await waitGlobalInitialized('Mvu');
+const state = Mvu.getMvuData({ type: 'message', message_id: getCurrentMessageId() });
+const stat = state.stat_data;
 ```
 
-每个变量至少知道：真实路径、初值、类型/形状、谁更新、何时更新、允许操作、模型是否需要看到、UI/脚本是否读取。无需为此建立通用 `writer/readers/cleanup` 配置表；直接在相邻的规则和源码中表达。
+`display_data` 与 `delta_data` 仍可能存在，但当前源码已标记为 deprecated，不能作为所有新卡唯一数据源。刷新时结合真实 MVU 事件、编辑、Swipe、重载和聊天切换验证。
 
-## 新 MVU Zod 的实际内容
+## 正则不是固定套装
 
-- 使用目标环境真实提供或明确加载的 `z`；
-- 使用目标 MVU Zod 路线真实要求的注册函数；
-- Schema 直接对应 `stat_data` 的纯值结构，新项目不主动制造旧式 `[value, description]` 二元组；
-- 初始变量与 Schema 默认值一一对应；
-- 动态对象/数组写清模板、额外字段和长度策略；
-- 不在实际实现之外追加第二套合成校验层、事件层或改写层；
-- 不让 LLM 与脚本同时写同一字段；确定性派生值可由明确脚本独占。
-
-## EJS 的实际内容
-
-`.ejs` 文件必须是可直接交给 ST-Prompt-Template 的模板，不把表达式翻译成技能私有 YAML。
-
-典型用途：
-
-- 将 `stat_data` 压缩成给剧情模型看的上下文；
-- 对长字符串和大列表做明确截断；
-- 根据真实状态选择提示片段；
-- 将更新模型与剧情模型需要的内容分开。
-
-每份 EJS 说明它读取哪些真实变量、输出到哪里、失败时输出什么。不要假设消息 iframe 的 API、脚本 iframe 的 API 和 EJS 上下文相同。
-
-## 世界书与脚本投影
-
-MVU 更新规则、输出格式、当前状态投影、EJS 模板等通常作为中文命名的 CharacterBook 条目装配。条目名称中的 `[mvu_update]` / `[mvu_plot]` 等路由标记是否有效，必须以目标 MVU 实现为准。
-
-卡内 Tavern Helper 脚本使用真实 `data.extensions.tavern_helper` 结构，保留 `type/enabled/name/id/content/info/button/data/export_with`。不要改造成技能私有脚本对象。
-
-## 正则交接
-
-本阶段只确定原始块长什么样以及显示/提示词需要怎样处理。例如：
-
-- `<initvar>...</initvar>`；
-- `<UpdateVariable>...</UpdateVariable>`；
-- 状态占位或自定义状态块。
-
-实际 `findRegex`、display-only、prompt-only、深度和流式兜底在正则/UI与整合中按真实样本编写和测试，不自动套固定规则组。
+MVU 自身会在部分模式下清理历史 `<UpdateVariable>` 与 `<StatusPlaceHolderImpl/>`。卡内可能采用一条规则同时处理 display/prompt、分开的规则、显示正则 + MVU 内部清理，或自定义协议。根据实际原始块和目标链路设计，不生成固定“十三件套”。
 
 ## 完成门槛
 
-- 选择的运行路线与目标环境一致；
-- 初始数据、Schema、更新规则、输出格式和每条开场初始化闭合；
-- EJS 是真实源码且有明确输入输出；
-- 所需卡内脚本是真实 Tavern Helper 格式；
-- 没有技能自创运行时、重复 writer、虚构 API 或无人读取的变量；
-- 已列出需要的正则与 UI 读取路径；
-- 未验证版本事实明确标为待真机，而不是伪装成通用正确。
+- 框架加载器、变量结构、初始化、更新、模型上下文和 UI 读取形成真实闭环；
+- 原生 Schema、MVU_ZOD、混合或既有路线有明确理由；
+- EJS 有真实宿主与失败回退；
+- Tavern Helper 保留 Script/ScriptFolder 真实结构；
+- 不在实际实现之外追加第二套合成校验层；没有虚构 API、重复 writer 或无人读取的变量；
+- 静态、制品与真实宿主证据分开记录。

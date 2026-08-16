@@ -150,12 +150,7 @@ invent an abstract adapter and later pretend it is equivalent.
 
 Read [mvu-ejs.md](references/stages/mvu-ejs.md).
 
-An MVU implementation is a closed chain, normally including the actual initial data,
-variable structure/schema, model-visible update rules, output format, initialization
-for each opening, required loader/schema scripts, prompt routing, and UI readers.
-`stat_data` is the primary game-state tree unless the target project proves another
-shape. New MVU Zod work uses the target runtime's real registration route and real
-Tavern Helper script format.
+An MVU implementation is a closed chain: framework loading, actual initial data, the selected native/MVU_ZOD/hybrid/existing schema route, model-visible update rules, output format, per-opening initialization, prompt routing, and UI readers. `stat_data` is the primary game-state tree unless the target project proves another shape. Never treat MVU_ZOD as mandatory, and never confuse its project schema script with the MVU framework loader. Preserve real Tavern Helper Script/ScriptFolder trees.
 
 EJS is actual ST-Prompt-Template source. It may project a compressed MVU context,
 choose text, or route prompt content, but it is not a generic condition table and it

@@ -51,7 +51,7 @@ test("authored runtime packs complete HTML, helper JS, and EJS without generic g
     runtime_manifest: {
       mode: "authored",
       regex_scripts: [{
-        id: "wugang-status",
+        id: "66666666-6666-4666-8666-666666666666",
         script_name: "[界面]雾港状态栏",
         find_regex: "/<雾港状态栏\\s*\\/>/g",
         replace_file: "src/runtime/status.html",
@@ -81,7 +81,7 @@ test("authored runtime packs complete HTML, helper JS, and EJS without generic g
 test("authored regex validation catches invalid patterns", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "rp-regex-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const sources = { assembly: [{ value: { runtime_manifest: { mode: "authored", regex_scripts: [{ id: "x", find_regex: "not-a-regex", replace_string: "x", placement: [2] }], tavern_helper_scripts: [], extension_fields: {} }, worldbook_manifest: { entries: [] } } }], prompts: [] };
+  const sources = { assembly: [{ value: { runtime_manifest: { mode: "authored", regex_scripts: [{ id: "77777777-7777-4777-8777-777777777777", find_regex: "[not-closed", replace_string: "x", placement: [2] }], tavern_helper_scripts: [], extension_fields: {} }, worldbook_manifest: { entries: [] } } }], prompts: [] };
   const report = await validateRuntimeSources({ project: { features: {} }, sources, projectRoot: root });
   assert.ok(report.issues.some((entry) => entry.rule === "regex.syntax"));
 });

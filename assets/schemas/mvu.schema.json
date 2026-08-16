@@ -1,49 +1,286 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://rp-card-studio.local/schemas/mvu.schema.json",
-  "title": "Direct MVU and EJS Source Manifest",
+  "title": "MVU and EJS Runtime Source Manifest",
   "type": "object",
-  "additionalProperties": true,
-  "required": ["schema_version", "status", "mvu", "ejs", "runtime_target", "dependencies", "source_refs"],
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "mvu",
+    "ejs",
+    "runtime_target",
+    "dependencies",
+    "source_refs"
+  ],
   "properties": {
-    "schema_version": { "const": "2.0.0" },
-    "status": { "enum": ["draft", "locked"] },
+    "schema_version": {
+      "const": "3.0.0"
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "locked"
+      ]
+    },
     "mvu": {
       "type": "object",
-      "additionalProperties": true,
-      "required": ["enabled", "state_root", "files", "implementation_notes"],
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "route",
+        "state_root",
+        "framework",
+        "files",
+        "update_strategy",
+        "implementation_notes"
+      ],
       "properties": {
-        "enabled": { "type": "boolean" },
-        "state_root": { "type": "string", "minLength": 1 },
-        "files": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "route": {
+          "enum": [
+            "none",
+            "native_schema",
+            "mvu_zod",
+            "hybrid",
+            "existing"
+          ]
+        },
+        "state_root": {
+          "type": "string",
+          "minLength": 1
+        },
+        "framework": {
           "type": "object",
-          "additionalProperties": true,
-          "required": ["initial_values", "schema_script", "update_rules", "output_format", "helper_scripts", "supporting_files"],
+          "additionalProperties": false,
+          "required": [
+            "delivery",
+            "loader_script_id",
+            "expected_global"
+          ],
           "properties": {
-            "initial_values": { "type": ["string", "null"] },
-            "schema_script": { "type": ["string", "null"] },
-            "update_rules": { "type": ["string", "null"] },
-            "output_format": { "type": ["string", "null"] },
-            "helper_scripts": { "type": "array", "items": { "type": "string" } },
-            "supporting_files": { "type": "array", "items": { "type": "string" } }
+            "delivery": {
+              "enum": [
+                "none",
+                "card_script",
+                "host_required",
+                "existing"
+              ]
+            },
+            "loader_script_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "loader_url": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "expected_global": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "notes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           }
         },
-        "implementation_notes": { "type": "array", "items": { "type": "string" } }
+        "files": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "initial_values",
+            "schema_script",
+            "update_rules",
+            "output_format",
+            "config_override",
+            "helper_scripts",
+            "supporting_files"
+          ],
+          "properties": {
+            "initial_values": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "schema_script": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "update_rules": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "output_format": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "config_override": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "helper_scripts": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "supporting_files": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "update_strategy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "response_transport",
+            "operation_dialect"
+          ],
+          "properties": {
+            "mode": {
+              "enum": [
+                "same_turn",
+                "extra_model",
+                "existing"
+              ]
+            },
+            "response_transport": {
+              "enum": [
+                "chat_message",
+                "tool_calling",
+                "json_schema",
+                "json_object",
+                "existing"
+              ]
+            },
+            "operation_dialect": {
+              "enum": [
+                "lodash_commands",
+                "mvu_json_patch",
+                "mixed",
+                "existing"
+              ]
+            },
+            "notes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "implementation_notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "ejs": {
       "type": "object",
-      "additionalProperties": true,
-      "required": ["enabled", "engine", "files", "implementation_notes"],
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "engine",
+        "templates",
+        "implementation_notes"
+      ],
       "properties": {
-        "enabled": { "type": "boolean" },
-        "engine": { "enum": ["st_prompt_template", "existing", "custom", "none"] },
-        "files": { "type": "array", "items": { "type": "string" } },
-        "implementation_notes": { "type": "array", "items": { "type": "string" } }
+        "enabled": {
+          "type": "boolean"
+        },
+        "engine": {
+          "enum": [
+            "st_prompt_template",
+            "existing",
+            "custom",
+            "none"
+          ]
+        },
+        "templates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "file",
+              "host",
+              "purpose"
+            ],
+            "properties": {
+              "file": {
+                "type": "string",
+                "minLength": 1
+              },
+              "host": {
+                "enum": [
+                  "character_book",
+                  "tavern_helper_script",
+                  "existing"
+                ]
+              },
+              "purpose": {
+                "type": "string",
+                "minLength": 1
+              },
+              "fallback": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "implementation_notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
-    "runtime_target": { "type": "object" },
-    "dependencies": { "type": "array" },
-    "source_refs": { "type": "array", "items": { "type": "string" } }
+    "runtime_target": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "source_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
   }
 }

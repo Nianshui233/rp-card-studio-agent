@@ -16,7 +16,7 @@
 
 维护 `data.extensions.regex_scripts` 所需的实际字段：`id`、`scriptName`、`findRegex`、`replaceString`、`trimStrings`、`placement`、`disabled`、`markdownOnly`、`promptOnly`、`runOnEdit`、`substituteRegex`、`minDepth`、`maxDepth`。
 
-显示名称尽量中文。`findRegex` 是包含旗标的完整正则字符串。placement 数值和三态行为必须按目标 SillyTavern 版本核实，不凭印象翻译。
+显示名称尽量中文。`id` 使用 UUID。`findRegex` 既可使用 `/pattern/flags`，也可使用 SillyTavern 接受的裸字符串模式；校验语义应与目标版本的 `regexFromString` 一致。placement 数值和三态行为必须按目标 SillyTavern 版本核实，不凭印象翻译。AI 的 `first_mes` 属于 AI 输出来源，不能误用用户输入 placement。
 
 ## HTML 替换
 

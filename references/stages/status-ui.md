@@ -72,7 +72,7 @@ src/runtime/ui/
 → 失败、空值、加载与降级怎样显示
 ```
 
-MVU 状态栏通常通过消息 HTML/iframe 读取当前楼层 `stat_data`，等待真实 MVU 就绪，并监听实际更新事件。非 MVU 状态栏可捕获模型输出的稳定状态块。不要让正则凭空“把变量变成 HTML”，也不要把示例初值硬编码成运行数据。
+MVU 状态栏通常等待 `Mvu` 就绪，再用 `Mvu.getMvuData({ type: 'message', message_id: getCurrentMessageId() })` 读取当前楼层 `stat_data`，并监听目标版本的实际更新事件。`display_data` / `delta_data` 在当前 MVU 源码中已标为 deprecated，不作为新 UI 的唯一数据源。非 MVU 状态栏可捕获模型输出的稳定状态块。不要让正则凭空“把变量变成 HTML”，也不要把示例初值硬编码成运行数据。
 
 按钮可以读取/写入消息或变量、调用 slash command、填充/发送 SillyTavern 输入框、打开弹窗、操作世界书或调用宿主 API。使用父页面 DOM 和私有 API是允许的；记录版本耦合和失败表现并真机验证即可。
 

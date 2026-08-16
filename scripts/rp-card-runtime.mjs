@@ -491,8 +491,6 @@ function worldbookHostIssues(manifest, target, basePath = "/runtime/assembly") {
   if (manifest?.recursive_scanning === true) {
     issues.push(issue(`${basePath}/worldbook_manifest/recursive_scanning`, "assembly.host.unsupported", "SillyTavern does not consume per-book recursive_scanning; configure the host global setting instead"));
   }
-  const displayNames = new Map();
-  const insertionOrders = new Map();
   for (const [entryIndex, entry] of (manifest?.entries ?? []).entries()) {
     const entryPath = `${basePath}/worldbook_manifest/entries/${entryIndex}`;
     const requireFields = (value, fields, pathValue, rule) => {
@@ -517,10 +515,6 @@ function worldbookHostIssues(manifest, target, basePath = "/runtime/assembly") {
     const displayName = typeof entry.display_name === "string" ? entry.display_name.trim() : "";
     if (!displayName) {
       issues.push(issue(`${entryPath}/display_name`, "assembly.entry_name", "每个世界书条目都必须有明确的用户可见名称"));
-    } else if (displayNames.has(displayName)) {
-      issues.push(issue(`${entryPath}/display_name`, "assembly.entry_name", `世界书条目名称重复：${displayName}`));
-    } else {
-      displayNames.set(displayName, entryIndex);
     }
     const activation = entry.activation ?? {};
     const primaryKeys = activation.primary_keys ?? [];
@@ -548,12 +542,8 @@ function worldbookHostIssues(manifest, target, basePath = "/runtime/assembly") {
     } else if (insertion.depth !== null && insertion.depth !== undefined) {
       issues.push(issue(`${entryPath}/insertion/depth`, "assembly.insertion", "非 at_depth 条目的 depth 应显式设为 null"));
     }
-    if (Number.isInteger(insertion.order)) {
-      if (insertionOrders.has(insertion.order)) {
-        issues.push(issue(`${entryPath}/insertion/order`, "assembly.order", `世界书插入顺序重复：${insertion.order}`));
-      } else {
-        insertionOrders.set(insertion.order, entryIndex);
-      }
+    if (insertion.position === "outlet" && !insertion.outlet_name) {
+      issues.push(issue(`${entryPath}/insertion/outlet_name`, "assembly.insertion", "outlet 条目必须填写 outlet_name"));
     }
     const recursion = entry.recursion ?? {};
     const delay = recursion.delay_until_recursion;
@@ -925,10 +915,19 @@ function manifestEntry(entry, content, target, characterBookId = null) {
   const scanDepth = entry.scan_depth ?? null;
   const ignoreBudget = entry.ignore_budget ?? entry.extensions?.ignore_budget ?? false;
   const selectiveLogic = ({ any: 0, not_all: 1, not_any: 2, all: 3 })[activation.logic ?? "any"];
-  const rawPosition = ({ before_char: 0, after_char: 1, before_example: 5, after_example: 6, at_depth: 4 })[insertion.position ?? "before_char"];
+  const rawPosition = ({
+    before_char: 0,
+    after_char: 1,
+    author_note_top: 2,
+    author_note_bottom: 3,
+    at_depth: 4,
+    before_example: 5,
+    after_example: 6,
+    outlet: 7,
+  })[insertion.position ?? "before_char"];
   const rawRole = ({ system: 0, user: 1, assistant: 2 })[insertion.role] ?? null;
   const rawHostFields = {
-    useProbability: true,
+    useProbability: entry.use_probability ?? true,
     probability,
     excludeRecursion: Boolean(recursion.prevent_incoming),
     preventRecursion: Boolean(recursion.prevent_outgoing),
@@ -938,7 +937,24 @@ function manifestEntry(entry, content, target, characterBookId = null) {
     role: rawRole,
     selectiveLogic,
     caseSensitive: activation.case_sensitive ?? null,
-    matchWholeWords: activation.match_whole_words ?? null
+    matchWholeWords: activation.match_whole_words ?? null,
+    matchPersonaDescription: activation.match_persona_description ?? false,
+    matchCharacterDescription: activation.match_character_description ?? false,
+    matchCharacterPersonality: activation.match_character_personality ?? false,
+    matchCharacterDepthPrompt: activation.match_character_depth_prompt ?? false,
+    matchScenario: activation.match_scenario ?? false,
+    matchCreatorNotes: activation.match_creator_notes ?? false,
+    outletName: insertion.outlet_name ?? "",
+    group: entry.group ?? "",
+    groupOverride: entry.group_override ?? false,
+    groupWeight: entry.group_weight ?? null,
+    useGroupScoring: entry.use_group_scoring ?? null,
+    automationId: entry.automation_id ?? "",
+    vectorized: entry.vectorized ?? false,
+    sticky: entry.sticky ?? null,
+    cooldown: entry.cooldown ?? null,
+    delay: entry.delay ?? null,
+    triggers: clone(entry.triggers ?? []),
   };
   const customExtensions = isObject(entry.extensions) ? clone(entry.extensions) : {};
   const existingTracking = isObject(customExtensions.rp_card_studio) ? customExtensions.rp_card_studio : {};
@@ -953,6 +969,7 @@ function manifestEntry(entry, content, target, characterBookId = null) {
     activation: clone(activation),
     insertion: clone(insertion),
     probability,
+    use_probability: rawHostFields.useProbability,
     recursion: clone(recursion),
     recipient: entry.recipient ?? "shared",
     visibility: entry.visibility ?? "model",
@@ -975,6 +992,23 @@ function manifestEntry(entry, content, target, characterBookId = null) {
     selectiveLogic,
     case_sensitive: rawHostFields.caseSensitive,
     match_whole_words: rawHostFields.matchWholeWords,
+    match_persona_description: rawHostFields.matchPersonaDescription,
+    match_character_description: rawHostFields.matchCharacterDescription,
+    match_character_personality: rawHostFields.matchCharacterPersonality,
+    match_character_depth_prompt: rawHostFields.matchCharacterDepthPrompt,
+    match_scenario: rawHostFields.matchScenario,
+    match_creator_notes: rawHostFields.matchCreatorNotes,
+    outlet_name: rawHostFields.outletName,
+    group: rawHostFields.group,
+    group_override: rawHostFields.groupOverride,
+    group_weight: rawHostFields.groupWeight,
+    use_group_scoring: rawHostFields.useGroupScoring,
+    automation_id: rawHostFields.automationId,
+    vectorized: rawHostFields.vectorized,
+    sticky: rawHostFields.sticky,
+    cooldown: rawHostFields.cooldown,
+    delay: rawHostFields.delay,
+    triggers: rawHostFields.triggers,
     scan_depth: scanDepth,
     rp_card_studio: tracking
   };
@@ -1085,21 +1119,41 @@ async function applyAuthoredRuntime(payload, runtime, projectRoot, target) {
   issues.push(...mergedRegex.issues);
   if (regexes.length || Array.isArray(payload.data.extensions.regex_scripts)) payload.data.extensions.regex_scripts = mergedRegex.value;
 
-  const helpers = [];
-  for (const [index, source] of (runtime.tavern_helper_scripts ?? []).entries()) {
-    try {
-      helpers.push({
-        type: "script",
+  async function materializeHelperNode(source, sourcePath) {
+    if (source.type === "folder") {
+      const scripts = [];
+      for (const [index, child] of (source.scripts ?? []).entries()) {
+        scripts.push(await materializeHelperNode({ ...child, type: "script" }, `${sourcePath}/scripts/${index}`));
+      }
+      return {
+        type: "folder",
         enabled: source.enabled !== false,
         name: source.name,
         id: source.id,
-        content: await authoredText(projectRoot, source.content, source.content_file, `tavern_helper_scripts[${index}]`),
-        info: source.info ?? "",
-        button: clone(source.button ?? { enabled: false, buttons: [] }),
-        data: clone(source.data ?? {}),
-        export_with: clone(source.export_with ?? { data: true, button: true }),
+        icon: source.icon ?? "",
+        color: source.color ?? "",
+        scripts,
         collision: source.collision,
-      });
+      };
+    }
+    return {
+      type: "script",
+      enabled: source.enabled !== false,
+      name: source.name,
+      id: source.id,
+      content: await authoredText(projectRoot, source.content, source.content_file, sourcePath),
+      info: source.info ?? "",
+      button: clone(source.button ?? { enabled: false, buttons: [] }),
+      data: clone(source.data ?? {}),
+      export_with: clone(source.export_with ?? { data: true, button: true }),
+      collision: source.collision,
+    };
+  }
+
+  const helpers = [];
+  for (const [index, source] of (runtime.tavern_helper_scripts ?? []).entries()) {
+    try {
+      helpers.push(await materializeHelperNode(source, `tavern_helper_scripts[${index}]`));
     } catch (error) {
       issues.push(issue(`/runtime_manifest/tavern_helper_scripts/${index}`, "runtime.source", error.message));
     }
@@ -1205,8 +1259,7 @@ export async function applyAssemblyManifest(payload, { sources, projectRoot, tar
 function parseRegexLiteral(value) {
   if (typeof value !== "string") throw new Error("find_regex must be a string");
   const match = value.match(/^\/([\s\S]*)\/([dgimsuvy]*)$/);
-  if (!match) throw new Error("find_regex must include /pattern/flags");
-  return new RegExp(match[1], match[2]);
+  return match ? new RegExp(match[1], match[2]) : new RegExp(value);
 }
 
 async function validateAuthoredRuntime(runtime, projectRoot, issues, warnings) {
@@ -1220,6 +1273,9 @@ async function validateAuthoredRuntime(runtime, projectRoot, issues, warnings) {
     const base = `/runtime_manifest/regex_scripts/${index}`;
     if (ids.has(regex.id)) issues.push(issue(`${base}/id`, "runtime.duplicate", `Duplicate runtime id: ${regex.id}`));
     ids.add(regex.id);
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(regex.id ?? "")) {
+      issues.push(issue(`${base}/id`, "regex.id", "角色卡正则 id 必须是 UUID"));
+    }
     try { parseRegexLiteral(regex.find_regex); } catch (error) { issues.push(issue(`${base}/find_regex`, "regex.syntax", error.message)); }
     if (Number.isInteger(regex.min_depth) && Number.isInteger(regex.max_depth) && regex.min_depth > regex.max_depth) {
       issues.push(issue(base, "regex.depth", "min_depth exceeds max_depth"));
@@ -1229,14 +1285,76 @@ async function validateAuthoredRuntime(runtime, projectRoot, issues, warnings) {
       if (regex.wrap_as_html_codeblock && !/<!doctype html|<html\b/i.test(replacement)) warnings.push(issue(base, "ui.document", "HTML wrapper requested but source is not a complete HTML document"));
     } catch (error) { issues.push(issue(base, "runtime.source", error.message)); }
   }
-  for (const [index, script] of (runtime.tavern_helper_scripts ?? []).entries()) {
-    const base = `/runtime_manifest/tavern_helper_scripts/${index}`;
+  async function validateHelperNode(script, base) {
     if (ids.has(script.id)) issues.push(issue(`${base}/id`, "runtime.duplicate", `Duplicate runtime id: ${script.id}`));
     ids.add(script.id);
+    if (script.type === "folder") {
+      for (const [index, child] of (script.scripts ?? []).entries()) {
+        await validateHelperNode({ ...child, type: "script" }, `${base}/scripts/${index}`);
+      }
+      return;
+    }
     try {
       const content = await authoredText(projectRoot, script.content, script.content_file, base);
       if (!content.trim()) issues.push(issue(base, "runtime.source", "Tavern Helper script is empty"));
     } catch (error) { issues.push(issue(base, "runtime.source", error.message)); }
+  }
+  for (const [index, script] of (runtime.tavern_helper_scripts ?? []).entries()) {
+    await validateHelperNode(script, `/runtime_manifest/tavern_helper_scripts/${index}`);
+  }
+}
+
+function helperRuntimeIds(nodes) {
+  return new Set((nodes ?? []).flatMap((node) => node?.type === "folder"
+    ? [node.id, ...helperRuntimeIds(node.scripts)]
+    : [node?.id]).filter(Boolean));
+}
+
+async function validateMvuRuntimeSources(project, sources, projectRoot, assembly, issues, warnings) {
+  const helperIds = helperRuntimeIds(assembly?.runtime_manifest?.tavern_helper_scripts);
+  for (const [index, source] of values(sources, "mvu").entries()) {
+    const base = `/runtime/mvu/${index}`;
+    const mvu = source.mvu ?? {};
+    if (mvu.enabled) {
+      if (!mvu.route || mvu.route === "none") {
+        issues.push(issue(`${base}/mvu/route`, "mvu.route", "启用 MVU 时必须选择 native_schema、mvu_zod、hybrid 或 existing 路线"));
+      }
+      if (["native_schema", "hybrid"].includes(mvu.route) && !mvu.files?.initial_values) {
+        issues.push(issue(`${base}/mvu/files/initial_values`, "mvu.initial_values", "MVU 原生 Schema 路线需要实际 [initvar] 初始变量源"));
+      }
+      if (["mvu_zod", "hybrid"].includes(mvu.route) && !mvu.files?.schema_script) {
+        issues.push(issue(`${base}/mvu/files/schema_script`, "mvu.schema", "MVU_ZOD 路线需要实际变量结构脚本"));
+      }
+      const delivery = mvu.framework?.delivery;
+      if (mvu.route !== "existing" && !["card_script", "host_required"].includes(delivery)) {
+        issues.push(issue(`${base}/mvu/framework/delivery`, "mvu.loader", "MVU 路线必须明确由卡内脚本加载框架，或声明宿主必须预装"));
+      }
+      if (delivery === "card_script") {
+        const loaderId = mvu.framework?.loader_script_id;
+        if (!loaderId || !helperIds.has(loaderId)) {
+          issues.push(issue(`${base}/mvu/framework/loader_script_id`, "mvu.loader", "卡内 MVU 路线缺少与 loader_script_id 对应的 Tavern Helper 加载脚本"));
+        }
+      }
+      if (delivery === "host_required") {
+        warnings.push(issue(`${base}/mvu/framework`, "mvu.host_dependency", "MVU 框架依赖宿主预装；角色卡自身不携带加载器"));
+      }
+      for (const [name, relativePath] of Object.entries(mvu.files ?? {})) {
+        const fileList = Array.isArray(relativePath) ? relativePath : [relativePath];
+        for (const [fileIndex, candidate] of fileList.entries()) {
+          if (typeof candidate !== "string" || !candidate) continue;
+          try { await stat(resolveWithin(projectRoot, candidate)); }
+          catch { issues.push(issue(`${base}/mvu/files/${name}/${fileIndex}`, "mvu.source", `MVU 源文件不存在: ${candidate}`)); }
+        }
+      }
+    }
+    const ejs = source.ejs ?? {};
+    if (ejs.enabled && (!Array.isArray(ejs.templates) || ejs.templates.length === 0)) {
+      issues.push(issue(`${base}/ejs/templates`, "ejs.source", "启用 EJS 时至少需要一份真实模板及其宿主位置"));
+    }
+    for (const [templateIndex, template] of (ejs.templates ?? []).entries()) {
+      try { await stat(resolveWithin(projectRoot, template.file)); }
+      catch { issues.push(issue(`${base}/ejs/templates/${templateIndex}/file`, "ejs.source", `EJS 源文件不存在: ${template.file}`)); }
+    }
   }
 }
 
@@ -1252,6 +1370,7 @@ export async function validateRuntimeSources({ project, sources, projectRoot }) 
     issues.push(issue('/runtime_manifest', 'runtime.required', 'Enabled runtime features require authored runtime source files and an authored runtime manifest'));
   }
   await validateAuthoredRuntime(assembly?.runtime_manifest, projectRoot, issues, warnings);
+  await validateMvuRuntimeSources(project, sources, projectRoot, assembly, issues, warnings);
 
   const openingSources = values(sources, 'prompts');
   const openings = allOpenings(openingSources);

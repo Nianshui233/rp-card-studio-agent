@@ -24,7 +24,7 @@
 runtime_manifest:
   mode: authored
   regex_scripts:
-    - id: "稳定 UUID 或原卡 ID"
+    - id: "稳定 UUID"
       script_name: "[界面]雾港状态栏"
       find_regex: "/<雾港状态栏\\s*\\/>/g"
       replace_file: "src/runtime/ui/状态界面.html"
@@ -38,11 +38,19 @@ runtime_manifest:
       min_depth: null
       max_depth: null
   tavern_helper_scripts:
-    - id: "wugang-mvu-schema"
-      name: "雾港：MVU变量结构"
-      content_file: "src/runtime/mvu/变量结构.js"
+    - type: folder
+      id: "wugang-runtime-folder"
+      name: "雾港运行组件"
       enabled: true
-      info: "注册本卡 stat_data 结构"
+      icon: "fa-solid fa-code"
+      color: "#475569"
+      scripts:
+        - type: script
+          id: "wugang-mvu-schema"
+          name: "雾港：MVU变量结构"
+          content_file: "src/runtime/mvu/变量结构.js"
+          enabled: true
+          info: "注册本卡 stat_data 结构"
   extension_fields: {}
 ```
 
