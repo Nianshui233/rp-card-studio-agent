@@ -21,6 +21,15 @@ function regex(id, name, findRegex) {
   };
 }
 
+function promptRegex(id, name, findRegex) {
+  return {
+    ...regex(id, name, findRegex),
+    replace_string: "模型可见的开场回退",
+    markdown_only: false,
+    prompt_only: true,
+  };
+}
+
 function entry(id, content) {
   return {
     id,
@@ -40,19 +49,45 @@ function entry(id, content) {
   };
 }
 
-function uiSource(surfaces) {
+function experienceEvidence({ advancements = {}, primaryPlaySurface = false } = {}) {
+  return {
+    baseline: {
+      navigation: ["总览、状态、环境、NPC、行动与日志页签"],
+      data_views: ["角色状态", "环境威胁", "势力与NPC", "行动与日志"],
+      information_tools: ["物资搜索、势力筛选、NPC详情弹窗"],
+      host_actions: ["确认后把行动写入 SillyTavern 输入框"],
+      feedback_states: ["加载、空态、失败回退与行动确认"],
+      responsive_checks: ["窄屏、触控和中文长文本"],
+      theme_features: ["项目专属配色、仪表与启动演出"],
+      data_binding: ["解析当前消息状态块，缺失时显示回退状态"],
+    },
+    level_advancements: {
+      usability: advancements.usability ?? [],
+      information_architecture: advancements.information_architecture ?? [],
+      interaction_depth: advancements.interaction_depth ?? [],
+      visual_expression: advancements.visual_expression ?? [],
+      host_integration: advancements.host_integration ?? [],
+      persistence_lifecycle: advancements.persistence_lifecycle ?? [],
+    },
+    primary_play_surface: primaryPlaySurface,
+  };
+}
+
+function uiSource(surfaces, { experienceLevel = "light", evidence = experienceEvidence(), status = "locked", openingRelationship = "separate" } = {}) {
   return {
     schema_version: "2.0.0",
-    status: "locked",
+    status,
     status_ui: {
       enabled: true,
       authoring_mode: "direct_html",
-      experience_level: "light",
+      experience_level: experienceLevel,
       theme_direction: "测试",
       device_priority: "equal",
       surfaces,
       data_sources: [],
       host_interactions: [],
+      opening_relationship: openingRelationship,
+      experience_evidence: evidence,
       lifecycle_checks: [],
       runtime: "not_run",
     },
@@ -60,35 +95,60 @@ function uiSource(surfaces) {
   };
 }
 
-function projectSources({ surfaces, regexes, entries, openings = [] }) {
+function projectSources({ surfaces, regexes, entries, openings = [], openingUi = null, uiOptions = {}, helperScripts = [] }) {
   return {
     assembly: [{ value: {
       worldbook_manifest: { entries },
       media_manifest: { enabled: false, assets: [] },
-      runtime_manifest: { mode: "authored", regex_scripts: regexes, tavern_helper_scripts: [], extension_fields: {} },
+      runtime_manifest: { mode: "authored", regex_scripts: regexes, tavern_helper_scripts: helperScripts, extension_fields: {} },
     } }],
-    ui: [{ value: uiSource(surfaces) }],
-    prompts: openings.length ? [{ value: { openings } }] : [],
+    ui: [{ value: uiSource(surfaces, uiOptions) }],
+    prompts: openings.length || openingUi ? [{ value: { ...(openingUi ? { opening_ui: openingUi } : {}), openings } }] : [],
     mvu: [], world: [], characters: [], systems: [], scenes: [], positioning: [],
   };
 }
 
 const openingSurface = { id: "opening", name: "开局", marker: "<测试开局/>", file: "src/runtime/ui/opening.html" };
 const statusSurface = { id: "status", name: "状态", marker: "<测试状态/>", file: "src/runtime/ui/status.html" };
-const opening = { id: "default", is_default: true, visible_text: "<测试开局/>" };
+const opening = { id: "default", is_default: true, visible_text: "<测试开局/>", prompt_visible_text: "测试开场即将开始。" };
+const openingUi = {
+  enabled: true,
+  marker: "<测试开局/>",
+  file: "README.md",
+  render_route: "regex_replace",
+  render_ref: null,
+  render_evidence: [],
+  opening_id: "default",
+  experience_level: "light",
+  theme_direction: "测试",
+  device_priority: "equal",
+  journey: "阅读介绍后确认入局",
+  fallback: "使用文本开场",
+  runtime: "not_run",
+};
 const openingRegex = regex("11111111-1111-4111-8111-111111111111", "[界面]开局", "/<测试开局\\s*\\/>/g");
+const openingPromptRegex = promptRegex("11111111-1111-4111-8111-111111111112", "[提示词]开局回退", "/<测试开局\\s*\\/>/g");
 const statusRegex = regex("22222222-2222-4222-8222-222222222222", "[界面]状态", "/<测试状态\\s*\\/>/g");
 
-test("opening markers are inferred, but recurring UI markers require a real producer", async () => {
-  const sources = projectSources({
-    surfaces: [openingSurface, statusSurface],
-    regexes: [openingRegex, statusRegex],
+test("opening introduction and creation frontends belong to narrative opening, not status UI", async () => {
+  const correct = projectSources({
+    surfaces: [],
+    regexes: [openingRegex, openingPromptRegex],
+    entries: [entry("wb_core", "世界基础")],
+    openings: [opening],
+    openingUi,
+  });
+  const accepted = await validateRuntimeSources({ project: { features: { status_ui: false }, deliverables: ["character_card_json"] }, sources: correct, projectRoot: process.cwd() });
+  assert.deepEqual(accepted.issues, []);
+
+  const misplaced = projectSources({
+    surfaces: [openingSurface],
+    regexes: [openingRegex, openingPromptRegex],
     entries: [entry("wb_core", "世界基础")],
     openings: [opening],
   });
-  const validation = await validateRuntimeSources({ project: { features: { status_ui: true }, deliverables: ["character_card_json"] }, sources, projectRoot: process.cwd() });
-  assert.equal(validation.issues.filter((candidate) => candidate.rule === "ui.marker_producer").length, 1);
-  assert.match(validation.issues.find((candidate) => candidate.rule === "ui.marker_producer").message, /<测试状态\/>/);
+  const rejected = await validateRuntimeSources({ project: { features: { status_ui: true }, deliverables: ["character_card_json"] }, sources: misplaced, projectRoot: process.cwd() });
+  assert.ok(rejected.issues.some((candidate) => candidate.rule === "ui.stage_ownership"));
 });
 
 test("a constant model-visible CharacterBook output contract closes a recurring marker chain", async () => {
@@ -97,10 +157,9 @@ test("a constant model-visible CharacterBook output contract closes a recurring 
     emission: { producer: "model_output", cadence: "every_assistant_message", source_ref: "wb_status_output", evidence: [] },
   };
   const sources = projectSources({
-    surfaces: [openingSurface, producedStatus],
-    regexes: [openingRegex, statusRegex],
+    surfaces: [producedStatus],
+    regexes: [statusRegex],
     entries: [entry("wb_status_output", "每次回复末尾必须输出 `<测试状态/>` 标记，不得省略。")],
-    openings: [opening],
   });
   const validation = await validateRuntimeSources({ project: { features: { status_ui: true }, deliverables: ["character_card_json"] }, sources, projectRoot: process.cwd() });
   assert.deepEqual(validation.issues, []);
@@ -135,6 +194,93 @@ test("verified framework producers remain available without forcing a worldbook 
   const sources = projectSources({ surfaces: [surface], regexes: [statusRegex], entries: [entry("wb_core", "世界基础")] });
   const validation = await validateRuntimeSources({ project: { features: { status_ui: true }, deliverables: ["character_card_json"] }, sources, projectRoot: process.cwd() });
   assert.deepEqual(validation.issues, []);
+});
+
+test("light UI experience gaps are review warnings rather than numeric build gates", async () => {
+  const producedStatus = {
+    ...statusSurface,
+    emission: { producer: "model_output", cadence: "every_assistant_message", source_ref: "wb_status_output", evidence: [] },
+  };
+  const evidence = experienceEvidence();
+  evidence.baseline.navigation = [];
+  evidence.baseline.information_tools = [];
+  evidence.baseline.host_actions = [];
+  const sources = projectSources({
+    surfaces: [producedStatus],
+    regexes: [statusRegex],
+    entries: [entry("wb_status_output", "每次回复末尾必须输出 `<测试状态/>` 标记，不得省略。")],
+    uiOptions: { evidence },
+  });
+  const validation = await validateRuntimeSources({ project: { features: { status_ui: true } }, sources, projectRoot: process.cwd() });
+  const missing = validation.warnings.filter((candidate) => candidate.rule === "ui.experience_baseline");
+  assert.equal(missing.length, 3);
+  assert.ok(!validation.issues.some((candidate) => candidate.rule.startsWith("ui.experience_")));
+});
+
+test("higher UI levels use holistic review without byte, line, or dimension quotas", async () => {
+  const producedStatus = {
+    ...statusSurface,
+    emission: { producer: "model_output", cadence: "every_assistant_message", source_ref: "wb_status_output", evidence: [] },
+  };
+  const entries = [entry("wb_status_output", "每次回复末尾必须输出 `<测试状态/>` 标记，不得省略。")];
+  const insufficient = projectSources({
+    surfaces: [producedStatus], regexes: [statusRegex], entries,
+    uiOptions: {
+      experienceLevel: "heavy",
+      evidence: experienceEvidence({ advancements: { interaction_depth: ["组合行动流程"] } }),
+    },
+  });
+  const rejected = await validateRuntimeSources({ project: { features: { status_ui: true } }, sources: insufficient, projectRoot: process.cwd() });
+  assert.ok(!rejected.issues.some((candidate) => candidate.rule === "ui.experience_advancement"));
+
+  const mature = projectSources({
+    surfaces: [producedStatus], regexes: [statusRegex], entries,
+    uiOptions: {
+      experienceLevel: "heavy",
+      evidence: experienceEvidence({ advancements: {
+        usability: ["批量操作与快捷入口"],
+        information_architecture: ["复合筛选与跨页详情"],
+        interaction_depth: ["任务、物品与地图联动"],
+        visual_expression: ["强主题场景演出"],
+        host_integration: ["多类宿主动作与结果回填"],
+      } }),
+    },
+  });
+  const accepted = await validateRuntimeSources({ project: { features: { status_ui: true } }, sources: mature, projectRoot: process.cwd() });
+  assert.ok(!accepted.issues.some((candidate) => candidate.rule.startsWith("ui.experience_")));
+  assert.ok(!JSON.stringify(mature).match(/line_count|byte_size|代码行数|文件大小/));
+});
+
+test("super-heavy UI declares the message application as the primary play surface", async () => {
+  const advancements = Object.fromEntries([
+    "usability", "information_architecture", "interaction_depth", "visual_expression", "host_integration", "persistence_lifecycle",
+  ].map((key) => [key, [`${key} 增量`]]));
+  const sources = projectSources({
+    surfaces: [], regexes: [], entries: [entry("wb_core", "世界基础")],
+    uiOptions: { experienceLevel: "super_heavy", evidence: experienceEvidence({ advancements }) },
+  });
+  const validation = await validateRuntimeSources({ project: { features: { status_ui: true } }, sources, projectRoot: process.cwd() });
+  assert.ok(validation.issues.some((candidate) => candidate.rule === "ui.experience_primary_surface"));
+});
+
+test("draft UI reports incomplete runtime chains as warnings while locked UI blocks", async () => {
+  const incomplete = { id: "draft", name: "草稿界面", marker: "", file: "missing.html" };
+  const draft = projectSources({ surfaces: [incomplete], regexes: [], entries: [], uiOptions: { status: "draft" } });
+  const draftValidation = await validateRuntimeSources({ project: { features: { status_ui: true } }, sources: draft, projectRoot: process.cwd() });
+  assert.ok(draftValidation.warnings.some((candidate) => candidate.rule === "ui.marker"));
+  assert.ok(!draftValidation.issues.some((candidate) => candidate.rule === "ui.marker"));
+
+  const locked = projectSources({ surfaces: [incomplete], regexes: [], entries: [], uiOptions: { status: "locked" } });
+  const lockedValidation = await validateRuntimeSources({ project: { features: { status_ui: true } }, sources: locked, projectRoot: process.cwd() });
+  assert.ok(lockedValidation.issues.some((candidate) => candidate.rule === "ui.marker"));
+});
+
+test("helper-script UI route does not require a regex marker", async () => {
+  const surface = { id: "helper", name: "脚本界面", marker: "", file: "", render_route: "helper_script", render_ref: "helper-ui", render_evidence: [] };
+  const helperScripts = [{ type: "script", id: "helper-ui", name: "脚本界面", content: "console.log('ui')", enabled: true }];
+  const sources = projectSources({ surfaces: [surface], regexes: [], entries: [], helperScripts });
+  const validation = await validateRuntimeSources({ project: { features: { status_ui: true } }, sources, projectRoot: process.cwd() });
+  assert.ok(!validation.issues.some((candidate) => candidate.rule === "ui.marker" || candidate.rule === "ui.marker_consumer"));
 });
 
 function hostRegex(source) {
@@ -188,6 +334,43 @@ function artifact(surface, outputContract = null) {
   };
 }
 
+function openingArtifact({ misplaced = false } = {}) {
+  return {
+    spec: "chara_card_v2",
+    spec_version: "2.0",
+    data: {
+      name: "开场前端归属测试",
+      description: "入口",
+      personality: "", scenario: "", first_mes: "<测试开局/>", mes_example: "", creator_notes: "", system_prompt: "", post_history_instructions: "",
+      alternate_greetings: [], tags: [], creator: "", character_version: "1.0",
+      extensions: {
+        world: "开场前端世界书",
+        regex_scripts: [hostRegex(openingRegex), hostRegex(openingPromptRegex)],
+        rp_card_studio: { sources: {
+          prompts: [{ path: "src/opening.yaml", value: { opening_ui: openingUi, openings: [opening] } }],
+          ...(misplaced ? { ui: [{ path: "src/ui/status-ui.yaml", value: uiSource([openingSurface]) }] } : {}),
+        } },
+      },
+      character_book: {
+        name: "开场前端世界书", description: "", scan_depth: null, token_budget: null, recursive_scanning: false, extensions: {},
+        entries: [{
+          id: 1001, keys: [], secondary_keys: [], comment: "世界基础", content: "世界基础", constant: true, selective: false,
+          insertion_order: 10, enabled: true, position: "before_char",
+          extensions: { rp_card_studio: { generated: true, source_id: "wb_core", source_key: "assembly:wb_core", visibility: "model" } },
+        }],
+      },
+    },
+  };
+}
+
+test("assembled artifacts preserve the opening/status stage boundary", () => {
+  const correct = validatePayload(openingArtifact());
+  assert.ok(!correct.issues.some((candidate) => candidate.rule.startsWith("opening_ui.") || candidate.rule === "ui.stage_ownership"));
+
+  const misplaced = validatePayload(openingArtifact({ misplaced: true }));
+  assert.ok(misplaced.issues.some((candidate) => candidate.rule === "ui.stage_ownership"));
+});
+
 test("assembled Forge artifacts reject consumer-only UI markers", () => {
   const missing = validatePayload(artifact(statusSurface));
   assert.ok(missing.issues.some((candidate) => candidate.rule === "ui.marker_producer"));
@@ -195,4 +378,16 @@ test("assembled Forge artifacts reject consumer-only UI markers", () => {
   const produced = { ...statusSurface, emission: { producer: "model_output", cadence: "every_assistant_message", source_ref: "wb_status_output", evidence: [] } };
   const valid = validatePayload(artifact(produced, "每次回复末尾必须输出 `<测试状态/>` 标记，不得省略。"));
   assert.ok(!valid.issues.some((candidate) => candidate.rule.startsWith("ui.marker_")));
+});
+
+test("assembled Forge artifacts preserve the declared UI experience evidence", () => {
+  const produced = { ...statusSurface, emission: { producer: "model_output", cadence: "every_assistant_message", source_ref: "wb_status_output", evidence: [] } };
+  const missing = artifact(produced, "每次回复末尾必须输出 `<测试状态/>` 标记，不得省略。");
+  delete missing.data.extensions.rp_card_studio.sources.ui[0].value.status_ui.experience_evidence;
+  const rejected = validatePayload(missing);
+  assert.ok(rejected.warnings.some((candidate) => candidate.rule === "ui.experience_evidence"));
+  assert.ok(!rejected.issues.some((candidate) => candidate.rule === "ui.experience_evidence"));
+
+  const complete = validatePayload(artifact(produced, "每次回复末尾必须输出 `<测试状态/>` 标记，不得省略。"));
+  assert.ok(!complete.issues.some((candidate) => candidate.rule.startsWith("ui.experience_")));
 });

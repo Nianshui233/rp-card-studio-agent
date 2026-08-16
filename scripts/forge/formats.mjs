@@ -25,6 +25,52 @@ var PNG_CHARACTER_FORMATS = /* @__PURE__ */ new Set([
   Format.PNG_CHARACTER_V2,
   Format.PNG_CHARACTER_V3
 ]);
+var UI_BASELINE_EVIDENCE = Object.freeze({
+  navigation: "internal navigation",
+  data_views: "multiple real data views",
+  information_tools: "search, filtering, folding, detail, or equivalent information tools",
+  host_actions: "a real SillyTavern or Tavern Helper action",
+  feedback_states: "confirmation, loading, empty, success, failure, or fallback feedback",
+  responsive_checks: "responsive, touch, or long-CJK-content checks",
+  theme_features: "a finished project-specific theme",
+  data_binding: "real data binding, refresh, and missing-data handling"
+});
+var UI_ADVANCEMENT_KEYS = Object.freeze([
+  "usability",
+  "information_architecture",
+  "interaction_depth",
+  "visual_expression",
+  "host_integration",
+  "persistence_lifecycle"
+]);
+function hasUiEvidence(value) {
+  return Array.isArray(value) && value.some((item) => typeof item === "string" && item.trim());
+}
+function artifactStageTarget(status, issues, warnings) {
+  return status === "locked" ? issues : warnings;
+}
+function validateManagedUiExperience(statusUi, base, status, issues, warnings) {
+  const evidence = statusUi?.experience_evidence;
+  if (!isPlainObject(evidence)) {
+    warnings.push(issue(`${base}/experience_evidence`, "ui.experience_evidence", "Ongoing UI has no player-visible experience review; this does not block the artifact"));
+    return;
+  }
+  const baseline = evidence.baseline;
+  for (const [key, label] of Object.entries(UI_BASELINE_EVIDENCE)) {
+    if (!isPlainObject(baseline) || !hasUiEvidence(baseline[key])) {
+      warnings.push(issue(`${base}/experience_evidence/baseline/${key}`, "ui.experience_baseline", `Experience review has not recorded ${label}; explain when it is not applicable`));
+    }
+  }
+  const advancements = evidence.level_advancements;
+  const count = isPlainObject(advancements)
+    ? UI_ADVANCEMENT_KEYS.filter((key) => hasUiEvidence(advancements[key])).length
+    : 0;
+  const level = statusUi?.experience_level;
+  if (level !== "light" && count === 0) warnings.push(issue(`${base}/experience_evidence/level_advancements`, "ui.experience_advancement", `${level} has not described its overall additions beyond light; no numeric quota is enforced`));
+  if (level === "super_heavy" && evidence.primary_play_surface !== true) {
+    artifactStageTarget(status, issues, warnings).push(issue(`${base}/experience_evidence/primary_play_surface`, "ui.experience_primary_surface", "Super-heavy / zero-layer UI should declare the message application as the primary play surface"));
+  }
+}
 export function isCharacterFormat(format) {
   return CHARACTER_FORMATS.has(format);
 }
@@ -155,7 +201,8 @@ export function validatePayload(value, format = detectJsonFormat(value)) {
     issues.push(...validateNamedSchema("character-card", value));
     validateCharacterRegexScripts(value, issues);
     validateManagedMvuDisplayCleanup(value, issues);
-    validateManagedUiMarkerProducers(value, issues);
+    validateManagedOpeningUi(value, issues, warnings);
+    validateManagedUiMarkerProducers(value, issues, warnings);
     validateEmbeddedCharacterBookBinding(value, issues, warnings);
     return { format, issues, warnings };
   }
@@ -331,6 +378,23 @@ function artifactUiDisplayPatterns(value) {
   return patterns;
 }
 
+function artifactUiPromptPatterns(value) {
+  const scripts = value?.data?.extensions?.regex_scripts;
+  if (!Array.isArray(scripts)) return [];
+  const patterns = [];
+  for (const script of scripts) {
+    if (!isPlainObject(script)
+      || script.disabled === true
+      || script.promptOnly !== true
+      || !Array.isArray(script.placement)
+      || script.placement.length === 0
+      || typeof script.findRegex !== "string") continue;
+    try { patterns.push(compileRegexString(script.findRegex)); }
+    catch { /* validateCharacterRegexScripts reports malformed patterns separately. */ }
+  }
+  return patterns;
+}
+
 function artifactPatternMatchesMarker(pattern, marker) {
   const candidate = new RegExp(pattern.source, pattern.flags);
   candidate.lastIndex = 0;
@@ -348,7 +412,45 @@ function artifactHelperIds(nodes) {
   return output;
 }
 
-function validateManagedUiMarkerProducers(value, issues) {
+function artifactOpeningSources(value) {
+  const sources = value?.data?.extensions?.rp_card_studio?.sources?.prompts;
+  if (!Array.isArray(sources)) return [];
+  return sources.map((source) => source?.value).filter((source) => isPlainObject(source));
+}
+
+function validateManagedOpeningUi(value, issues, warnings) {
+  const sources = artifactOpeningSources(value);
+  if (sources.length === 0) return;
+  const displayPatterns = artifactUiDisplayPatterns(value);
+  const promptPatterns = artifactUiPromptPatterns(value);
+  const messages = [value?.data?.first_mes, ...(Array.isArray(value?.data?.alternate_greetings) ? value.data.alternate_greetings : [])];
+  for (const [sourceIndex, source] of sources.entries()) {
+    const openingUi = source.opening_ui;
+    if (!isPlainObject(openingUi) || !openingUi.enabled) continue;
+    const base = `/data/extensions/rp_card_studio/sources/prompts/${sourceIndex}/value/opening_ui`;
+    const target = artifactStageTarget(source.status, issues, warnings);
+    const route = openingUi.render_route ?? "regex_replace";
+    const marker = typeof openingUi.marker === "string" ? openingUi.marker.trim() : "";
+    if (route === "regex_replace") {
+      if (!marker) target.push(issue(`${base}/marker`, "opening_ui.marker", "Regex opening frontend is missing its first-message marker"));
+      else {
+        if (!displayPatterns.some((pattern) => artifactPatternMatchesMarker(pattern, marker))) target.push(issue(`${base}/marker`, "opening_ui.display_consumer", `Managed opening marker ${marker} has no enabled display regex`));
+        if (!promptPatterns.some((pattern) => artifactPatternMatchesMarker(pattern, marker))) target.push(issue(`${base}/marker`, "opening_ui.prompt_consumer", `Managed opening marker ${marker} has no prompt-only fallback regex`));
+        if (!messages.some((message) => artifactMarkerAppearsInText(message, marker))) target.push(issue(`${base}/opening_id`, "opening_ui.producer", `No assembled opening message emits managed opening marker ${marker}`));
+      }
+    } else if (["helper_script", "ejs", "framework", "existing"].includes(route)) {
+      const evidence = Array.isArray(openingUi.render_evidence) ? openingUi.render_evidence.filter((item) => typeof item === "string" && item.trim()) : [];
+      if (!openingUi.render_ref && evidence.length === 0) target.push(issue(`${base}/render_evidence`, "opening_ui.render_evidence", `${route} opening route needs a real reference or evidence`));
+    }
+    const sourceOpenings = Array.isArray(source.openings) ? source.openings : [];
+    const candidates = typeof openingUi.opening_id === "string" && openingUi.opening_id
+      ? sourceOpenings.filter((opening) => opening.id === openingUi.opening_id)
+      : sourceOpenings.filter((opening) => opening.is_default);
+    if (["regex_replace", "inline_html"].includes(route) && !candidates.some((opening) => typeof opening.prompt_visible_text === "string" && opening.prompt_visible_text.trim())) target.push(issue(`${base}/opening_id`, "opening_ui.prompt_fallback", "Player-only opening UI should provide non-empty prompt_visible_text"));
+  }
+}
+
+function validateManagedUiMarkerProducers(value, issues, warnings) {
   const uiSources = artifactUiSources(value);
   if (uiSources.length === 0) return;
   const displayPatterns = artifactUiDisplayPatterns(value);
@@ -357,22 +459,28 @@ function validateManagedUiMarkerProducers(value, issues) {
   const helperIds = artifactHelperIds(value?.data?.extensions?.tavern_helper?.scripts);
 
   for (const [uiIndex, source] of uiSources.entries()) {
+    const uiBase = `/data/extensions/rp_card_studio/sources/ui/${uiIndex}/value/status_ui`;
+    const target = artifactStageTarget(source.status, issues, warnings);
+    validateManagedUiExperience(source.status_ui, uiBase, source.status, issues, warnings);
+    const relationship = source.status_ui.opening_relationship ?? "separate";
     for (const [surfaceIndex, surface] of (source.status_ui.surfaces ?? []).entries()) {
       const base = `/data/extensions/rp_card_studio/sources/ui/${uiIndex}/value/status_ui/surfaces/${surfaceIndex}`;
+      const route = surface?.render_route ?? "regex_replace";
       const marker = typeof surface?.marker === "string" ? surface.marker.trim() : "";
-      if (!marker) {
-        issues.push(issue(`${base}/marker`, "ui.marker", "Managed message UI surface is missing its capture marker or XML sample"));
-        continue;
+      if (route === "regex_replace") {
+        if (!marker) { target.push(issue(`${base}/marker`, "ui.marker", "Regex UI surface is missing its capture marker or XML sample")); continue; }
+        if (!displayPatterns.some((pattern) => artifactPatternMatchesMarker(pattern, marker))) target.push(issue(`${base}/marker`, "ui.marker_consumer", `Managed UI marker ${marker} has no enabled display regex consumer`));
+      } else if (["helper_script", "ejs", "framework", "existing"].includes(route)) {
+        const renderEvidence = Array.isArray(surface?.render_evidence) ? surface.render_evidence.filter((item) => typeof item === "string" && item.trim()) : [];
+        if (!surface?.render_ref && renderEvidence.length === 0) target.push(issue(`${base}/render_evidence`, "ui.render_evidence", `${route} UI route needs a real reference or evidence`));
       }
-      if (!displayPatterns.some((pattern) => artifactPatternMatchesMarker(pattern, marker))) {
-        issues.push(issue(`${base}/marker`, "ui.marker_consumer", `Managed UI marker ${marker} has no enabled display regex consumer`));
-      }
+
+      const belongsToOpening = openings.some((opening) => artifactMarkerAppearsInText(opening, marker));
+      if (belongsToOpening && relationship === "separate") target.push(issue(`${base}`, "ui.stage_ownership", `First-message marker ${marker} overlaps ongoing UI; declare an intentional shared or transition relationship when appropriate`));
 
       const emission = surface?.emission;
       if (!isPlainObject(emission)) {
-        if (!openings.some((opening) => artifactMarkerAppearsInText(opening, marker))) {
-          issues.push(issue(`${base}/emission`, "ui.marker_producer", `Managed UI marker ${marker} has a regex consumer but no opening, model contract, framework, script, or user-action producer`));
-        }
+        if (route === "regex_replace") target.push(issue(`${base}/emission`, "ui.marker_producer", `Managed ongoing UI marker ${marker} has no model contract, framework, script, or user-action producer`));
         continue;
       }
 
@@ -381,35 +489,35 @@ function validateManagedUiMarkerProducers(value, issues) {
       const sourceRef = emission.source_ref;
       const evidence = Array.isArray(emission.evidence) ? emission.evidence.filter((item) => typeof item === "string" && item.trim()) : [];
       if (producer === "opening_message") {
-        if (cadence !== "opening_only") issues.push(issue(`${base}/emission/cadence`, "ui.marker_producer_cadence", "opening_message producer must use opening_only"));
-        if (!openings.some((opening) => artifactMarkerAppearsInText(opening, marker))) {
-          issues.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_reference", `No opening message emits managed UI marker ${marker}`));
+        if (!belongsToOpening) {
+          target.push(issue(`${base}/emission/producer`, "ui.stage_ownership", "opening_message does not emit this marker"));
+        } else if (relationship === "separate") {
+          target.push(issue(`${base}/emission/producer`, "ui.stage_ownership", "opening_message producer requires an explicit shared or transition relationship"));
         }
         continue;
       }
       if (producer === "model_output") {
         const entry = entries.find((candidate) => candidate?.extensions?.rp_card_studio?.source_id === sourceRef);
         if (!entry) {
-          issues.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_reference", `No embedded CharacterBook entry matches output-contract source_ref ${JSON.stringify(sourceRef ?? null)}`));
+          target.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_reference", `No embedded model-visible contract matches source_ref ${JSON.stringify(sourceRef ?? null)}`));
           continue;
         }
         const tracking = entry?.extensions?.rp_card_studio;
         if (entry.enabled === false || tracking?.visibility !== "model" || entry.constant !== true) {
-          issues.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_contract", "Embedded UI output-contract entry must be enabled, constant, and model-visible"));
+          target.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_contract", "Embedded UI output contract must be enabled, constant, and model-visible for every-message cadence"));
         }
-        if (!artifactMarkerAppearsInText(entry.content, marker) || !artifactHasOutputDirective(entry.content)) {
-          issues.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_contract", `Embedded output-contract entry must explicitly command ${cadence} emission of the same marker/XML block ${marker}`));
-        }
+        if (marker && !artifactMarkerAppearsInText(entry.content, marker)) target.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_contract", `Embedded output contract does not contain the same marker/XML block ${marker}`));
+        else if (!artifactHasOutputDirective(entry.content)) warnings.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_wording", "Output wording was not recognized automatically; review semantics manually"));
         continue;
       }
       if (producer === "helper_script" && (typeof sourceRef !== "string" || !helperIds.has(sourceRef))) {
-        issues.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_reference", `No embedded Tavern Helper script matches producer source_ref ${JSON.stringify(sourceRef ?? null)}`));
+        target.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_reference", `No embedded Tavern Helper script matches producer source_ref ${JSON.stringify(sourceRef ?? null)}`));
       }
       if (["framework", "helper_script", "user_action", "existing"].includes(producer) && evidence.length === 0) {
-        issues.push(issue(`${base}/emission/evidence`, "ui.marker_producer_evidence", `${producer} producer must record evidence for the exact captured marker`));
+        target.push(issue(`${base}/emission/evidence`, "ui.marker_producer_evidence", `${producer} producer needs actual evidence`));
       }
       if (producer === "user_action" && cadence === "every_assistant_message") {
-        issues.push(issue(`${base}/emission/cadence`, "ui.marker_producer_cadence", "user_action cannot guarantee a marker on every assistant message"));
+        target.push(issue(`${base}/emission/cadence`, "ui.marker_producer_cadence", "user_action cannot guarantee a marker on every assistant message"));
       }
     }
   }

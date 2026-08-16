@@ -10,6 +10,21 @@ narrative:
   information_policy: []
   reply_handoff: ""
 
+opening_ui:
+  enabled: false
+  marker: null
+  file: null
+  render_route: regex_replace
+  render_ref: null
+  render_evidence: []
+  opening_id: null
+  experience_level: light
+  theme_direction: ""
+  device_priority: equal
+  journey: ""
+  fallback: ""
+  runtime: not_run
+
 openings: []
 dialogue_examples: []
 source_refs: []

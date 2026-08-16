@@ -9,6 +9,26 @@
     "schema_version": { "const": "2.0.0" },
     "status": { "enum": ["draft", "locked"] },
     "narrative": { "type": "object" },
+    "opening_ui": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["enabled", "marker", "file", "render_route", "render_ref", "render_evidence", "experience_level", "theme_direction", "device_priority", "journey", "fallback", "runtime"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "marker": { "type": ["string", "null"] },
+        "file": { "type": ["string", "null"] },
+        "render_route": { "enum": ["regex_replace", "helper_script", "ejs", "inline_html", "framework", "existing"] },
+        "render_ref": { "type": ["string", "null"] },
+        "render_evidence": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "opening_id": { "type": ["string", "null"] },
+        "experience_level": { "enum": ["light", "light_medium", "medium", "heavy", "super_heavy"] },
+        "theme_direction": { "type": "string" },
+        "device_priority": { "enum": ["desktop", "mobile", "equal"] },
+        "journey": { "type": "string" },
+        "fallback": { "type": "string" },
+        "runtime": { "enum": ["not_run", "pass", "fail", "blocked"] }
+      }
+    },
     "openings": {
       "type": "array",
       "items": {

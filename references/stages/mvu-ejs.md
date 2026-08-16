@@ -24,7 +24,7 @@ import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/b
 
 MVU 原生路线从 `[initvar]` 的 `$meta` 生成内部 Schema，支持可扩展、递归可扩展、模板、严格模板、数组拼接和严格赋值等能力。MVU_ZOD 是可选的项目结构注册层。混合路线只有在两层各自有明确职责时使用。
 
-`[initvar]` 可以来自关闭的世界书条目；同一世界书的多个初始化条目会合并，数组按整体替换。所有新建 MVU 路线都必须维护真实初始变量文件，并由 `worldbook_manifest.entries` 中名称含 `[initvar]` 的 `source.kind: file` 条目装入 CharacterBook。MVU_ZOD 只注册结构，不能代替初始值。
+`[initvar]` 可以来自关闭的世界书条目；同一世界书的多个初始化条目会合并，数组按整体替换。所有新建 MVU 路线都需要真实初始值，并最终装入名称含 `[initvar]` 的 CharacterBook 条目。维护源可以是文件、内联内容、登记源或既有导入；文件形式便于维护，但不是运行时唯一合法形式。MVU_ZOD 只注册结构，不能代替初始值。
 
 开场消息中的 `<initvar>` 是角色主世界书初始值的覆盖层，因此每条备选开场/Swipe 可以拥有不同初态；它不是脱离世界书的独立启动器。目标世界书尚未导入并挂载时，MVU 可能在读取开场覆盖层之前就因没有可初始化的世界书而返回。YAML、JSON、代码块、宏等支持范围必须按目标 bundle 实测。
 

@@ -177,20 +177,36 @@ Derive each rule from its real source text and destination:
 Test the exact raw, streaming, complete, edit, and depth fixtures. Offline replacement
 does not prove the installed host's render order.
 
-### Message UI
+### Opening Experience UI
+
+Read [narrative-opening.md](references/stages/narrative-opening.md).
+
+The required narrative/opening stage owns the first-message introduction and creation
+frontend as `opening_ui`: version and world introduction, updates, author notes, play
+guide, route selection, character creation, preview, and confirmation into a real user
+message. Its source, marker, prompt fallback, lifecycle, and visual/interaction level
+are decided independently from the ongoing status UI.
+
+### Ongoing Message UI
 
 Read [status-ui.md](references/stages/status-ui.md).
 
-Author complete, theme-specific HTML documents. A complete opening application or
-status application may contain many internal pages, tabs, drawers, dialogs, maps,
-inventory, relationships, tasks, guides, and host-linked actions. Keep one coherent
-functional surface together instead of scattering every small widget into a separate
-regex and generic component template.
+This optional stage owns only the ongoing in-RP message interface after entry: status,
+inventory, relationships, tasks, clues, maps, checks, notifications, and host-linked
+actions. Never place the first-message introduction, route-selection, or character-
+creation frontend in `status_ui.surfaces`; that belongs to `opening_ui` in the previous
+required stage. Keep one coherent ongoing surface together instead of scattering every
+small widget into a separate regex and generic component template.
 
 The maintained source may be one complete `.html` file or a small source project that
 builds one complete replacement HTML. The final regex `replaceString` must contain or
 load the actual complete result. Do not use the generic `ui.yaml` component compiler
 as the default authoring route.
+
+Regex replacement is common, not exclusive. A surface may instead be rendered by a
+Tavern Helper script, EJS, inline message HTML, a verified framework, or an existing
+card route. Validate the route actually chosen; never force a working project through
+regex replacement merely because it is the default example.
 
 UI scale (`light`, `light_medium`, `medium`, `heavy`, `super_heavy`) measures visual
 finish, thematic integration, interaction richness, JavaScript sophistication,
@@ -199,6 +215,17 @@ pages. Design from the Chinese player's actual reading and interaction experienc
 localized labels, intentional hierarchy, good CJK typography, useful density,
 responsive layout, visible feedback, touch targets, focus, empty/error/loading states,
 and lifecycle-safe host actions.
+
+Treat the complete ongoing HTML represented by the project's `我，非我.html` reference
+as the `light` experience floor: a coherent multi-view status application with real data
+binding, internal navigation, information tools such as search/filter/detail, at least
+one real host-linked action, feedback and fallback states, responsive behavior, and a
+finished project-specific theme. Do not reduce `light` to a small static dashboard. Do
+not enforce the reference file's byte or line count; use
+`status_ui.experience_evidence` as a review note rather than a numeric gate. Every level above `light` should name genuine additions
+in functionality, interaction, convenience, visual performance, host integration, or
+lifecycle depth. `super_heavy` additionally makes the message application the primary
+play surface.
 
 ### Integration
 
@@ -238,7 +265,16 @@ Forge is a faithful local packer and validator. It may:
 - preserve imported unknown fields;
 - validate syntax, references, formats, and round trips.
 
-Forge must not invent RP facts, variable paths, EJS branches, extra runtime layers, fixed regex suites, UI components, or generic HTML on behalf of the authored project.
+The skill and executing model actively author project-specific RP, MVU, EJS, regex,
+scripts, and complete frontends. Forge then preserves, assembles, and validates those
+sources. Forge itself must not silently replace authored work with generic facts,
+variable paths, runtime layers, fixed regex suites, UI components, or generic HTML.
+
+Validation follows lifecycle. Missing pieces in a `draft` source are pending work and
+normally produce warnings. The same missing load-bearing pieces become blocking when
+the stage is `locked` or the final artifact claims that route is complete. Confirmed
+syntax corruption, destructive overwrite, identifier collisions, and data loss remain
+errors at every stage.
 
 A technical test card may reduce story volume, UI richness, cast size, or visual polish, but it must not omit any load-bearing component of the route being tested. If a chat-message variable protocol emits a technical update block, its completed and still-streaming forms need a verified player-display cleanup path. Card regex is the default; framework cleanup, host regex, or an existing mechanism is valid only when the project records that choice and its evidence.
 

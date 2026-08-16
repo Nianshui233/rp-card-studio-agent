@@ -18,7 +18,7 @@
       ],
       "properties": {
         "enabled": { "type": "boolean" },
-        "authoring_mode": { "const": "direct_html" },
+        "authoring_mode": { "enum": ["direct_html", "multi_file_html", "compiled_frontend", "existing_build"] },
         "experience_level": { "enum": ["light", "light_medium", "medium", "heavy", "super_heavy"] },
         "theme_direction": { "type": "string" },
         "device_priority": { "enum": ["desktop", "mobile", "equal"] },
@@ -32,6 +32,9 @@
               "name": { "type": "string", "minLength": 1 },
               "marker": { "type": "string", "minLength": 1 },
               "file": { "type": "string", "minLength": 1 },
+              "render_route": { "enum": ["regex_replace", "helper_script", "ejs", "inline_html", "framework", "existing"] },
+              "render_ref": { "type": ["string", "null"] },
+              "render_evidence": { "$ref": "#/$defs/stringArray" },
               "emission": {
                 "type": "object",
                 "additionalProperties": false,
@@ -55,10 +58,51 @@
         },
         "data_sources": { "type": "array" },
         "host_interactions": { "type": "array" },
+        "experience_evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["baseline", "level_advancements", "primary_play_surface"],
+          "properties": {
+            "baseline": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "navigation": { "$ref": "#/$defs/stringArray" },
+                "data_views": { "$ref": "#/$defs/stringArray" },
+                "information_tools": { "$ref": "#/$defs/stringArray" },
+                "host_actions": { "$ref": "#/$defs/stringArray" },
+                "feedback_states": { "$ref": "#/$defs/stringArray" },
+                "responsive_checks": { "$ref": "#/$defs/stringArray" },
+                "theme_features": { "$ref": "#/$defs/stringArray" },
+                "data_binding": { "$ref": "#/$defs/stringArray" }
+              }
+            },
+            "level_advancements": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "usability": { "$ref": "#/$defs/stringArray" },
+                "information_architecture": { "$ref": "#/$defs/stringArray" },
+                "interaction_depth": { "$ref": "#/$defs/stringArray" },
+                "visual_expression": { "$ref": "#/$defs/stringArray" },
+                "host_integration": { "$ref": "#/$defs/stringArray" },
+                "persistence_lifecycle": { "$ref": "#/$defs/stringArray" }
+              }
+            },
+            "primary_play_surface": { "type": "boolean" }
+          }
+        },
+        "opening_relationship": { "enum": ["separate", "shared_source", "opening_to_runtime", "unified_zero_layer"] },
         "lifecycle_checks": { "type": "array" },
         "runtime": { "enum": ["not_run", "pass", "fail", "blocked"] }
       }
     },
     "source_refs": { "type": "array", "items": { "type": "string" } }
+  },
+  "$defs": {
+    "stringArray": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
   }
 }

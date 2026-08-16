@@ -17,6 +17,54 @@ function issue(pathValue, rule, message) {
   return { path: pathValue, rule, message };
 }
 
+const UI_BASELINE_EVIDENCE = Object.freeze({
+  navigation: "内部导航",
+  data_views: "多类数据视图",
+  information_tools: "搜索、筛选、折叠或详情等信息操作",
+  host_actions: "真实 SillyTavern / 酒馆助手联动动作",
+  feedback_states: "确认、加载、空态、成功、失败或回退反馈",
+  responsive_checks: "窄屏、触控、中文长文本或其他响应式检查",
+  theme_features: "与项目题材绑定的主题视觉",
+  data_binding: "真实数据读取、刷新与缺失处理",
+});
+
+const UI_ADVANCEMENT_KEYS = Object.freeze(["usability", "information_architecture", "interaction_depth", "visual_expression", "host_integration", "persistence_lifecycle"]);
+
+function nonEmptyEvidence(value) {
+  return Array.isArray(value) && value.some((item) => typeof item === "string" && item.trim());
+}
+
+function stageTarget(status, issues, warnings) {
+  return status === "locked" ? issues : warnings;
+}
+
+function validateUiExperienceEvidence(statusUi, base, status, issues, warnings) {
+  const evidence = statusUi?.experience_evidence;
+  if (!isObject(evidence)) {
+    warnings.push(issue(`${base}/experience_evidence`, "ui.experience_evidence", "建议记录玩家可验证的体验依据；它是质量复盘，不是填写数量门槛"));
+    return;
+  }
+
+  const baseline = evidence.baseline;
+  for (const [key, label] of Object.entries(UI_BASELINE_EVIDENCE)) {
+    if (!isObject(baseline) || !nonEmptyEvidence(baseline[key])) {
+      warnings.push(issue(`${base}/experience_evidence/baseline/${key}`, "ui.experience_baseline", `尚未记录${label}；不适用时可在阶段总结说明理由`));
+    }
+  }
+
+  const advancements = evidence.level_advancements;
+  const advancementCount = isObject(advancements)
+    ? UI_ADVANCEMENT_KEYS.filter((key) => nonEmptyEvidence(advancements[key])).length
+    : 0;
+  const level = statusUi?.experience_level;
+  if (level !== "light" && advancementCount === 0) {
+    warnings.push(issue(`${base}/experience_evidence/level_advancements`, "ui.experience_advancement", `${level} 尚未说明相对轻型基线的实际增量；等级按整体玩家体验判断，不按数组数量计算`));
+  }
+  if (level === "super_heavy" && evidence.primary_play_surface !== true) {
+    stageTarget(status, issues, warnings).push(issue(`${base}/experience_evidence/primary_play_surface`, "ui.experience_primary_surface", "超重型/0层游玩应明确持续消息前端是主要游玩表面"));
+  }
+}
+
 function canonicalJson(value) {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
   if (isObject(value)) {
@@ -1347,7 +1395,56 @@ function uiDisplayRegexPatterns(runtime) {
   return patterns;
 }
 
-async function validateUiSurfaceProducers(sources, projectRoot, assembly, openings, issues) {
+function uiPromptRegexPatterns(runtime) {
+  const patterns = [];
+  for (const regex of (runtime?.regex_scripts ?? [])) {
+    if (regex?.disabled === true || regex?.prompt_only !== true || !Array.isArray(regex?.placement) || regex.placement.length === 0) continue;
+    try { patterns.push(parseRegexLiteral(regex.find_regex)); }
+    catch { /* validateAuthoredRuntime reports malformed patterns separately. */ }
+  }
+  return patterns;
+}
+
+async function validateOpeningUiSources(sources, projectRoot, assembly, issues, warnings) {
+  const runtime = assembly?.runtime_manifest;
+  const displayPatterns = uiDisplayRegexPatterns(runtime);
+  const promptPatterns = uiPromptRegexPatterns(runtime);
+  const helperIds = helperRuntimeIds(runtime?.tavern_helper_scripts);
+  for (const [sourceIndex, source] of values(sources, "prompts").entries()) {
+    const openingUi = source.opening_ui;
+    if (!isObject(openingUi) || !openingUi.enabled) continue;
+    const base = `/runtime/opening/${sourceIndex}/opening_ui`;
+    const target = stageTarget(source.status, issues, warnings);
+    const route = openingUi.render_route ?? "regex_replace";
+    const marker = typeof openingUi.marker === "string" ? openingUi.marker.trim() : "";
+    const sourceOpenings = Array.isArray(source.openings) ? source.openings : [];
+    const candidates = typeof openingUi.opening_id === "string" && openingUi.opening_id
+      ? sourceOpenings.filter((opening) => opening.id === openingUi.opening_id)
+      : sourceOpenings.filter((opening) => opening.is_default);
+    if (candidates.length === 0) target.push(issue(`${base}/opening_id`, "opening_ui.producer", "开场前端没有对应的默认或指定 opening"));
+    if (["regex_replace", "inline_html"].includes(route)) {
+      const file = openingUi.file;
+      if (typeof file !== "string" || !file) target.push(issue(`${base}/file`, "opening_ui.source", `${route} 开场前端需要真实 HTML 源文件`));
+      else { try { await stat(resolveWithin(projectRoot, file)); } catch { target.push(issue(`${base}/file`, "opening_ui.source", `开场前端源文件不存在: ${file}`)); } }
+    }
+    if (route === "regex_replace") {
+      if (!marker) target.push(issue(`${base}/marker`, "opening_ui.marker", "正则替换路线必须声明首消息标记"));
+      else {
+        if (!displayPatterns.some((pattern) => regexMatchesMarker(pattern, marker))) target.push(issue(`${base}/marker`, "opening_ui.display_consumer", `开场标记 ${marker} 没有对应 display 正则`));
+        if (!promptPatterns.some((pattern) => regexMatchesMarker(pattern, marker))) target.push(issue(`${base}/marker`, "opening_ui.prompt_consumer", `开场标记 ${marker} 没有 prompt-only 回退正则`));
+        if (candidates.length > 0 && !candidates.some((opening) => markerAppearsInText(opening.visible_text ?? opening.text, marker))) target.push(issue(`${base}/opening_id`, "opening_ui.producer", `目标 opening 没有生产开场标记 ${marker}`));
+      }
+    } else if (route === "helper_script") {
+      if (typeof openingUi.render_ref !== "string" || !helperIds.has(openingUi.render_ref)) target.push(issue(`${base}/render_ref`, "opening_ui.render_reference", "helper_script 路线必须指向实际 Tavern Helper 脚本"));
+    } else if (["ejs", "framework", "existing"].includes(route)) {
+      const evidence = Array.isArray(openingUi.render_evidence) ? openingUi.render_evidence.filter((item) => typeof item === "string" && item.trim()) : [];
+      if (!openingUi.render_ref && evidence.length === 0) target.push(issue(`${base}/render_evidence`, "opening_ui.render_evidence", `${route} 路线需要真实引用或运行证据`));
+    }
+    if (["regex_replace", "inline_html"].includes(route) && !candidates.some((opening) => typeof opening.prompt_visible_text === "string" && opening.prompt_visible_text.trim())) target.push(issue(`${base}/opening_id`, "opening_ui.prompt_fallback", "会向玩家显示纯界面的开场应提供模型可见的文本回退"));
+  }
+}
+
+async function validateUiSurfaceProducers(sources, projectRoot, assembly, openings, issues, warnings) {
   const runtime = assembly?.runtime_manifest;
   const displayPatterns = uiDisplayRegexPatterns(runtime);
   const worldbookEntries = assembly?.worldbook_manifest?.entries ?? [];
@@ -1356,23 +1453,33 @@ async function validateUiSurfaceProducers(sources, projectRoot, assembly, openin
   for (const [uiIndex, uiSource] of values(sources, "ui").entries()) {
     const statusUi = uiSource.status_ui ?? {};
     if (!statusUi.enabled) continue;
+    const uiBase = `/runtime/ui/${uiIndex}/status_ui`;
+    const target = stageTarget(uiSource.status, issues, warnings);
+    validateUiExperienceEvidence(statusUi, uiBase, uiSource.status, issues, warnings);
+    const relationship = statusUi.opening_relationship ?? "separate";
     for (const [surfaceIndex, surface] of (statusUi.surfaces ?? []).entries()) {
       const base = `/runtime/ui/${uiIndex}/status_ui/surfaces/${surfaceIndex}`;
+      const route = surface?.render_route ?? "regex_replace";
       const marker = typeof surface?.marker === "string" ? surface.marker.trim() : "";
-      if (!marker) {
-        issues.push(issue(`${base}/marker`, "ui.marker", "启用的消息 UI surface 必须声明真实捕获标记或 XML 样例"));
-        continue;
+      if (route === "regex_replace") {
+        if (!marker) { target.push(issue(`${base}/marker`, "ui.marker", "正则替换路线必须声明真实捕获标记或 XML 样例")); continue; }
+        if (!displayPatterns.some((pattern) => regexMatchesMarker(pattern, marker))) target.push(issue(`${base}/marker`, "ui.marker_consumer", `UI 标记 ${marker} 没有对应 display 正则`));
+      } else if (route === "inline_html") {
+        if (typeof surface?.file !== "string" || !surface.file) target.push(issue(`${base}/file`, "ui.render_source", "inline_html 路线需要真实 HTML 源文件"));
+        else { try { await stat(resolveWithin(projectRoot, surface.file)); } catch { target.push(issue(`${base}/file`, "ui.render_source", `UI 源文件不存在: ${surface.file}`)); } }
+      } else if (route === "helper_script") {
+        if (typeof surface?.render_ref !== "string" || !helperIds.has(surface.render_ref)) target.push(issue(`${base}/render_ref`, "ui.render_reference", "helper_script 渲染路线必须指向实际 Tavern Helper 脚本"));
+      } else {
+        const renderEvidence = Array.isArray(surface?.render_evidence) ? surface.render_evidence.filter((item) => typeof item === "string" && item.trim()) : [];
+        if (!surface?.render_ref && renderEvidence.length === 0) target.push(issue(`${base}/render_evidence`, "ui.render_evidence", `${route} 渲染路线需要真实引用或证据`));
       }
-      if (!displayPatterns.some((pattern) => regexMatchesMarker(pattern, marker))) {
-        issues.push(issue(`${base}/marker`, "ui.marker_consumer", `UI 标记 ${marker} 没有对应的启用 display 正则消费者`));
-      }
+
+      const belongsToOpening = marker && openings.some((opening) => markerAppearsInText(opening.visible_text ?? opening.text, marker));
+      if (belongsToOpening && relationship === "separate") target.push(issue(`${base}`, "ui.stage_ownership", `首条消息标记 ${marker} 与持续 UI 重合；若为有意共享，请声明 opening_relationship`));
 
       const emission = surface?.emission;
       if (!isObject(emission)) {
-        const openingProducesMarker = openings.some((opening) => markerAppearsInText(opening.visible_text ?? opening.text, marker));
-        if (!openingProducesMarker) {
-          issues.push(issue(`${base}/emission`, "ui.marker_producer", `UI 标记 ${marker} 只有正则消费者，没有开场、模型输出契约、框架、脚本或用户动作生产者`));
-        }
+        if (route === "regex_replace") target.push(issue(`${base}/emission`, "ui.marker_producer", `持续 UI 标记 ${marker} 没有模型输出合同、框架、脚本或用户动作生产者`));
         continue;
       }
 
@@ -1381,49 +1488,41 @@ async function validateUiSurfaceProducers(sources, projectRoot, assembly, openin
       const sourceRef = emission.source_ref;
       const evidence = Array.isArray(emission.evidence) ? emission.evidence.filter((item) => typeof item === "string" && item.trim()) : [];
       if (producer === "opening_message") {
-        if (cadence !== "opening_only") {
-          issues.push(issue(`${base}/emission/cadence`, "ui.marker_producer_cadence", "opening_message 生产者只能使用 opening_only"));
-        }
-        const candidates = typeof sourceRef === "string" && sourceRef
-          ? openings.filter((opening) => opening.id === sourceRef)
-          : openings;
-        if (!candidates.some((opening) => markerAppearsInText(opening.visible_text ?? opening.text, marker))) {
-          issues.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_reference", `开场生产者没有在目标 opening 中输出 UI 标记 ${marker}`));
-        }
+        if (!belongsToOpening) target.push(issue(`${base}/emission/producer`, "ui.stage_ownership", "opening_message 没有在目标开场中产生该标记"));
+        else if (relationship === "separate") target.push(issue(`${base}/emission/producer`, "ui.stage_ownership", "持续 UI 使用 opening_message 时必须声明共享或过渡关系"));
         continue;
       }
 
       if (producer === "model_output") {
         const entry = worldbookEntries.find((candidate) => candidate?.id === sourceRef);
         if (!entry) {
-          issues.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_reference", `模型输出生产者必须用 source_ref 指向实际 CharacterBook 条目；未找到 ${JSON.stringify(sourceRef ?? null)}`));
+          target.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_reference", `模型输出生产者应指向实际模型可见合同；未找到 ${JSON.stringify(sourceRef ?? null)}`));
           continue;
         }
         if (entry.enabled === false || entry.visibility !== "model") {
-          issues.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_contract", "UI 输出契约条目必须启用且对模型可见"));
+          target.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_contract", "UI 输出合同必须启用且对模型可见"));
         }
         if (entry?.activation?.mode !== "constant") {
-          issues.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_contract", "UI 输出契约条目必须常驻；关键词未触发时模型不会知道需要输出状态标记"));
+          target.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_contract", "每轮输出合同应常驻；按需输出可选择其他 cadence 或生产路线"));
         }
         try {
           const content = await resolveWorldbookContent(entry.source, sources, projectRoot, entry.display_name);
-          if (!markerAppearsInText(content, marker) || !hasOutputDirective(content)) {
-            issues.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_contract", `CharacterBook 条目 ${sourceRef} 必须明确命令模型按 ${cadence} 输出同一个标记/XML块 ${marker}`));
-          }
+          if (marker && !markerAppearsInText(content, marker)) target.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_contract", `模型输出合同没有包含同一个标记/XML块 ${marker}`));
+          else if (!hasOutputDirective(content)) warnings.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_wording", `合同 ${sourceRef} 的输出措辞未被自动识别；请人工确认语义，措辞本身不阻断构建`));
         } catch (error) {
-          issues.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_contract", error.message));
+          target.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_contract", error.message));
         }
         continue;
       }
 
       if (producer === "helper_script" && (typeof sourceRef !== "string" || !helperIds.has(sourceRef))) {
-        issues.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_reference", `helper_script 生产者必须指向实际 Tavern Helper 脚本；未找到 ${JSON.stringify(sourceRef ?? null)}`));
+        target.push(issue(`${base}/emission/source_ref`, "ui.marker_producer_reference", `helper_script 生产者必须指向实际 Tavern Helper 脚本；未找到 ${JSON.stringify(sourceRef ?? null)}`));
       }
       if (["framework", "helper_script", "user_action", "existing"].includes(producer) && evidence.length === 0) {
-        issues.push(issue(`${base}/emission/evidence`, "ui.marker_producer_evidence", `${producer} 生产者必须记录与正则标记完全一致的实际证据`));
+        target.push(issue(`${base}/emission/evidence`, "ui.marker_producer_evidence", `${producer} 生产者需要记录实际证据`));
       }
       if (producer === "user_action" && cadence === "every_assistant_message") {
-        issues.push(issue(`${base}/emission/cadence`, "ui.marker_producer_cadence", "user_action 不能保证每条 AI 回复都产生标记"));
+        target.push(issue(`${base}/emission/cadence`, "ui.marker_producer_cadence", "user_action 不能保证每条 AI 回复都产生标记"));
       }
     }
   }
@@ -1524,36 +1623,33 @@ async function validateMvuRuntimeSources(project, sources, projectRoot, assembly
   const helperIds = helperRuntimeIds(assembly?.runtime_manifest?.tavern_helper_scripts);
   for (const [index, source] of values(sources, "mvu").entries()) {
     const base = `/runtime/mvu/${index}`;
+    const target = stageTarget(source.status, issues, warnings);
     const mvu = source.mvu ?? {};
     if (mvu.enabled) {
       if (!mvu.route || mvu.route === "none") {
-        issues.push(issue(`${base}/mvu/route`, "mvu.route", "启用 MVU 时必须选择 native_schema、mvu_zod、hybrid 或 existing 路线"));
+        target.push(issue(`${base}/mvu/route`, "mvu.route", "启用 MVU 时需要选择 native_schema、mvu_zod、hybrid 或 existing 路线"));
       }
       const initialValues = mvu.files?.initial_values;
       if (mvu.route !== "existing" && !initialValues) {
-        issues.push(issue(`${base}/mvu/files/initial_values`, "mvu.initial_values", "新 MVU 路线必须提供实际初始变量源；MVU_ZOD 不能代替初始值"));
+        target.push(issue(`${base}/mvu/files/initial_values`, "mvu.initial_values", "新 MVU 路线需要实际初始变量源；MVU_ZOD 不能代替初始值"));
       }
       if (mvu.route !== "existing" && initialValues) {
-        const projectedInitVar = (assembly?.worldbook_manifest?.entries ?? []).some((entry) => (
-          String(entry?.display_name ?? "").toLowerCase().includes("[initvar]")
-          && entry?.source?.kind === "file"
-          && entry.source.path === initialValues
-        ));
+        const projectedInitVar = (assembly?.worldbook_manifest?.entries ?? []).some((entry) => String(entry?.display_name ?? "").toLowerCase().includes("[initvar]") && isObject(entry?.source));
         if (!projectedInitVar) {
-          issues.push(issue(`${base}/mvu/files/initial_values`, "mvu.initial_values_projection", "初始变量文件必须装配为名称含 [initvar] 的 CharacterBook 条目；仅在开场放 <initvar> 会因 MVU 初始化提前返回而失效"));
+          target.push(issue(`${base}/mvu/files/initial_values`, "mvu.initial_values_projection", "最终 CharacterBook 需要名称含 [initvar] 的有效初始化条目；其维护源可以是文件、内联、登记源或既有导入"));
         }
       }
       if (["mvu_zod", "hybrid"].includes(mvu.route) && !mvu.files?.schema_script) {
-        issues.push(issue(`${base}/mvu/files/schema_script`, "mvu.schema", "MVU_ZOD 路线需要实际变量结构脚本"));
+        target.push(issue(`${base}/mvu/files/schema_script`, "mvu.schema", "MVU_ZOD 路线需要实际变量结构脚本"));
       }
       const delivery = mvu.framework?.delivery;
       if (mvu.route !== "existing" && !["card_script", "host_required"].includes(delivery)) {
-        issues.push(issue(`${base}/mvu/framework/delivery`, "mvu.loader", "MVU 路线必须明确由卡内脚本加载框架，或声明宿主必须预装"));
+        target.push(issue(`${base}/mvu/framework/delivery`, "mvu.loader", "MVU 路线需要明确由卡内脚本加载框架，或声明宿主预装"));
       }
       if (delivery === "card_script") {
         const loaderId = mvu.framework?.loader_script_id;
         if (!loaderId || !helperIds.has(loaderId)) {
-          issues.push(issue(`${base}/mvu/framework/loader_script_id`, "mvu.loader", "卡内 MVU 路线缺少与 loader_script_id 对应的 Tavern Helper 加载脚本"));
+          target.push(issue(`${base}/mvu/framework/loader_script_id`, "mvu.loader", "卡内 MVU 路线缺少与 loader_script_id 对应的 Tavern Helper 加载脚本"));
         }
       }
       if (delivery === "host_required") {
@@ -1564,18 +1660,18 @@ async function validateMvuRuntimeSources(project, sources, projectRoot, assembly
         for (const [fileIndex, candidate] of fileList.entries()) {
           if (typeof candidate !== "string" || !candidate) continue;
           try { await stat(resolveWithin(projectRoot, candidate)); }
-          catch { issues.push(issue(`${base}/mvu/files/${name}/${fileIndex}`, "mvu.source", `MVU 源文件不存在: ${candidate}`)); }
+          catch { target.push(issue(`${base}/mvu/files/${name}/${fileIndex}`, "mvu.source", `MVU 源文件不存在: ${candidate}`)); }
         }
       }
-      await validateMvuUpdateBlockDisplay(mvu, assembly?.runtime_manifest, projectRoot, base, issues);
+      await validateMvuUpdateBlockDisplay(mvu, assembly?.runtime_manifest, projectRoot, base, target);
     }
     const ejs = source.ejs ?? {};
     if (ejs.enabled && (!Array.isArray(ejs.templates) || ejs.templates.length === 0)) {
-      issues.push(issue(`${base}/ejs/templates`, "ejs.source", "启用 EJS 时至少需要一份真实模板及其宿主位置"));
+      target.push(issue(`${base}/ejs/templates`, "ejs.source", "启用 EJS 时至少需要一份真实模板及其宿主位置"));
     }
     for (const [templateIndex, template] of (ejs.templates ?? []).entries()) {
       try { await stat(resolveWithin(projectRoot, template.file)); }
-      catch { issues.push(issue(`${base}/ejs/templates/${templateIndex}/file`, "ejs.source", `EJS 源文件不存在: ${template.file}`)); }
+      catch { target.push(issue(`${base}/ejs/templates/${templateIndex}/file`, "ejs.source", `EJS 源文件不存在: ${template.file}`)); }
     }
   }
 }
@@ -1588,8 +1684,13 @@ export async function validateRuntimeSources({ project, sources, projectRoot }) 
     issues.push(issue('/source_manifest/assembly', 'assembly.configuration', 'Exactly one assembly source is allowed'));
   }
   const assembly = assemblies[0];
-  if ((project?.features?.mvu || project?.features?.ejs || project?.features?.status_ui) && !assembly?.runtime_manifest) {
-    issues.push(issue('/runtime_manifest', 'runtime.required', 'Enabled runtime features require authored runtime source files and an authored runtime manifest'));
+  const openingUiEnabled = values(sources, "prompts").some((source) => source?.opening_ui?.enabled === true);
+  if ((project?.features?.mvu || project?.features?.ejs || project?.features?.status_ui || openingUiEnabled) && !assembly?.runtime_manifest) {
+    const lockedRuntime = assembly?.status === "locked"
+      || values(sources, "mvu").some((source) => source.status === "locked" && (source?.mvu?.enabled || source?.ejs?.enabled))
+      || values(sources, "ui").some((source) => source.status === "locked" && source?.status_ui?.enabled)
+      || values(sources, "prompts").some((source) => source.status === "locked" && source?.opening_ui?.enabled);
+    stageTarget(lockedRuntime ? "locked" : "draft", issues, warnings).push(issue('/runtime_manifest', 'runtime.required', '启用的运行功能需要真实源码和 runtime_manifest；草稿阶段可继续补齐'));
   }
   await validateAuthoredRuntime(assembly?.runtime_manifest, projectRoot, issues, warnings);
   await validateMvuRuntimeSources(project, sources, projectRoot, assembly, issues, warnings);
@@ -1608,7 +1709,8 @@ export async function validateRuntimeSources({ project, sources, projectRoot }) 
     }
   }
 
-  await validateUiSurfaceProducers(sources, projectRoot, assembly, openings, issues);
+  await validateUiSurfaceProducers(sources, projectRoot, assembly, openings, issues, warnings);
+  await validateOpeningUiSources(sources, projectRoot, assembly, issues, warnings);
 
   validatePresentations(openingSources, assemblies, issues);
   validateMediaConsumers(sources, issues);

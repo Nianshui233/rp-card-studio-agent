@@ -173,6 +173,35 @@ test("MVU initial values must be projected into a real [initvar] CharacterBook e
   assert.ok(validation.issues.some((entry) => entry.rule === "mvu.initial_values_projection"));
 });
 
+test("MVU [initvar] projection accepts inline maintained content", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "rp-mvu-inline-initvar-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(path.join(root, "src/runtime/mvu"), { recursive: true });
+  await writeFile(path.join(root, "src/runtime/mvu/初始变量.yaml"), "状态:\n  天气: 雨", "utf8");
+  await writeFile(path.join(root, "src/runtime/mvu/变量更新规则.yaml"), "规则: 按事件更新", "utf8");
+  await writeFile(path.join(root, "src/runtime/mvu/变量输出格式.yaml"), "格式: UpdateVariable", "utf8");
+  const loader = { id: "mvu-loader", name: "加载 MVU 框架", enabled: true, content: "import 'bundle.js';" };
+  const inlineEntry = { ...initVarEntry(), source: { kind: "inline", content: "状态:\n  天气: 雨" } };
+  const sources = sourceSet(assembly([loader], [inlineEntry]), nativeMvu());
+  const validation = await validateRuntimeSources({ project: { features: { mvu: true } }, sources, projectRoot: root });
+  assert.ok(!validation.issues.some((entry) => entry.rule === "mvu.initial_values_projection"));
+});
+
+test("draft MVU closure gaps warn while locked sources block", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "rp-mvu-draft-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(path.join(root, "src/runtime/mvu"), { recursive: true });
+  await writeFile(path.join(root, "src/runtime/mvu/初始变量.yaml"), "状态: 草稿", "utf8");
+  await writeFile(path.join(root, "src/runtime/mvu/变量更新规则.yaml"), "规则: 草稿", "utf8");
+  await writeFile(path.join(root, "src/runtime/mvu/变量输出格式.yaml"), "格式: 草稿", "utf8");
+  const source = nativeMvu();
+  source.status = "draft";
+  const sources = sourceSet(assembly([], []), source);
+  const validation = await validateRuntimeSources({ project: { features: { mvu: true } }, sources, projectRoot: root });
+  assert.ok(validation.warnings.some((entry) => entry.rule === "mvu.loader"));
+  assert.ok(!validation.issues.some((entry) => entry.rule === "mvu.loader"));
+});
+
 test("MVU_ZOD and EJS are independent optional layers", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "rp-mvu-zod-"));
   t.after(() => rm(root, { recursive: true, force: true }));

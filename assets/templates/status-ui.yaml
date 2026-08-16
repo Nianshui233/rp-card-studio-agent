@@ -10,6 +10,27 @@ status_ui:
   surfaces: []
   data_sources: []
   host_interactions: []
+  opening_relationship: separate
+  experience_evidence:
+    # 轻型以成熟持续状态应用为体验基准；按项目实际记录，不适用的维度可留空并在阶段总结说明理由。
+    baseline:
+      navigation: []
+      data_views: []
+      information_tools: []
+      host_actions: []
+      feedback_states: []
+      responsive_checks: []
+      theme_features: []
+      data_binding: []
+    # 高于轻型时记录相对轻型基线的实际增量；不按填写数量或代码行数定级。
+    level_advancements:
+      usability: []
+      information_architecture: []
+      interaction_depth: []
+      visual_expression: []
+      host_integration: []
+      persistence_lifecycle: []
+    primary_play_surface: false
   lifecycle_checks: []
   runtime: not_run
 
