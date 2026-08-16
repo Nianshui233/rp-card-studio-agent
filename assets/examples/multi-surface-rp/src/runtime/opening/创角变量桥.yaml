@@ -1,0 +1,32 @@
+schema_version: 1.0.0
+display_name: 玻璃潮汐创角变量桥
+runtime_kind: non_mvu
+
+input_fields:
+  - id: name
+    label: 姓名
+    type: text
+    required: true
+  - id: affiliation
+    label: 所属组织
+    type: text
+    required: false
+  - id: first_goal
+    label: 首要目标
+    type: text
+    required: true
+
+bindings:
+  - input: name
+    target: user_entry.profile.name
+  - input: affiliation
+    target: user_entry.profile.identity.public
+  - input: first_goal
+    target: user_entry.profile.current_state
+
+commit:
+  route: user_message
+  marker: "<玻璃创角>"
+  close_marker: "</玻璃创角>"
+  readback: 状态页、通知页和选择页均从同一份主控设定读取，不让单个页面保存孤立副本
+  failure_fallback: 复制完整主控设定块，保留用户输入

@@ -1,0 +1,15 @@
+{
+  "id": "4e1a7d63-f6b8-4c2d-a9e0-5b3f7c1d8e22",
+  "scriptName": "变量隐藏-流式",
+  "findRegex": "/<潮痕变量>(?![\\s\\S]*?<\\/潮痕变量>)[\\s\\S]*$/g",
+  "replaceString": "",
+  "trimStrings": [],
+  "placement": [2],
+  "disabled": false,
+  "markdownOnly": true,
+  "promptOnly": false,
+  "runOnEdit": false,
+  "substituteRegex": 0,
+  "minDepth": null,
+  "maxDepth": null
+}

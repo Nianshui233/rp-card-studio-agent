@@ -1,0 +1,115 @@
+schema_version: 1.0.0
+status: locked
+
+card_entry:
+  mode: core_world_contract
+  content: |-
+    潮痕档案馆是一份可独立运转的海港群像 RP 包。世界、机构、居民和事件不会等待某个角色介入才开始行动；卡面入口只负责说明项目，不承担 NPC 档案。
+  source_refs: [src/world/世界书.yaml]
+
+worldbook_manifest:
+  id: chaohen_worldbook
+  display_name: 潮痕档案馆世界书
+  scan_depth: null
+  token_budget: null
+  recursive_scanning: false
+  preserve_imported_entries: true
+  duplicate_policy: error
+  entries:
+    - id: world_core
+      display_name: 世界核心
+      source: { kind: file, path: src/world/世界书.yaml, selector: /entries/0/content }
+      enabled: true
+      activation: { mode: constant, primary_keys: [], secondary_keys: [], selective: false, logic: any, case_sensitive: false, match_whole_words: false }
+      insertion: { position: before_char, order: 100, depth: null, role: system }
+      probability: 100
+      scan_depth: null
+      recursion: { prevent_incoming: false, prevent_outgoing: false, delay_until_recursion: false }
+      recipient: shared
+      visibility: model
+      fallback: block
+    - id: archive_keyword
+      display_name: 档案馆与潮痕
+      source: { kind: file, path: src/world/世界书.yaml, selector: /entries/1/content }
+      enabled: true
+      activation: { mode: keywords, primary_keys: [档案馆, 潮痕, 旧码头], secondary_keys: [], selective: false, logic: any, case_sensitive: false, match_whole_words: false }
+      insertion: { position: before_char, order: 220, depth: 4, role: system }
+      probability: 100
+      scan_depth: 4
+      recursion: { prevent_incoming: true, prevent_outgoing: false, delay_until_recursion: false }
+      recipient: shared
+      visibility: model
+      fallback: block
+    - id: status_output_contract
+      display_name: 状态栏输出契约
+      source: { kind: file, path: src/world/世界书.yaml, selector: /entries/2/content }
+      enabled: true
+      activation: { mode: constant, primary_keys: [], secondary_keys: [], selective: false, logic: any, case_sensitive: false, match_whole_words: false }
+      insertion: { position: at_depth, order: 900, depth: 0, role: system }
+      probability: 100
+      scan_depth: null
+      recursion: { prevent_incoming: true, prevent_outgoing: true, delay_until_recursion: false }
+      recipient: shared
+      visibility: model
+      fallback: block
+
+media_manifest:
+  enabled: false
+  assets: []
+
+runtime_manifest:
+  mode: authored
+  regex_scripts:
+    - id: 7f3d2b9e-2a6f-4d31-9b1e-0c2b8f7d1a44
+      script_name: 状态栏
+      find_regex: /<潮痕状态栏\s*\/>/g
+      replace_file: src/runtime/ui/潮痕状态栏.html
+      wrap_as_html_codeblock: true
+      placement: [2]
+      disabled: false
+      markdown_only: true
+      prompt_only: false
+      run_on_edit: true
+      substitute_regex: 0
+      min_depth: null
+      max_depth: null
+    - id: 2a6e98bf-bc9c-49e7-87c4-19d4a6f2b8a1
+      script_name: 变量隐藏-完整
+      find_regex: /<潮痕变量>[\s\S]*?<\/潮痕变量>/g
+      replace_string: ""
+      placement: [2]
+      disabled: false
+      markdown_only: true
+      prompt_only: false
+      run_on_edit: false
+      substitute_regex: 0
+      min_depth: null
+      max_depth: null
+    - id: 4e1a7d63-f6b8-4c2d-a9e0-5b3f7c1d8e22
+      script_name: 变量隐藏-流式
+      find_regex: /<潮痕变量>(?![\s\S]*?<\/潮痕变量>)[\s\S]*$/g
+      replace_string: ""
+      placement: [2]
+      disabled: false
+      markdown_only: true
+      prompt_only: false
+      run_on_edit: false
+      substitute_regex: 0
+      min_depth: null
+      max_depth: null
+  tavern_helper_scripts:
+    - type: folder
+      id: chaohen_runtime
+      name: 潮痕运行组件
+      enabled: true
+      scripts:
+        - id: chaohen_host_actions
+          type: script
+          name: 宿主动作
+          enabled: true
+          content_file: src/runtime/scripts/宿主动作.js
+          info: 输入框动作与失败回退示例
+          button: { enabled: false, buttons: [] }
+          data: {}
+          export_with: { data: true, button: true }
+  extension_fields: {}

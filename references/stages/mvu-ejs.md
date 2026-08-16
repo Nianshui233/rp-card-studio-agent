@@ -12,13 +12,7 @@
 
 MVU 框架加载器负责初始化、读取 `[initvar]`、监听消息、更新变量并提供 `window.Mvu`。变量结构脚本只负责项目的字段与约束。卡内自带 MVU 时，加载器必须作为真实 Tavern Helper 脚本进入依赖闭环；若依赖宿主预装，则明确记录而不伪装成自包含。
 
-当前常见加载方式示例：
-
-```js
-import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js';
-```
-
-远程 URL 与构建制品都属于版本敏感事实。验证时以实际加载的 bundle 为准，不仅看仓库 HEAD；远程 bundle 仍可能继续加载其他远程依赖。
+加载器的实际内容由项目自己维护或明确声明宿主预装。技能不向用户指定外部网址，也不把任何远程仓库当作教程或素材来源；如果某个项目确实选择远程 bundle，必须把准确 URL、版本、加载顺序和回退方式记录在该项目自己的运行依赖中，并在真实宿主中验证。
 
 ## 原生 Schema 与 MVU_ZOD
 
@@ -39,6 +33,21 @@ MVU 原生路线从 `[initvar]` 的 `$meta` 生成内部 Schema，支持可扩�
 ## EJS
 
 EJS 是 ST-Prompt-Template 或既有宿主执行的真实 `.ejs` 模板，不是存储层。每份模板记录：真实文件、执行宿主、读取变量、输出对象、失败回退。使用 Tavern Helper 的 `EjsTemplate.getSyntaxErrorInfo / prepareContext / evalTemplate / getFeatures` 可做目标环境诊断；离线构建不能冒充宿主执行成功。
+
+## 开场创角与 MVU 初值不是一回事
+
+`[initvar]` 只提供默认状态；开场表单收集到的姓名、身份、地点、关系、资源等是一次“创角提交”，必须通过 `opening.yaml#/creation_bridge` 映射到真实状态路径。对每个绑定记录：输入字段、目标路径、类型/转换、缺省值、提交路线和回读结果。
+
+不要把以下行为当成状态写入：
+
+- 只在页面 JavaScript 中修改一个本地 `state` 对象；
+- 只把 `data` 放进 `createChatMessages`；
+- 只把创角结果写进一段普通叙事文本；
+- 只更新 `<user>` 世界书条目，却没有同步 MVU 当前状态。
+
+这些都可以是创角资料的一部分，但除非读回实际运行时状态成功，否则不能声称状态已经改变。推荐由实测可用的 MVU/Tavern Helper API 直接写入并读回；没有直写 API 时，再使用会真正经过 MVU 更新管线的消息更新块。非 MVU 项目则生成明确的 `<user>`/XML/文本设定块，并让正则或世界书消费它，不要凭空制造 MVU 路径。
+
+创角桥失败时必须显示失败、保留表单并提供手动回退；不能继续自动生成一轮，让模型在默认变量上开始剧情。
 
 ## UI 数据交接
 

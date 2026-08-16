@@ -59,6 +59,53 @@ opening_ui:
 
 它可以包含版本、世界观、更新信息、作者留言、游玩指南、预制路线、自定义创角和确认入局，但这些内容只属于首条消息生命周期。源码推荐放在 `src/runtime/opening/`，不要塞进 `status-ui.yaml` 或后续状态应用目录。
 
+## 创角表单必须有“变量桥”
+
+创角前端不只是把姓名、地点、身份等字段拼成一段漂亮的开局文案。只要这些字段会影响 MVU、EJS、状态栏或其他运行时数据，就要在 `opening.yaml` 中填写 `creation_bridge`，把“表单字段 → 运行时路径 → 提交 → 回读”写成一条真实链：
+
+```yaml
+creation_bridge:
+  enabled: true
+  input_fields:
+    - id: name
+      label: 姓名
+      type: text
+      required: true
+    - id: starting_region
+      label: 起始地点
+      type: select
+      required: true
+  bindings:
+    - input: name
+      targets:
+        mvu: "玩家.姓名"
+        user_entry: "profile.name"
+      transform: text
+    - input: starting_region
+      targets:
+        mvu: "元信息.所在府县"
+      transform: text
+  commit:
+    route: mvu_api
+    marker: "<开局设定已写入/>"
+    source_file: "src/runtime/opening/创角变量桥.js"
+    api_ref: "目标环境实测的 MVU/Tavern Helper 写入 API"
+    readback: "提交后重新读取实际状态，姓名和地点均不得仍为默认值"
+    failure_fallback: "写入失败时保留表单并生成可复制的手动开局消息，不显示成功"
+```
+
+提交路线由目标环境实测后选择：
+
+- `mvu_api`：开场页或 Tavern Helper 直接调用实际可用的 MVU 写入接口，然后立即读回状态；
+- `update_message`：生成目标 MVU 能解析的真实更新块，并确认该消息会经过更新管线；
+- `helper_script`：由卡内 Tavern Helper 脚本完成写入和回读；
+- `user_message`：非 MVU 项目生成 `<user>`/XML/文本设定块，让后续叙事与正则消费，但不能假称它已经修改了世界书或宿主状态；
+- `existing`：沿用项目已有且已验证的桥接实现。
+
+`createChatMessages({ data: ... })` 只是给聊天楼附加数据，不能单独证明 MVU 当前状态已被更新。除非目标环境实测读回成功，否则不得把它写成“变量已初始化”。确认按钮的顺序应是：收集并预览 → 执行真实写入 → 读回并显示结果 → 再写入/发送开局消息。写入失败必须保留可恢复的表单和手动回退，不得静默进入默认状态。
+
+开场 `<initvar>` 或默认初始值仍然只是基线；创角桥负责把开场页选择的值覆盖到正确路径。两者不能互相冒充。`<user>` 世界书条目仍可作为长期主控设定模板，但它是上下文资料，不会自动把同名字段同步进 MVU。
+
 ## 推荐源码
 
 ```yaml

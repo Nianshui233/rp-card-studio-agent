@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>雨幕旅店</title>
+<style>
+body{margin:0;padding:24px;background:#1a1820;color:#f3e9dc;font-family:"Microsoft YaHei",sans-serif}
+.page{max-width:720px;margin:auto;border:1px solid #7c6252;border-radius:16px;padding:24px;background:linear-gradient(145deg,#2a2225,#17171d)}
+h1{margin-top:0;color:#e5b98f}.pill{display:inline-block;border:1px solid #a67d60;border-radius:99px;padding:4px 10px;margin:3px;color:#e5b98f}
+.guide{line-height:1.8;color:#dbcfc5}.form{display:grid;gap:12px;margin:18px 0}.field{display:grid;gap:6px}.field label{color:#e5b98f}.field input{padding:10px;border:1px solid #7c6252;border-radius:8px;background:#17171d;color:#f3e9dc}
+button{background:#e5b98f;border:0;border-radius:8px;padding:10px 16px;cursor:pointer}.status{min-height:1.5em;color:#c9a47d;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<main class="page">
+  <span class="pill">版本 0.1</span><span class="pill">雨夜群像</span>
+  <h1>雨幕旅店</h1>
+  <p class="guide">一间不问来处的旅店在暴雨中收留陌生人。先阅读指南，再登记今夜的身份。</p>
+  <ul class="guide">
+    <li>世界和住客会自行生活与变化。</li>
+    <li>开场页负责介绍、创角与交接；进入剧情后由独立状态页负责持续信息。</li>
+    <li>确认后会生成一段 <code>&lt;雨幕创角&gt;</code> 主控设定块；本非 MVU 样本不把它冒充成运行时变量。</li>
+  </ul>
+  <section class="form" aria-label="创角登记">
+    <div class="field"><label for="name">姓名</label><input id="name" value="林砚"></div>
+    <div class="field"><label for="room">入住地点</label><input id="room" value="二楼临街房"></div>
+    <div class="field"><label for="reason">今夜来意</label><input id="reason" value="躲雨并寻找失踪的信使"></div>
+  </section>
+  <button id="confirm">确认登记</button>
+  <p class="status" id="status"></p>
+</main>
+<script>
+(()=>{
+  const q=s=>document.querySelector(s);
+  const build=()=>`<雨幕创角>\nname: ${q('#name').value.trim()}\nroom: ${q('#room').value.trim()}\nreason: ${q('#reason').value.trim()}\n</雨幕创角>`;
+  q('#confirm').onclick=()=>{
+    const text=build();
+    q('#status').textContent='已生成主控设定块。请发送到聊天中，失败时可复制下方文本：\n'+text;
+    if(window.parent?.sendTextareaMessage) window.parent.sendTextareaMessage(text);
+    else if(navigator.clipboard?.writeText) navigator.clipboard.writeText(text);
+  };
+})();
+</script>
+</body>
+</html>

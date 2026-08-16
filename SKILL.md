@@ -25,6 +25,13 @@ to make a card work. Compatibility belongs in the card and its project sources. 
 only owner-wide UI ban is a page-level persistent status panel mounted outside the
 message-contained card experience.
 
+Keep the skill self-contained. Use bundled examples under `assets/examples/` for
+demonstrations and regression fixtures. Do not direct the user to external cards,
+repositories, websites, or local reference folders, and never treat an external
+sample as a project source. A runtime URL may appear inside an authored card only
+when the selected SillyTavern route genuinely needs that dependency; record it as a
+runtime dependency, not as a reading assignment or a source of copied material.
+
 NSFW is an authoring switch, not a runtime gate. If enabled during preflight, mature
 content is fully delegated and may naturally enter the ordinary world, character,
 system, narrative, and UI work. Do not ask a second boundary questionnaire and do not
@@ -134,6 +141,9 @@ Preserve the already proven worldbuilding and character approach:
   position, depth, order, probability, and recursion;
 - each NPC remains a continuous readable definition rather than being shattered into
   tiny database fields;
+- character-card projects reserve a disabled `<user>` worldbook entry for the user's
+  optional controller profile; filling or enabling it never becomes a prerequisite for
+  the world's, NPCs', or systems' autonomous operation;
 - card-front `description` is the project entrance/core contract, never an NPC sheet;
 - large-world cards use the project title, while true single-character cards may use
   the sole character name.
@@ -187,6 +197,13 @@ guide, route selection, character creation, preview, and confirmation into a rea
 message. Its source, marker, prompt fallback, lifecycle, and visual/interaction level
 are decided independently from the ongoing status UI.
 
+If the creation form changes MVU/EJS, status-bar, or other runtime data, also maintain
+`opening.yaml#/creation_bridge`: map every input to its real state path, choose a
+verified commit route, and read the value back before starting the opening. Attaching
+`data` to `createChatMessages` or changing only a local page object is not proof that
+runtime state changed. A failed commit must remain visible and recoverable instead of
+silently starting on defaults.
+
 ### Ongoing Message UI
 
 Read [status-ui.md](references/stages/status-ui.md).
@@ -216,12 +233,16 @@ localized labels, intentional hierarchy, good CJK typography, useful density,
 responsive layout, visible feedback, touch targets, focus, empty/error/loading states,
 and lifecycle-safe host actions.
 
-Treat the complete ongoing HTML represented by the project's `我，非我.html` reference
-as the `light` experience floor: a coherent multi-view status application with real data
+Treat the complete ongoing HTML in the bundled
+`assets/examples/self-contained-rp/src/runtime/ui/潮痕状态栏.html` sample as the
+`light` experience floor. The other bundled samples under `assets/examples/` cover
+MVU, EJS, opening UI, multi-surface messages, and super-heavy/zero-layer routes. The
+light sample is a coherent multi-view status application with real data
 binding, internal navigation, information tools such as search/filter/detail, at least
 one real host-linked action, feedback and fallback states, responsive behavior, and a
-finished project-specific theme. Do not reduce `light` to a small static dashboard. Do
-not enforce the reference file's byte or line count; use
+finished project-specific theme. It is an original in-skill fixture, not a copy of an
+external card. Do not reduce `light` to a small static dashboard. Do not enforce the
+sample's byte or line count; use
 `status_ui.experience_evidence` as a review note rather than a numeric gate. Every level above `light` should name genuine additions
 in functionality, interaction, convenience, visual performance, host integration, or
 lifecycle depth. `super_heavy` additionally makes the message application the primary

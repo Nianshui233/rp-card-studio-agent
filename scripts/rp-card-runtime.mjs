@@ -567,17 +567,8 @@ function worldbookHostIssues(manifest, target, basePath = "/runtime/assembly") {
     const activation = entry.activation ?? {};
     const primaryKeys = activation.primary_keys ?? [];
     const secondaryKeys = activation.secondary_keys ?? [];
-    if (activation.mode === "constant" && (primaryKeys.length > 0 || secondaryKeys.length > 0 || activation.selective === true)) {
-      issues.push(issue(`${entryPath}/activation`, "assembly.activation", "常驻条目不得同时声明关键词或二级筛选；请明确选择常驻或关键词触发"));
-    }
     if (activation.mode === "keywords" && primaryKeys.length === 0) {
       issues.push(issue(`${entryPath}/activation/primary_keys`, "assembly.activation", "关键词条目至少需要一个主关键词"));
-    }
-    if (activation.selective === true && secondaryKeys.length === 0) {
-      issues.push(issue(`${entryPath}/activation/secondary_keys`, "assembly.activation", "启用二级筛选时至少需要一个二级关键词"));
-    }
-    if (activation.selective !== true && secondaryKeys.length > 0) {
-      issues.push(issue(`${entryPath}/activation/selective`, "assembly.activation", "存在二级关键词时必须显式启用 selective"));
     }
     const insertion = entry.insertion ?? {};
     if (insertion.position === "at_depth") {
@@ -1113,6 +1104,42 @@ function manifestEntry(entry, content, target, characterBookId = null) {
   };
 }
 
+function defaultUserCharacterManifestEntry(sourceEntry) {
+  const source = sourceEntry?.value ?? {};
+  const contract = source.worldbook ?? {};
+  return {
+    id: source.id ?? "user_character_template",
+    display_name: source.display_name ?? "用户主控设定（<user>）",
+    source: { kind: "file", path: sourceEntry.relativePath },
+    enabled: contract.enabled_by_default === true,
+    activation: {
+      mode: "constant",
+      primary_keys: Array.isArray(contract.keys) ? contract.keys : ["<user>", "user"],
+      secondary_keys: [],
+      selective: false,
+      logic: "any",
+      case_sensitive: false,
+      match_whole_words: false,
+    },
+    insertion: {
+      position: contract.position === "before_char" ? "before_char" : "after_char",
+      order: Number.isInteger(contract.order) ? contract.order : 9995,
+      depth: Number.isInteger(contract.depth) ? contract.depth : 4,
+      role: "system",
+    },
+    probability: Number.isInteger(contract.probability) ? contract.probability : 100,
+    scan_depth: null,
+    recursion: {
+      prevent_incoming: contract.recursion?.prevent_incoming !== false,
+      prevent_outgoing: contract.recursion?.prevent_outgoing !== false,
+      delay_until_recursion: false,
+    },
+    recipient: "shared",
+    visibility: "model",
+    fallback: "block",
+  };
+}
+
 async function authoredText(projectRoot, inlineValue, fileValue, label) {
   if (typeof inlineValue === "string" && typeof fileValue === "string") throw new Error(`${label} defines both inline content and a file`);
   if (typeof fileValue === "string") return readFile(resolveWithin(projectRoot, fileValue), "utf8");
@@ -1247,6 +1274,23 @@ export async function applyAssemblyManifest(payload, { sources, projectRoot, tar
   issues.push(...worldbookHostIssues(manifest, target, "/runtime/assembly/0"));
   const container = worldbookEntriesContainer(output, target, manifest);
   const records = manifests.flatMap((source, sourceIndex) => (source.worldbook_manifest?.entries ?? []).map((entry, entryIndex) => ({ entry, sourceIndex, entryIndex })));
+  if (target === "character") {
+    const userSource = sources.user_character?.[0];
+    if (userSource) {
+      const alreadyRegistered = records.some((record) => {
+        const source = record.entry?.source;
+        if (!isObject(source)) return false;
+        if (source.kind === "file") return source.path === userSource.relativePath;
+        return resolveRegisteredAssemblySource(source, sources)?.relativePath === userSource.relativePath;
+      });
+      if (!alreadyRegistered) records.push({
+        entry: defaultUserCharacterManifestEntry(userSource),
+        sourceIndex: -1,
+        entryIndex: -1,
+        implicit: true,
+      });
+    }
+  }
   records.sort((left, right) => (left.entry.insertion?.order ?? 0) - (right.entry.insertion?.order ?? 0) || left.entry.id.localeCompare(right.entry.id));
   const outputIds = new Set(containerIds(container));
   const uidState = target === "worldbook" ? normalizeAndValidateContainerUids(container) : { usedUids: new Set(), issues: [] };
@@ -1285,6 +1329,15 @@ export async function applyAssemblyManifest(payload, { sources, projectRoot, tar
   for (const record of resolvedRecords) {
     const allocation = allocations?.get(`assembly:${record.entry.id}`);
     const assembled = manifestEntry(record.entry, record.content, target, allocation?.id);
+    if (record.implicit && target === "character") {
+      assembled.extensions = {
+        ...(assembled.extensions ?? {}),
+        rp_card_studio: {
+          ...(assembled.extensions?.rp_card_studio ?? {}),
+          implicit_user_character_template: true,
+        },
+      };
+    }
     if (allocation?.collision) {
       warnings.push(issue(`/data/character_book/entries/${assembled.id}`, "assembly.id_collision", `Stable CharacterBook id ${allocation.candidate} was occupied; assigned ${allocation.id} to ${record.entry.id}`));
     }

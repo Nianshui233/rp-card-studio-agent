@@ -25,6 +25,20 @@ opening_ui:
   fallback: ""
   runtime: not_run
 
+# 只要开场表单会改变 MVU/EJS、状态栏或其他运行时数据，就在这里记录
+# “表单字段 → 状态路径 → 提交 → 回读”的真实桥接；不能只附加聊天楼 data。
+creation_bridge:
+  enabled: false
+  input_fields: []
+  bindings: []
+  commit:
+    route: none
+    marker: null
+    source_file: null
+    api_ref: null
+    readback: ""
+    failure_fallback: ""
+
 openings: []
 dialogue_examples: []
 source_refs: []

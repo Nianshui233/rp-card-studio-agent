@@ -219,7 +219,7 @@ test('runtime validation blocks every omitted scheduling decision with a precise
   }
 });
 
-test('keyword and constant activation modes reject contradictory keyword settings', async () => {
+test('worldbook activation preserves SillyTavern-compatible legacy flag combinations', async () => {
   const cases = [
     {
       label: '关键词条目没有主关键词',
@@ -229,27 +229,7 @@ test('keyword and constant activation modes reject contradictory keyword setting
     {
       label: '常驻条目混入主关键词',
       activation: { mode: 'constant', primary_keys: ['雾港'] },
-      path: '/activation',
-    },
-    {
-      label: '启用 selective 却没有二级关键词',
-      activation: {
-        mode: 'keywords',
-        primary_keys: ['码头长'],
-        secondary_keys: [],
-        selective: true,
-      },
-      path: '/activation/secondary_keys',
-    },
-    {
-      label: '有二级关键词却未启用 selective',
-      activation: {
-        mode: 'keywords',
-        primary_keys: ['码头长'],
-        secondary_keys: ['雾港'],
-        selective: false,
-      },
-      path: '/activation/selective',
+      path: null,
     },
   ];
 
@@ -257,8 +237,19 @@ test('keyword and constant activation modes reject contradictory keyword setting
     const issues = await runtimeIssues(completeAssembly([
       worldbookEntry({ activation }),
     ]));
-    assertIssue(issues, 'assembly.activation', path);
-    assert.ok(issues.length > 0, `${label} was unexpectedly accepted`);
+    if (path) {
+      assertIssue(issues, 'assembly.activation', path);
+      assert.ok(issues.length > 0, `${label} was unexpectedly accepted`);
+    } else {
+      assert.deepEqual(issues, [], `${label} should remain host-compatible`);
+    }
+  }
+
+  for (const activation of [
+    { mode: 'keywords', primary_keys: ['码头长'], secondary_keys: [], selective: true },
+    { mode: 'keywords', primary_keys: ['码头长'], secondary_keys: ['雾港'], selective: false },
+  ]) {
+    assert.deepEqual(await runtimeIssues(completeAssembly([worldbookEntry({ activation })])), []);
   }
 });
 

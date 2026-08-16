@@ -219,7 +219,7 @@ function initialStages() {
     summary: stage === "preflight" ? "项目预检已记录，阶段计划可随项目需要调整" : null
   }]));
 }
-export function makeProject({ name, target = "character_card", nsfw, operation = "create", stageRoute = DEFAULT_STAGE_ROUTE }) {
+export function makeProject({ name, target = "character_card", nsfw, operation = "create", stageRoute = DEFAULT_STAGE_ROUTE, reserveUserCharacter = false }) {
   if (typeof nsfw !== "boolean") throw inputError("创建项目必须明确提供 NSFW enabled 或 disabled");
   const projectId = machineId(name);
   const selectedStages = normalizeStagePlan(stageRoute);
@@ -228,6 +228,10 @@ export function makeProject({ name, target = "character_card", nsfw, operation =
   sourceManifest.positioning.push("src/positioning.yaml");
   if (isWorldbook) {
     sourceManifest.world.push("src/world/worldbook.yaml");
+  } else if (reserveUserCharacter) {
+    // Every new character-card project reserves a disabled <user> template.
+    // It is a real CharacterBook source, not a user-character requirement.
+    sourceManifest.user_character.push("src/user-character.yaml");
   }
   return {
     schema_version: PROJECT_SCHEMA_VERSION,
@@ -310,10 +314,14 @@ async function projectFilesForInit(root, { type = "character", nsfw, stageRoute 
     name,
     target: type === "worldbook" ? "worldbook" : "character_card",
     nsfw,
-    stageRoute
+    stageRoute,
+    reserveUserCharacter: type === "character",
   });
   const state = makeState(project);
   const source = type === "worldbook" ? worldSourceFromBook(defaultWorldbook(name)) : null;
+  const userCharacter = type === "character"
+    ? await readYaml(await templateAssetUrl("user-character.yaml"))
+    : null;
   const nsfwSources = await applyNsfwTemplates(project, source);
   const sourcePath = type === "worldbook" ? projectSourcePath(project) : null;
   const positioning = defaultPositioning(name);
@@ -324,10 +332,12 @@ async function projectFilesForInit(root, { type = "character", nsfw, stageRoute 
       { relativePath: PROJECT_FILE, content: stringifyYaml(project) },
       { relativePath: STATE_FILE, content: prettyJson(state) },
       { relativePath: "src/positioning.yaml", content: stringifyYaml(positioning) },
+      ...userCharacter ? [{ relativePath: "src/user-character.yaml", content: stringifyYaml(userCharacter) }] : [],
       ...sourcePath ? [{ relativePath: sourcePath, content: stringifyYaml(source) }] : [],
       ...nsfwSources.uiSource ? [{ relativePath: "src/ui/status-ui.yaml", content: stringifyYaml(nsfwSources.uiSource) }] : []
     ],
     source,
+    userCharacter,
     positioning,
     uiSource: nsfwSources.uiSource
   };
@@ -339,6 +349,7 @@ export async function initializeProject(root, options = {}) {
   if (prepared.source) {
     model.issues.push(...validateNamedSchema("world", prepared.source, `/${projectSourcePath(prepared.project)}`));
   }
+  if (prepared.userCharacter) model.issues.push(...validateNamedSchema("user-character", prepared.userCharacter, "/src/user-character.yaml"));
   if (prepared.uiSource) model.issues.push(...validateNamedSchema("status-ui", prepared.uiSource, "/src/ui/status-ui.yaml"));
   if (model.issues.length > 0) throw validationError("初始化候选未通过内置 Schema", model);
   const result = await commitNewDirectory(root, prepared.files, options);
@@ -683,10 +694,11 @@ export async function validateRegisteredSources(loaded) {
   for (const group of Object.keys(SOURCE_SCHEMA_BY_GROUP)) {
     for (const relativePath of loaded.project?.source_manifest?.[group] ?? []) {
       const absolutePath = resolveWithin(loaded.projectRoot, relativePath);
+      let schema = null;
       try {
         const source = await readYaml(absolutePath);
         sources[group].push({ relativePath, absolutePath, value: source });
-        const schema = schemaNameForSource(group, source);
+        schema = schemaNameForSource(group, source);
         const sourceIssues = validateNamedSchema(schema, source, `/${relativePath}`);
         issues.push(...sourceIssues);
         if (group === "mvu" && loaded.state?.stages?.mvu_ejs?.status !== "in_progress") {

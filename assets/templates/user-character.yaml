@@ -1,6 +1,6 @@
 schema_version: 1.0.0
 id: user_character_template
-display_name: 用户角色定义模板
+display_name: 用户主控设定（<user>）
 status: draft
 
 # 该条目独立于世界观、NPC 与普通场景；默认关闭，填写完成后再启用。

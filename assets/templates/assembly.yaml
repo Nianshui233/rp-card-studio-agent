@@ -20,6 +20,10 @@ worldbook_manifest:
   duplicate_policy: error
   entries: []
 
+# 角色卡项目会自动保留一个默认关闭的 `<user>` 主控设定条目。
+# 用户填写 src/user-character.yaml 后，可在整合阶段或 SillyTavern 中启用；
+# 世界、NPC 和事件不依赖该条目也能自行运转。
+
 media_manifest:
   enabled: false
   assets: []

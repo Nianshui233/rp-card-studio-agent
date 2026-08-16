@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>潮痕档案馆 · 当前记录</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101820;
+      --panel: #162431;
+      --panel-2: #1d3040;
+      --line: #315067;
+      --text: #e7f0f2;
+      --muted: #9fb7bd;
+      --accent: #7bd6cb;
+      --accent-2: #efb66f;
+      --danger: #f17e82;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 18px;
+      background: linear-gradient(135deg, #0d151c, #152536 55%, #10202a);
+      color: var(--text);
+      font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+      line-height: 1.55;
+    }
+    .app { max-width: 920px; margin: 0 auto; }
+    .topbar { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+    .brand { letter-spacing: .12em; font-weight: 700; color: var(--accent); }
+    .timestamp { color: var(--muted); font-size: .85rem; }
+    .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0; }
+    button {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--panel);
+      color: var(--text);
+      padding: 8px 14px;
+      cursor: pointer;
+      transition: .16s ease;
+    }
+    button:hover, button:focus-visible { border-color: var(--accent); color: var(--accent); outline: none; transform: translateY(-1px); }
+    button.active { background: var(--accent); color: #092021; border-color: var(--accent); }
+    .view { display: none; }
+    .view.active { display: block; }
+    .hero, .card { background: rgba(22, 36, 49, .94); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 16px 34px rgba(0,0,0,.18); }
+    .hero { padding: 22px; margin-bottom: 14px; }
+    .hero h1 { margin: 0 0 6px; font-size: clamp(1.35rem, 4vw, 2rem); }
+    .hero p { margin: 0; color: var(--muted); }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .card { padding: 16px; }
+    .card h2, .card h3 { margin: 0 0 8px; font-size: 1rem; }
+    .metric { font-size: 1.8rem; font-weight: 700; color: var(--accent-2); }
+    .label { color: var(--muted); font-size: .85rem; }
+    .bar { height: 8px; background: #0c141b; border-radius: 99px; overflow: hidden; margin-top: 8px; }
+    .bar > i { display: block; height: 100%; width: var(--value, 0%); background: linear-gradient(90deg, var(--accent), var(--accent-2)); border-radius: inherit; }
+    .list { margin: 0; padding-left: 18px; }
+    .list li + li { margin-top: 5px; }
+    .empty, .error { color: var(--muted); padding: 20px 4px; }
+    .error { color: var(--danger); }
+    .search { width: 100%; border: 1px solid var(--line); border-radius: 10px; background: #0f1a23; color: var(--text); padding: 10px 12px; margin-bottom: 12px; }
+    .record { border-top: 1px solid rgba(49,80,103,.7); padding: 12px 0; }
+    .record:first-child { border-top: 0; padding-top: 0; }
+    .record strong { color: var(--accent); }
+    .action-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .notice { min-height: 1.5em; color: var(--accent-2); margin-top: 10px; }
+    @media (max-width: 680px) {
+      body { padding: 10px; }
+      .grid { grid-template-columns: 1fr; }
+      .hero, .card { border-radius: 14px; }
+      button { min-height: 42px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" data-app="潮痕档案馆">
+    <div class="topbar">
+      <div class="brand">潮痕档案馆 / 夜班记录</div>
+      <div class="timestamp" id="timestamp">等待状态数据</div>
+    </div>
+    <nav class="tabs" aria-label="状态页面">
+      <button class="active" data-view="overview">总览</button>
+      <button data-view="people">在场人物</button>
+      <button data-view="log">近期记录</button>
+    </nav>
+
+    <section class="view active" id="overview">
+      <div class="hero">
+        <h1 id="title">潮痕档案馆</h1>
+        <p id="summary">正在读取当前消息中的状态……</p>
+        <div class="action-row">
+          <button data-action="写入值班记录">写入值班记录</button>
+          <button data-action="查询旧码头">查询旧码头</button>
+        </div>
+        <div class="notice" id="notice" aria-live="polite"></div>
+      </div>
+      <div class="grid">
+        <article class="card"><div class="label">潮位</div><div class="metric" id="tide">--</div><div class="bar"><i id="tide-bar"></i></div></article>
+        <article class="card"><div class="label">档案完整度</div><div class="metric" id="archive">--</div><div class="bar"><i id="archive-bar"></i></div></article>
+        <article class="card"><div class="label">港区警戒</div><div class="metric" id="alert">--</div><div class="bar"><i id="alert-bar"></i></div></article>
+      </div>
+    </section>
+
+    <section class="view" id="people">
+      <article class="card">
+        <h2>在场人物</h2>
+        <input class="search" id="person-search" placeholder="搜索姓名、身份或当前活动" aria-label="搜索在场人物">
+        <div id="people-list" class="empty">等待状态数据</div>
+      </article>
+    </section>
+
+    <section class="view" id="log">
+      <article class="card">
+        <h2>近期记录</h2>
+        <div id="log-list" class="empty">等待状态数据</div>
+      </article>
+    </section>
+  </main>
+  <script>
+    (() => {
+      const $ = (selector) => document.querySelector(selector);
+      const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+      const clamp = (value) => Math.max(0, Math.min(100, Number(value) || 0));
+      const readState = () => {
+        const candidates = [window.__RP_STATE__, window.stat_data, window.__ST_STATE__];
+        return candidates.find((candidate) => candidate && typeof candidate === 'object') || null;
+      };
+      const state = readState();
+      const notice = (message) => { $('#notice').textContent = message; };
+      const setBar = (id, value) => { const bar = $(id); if (bar) bar.style.setProperty('--value', `${clamp(value)}%`); };
+      const renderPeople = (people, filter = '') => {
+        const list = Object.entries(people || {}).filter(([name, person]) => `${name} ${JSON.stringify(person)}`.toLowerCase().includes(filter.toLowerCase()));
+        $('#people-list').innerHTML = list.length ? list.map(([name, person]) => `<div class="record"><strong>${esc(name)}</strong><div>${esc(person.身份 || person.role || '身份未记录')}</div><div class="label">${esc(person.当前活动 || person.activity || '当前活动未记录')}</div></div>`).join('') : '<div class="empty">没有匹配的记录</div>';
+      };
+      const renderLog = (records) => {
+        const items = Array.isArray(records) ? records : Object.values(records || {});
+        $('#log-list').innerHTML = items.length ? `<ul class="list">${items.map((item) => `<li>${esc(typeof item === 'string' ? item : item.内容 || item.text || JSON.stringify(item))}</li>`).join('')}</ul>` : '<div class="empty">近期没有记录</div>';
+      };
+      if (!state) {
+        notice('当前消息没有可读取的状态数据；界面保持真实空态，不伪造数值。');
+      } else {
+        const world = state.世界 || state.world || {};
+        const archive = state.档案 || state.archive || {};
+        const metrics = state.指标 || state.metrics || {};
+        $('#timestamp').textContent = world.当前时间 || world.time || '时间未记录';
+        $('#summary').textContent = world.当前摘要 || world.summary || '港区记录正在持续更新。';
+        $('#tide').textContent = metrics.潮位 ?? metrics.tide ?? '--';
+        $('#archive').textContent = `${metrics.档案完整度 ?? metrics.archive ?? '--'}%`;
+        $('#alert').textContent = `${metrics.港区警戒 ?? metrics.alert ?? '--'}%`;
+        setBar('#tide-bar', metrics.潮位); setBar('#archive-bar', metrics.档案完整度 ?? metrics.archive); setBar('#alert-bar', metrics.港区警戒 ?? metrics.alert);
+        renderPeople(state.在场人物 || state.people, '');
+        renderLog(state.近期记录 || state.log);
+      }
+      document.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => {
+        document.querySelectorAll('[data-view]').forEach((candidate) => candidate.classList.toggle('active', candidate === button));
+        document.querySelectorAll('.view').forEach((view) => view.classList.toggle('active', view.id === button.dataset.view));
+      }));
+      $('#person-search')?.addEventListener('input', (event) => renderPeople(state?.在场人物 || state?.people, event.target.value));
+      document.querySelectorAll('[data-action]').forEach((button) => button.addEventListener('click', () => {
+        const text = `我在潮痕档案馆执行了：${button.dataset.action}`;
+        const helper = window.parent?.TavernHelper || window.parent?.tavernHelper;
+        if (helper?.triggerSlash) { helper.triggerSlash(`/setinput ${text}`); notice('已交给酒馆助手写入输入框。'); return; }
+        if (typeof window.parent?.sendTextareaMessage === 'function') { window.parent.sendTextareaMessage(text); notice('已写入酒馆输入框。'); return; }
+        navigator.clipboard?.writeText(text).then(() => notice('宿主接口不可用，已复制可发送文本。')).catch(() => notice(`请手动发送：${text}`));
+      }));
+    })();
+  </script>
+</body>
+</html>

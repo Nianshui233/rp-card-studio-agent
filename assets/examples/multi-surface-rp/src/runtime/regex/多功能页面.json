@@ -1,0 +1,5 @@
+[
+  {"id":"6e2a9c41-5d73-4b80-a1f6-3c9e7d2b5a14","scriptName":"状态页","findRegex":"/<玻璃状态\\s*\\/>/g","replaceString":"","trimStrings":[],"placement":[2],"disabled":false,"markdownOnly":true,"promptOnly":false,"runOnEdit":true,"substituteRegex":0,"minDepth":null,"maxDepth":null},
+  {"id":"3a7d1f68-9c52-4e0b-b6d4-2f8a5c1e7b93","scriptName":"通知卡片","findRegex":"/<玻璃通知>[\\s\\S]*?<\\/玻璃通知>/g","replaceString":"","trimStrings":[],"placement":[2],"disabled":false,"markdownOnly":true,"promptOnly":false,"runOnEdit":true,"substituteRegex":0,"minDepth":null,"maxDepth":null},
+  {"id":"5b1e8d34-7c69-42a0-9f2d-6a3c5e7b1d80","scriptName":"选项面板","findRegex":"/<玻璃选择>[\\s\\S]*?<\\/玻璃选择>/g","replaceString":"","trimStrings":[],"placement":[2],"disabled":false,"markdownOnly":true,"promptOnly":false,"runOnEdit":true,"substituteRegex":0,"minDepth":null,"maxDepth":null}
+]

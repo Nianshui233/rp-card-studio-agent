@@ -166,17 +166,17 @@ test("a constant model-visible CharacterBook output contract closes a recurring 
 });
 
 test("non-MVU cards can close the same chain with a dedicated XML output contract", async () => {
-  const marker = "<我非我状态><地点>...</地点></我非我状态>";
+  const marker = "<潮痕状态><地点>...</地点></潮痕状态>";
   const surface = {
     id: "status",
-    name: "我，非我状态",
+    name: "潮痕状态",
     marker,
     file: "src/runtime/ui/status.html",
     emission: { producer: "model_output", cadence: "every_assistant_message", source_ref: "wb_xml_status_output", evidence: [] },
   };
   const sources = projectSources({
     surfaces: [surface],
-    regexes: [regex("33333333-3333-4333-8333-333333333333", "[界面]我非我状态", "/<我非我状态>[\\s\\S]*?<\\/我非我状态>/g")],
+    regexes: [regex("33333333-3333-4333-8333-333333333333", "[界面]潮痕状态", "/<潮痕状态>[\\s\\S]*?<\\/潮痕状态>/g")],
     entries: [entry("wb_xml_status_output", [
       "每次回复末尾必须输出以下 XML 状态块，字段顺序固定，正文中不要解释：",
       marker,

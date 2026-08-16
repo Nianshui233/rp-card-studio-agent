@@ -1,0 +1,32 @@
+schema_version: 1.0.0
+display_name: 雨幕旅店创角变量桥
+runtime_kind: non_mvu
+
+input_fields:
+  - id: name
+    label: 姓名
+    type: text
+    required: true
+  - id: room
+    label: 入住房间
+    type: text
+    required: true
+  - id: reason
+    label: 今夜来意
+    type: text
+    required: false
+
+bindings:
+  - input: name
+    target: user_entry.profile.name
+  - input: room
+    target: user_entry.profile.entry_point.location
+  - input: reason
+    target: user_entry.profile.entry_point.current_activity
+
+commit:
+  route: user_message
+  marker: "<雨幕创角>"
+  close_marker: "</雨幕创角>"
+  readback: 开局消息中的主控设定块与后续旅店状态保持一致；本样本不声称存在 MVU 状态
+  failure_fallback: 复制主控设定块后手动发送

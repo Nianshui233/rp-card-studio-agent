@@ -127,6 +127,9 @@ export function projectModelSource(group, source) {
     projected = withoutMaintenance(source);
   }
 
+  // Keep the blank fields of the optional <user> profile template. They are
+  // intentionally empty placeholders for later filling, not disposable noise.
+  if (normalizedGroup === "user_character") return projected;
   return compactModelSource(projected);
 }
 

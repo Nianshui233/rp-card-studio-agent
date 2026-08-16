@@ -29,6 +29,29 @@
         "runtime": { "enum": ["not_run", "pass", "fail", "blocked"] }
       }
     },
+    "creation_bridge": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["enabled", "input_fields", "bindings", "commit"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "input_fields": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+        "bindings": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+        "commit": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["route", "marker", "source_file", "api_ref", "readback", "failure_fallback"],
+          "properties": {
+            "route": { "enum": ["none", "mvu_api", "update_message", "helper_script", "user_message", "existing"] },
+            "marker": { "type": ["string", "null"] },
+            "source_file": { "type": ["string", "null"] },
+            "api_ref": { "type": ["string", "null"] },
+            "readback": { "type": "string" },
+            "failure_fallback": { "type": "string" }
+          }
+        }
+      }
+    },
     "openings": {
       "type": "array",
       "items": {
