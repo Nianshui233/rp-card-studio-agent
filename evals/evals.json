@@ -1,9 +1,9 @@
 {
-  "skill_name": "rp-card-studio",
+  "skill_name": "rp-card-studio-agent",
   "evals": [
     {
       "id": 1,
-      "prompt": "显式使用 $rp-card-studio，从零创建一个 SillyTavern 开放世界 RP 项目。我还没有指定目录，也没有说是否需要 NSFW。现在只进行第一轮。",
+      "prompt": "我已明确进入 SillyTavern制卡工坊 Agent。从零创建一个 SillyTavern 开放世界 RP 项目。我还没有指定目录，也没有说是否需要 NSFW。现在只进行第一轮。",
       "expected_output": "只询问项目工作区、NSFW、任务类型、材料、可选阶段计划和附加交付物，不进入任何创作阶段。",
       "files": [],
       "expectations": [
@@ -15,7 +15,7 @@
     },
     {
       "id": 2,
-      "prompt": "显式使用 $rp-card-studio，在指定工作区自主完成一张带 MVU、EJS 和消息内中型 UI 的开放世界卡。所有创作决定和技术路线都交给 AI，不要再问我。",
+      "prompt": "我已明确进入 SillyTavern制卡工坊 Agent，在指定工作区自主完成一张带 MVU、EJS 和消息内中型 UI 的开放世界卡。所有创作决定和技术路线都交给 AI，不要再问我。",
       "expected_output": "AI 报告选择与理由后直接推进，维护真实 YAML/JS/EJS/HTML/正则源码，并默认交付一个可导入 JSON。",
       "files": [],
       "expectations": [
@@ -31,7 +31,7 @@
     },
     {
       "id": 3,
-      "prompt": "显式使用 $rp-card-studio，继续一个已完成叙事与开场的项目，现在进入状态栏/UI 阶段第一轮。用户没有放权。不要讨论其他阶段。",
+      "prompt": "我已明确进入 SillyTavern制卡工坊 Agent，继续一个已完成叙事与开场的项目，现在进入状态栏/UI 阶段第一轮。用户没有放权。不要讨论其他阶段。",
       "expected_output": "只询问 UI 规模、玩家旅程、主题、设备优先和完整功能面，给出方向差异与推荐后等待用户选择。",
       "files": [],
       "expectations": [
@@ -44,7 +44,7 @@
     },
     {
       "id": 4,
-      "prompt": "显式使用 $rp-card-studio，把一张已有复杂 JSON 卡拆包后修改。它已经有角色正则、Tavern Helper 脚本、内嵌世界书和大段 HTML。要求保留未知扩展并重复构建两次。",
+      "prompt": "我已明确进入 SillyTavern制卡工坊 Agent，把一张已有复杂 JSON 卡拆包后修改。它已经有角色正则、Tavern Helper 脚本、内嵌世界书和大段 HTML。要求保留未知扩展并重复构建两次。",
       "expected_output": "完整保留已有实现并迁移为真实维护源，只有用户明确接管的部分被修改；两次构建幂等。",
       "files": [],
       "expectations": [
@@ -58,7 +58,7 @@
     },
     {
       "id": 5,
-      "prompt": "显式使用 $rp-card-studio，创建真正的单人物卡：只有一个预先创作角色，几个场景和一套规则，不需要 MVU/EJS，也不需要 UI。全部决定交给 AI。",
+      "prompt": "我已明确进入 SillyTavern制卡工坊 Agent，创建真正的单人物卡：只有一个预先创作角色，几个场景和一套规则，不需要 MVU/EJS，也不需要 UI。全部决定交给 AI。",
       "expected_output": "使用唯一人物名作为卡名，人物完整定义进入稳定 CharacterBook 条目，不生成任何未选择的运行组件。",
       "files": [],
       "expectations": [
@@ -71,7 +71,7 @@
     },
     {
       "id": 6,
-      "prompt": "显式使用 $rp-card-studio，为一张主要在消息前端内游玩的长期经营卡设计超重型 UI，并允许父页面 DOM、插件 API、浏览器存储和远程依赖。",
+      "prompt": "我已明确进入 SillyTavern制卡工坊 Agent，为一张主要在消息前端内游玩的长期经营卡设计超重型 UI，并允许父页面 DOM、插件 API、浏览器存储和远程依赖。",
       "expected_output": "创建项目专属独立前端/0层游玩候选，记录依赖和生命周期，保持对宿主单向兼容，不因过度安全删减功能。",
       "files": [],
       "expectations": [
@@ -83,6 +83,19 @@
         "不修改 SillyTavern 或插件本体",
         "不创建脱离消息的页面级常驻状态面板",
         "真实宿主验收前保持 runtime: not_run"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "当前处于状态栏/UI 阶段。前端 Skill 发现已锁定组件需要读取角色体力，但 MVU 状态合同里没有对应字段。不要直接另造字段，也不要让前端 Skill 向我询问 MVU 设计问题。",
+      "expected_output": "前端 Skill 返回结构化阻断性交接，主 Agent 决定是否返回 MVU/EJS 阶段或修改组件，并同步账本。",
+      "files": [],
+      "expectations": [
+        "识别为跨阶段数据合同断链",
+        "不在 UI 内静默创建第二套变量路径",
+        "支援 Skill 不直接提出 MVU 阶段问题",
+        "记录 source_stage、target_stage、severity、reason、suggested_change 和 status",
+        "只有主 Agent 修改当前阶段并处理返工"
       ]
     }
   ]

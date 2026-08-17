@@ -37,6 +37,7 @@ import {
   readOriginalPng,
   readRegisteredSources,
   runProjectMutation,
+  syncAgentLedger,
   updateManagedState,
   updateProjectAndState,
   validateProjectModel,
@@ -67,7 +68,7 @@ export var HELP_TEXT = `rp-card-forge - 离线、事务式 SillyTavern 制卡工
   pack <project-dir>                 构建 JSON，或写入 PNG chara/ccv3 双块
   diff <left> <right>                比较语义 JSON
   roundtrip <input>                  验证 JSON/PNG 语义往返与 PNG 图像数据
-  state <project-dir> [action]       show/migrate/operation/plan/lock/unlock/stage
+  state <project-dir> [action]       show/migrate/operation/plan/lock/unlock/stage/handoff/handoff-status
   doctor [project-dir]               检查 Node、依赖与项目健康
 
 通用选项:
@@ -81,6 +82,8 @@ export var HELP_TEXT = `rp-card-forge - 离线、事务式 SillyTavern 制卡工
   --source user|delegated           state lock 的决定来源
   --rationale <text>                state lock 的决定理由
   --summary <text>                  state stage 完成或跳过时的阶段摘要
+  --severity <advisory|blocking>    state handoff 的严重度
+  --suggested <json-array>          state handoff 的建议改动列表
   -h, --help                         显示帮助
   --version                          显示版本
 `;
@@ -624,6 +627,8 @@ async function commandState(args, options) {
       activeStage: loaded.state?.active_stage ?? null,
       stages: loaded.state?.stages ?? null,
       plannedStages: loaded.project?.workflow?.planned_stages ?? null,
+      agent: loaded.project?.agent ?? null,
+      handoffs: loaded.project?.handoffs ?? [],
       decisions: loaded.project?.decisions ?? [],
       decisionLocks: loaded.state?.decision_locks ?? []
     });
@@ -632,7 +637,7 @@ async function commandState(args, options) {
     const loaded = await loadProject(root, { allowLegacy: true });
     if (action === "migrate") {
       exactArgs("state migrate", args, 2);
-      const projectMigration = migrateProject(loaded.project);
+      const projectMigration = migrateProject(loaded.project, loaded.state);
       const stateMigration = migrateState(loaded.state, projectMigration.value);
       if (projectMigration.migrated || stateMigration.migrated) {
         stateMigration.value.revision = Number(stateMigration.value.revision ?? 0) + 1;
@@ -754,6 +759,40 @@ async function commandState(args, options) {
       decision.status = "superseded";
       nextState.decision_locks = nextState.decision_locks.filter((entry) => entry.decision_id !== id);
       projectChanged = true;
+    } else if (action === "handoff") {
+      exactArgs("state handoff", args, 5);
+      const [, , id, targetStage, reason] = args;
+      if (!/^[a-z][a-z0-9_]*$/.test(id)) throw inputError(`交接 ID 必须是 snake_case: ${id}`);
+      if (!STAGES.includes(targetStage)) throw inputError(`未知交接目标阶段: ${targetStage}`, { supported: STAGES });
+      if (reason.trim() === "") throw inputError("交接原因不能为空");
+      const severity = options.severity ?? "blocking";
+      if (!["advisory", "blocking"].includes(severity)) throw inputError(`未知交接严重度: ${severity}`);
+      const suggestedChange = options.suggested === undefined ? ["返回目标阶段补齐所需合同"] : parseCliValue(options.suggested);
+      if (!Array.isArray(suggestedChange) || suggestedChange.length === 0 || suggestedChange.some((item) => typeof item !== "string" || item.trim() === "")) {
+        throw inputError("state handoff --suggested 必须是至少包含一项非空文本的 JSON 数组");
+      }
+      const existing = nextProject.handoffs.find((entry) => entry.id === id);
+      if (existing && !options.force) throw conflictError(`交接 ${id} 已存在`, { existing });
+      const handoff = {
+        id,
+        source_stage: nextState.active_stage,
+        target_stage: targetStage,
+        severity,
+        reason: reason.trim(),
+        suggested_change: suggestedChange.map((item) => item.trim()),
+        status: "open",
+      };
+      if (existing) Object.assign(existing, handoff);
+      else nextProject.handoffs.push(handoff);
+      projectChanged = true;
+    } else if (action === "handoff-status") {
+      exactArgs("state handoff-status", args, 4);
+      const [, , id, status] = args;
+      if (!["accepted", "resolved", "rejected"].includes(status)) throw inputError(`未知交接状态: ${status}`);
+      const handoff = nextProject.handoffs.find((entry) => entry.id === id);
+      if (!handoff) throw inputError(`交接不存在: ${id}`);
+      handoff.status = status;
+      projectChanged = true;
     } else if (action === "stage") {
       exactArgs("state stage", args, 3, 4);
       const stage = args[2];
@@ -803,6 +842,8 @@ async function commandState(args, options) {
     }
     nextState.revision += 1;
     nextState.updated_at = (/* @__PURE__ */ new Date()).toISOString();
+    syncAgentLedger(nextProject, nextState);
+    projectChanged = true;
     const model = validateProjectModel(nextProject, nextState, loaded.projectRoot);
     if (model.issues.length > 0) throw validationError("状态更新未通过 Schema", model);
     const commit = await (projectChanged ? updateProjectAndState : updateManagedState)(loaded, ...projectChanged ? [nextProject, nextState, { dryRun: Boolean(options["dry-run"]) }] : [nextState, { dryRun: Boolean(options["dry-run"]) }]);
@@ -812,6 +853,8 @@ async function commandState(args, options) {
       revision: nextState.revision,
       activeStage: nextState.active_stage,
       stageStatus: nextState.stages[nextState.active_stage].status,
+      agent: nextProject.agent,
+      handoffs: nextProject.handoffs,
       decisionLocks: nextState.decision_locks,
       dryRun: Boolean(options["dry-run"])
     }, [], commit.changes);

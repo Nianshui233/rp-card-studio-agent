@@ -14554,7 +14554,7 @@ function normalizeError(error) {
 
 // scripts/forge/args.mjs
 var BOOLEAN_OPTIONS = /* @__PURE__ */ new Set(["json", "dry-run", "force", "help", "version"]);
-var VALUE_OPTIONS = /* @__PURE__ */ new Set(["output", "type", "nsfw", "stages", "source", "rationale", "summary"]);
+var VALUE_OPTIONS = /* @__PURE__ */ new Set(["output", "type", "nsfw", "stages", "source", "rationale", "summary", "severity", "suggested"]);
 function setOption(options, name, value) {
   if (Object.hasOwn(options, name)) {
     throw usageError(`\u9009\u9879\u91CD\u590D: --${name}`);
@@ -15885,6 +15885,45 @@ import {
   selectOpeningMessages
 } from "./rp-card-runtime.mjs";
 
+// scripts/forge/agent-routing.mjs
+var AGENT_ARCHITECTURE = "single_agent_private_skills";
+var STAGE_PRIMARY_SKILL = Object.freeze({
+  preflight: null,
+  positioning: "rp-project-foundation",
+  materials: "rp-project-foundation",
+  worldbuilding: "rp-project-foundation",
+  character: "rp-cast-authoring",
+  systems: "rp-experience-authoring",
+  scenes: "rp-experience-authoring",
+  mvu_ejs: "st-runtime-authoring",
+  narrative_opening: "rp-experience-authoring",
+  status_ui: "st-frontend-authoring",
+  integration: "st-integration-qa"
+});
+function primarySkillForStage(stage) {
+  if (!Object.hasOwn(STAGE_PRIMARY_SKILL, stage)) {
+    throw new Error(`\u672A\u77E5 Agent \u9636\u6BB5: ${stage}`);
+  }
+  return STAGE_PRIMARY_SKILL[stage];
+}
+function readableStagesForState(stages, activeStage, orderedStages) {
+  return orderedStages.filter((stage) => {
+    if (stage === activeStage) return true;
+    const status = stages?.[stage]?.status;
+    return status === "complete" || status === "skipped";
+  });
+}
+function agentLedgerForStage(stage, stages, orderedStages) {
+  const activeSkill = primarySkillForStage(stage);
+  if (!activeSkill) throw new Error("preflight \u7531\u4E3B Agent \u76F4\u63A5\u5904\u7406\uFF0C\u4E0D\u5206\u6D3E\u79C1\u6709 Skill");
+  return {
+    architecture: AGENT_ARCHITECTURE,
+    active_skill: activeSkill,
+    writable_stage: stage,
+    readable_stages: readableStagesForState(stages, stage, orderedStages)
+  };
+}
+
 // scripts/forge/yaml.mjs
 var import_yaml2 = __toESM(require_dist(), 1);
 function parseYamlText(text, label = "YAML") {
@@ -16083,11 +16122,13 @@ var PROJECT_ROOT_KEYS = /* @__PURE__ */ new Set([
   "project",
   "preflight",
   "workflow",
+  "agent",
   "features",
   "deliverables",
   "materials",
   "decisions",
   "cross_stage_backlog",
+  "handoffs",
   "source_manifest",
   "runtime_target",
   "release"
@@ -16251,8 +16292,10 @@ function makeProject({ name, target = "character_card", nsfw, operation = "creat
     workflow: {
       stage_order: [...WORKFLOW_STAGES],
       optional_stages: [...OPTIONAL_STAGES],
-      planned_stages: [...selectedStages]
+      planned_stages: [...selectedStages],
+      current_stage: "positioning"
     },
+    agent: agentLedgerForStage("positioning", initialStages(), STAGES),
     features: {
       materials: false,
       systems: false,
@@ -16276,6 +16319,7 @@ function makeProject({ name, target = "character_card", nsfw, operation = "creat
       history: []
     }],
     cross_stage_backlog: [],
+    handoffs: [],
     source_manifest: sourceManifest,
     runtime_target: {
       application: "SillyTavern",
@@ -16302,6 +16346,17 @@ function makeState(project, { revision = 0 } = {}) {
     transaction: null,
     updated_at: null
   };
+}
+function syncAgentLedger(project, state) {
+  const stage = state.active_stage;
+  project.workflow.current_stage = stage;
+  project.agent = stage === "preflight" ? {
+    architecture: AGENT_ARCHITECTURE,
+    active_skill: null,
+    writable_stage: "preflight",
+    readable_stages: readableStagesForState(state.stages, stage, STAGES)
+  } : agentLedgerForStage(stage, state.stages, STAGES);
+  return project.agent;
 }
 async function projectFilesForInit(root, { type = "character", nsfw, stageRoute = DEFAULT_STAGE_ROUTE } = {}) {
   const name = path4.basename(path4.resolve(root));
@@ -16451,6 +16506,14 @@ function validateProjectModel(project, state, root) {
   } catch (error) {
     issues.push(modelIssue("/workflow/planned_stages", "route", error.message));
   }
+  if (!STAGES.includes(project?.workflow?.current_stage)) issues.push(modelIssue("/workflow/current_stage", "enum", "\u5F53\u524D\u9636\u6BB5\u65E0\u6548"));
+  if (project?.workflow?.current_stage !== state?.active_stage) issues.push(modelIssue("/workflow/current_stage", "integrity", "\u8BED\u4E49\u8D26\u672C current_stage \u4E0E\u6280\u672F\u72B6\u6001 active_stage \u4E0D\u4E00\u81F4"));
+  if (project?.agent?.architecture !== AGENT_ARCHITECTURE) issues.push(modelIssue("/agent/architecture", "const", `Agent \u67B6\u6784\u5FC5\u987B\u4E3A ${AGENT_ARCHITECTURE}`));
+  const expectedSkill = STAGES.includes(state?.active_stage) && state.active_stage !== "preflight" ? primarySkillForStage(state.active_stage) : null;
+  if (expectedSkill && project?.agent?.active_skill !== expectedSkill) issues.push(modelIssue("/agent/active_skill", "route", `\u5F53\u524D\u9636\u6BB5\u5FC5\u987B\u8DEF\u7531\u5230 ${expectedSkill}`));
+  if (project?.agent?.writable_stage !== state?.active_stage) issues.push(modelIssue("/agent/writable_stage", "integrity", "\u79C1\u6709 Skill \u53EF\u5199\u9636\u6BB5\u5FC5\u987B\u7B49\u4E8E\u5F53\u524D\u9636\u6BB5"));
+  const expectedReadable = readableStagesForState(state?.stages, state?.active_stage, STAGES);
+  if (!semanticEqual(project?.agent?.readable_stages, expectedReadable)) issues.push(modelIssue("/agent/readable_stages", "integrity", "\u79C1\u6709 Skill \u53EF\u8BFB\u9636\u6BB5\u4E0E\u5B9E\u9645\u5B8C\u6210\u72B6\u6001\u4E0D\u4E00\u81F4"));
   for (const feature of ["materials", "systems", "scenes", "mvu", "ejs", "status_ui"]) {
     if (typeof project?.features?.[feature] !== "boolean") issues.push(modelIssue(`/features/${feature}`, "type", "\u529F\u80FD\u5F00\u5173\u5FC5\u987B\u662F\u5E03\u5C14\u503C"));
   }
@@ -16486,6 +16549,7 @@ function validateProjectModel(project, state, root) {
   }
   validateDecisions(project.decisions, issues);
   validateProjectTitleDecisionLocks(project.decisions, issues);
+  validateHandoffs(project.handoffs, issues);
   if (project?.runtime_target?.application !== "SillyTavern") issues.push(modelIssue("/runtime_target/application", "const", "\u8FD0\u884C\u76EE\u6807\u5FC5\u987B\u662F SillyTavern"));
   if (!Array.isArray(project?.runtime_target?.dependencies)) issues.push(modelIssue("/runtime_target/dependencies", "type", "dependencies \u5FC5\u987B\u662F\u6570\u7EC4"));
   if (!Array.isArray(project?.release?.accepted_warnings)) issues.push(modelIssue("/release/accepted_warnings", "type", "accepted_warnings \u5FC5\u987B\u662F\u6570\u7EC4"));
@@ -16497,6 +16561,25 @@ function validateProjectModel(project, state, root) {
     issues.push(modelIssue("/source_manifest", "source", error.message));
   }
   return { issues, warnings };
+}
+function validateHandoffs(handoffs, issues) {
+  if (!Array.isArray(handoffs)) {
+    issues.push(modelIssue("/handoffs", "type", "handoffs \u5FC5\u987B\u662F\u6570\u7EC4"));
+    return;
+  }
+  const ids = /* @__PURE__ */ new Set();
+  for (const [index, handoff] of handoffs.entries()) {
+    const base = `/handoffs/${index}`;
+    if (!ID_PATTERN.test(handoff?.id ?? "")) issues.push(modelIssue(`${base}/id`, "pattern", "\u4EA4\u63A5 ID \u5FC5\u987B\u662F snake_case"));
+    else if (ids.has(handoff.id)) issues.push(modelIssue(`${base}/id`, "unique", `\u4EA4\u63A5 ID \u91CD\u590D: ${handoff.id}`));
+    ids.add(handoff?.id);
+    if (!STAGES.includes(handoff?.source_stage)) issues.push(modelIssue(`${base}/source_stage`, "enum", "\u4EA4\u63A5\u6765\u6E90\u9636\u6BB5\u65E0\u6548"));
+    if (!STAGES.includes(handoff?.target_stage)) issues.push(modelIssue(`${base}/target_stage`, "enum", "\u4EA4\u63A5\u76EE\u6807\u9636\u6BB5\u65E0\u6548"));
+    if (!["advisory", "blocking"].includes(handoff?.severity)) issues.push(modelIssue(`${base}/severity`, "enum", "\u4EA4\u63A5\u4E25\u91CD\u5EA6\u65E0\u6548"));
+    if (typeof handoff?.reason !== "string" || handoff.reason.trim() === "") issues.push(modelIssue(`${base}/reason`, "required", "\u4EA4\u63A5\u539F\u56E0\u4E0D\u80FD\u4E3A\u7A7A"));
+    if (!Array.isArray(handoff?.suggested_change) || handoff.suggested_change.length === 0) issues.push(modelIssue(`${base}/suggested_change`, "minItems", "\u4EA4\u63A5\u81F3\u5C11\u9700\u8981\u4E00\u4E2A\u5EFA\u8BAE\u6539\u52A8"));
+    if (!["open", "accepted", "resolved", "rejected"].includes(handoff?.status)) issues.push(modelIssue(`${base}/status`, "enum", "\u4EA4\u63A5\u72B6\u6001\u65E0\u6548"));
+  }
 }
 function validateDecisions(decisions, issues) {
   if (!Array.isArray(decisions)) {
@@ -17271,12 +17354,14 @@ async function runProjectMutation(root, callback, options = {}) {
   const absolute = path4.resolve(root);
   return withProjectLock(absolute, () => callback(absolute), options);
 }
-function migrateProject(project) {
+function migrateProject(project, state = null) {
   if (project?.schema_version === PROJECT_SCHEMA_VERSION) {
     const hasPlan = Array.isArray(project?.workflow?.planned_stages);
     const legacyRoute = Array.isArray(project?.workflow?.selected_stages) ? project.workflow.selected_stages : null;
     const hasLegacyDecision = (project?.decisions ?? []).some((decision) => decision.id === "preflight.stage_route");
-    if (project?.preflight?.workflow_confirmed === true && hasPlan && !legacyRoute && !hasLegacyDecision) return { value: project, migrated: false };
+    const activeStage = STAGES.includes(state?.active_stage) ? state.active_stage : STAGES.includes(project?.workflow?.current_stage) ? project.workflow.current_stage : "positioning";
+    const hasAgent = project?.agent?.architecture === AGENT_ARCHITECTURE && project?.agent?.writable_stage === activeStage && project?.workflow?.current_stage === activeStage && Array.isArray(project?.handoffs);
+    if (project?.preflight?.workflow_confirmed === true && hasPlan && !legacyRoute && !hasLegacyDecision && hasAgent) return { value: project, migrated: false };
     const migrated = structuredClone(project);
     migrated.preflight ??= {};
     migrated.preflight.workflow_confirmed = true;
@@ -17287,6 +17372,10 @@ function migrateProject(project) {
     delete migrated.workflow.selected_stages;
     migrated.decisions ??= [];
     migrated.decisions = migrated.decisions.filter((decision) => decision.id !== "preflight.stage_route");
+    migrated.handoffs ??= [];
+    const stageState = state ? structuredClone(state) : { active_stage: activeStage, stages: initialStages() };
+    stageState.active_stage = activeStage;
+    syncAgentLedger(migrated, stageState);
     return { value: migrated, migrated: true };
   }
   if (![0, "0", "0.1.0"].includes(project?.schema_version)) {
@@ -17295,6 +17384,9 @@ function migrateProject(project) {
   if (isPlainObject(project?.preflight) && isPlainObject(project?.source_manifest)) {
     const migrated = structuredClone(project);
     migrated.schema_version = PROJECT_SCHEMA_VERSION;
+    migrated.handoffs ??= [];
+    const activeStage = STAGES.includes(state?.active_stage) ? state.active_stage : "positioning";
+    syncAgentLedger(migrated, state ?? { active_stage: activeStage, stages: initialStages() });
     return { value: migrated, migrated: true };
   }
   const legacyName = project?.project?.name ?? project?.name ?? project?.project?.id ?? "project";
@@ -17447,7 +17539,7 @@ var HELP_TEXT = `rp-card-forge - \u79BB\u7EBF\u3001\u4E8B\u52A1\u5F0F SillyTaver
   pack <project-dir>                 \u6784\u5EFA JSON\uFF0C\u6216\u5199\u5165 PNG chara/ccv3 \u53CC\u5757
   diff <left> <right>                \u6BD4\u8F83\u8BED\u4E49 JSON
   roundtrip <input>                  \u9A8C\u8BC1 JSON/PNG \u8BED\u4E49\u5F80\u8FD4\u4E0E PNG \u56FE\u50CF\u6570\u636E
-  state <project-dir> [action]       show/migrate/operation/plan/lock/unlock/stage
+  state <project-dir> [action]       show/migrate/operation/plan/lock/unlock/stage/handoff/handoff-status
   doctor [project-dir]               \u68C0\u67E5 Node\u3001\u4F9D\u8D56\u4E0E\u9879\u76EE\u5065\u5EB7
 
 \u901A\u7528\u9009\u9879:
@@ -17461,6 +17553,8 @@ var HELP_TEXT = `rp-card-forge - \u79BB\u7EBF\u3001\u4E8B\u52A1\u5F0F SillyTaver
   --source user|delegated           state lock \u7684\u51B3\u5B9A\u6765\u6E90
   --rationale <text>                state lock \u7684\u51B3\u5B9A\u7406\u7531
   --summary <text>                  state stage \u5B8C\u6210\u6216\u8DF3\u8FC7\u65F6\u7684\u9636\u6BB5\u6458\u8981
+  --severity <advisory|blocking>    state handoff \u7684\u4E25\u91CD\u5EA6
+  --suggested <json-array>          state handoff \u7684\u5EFA\u8BAE\u6539\u52A8\u5217\u8868
   -h, --help                         \u663E\u793A\u5E2E\u52A9
   --version                          \u663E\u793A\u7248\u672C
 `;
@@ -18002,6 +18096,8 @@ async function commandState(args, options) {
       activeStage: loaded.state?.active_stage ?? null,
       stages: loaded.state?.stages ?? null,
       plannedStages: loaded.project?.workflow?.planned_stages ?? null,
+      agent: loaded.project?.agent ?? null,
+      handoffs: loaded.project?.handoffs ?? [],
       decisions: loaded.project?.decisions ?? [],
       decisionLocks: loaded.state?.decision_locks ?? []
     });
@@ -18010,7 +18106,7 @@ async function commandState(args, options) {
     const loaded = await loadProject(root, { allowLegacy: true });
     if (action === "migrate") {
       exactArgs("state migrate", args, 2);
-      const projectMigration = migrateProject(loaded.project);
+      const projectMigration = migrateProject(loaded.project, loaded.state);
       const stateMigration = migrateState(loaded.state, projectMigration.value);
       if (projectMigration.migrated || stateMigration.migrated) {
         stateMigration.value.revision = Number(stateMigration.value.revision ?? 0) + 1;
@@ -18132,6 +18228,40 @@ async function commandState(args, options) {
       decision.status = "superseded";
       nextState.decision_locks = nextState.decision_locks.filter((entry) => entry.decision_id !== id);
       projectChanged = true;
+    } else if (action === "handoff") {
+      exactArgs("state handoff", args, 5);
+      const [, , id, targetStage, reason] = args;
+      if (!/^[a-z][a-z0-9_]*$/.test(id)) throw inputError(`\u4EA4\u63A5 ID \u5FC5\u987B\u662F snake_case: ${id}`);
+      if (!STAGES.includes(targetStage)) throw inputError(`\u672A\u77E5\u4EA4\u63A5\u76EE\u6807\u9636\u6BB5: ${targetStage}`, { supported: STAGES });
+      if (reason.trim() === "") throw inputError("\u4EA4\u63A5\u539F\u56E0\u4E0D\u80FD\u4E3A\u7A7A");
+      const severity = options.severity ?? "blocking";
+      if (!["advisory", "blocking"].includes(severity)) throw inputError(`\u672A\u77E5\u4EA4\u63A5\u4E25\u91CD\u5EA6: ${severity}`);
+      const suggestedChange = options.suggested === void 0 ? ["\u8FD4\u56DE\u76EE\u6807\u9636\u6BB5\u8865\u9F50\u6240\u9700\u5408\u540C"] : parseCliValue(options.suggested);
+      if (!Array.isArray(suggestedChange) || suggestedChange.length === 0 || suggestedChange.some((item) => typeof item !== "string" || item.trim() === "")) {
+        throw inputError("state handoff --suggested \u5FC5\u987B\u662F\u81F3\u5C11\u5305\u542B\u4E00\u9879\u975E\u7A7A\u6587\u672C\u7684 JSON \u6570\u7EC4");
+      }
+      const existing = nextProject.handoffs.find((entry) => entry.id === id);
+      if (existing && !options.force) throw conflictError(`\u4EA4\u63A5 ${id} \u5DF2\u5B58\u5728`, { existing });
+      const handoff = {
+        id,
+        source_stage: nextState.active_stage,
+        target_stage: targetStage,
+        severity,
+        reason: reason.trim(),
+        suggested_change: suggestedChange.map((item) => item.trim()),
+        status: "open"
+      };
+      if (existing) Object.assign(existing, handoff);
+      else nextProject.handoffs.push(handoff);
+      projectChanged = true;
+    } else if (action === "handoff-status") {
+      exactArgs("state handoff-status", args, 4);
+      const [, , id, status] = args;
+      if (!["accepted", "resolved", "rejected"].includes(status)) throw inputError(`\u672A\u77E5\u4EA4\u63A5\u72B6\u6001: ${status}`);
+      const handoff = nextProject.handoffs.find((entry) => entry.id === id);
+      if (!handoff) throw inputError(`\u4EA4\u63A5\u4E0D\u5B58\u5728: ${id}`);
+      handoff.status = status;
+      projectChanged = true;
     } else if (action === "stage") {
       exactArgs("state stage", args, 3, 4);
       const stage = args[2];
@@ -18181,6 +18311,8 @@ async function commandState(args, options) {
     }
     nextState.revision += 1;
     nextState.updated_at = (/* @__PURE__ */ new Date()).toISOString();
+    syncAgentLedger(nextProject, nextState);
+    projectChanged = true;
     const model = validateProjectModel(nextProject, nextState, loaded.projectRoot);
     if (model.issues.length > 0) throw validationError("\u72B6\u6001\u66F4\u65B0\u672A\u901A\u8FC7 Schema", model);
     const commit = await (projectChanged ? updateProjectAndState : updateManagedState)(loaded, ...projectChanged ? [nextProject, nextState, { dryRun: Boolean(options["dry-run"]) }] : [nextState, { dryRun: Boolean(options["dry-run"]) }]);
@@ -18190,6 +18322,8 @@ async function commandState(args, options) {
       revision: nextState.revision,
       activeStage: nextState.active_stage,
       stageStatus: nextState.stages[nextState.active_stage].status,
+      agent: nextProject.agent,
+      handoffs: nextProject.handoffs,
       decisionLocks: nextState.decision_locks,
       dryRun: Boolean(options["dry-run"])
     }, [], commit.changes);

@@ -1,6 +1,6 @@
 # SillyTavern制卡工坊
 
-`rp-card-studio` 是一个只在显式调用时工作的个人 SillyTavern RP 项目共创技能。它把“角色卡”视为完整 RP 包的便携载体，而不是默认把所有内容围绕某一个角色堆进卡面。
+`rp-card-studio` 是一个只在用户明确进入时工作的个人 SillyTavern RP 项目 Agent。它由一个主 Agent、七个按阶段加载的私有 Skill、共享项目账本和 Forge 工具链组成，把“角色卡”视为完整 RP 包的便携载体，而不是默认把所有内容围绕某一个角色堆进卡面。
 
 它适合制作：
 
@@ -11,7 +11,7 @@
 
 ## 最重要的几条原则
 
-1. 只响应用户显式选择或输入 `$rp-card-studio`，不会因为“创建”“角色卡”“世界观”等自然语言自动触发。
+1. 只响应宿主中的明确 Agent 选择或适配器提供的显式入口，不使用“创建”“角色卡”“世界观”等自然语言触发。
 2. 首轮只确认工作区、NSFW、任务类型、材料、可选阶段计划和附加交付物，不提前询问创作内容。
 3. 每个阶段都按“多项当前阶段问题 + 信息采集 + 方向和推荐 → 用户选择或放权 → 实际片段”反复推进。
 4. 世界、NPC、系统、场景和叙事优先写成可读 YAML/文本；最终再按运行职责切入 CharacterBook。
@@ -19,8 +19,37 @@
 6. MVU、EJS、HTML、JavaScript 和正则必须是项目实际创作的真实源文件。Forge 只装配、保真和验证，不替作者发明一套通用运行时。
 7. UI 位于聊天消息或用户明确选择的卡内载体。唯一长期禁止的是在 SillyTavern 页面外层挂一个与消息脱离的常驻状态面板。
 8. 默认最终只交付一个可导入角色卡 `.json`；PNG、独立世界书、源码归档等必须由用户明确需要。
-9. 技能只适配 SillyTavern 和插件，不修改 SillyTavern、Tavern Helper 或其他插件本体。
-10. 这是个人自用工作流：创作自由、视觉效果和实际可玩性优先。父页面 DOM、私有 API、远程资源和复杂 JS 可以按项目需要使用，只需如实记录依赖和实测结果。技能本身使用自包含原创样本，不把外部卡片、仓库或网页当作用户材料。
+9. Agent 只适配 SillyTavern 和插件，不修改 SillyTavern、Tavern Helper 或其他插件本体。
+10. 这是个人自用工作流：创作自由、视觉效果和实际可玩性优先。父页面 DOM、私有 API、远程资源和复杂 JS 可以按项目需要使用，只需如实记录依赖和实测结果。Agent 使用自包含原创样本，不把外部卡片、仓库或网页当作用户材料。
+
+## Agent 架构
+
+```text
+用户
+  ↓
+AGENT.md：唯一主协调 Agent
+  ├─ project.yaml：语义账本
+  ├─ .rp-card-state.json：Forge 技术镜像
+  ├─ orchestrator/routing.yaml：阶段路由
+  ├─ internal-skills/：七个私有专业 Skill
+  └─ Forge：状态、装配与验证
+```
+
+私有 Skill 不作为独立入口安装，也不维护自己的项目状态。主 Agent 每轮只读取当前主 Skill，确有技术依赖时才读取支援 Skill。旧的根 `SKILL.md` 单体流程已经删除，不存在兼容或回退入口。
+
+七个私有 Skill 的分工：
+
+| 私有 Skill | 主要负责 |
+|---|---|
+| `rp-project-foundation` | 项目定位、材料整理、世界观 |
+| `rp-cast-authoring` | 单人角色、群像、NPC、关系和 NSFW 角色层 |
+| `rp-experience-authoring` | 玩法系统、场景、叙事、开场和创角内容 |
+| `st-runtime-authoring` | MVU、MVU_ZOD、EJS、初值、更新、脚本和创角变量桥 |
+| `st-frontend-authoring` | 开场/创角前端、持续状态前端、轻到超重型 UI、0 层玩法 |
+| `st-worldbook-regex` | 世界书调度、输出合同、XML/标记生产和正则 |
+| `st-integration-qa` | 装配、Forge、角色卡 JSON、SillyTavern 实机验收和故障归因 |
+
+其中 `st-worldbook-regex` 是无独立用户阶段的支援模块。用户不会被要求先理解或选择这些 Skill；主 Agent 根据 `project.yaml` 当前阶段自动调度。
 
 ## 正确的项目结构
 
@@ -50,13 +79,9 @@ Forge 不再包含通用 UI 编译器、自动 MVU/EJS 生成器、额外合成�
 
 ## 首轮怎么开始
 
-在新任务里显式调用：
+在所使用的 Agent 宿主里明确选择“SillyTavern制卡工坊”。宿主适配器只负责装载本仓库的 `AGENT.md`、私有 Skill 和 Forge，不应复制另一套制卡规则。
 
-```text
-$rp-card-studio
-```
-
-如果没有现成预检记录，技能第一轮只会集中确认：
+如果没有现成预检记录，Agent 第一轮只会集中确认：
 
 1. 本项目工作区的完整路径；
 2. NSFW 启用或不启用；
@@ -113,10 +138,10 @@ $rp-card-studio
 
 ## MVU 与 EJS 的正确做法
 
-技术实现阶段可按需读取 `references/host/mvu-runtime.md` 和
-`references/host/tavern-helper-runtime.md`。它们是本地自包含的运行时行为摘要，专门说明
+运行 Skill 按需读取 `internal-skills/st-runtime-authoring/references/host/mvu-runtime.md` 和
+`internal-skills/st-runtime-authoring/references/host/tavern-helper-runtime.md`。它们是本地自包含的运行时行为摘要，专门说明
 MVU 初始化/覆盖/回读、消息楼层、iframe 生命周期、宿主事件、正则重应用和按钮回退；不复制插件源码，也不把插件仓库变成卡片运行依赖。
-涉及 EJS 时再读取 `references/host/ejs-runtime.md`，确认执行阶段、变量作用域、装饰器、世界书读取路线、缓存和失败回退。
+涉及 EJS 时再读取 `internal-skills/st-runtime-authoring/references/host/ejs-runtime.md`，确认执行阶段、变量作用域、装饰器、世界书读取路线、缓存和失败回退。
 
 MVU/EJS 阶段直接维护真实文件，例如：
 
@@ -190,13 +215,13 @@ Forge 会把完整 HTML 写入 `replaceString`，把完整 JS 写入脚本 `cont
 
 UI 阶段第一批必须确认配套 UI 的规模。等级衡量的是玩家端体验和实现深度，不是页面数、正则数或代码行数配额。
 
-- 轻型：以技能内置的 `assets/examples/self-contained-rp/src/runtime/ui/潮痕状态栏.html` 所代表的完整度为下限。它应是一份成熟的多视图状态应用，有清晰导航、多类真实数据、搜索/筛选/折叠/详情等信息操作、至少一种宿主行动、反馈与回退、响应式和项目专属主题；不能只是几项数值与进度条。
+- 轻型：以 Agent 内置的 `assets/examples/self-contained-rp/src/runtime/ui/潮痕状态栏.html` 所代表的完整度为下限。它应是一份成熟的多视图状态应用，有清晰导航、多类真实数据、搜索/筛选/折叠/详情等信息操作、至少一种宿主行动、反馈与回退、响应式和项目专属主题；不能只是几项数值与进度条。
 - 轻中型：完整保留轻型基线，并明显增加多个便利、反馈、联动、动效或趣味交互。
 - 中型：在轻型上形成产品级信息架构、复合搜索/筛选、更多真实操作和 UI 状态保持。
 - 重型：进一步加入强主题演出、复杂功能联动、大量游戏行为入口、深度宿主协作和可靠生命周期。
 - 超重型 / 独立前端 / 0层游玩：完整继承前述能力，消息 HTML 成为主要游玩界面，并具有应用级路由、状态管理、持久化和复杂宿主协作。
 
-技能内置样本只是体验与成熟规模的参照，不是代码配额。`experience_evidence` 用于复盘导航、数据、交互、反馈、响应式、主题与数据绑定，不按填写数量定级或阻断。正则替换是默认示例，但酒馆助手脚本、EJS、inline HTML、框架和既有路线同样允许，只校验项目实际选择的运行链。不要把外部样本路径写入 `source_refs` 或 `assembly.yaml`。
+Agent 内置样本只是体验与成熟规模的参照，不是代码配额。`experience_evidence` 用于复盘导航、数据、交互、反馈、响应式、主题与数据绑定，不按填写数量定级或阻断。正则替换是默认示例，但酒馆助手脚本、EJS、inline HTML、框架和既有路线同样允许，只校验项目实际选择的运行链。不要把外部样本路径写入 `source_refs` 或 `assembly.yaml`。
 
 用户选定的等级是交付下限，不是只写进 YAML 的标签。Forge 会读取实际 HTML 做功能面质量探针，检查导航、数据视图、信息工具、操作入口、反馈、响应式、宿主联动、数据读取和生命周期信号；不按文件字节或代码行数评分。锁定的中型/重型 UI 如果只是小面板、静态展示或无数据空壳，会阻断交付。
 
@@ -206,7 +231,7 @@ MVU/Tavern Helper 消息前端还必须同时考虑当前 iframe 与父窗口的
 
 同一个功能面应尽量保持在一份完整 HTML 中，通过页签、抽屉、弹窗等组织。不要为了“组件化”拆成几十条互不连贯的小正则。
 
-这里的“一份完整 HTML”指最终运行制品，不是开发时必须把所有内容塞进一个文件。技能现在默认把开场前端和持续状态前端当作真正浏览器应用开发：HTML 结构、CSS 视觉层、JavaScript 状态/渲染/交互、宿主适配和模拟数据分别维护，完成浏览器与真实宿主验收后，再用 `ui-build` 拼成一个自包含 HTML。
+这里的“一份完整 HTML”指最终运行制品，不是开发时必须把所有内容塞进一个文件。前端 Skill 默认把开场前端和持续状态前端当作真正浏览器应用开发：HTML 结构、CSS 视觉层、JavaScript 状态/渲染/交互、宿主适配和模拟数据分别维护，完成浏览器与真实宿主验收后，再用 `ui-build` 拼成一个自包含 HTML。
 
 ```text
 src/runtime/apps/status/
@@ -221,7 +246,7 @@ src/runtime/ui/
 └─ 状态界面.html          # 构建产物，供正则/装配使用
 ```
 
-`multi_file_html` 模式下，`app_manifest` 指向开发清单，`file` 指向构建结果。Forge 会检查构建结果是否过期。中型及以上默认使用完整模拟状态先检查满数据、空态、错误态、长中文、多人物和多事件，模拟数据不会在真实运行时冒充当前楼层状态。详细契约见 `references/ui-app-authoring.md`。
+`multi_file_html` 模式下，`app_manifest` 指向开发清单，`file` 指向构建结果。Forge 会检查构建结果是否过期。中型及以上默认使用完整模拟状态先检查满数据、空态、错误态、长中文、多人物和多事件，模拟数据不会在真实运行时冒充当前楼层状态。详细契约见 `internal-skills/st-frontend-authoring/references/ui-app-authoring.md`。
 
 可复制的原创工程骨架位于 `assets/templates/ui-app/`。它只提供应用结构和宿主桥接范式；主题、页面、组件和交互必须根据当前 RP 项目重新设计。
 
@@ -255,7 +280,7 @@ src/runtime/ui/
 
 ## Forge 常用命令
 
-以下命令由技能在项目工作中调用。普通用户通常不需要手敲，但了解它们有助于排查：
+以下命令由主 Agent 在项目工作中调用。普通用户通常不需要手敲，但了解它们有助于排查：
 
 ```powershell
 node scripts/rp-card-forge.bundle.mjs init <项目目录> --nsfw enabled --stages '["positioning","worldbuilding","character","narrative_opening","integration"]'
@@ -267,6 +292,8 @@ node scripts/rp-card-forge.bundle.mjs build <项目目录>
 node scripts/rp-card-forge.bundle.mjs roundtrip <JSON或PNG>
 node scripts/rp-card-forge.bundle.mjs state <项目目录> show
 node scripts/rp-card-forge.bundle.mjs state <项目目录> plan '<阶段数组>'
+node scripts/rp-card-forge.bundle.mjs state <项目目录> handoff <交接ID> <目标阶段> '<原因>' --severity blocking --suggested '["建议一","建议二"]'
+node scripts/rp-card-forge.bundle.mjs state <项目目录> handoff-status <交接ID> resolved
 ```
 
 Forge 的职责：
@@ -291,7 +318,7 @@ Forge 不负责替作者生成 RP 内容或通用运行时。
 - 已有 HTML/JS/EJS 直接作为真实源码迁移；
 - 不把旧卡的 `data.name` 自动当作人物；
 - 不把旧高级定义静默清空；只有迁移策略明确后才移动或清理；
-- 兼容旧卡意味着保真，不意味着继续保留本技能过去错误的生成器。
+- 兼容旧卡意味着制品保真，不意味着继续保留旧单体工作流或过去错误的生成器。
 
 ## 验证与真实 SillyTavern
 
@@ -319,15 +346,15 @@ Forge 不负责替作者生成 RP 内容或通用运行时。
 
 不启用只代表不主动加载专项模板，不会净化已有材料，也不会因为 RP 自然出现成熟内容而阻断构建。
 
-## 安装位置
+## 宿主适配
 
-全局安装目录：
+本仓库是宿主无关的核心 Agent，不再把任何一个工具的全局技能目录当作权威安装位置。现有 DSH 或其他 Harness 的适配层只应：
 
-```text
-C:\Users\Administrator\.codex\skills\rp-card-studio
-```
-
-仓库开发目录与全局安装目录内容应保持一致。修改完成后应同步并核对文件哈希。
+1. 提供一个明确的 Agent 选择入口；
+2. 装载 `AGENT.md`；
+3. 允许主 Agent按 `orchestrator/routing.yaml` 读取 `internal-skills/`；
+4. 把 `scripts/rp-card-forge.bundle.mjs` 暴露为结构化工具；
+5. 不复制、改写或追加第二套制卡规则。
 
 ## 维护者自检
 
@@ -339,7 +366,7 @@ npm run verify
 
 - `build:forge` 重建免安装依赖的 Forge bundle；
 - `verify` 检查 bundle 一致性、JS 语法、doctor 和全部测试；
-- 测试覆盖 JSON/PNG 往返、CharacterBook 调度、原样 HTML/JS/EJS 装配、阶段计划、显式触发和旧架构清除。
+- 测试覆盖 JSON/PNG 往返、CharacterBook 调度、原样 HTML/JS/EJS 装配、阶段计划、Agent 路由、交接合同和旧单体架构清除。
 
 ### 运行链第二轮增强
 

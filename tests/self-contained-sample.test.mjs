@@ -45,17 +45,17 @@ test("bundled technical sample is self-contained and internally coherent", async
   assert.doesNotMatch(helper, /https?:\/\//i);
 });
 
-test("user-facing skill docs do not direct to the former external sample names", async () => {
+test("user-facing agent docs do not direct to the former external sample names", async () => {
   const files = [
-    "SKILL.md",
+    "AGENT.md",
     "README.md",
-    join("references", "stages", "status-ui.md"),
-    join("references", "stages", "mvu-ejs.md"),
-    join("references", "validation.md"),
-    join("references", "stages", "materials.md"),
-    join("references", "host", "mvu-runtime.md"),
-    join("references", "host", "tavern-helper-runtime.md"),
-    join("references", "host", "ejs-runtime.md"),
+    join("internal-skills", "st-frontend-authoring", "references", "status-ui.md"),
+    join("internal-skills", "st-runtime-authoring", "references", "mvu-ejs.md"),
+    join("internal-skills", "st-integration-qa", "references", "validation.md"),
+    join("internal-skills", "rp-project-foundation", "references", "materials.md"),
+    join("internal-skills", "st-runtime-authoring", "references", "host", "mvu-runtime.md"),
+    join("internal-skills", "st-runtime-authoring", "references", "host", "tavern-helper-runtime.md"),
+    join("internal-skills", "st-runtime-authoring", "references", "host", "ejs-runtime.md"),
   ];
   for (const file of files) {
     const text = await readFile(join(process.cwd(), file), "utf8");

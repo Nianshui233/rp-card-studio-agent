@@ -23,7 +23,7 @@ assembly.yaml                 把构建结果装入开场/状态正则
 
 两个 `ui-app.yaml` 都会额外生成 `dist/*.preview.html`，其中注入模拟状态，便于不用 SillyTavern 也能查看满数据界面。正式 `src/runtime/ui/*.html` 不含模拟数据。
 
-从技能根目录构建：
+从 Agent 仓库根目录构建：
 
 ```powershell
 node scripts/rp-card-forge.bundle.mjs ui-build assets/examples/opening-ui-rp/src/runtime/apps/opening/ui-app.yaml

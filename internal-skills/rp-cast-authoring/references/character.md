@@ -17,7 +17,7 @@
 - **反 OOC 来自角色逻辑**：`anti_ooc.always` 与 `never` 应能从价值排序和底线推导；未知场景从动机与价值外推，不靠“始终保持人设”这种空话。
 - **推断要有身份**：普通模式下，尚未由用户锁定的补全在片段说明中标注“AI 补全候选”；完全放权范围内则由 AI 决定、报告理由并直接锁定，不留下反复确认用的占位符。
 
-新建人物源码使用 `character.schema.json 1.2.0` 和 [character.yaml](../../assets/templates/character.yaml)。旧 `1.0.0`、`1.1.0` 人物源码继续兼容；不为了模板升级而破坏旧项目。
+新建人物源码使用 `character.schema.json 1.2.0` 和 [character.yaml](../../../assets/templates/character.yaml)。已有项目的数据版本兼容属于 Forge 的项目保真能力，不代表保留旧单体 Agent 工作流。
 
 ## 本阶段产物
 

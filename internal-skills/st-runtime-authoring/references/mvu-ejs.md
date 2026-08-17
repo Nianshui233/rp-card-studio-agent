@@ -1,9 +1,9 @@
 # MVU / EJS 阶段（可选）
 
 涉及真实宿主接口、消息楼层、iframe 生命周期或 MVU 全局对象时，同时读取
-[MVU 运行时参考](../host/mvu-runtime.md) 与
-[酒馆助手运行时参考](../host/tavern-helper-runtime.md)；涉及 EJS 执行阶段、变量作用域、装饰器或模板诊断时，再读取
-[EJS 运行时参考](../host/ejs-runtime.md)。它们是本地行为摘要，不是外部依赖或源码副本。
+[MVU 运行时参考](host/mvu-runtime.md) 与
+[酒馆助手运行时参考](host/tavern-helper-runtime.md)；涉及 EJS 执行阶段、变量作用域、装饰器或模板诊断时，再读取
+[EJS 运行时参考](host/ejs-runtime.md)。它们是本地行为摘要，不是外部依赖或源码副本。
 
 本阶段把已经锁定的 RP 状态需求接到目标 SillyTavern 环境。只向用户询问可感知的游玩效果；由技能自行选择 Schema、更新方言、正则 placement、事件与 API，并报告选择理由。
 

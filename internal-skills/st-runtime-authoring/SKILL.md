@@ -1,0 +1,27 @@
+---
+name: st-runtime-authoring
+description: "Private module for MVU, MVU_ZOD, EJS, Tavern Helper scripts, message-floor state, initialization, updates, and creation bridges."
+---
+
+# SillyTavern Runtime Authoring
+
+只接受主 Agent 调度。完整读取 `shared/contracts/module-io.md`、`references/mvu-ejs.md`，以及 `references/host/` 下与当前路线有关的宿主参考。
+
+## 职责
+
+- 独立判断 MVU、MVU_ZOD、EJS 或组合路线是否适合项目。
+- 创作真实 `[initvar]` 初始值、Schema、变量更新规则、回复输出格式和 `.ejs` 源码，不只写占位清单。
+- 建立唯一规范状态合同：状态根、精确路径、类型、默认值、作用域、读取者、写入者、派生值、只读值、更新守卫和生命周期。
+- 创作项目专属酒馆助手脚本并明确依赖顺序。
+- 将创角结果写入默认禁用的 `<user>` 条目、当前消息 MVU 状态或二者，并在正式开局前读回验证。
+- 验证当前消息 ID/楼层语义，以及编辑、Swipe、重载和切换聊天生命周期。
+
+## 运行闭环
+
+每个 UI 字段必须解析到唯一状态合同。每种变量更新协议必须具备：真实初值、生产者、解析/应用路径、持久化结果和玩家端隐藏清理。只看到 Loader 或 `window.Mvu` 不算初始化成功。
+
+EJS 必须是实际 EJS 文件，并进入按稳定名称指定的 CharacterBook 条目；需要时使用 `manual` 或 `ejs_only`，不能让它参与普通关键词扫描。
+
+## 边界
+
+作为主 Skill 时只询问 MVU/EJS 阶段问题。作为支援 Skill 时不询问用户，直接实现锁定需求或返回交接。不得设计 UI 视觉层级、重写 RP 内容，也不得为了一个组件另造第二套状态树。

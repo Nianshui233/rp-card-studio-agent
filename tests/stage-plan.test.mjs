@@ -21,7 +21,7 @@ test("stage plan can be revised without force or a decision lock", () => {
   assert.deepEqual(project.workflow.planned_stages, next);
 });
 
-test("legacy selected stages migrate to the adjustable plan and remove the old lock", () => {
+test("obsolete selected_stages data is cleaned without restoring the old single-workflow route", () => {
   const project = makeProject({ name: "旧项目", nsfw: false, stageRoute: route });
   project.workflow.selected_stages = project.workflow.planned_stages;
   delete project.workflow.planned_stages;

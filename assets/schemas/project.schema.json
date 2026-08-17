@@ -9,11 +9,13 @@
     "project",
     "preflight",
     "workflow",
+    "agent",
     "features",
     "deliverables",
     "materials",
     "decisions",
     "cross_stage_backlog",
+    "handoffs",
     "source_manifest",
     "runtime_target",
     "release"
@@ -124,7 +126,8 @@
       "required": [
         "stage_order",
         "optional_stages",
-        "planned_stages"
+        "planned_stages",
+        "current_stage"
       ],
       "properties": {
         "stage_order": {
@@ -158,6 +161,46 @@
             "enum": [
               "positioning", "materials", "worldbuilding", "character", "systems", "scenes", "mvu_ejs", "narrative_opening", "status_ui", "integration"
             ]
+          }
+        },
+        "current_stage": {
+          "$ref": "#/$defs/stage"
+        }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "architecture",
+        "active_skill",
+        "writable_stage",
+        "readable_stages"
+      ],
+      "properties": {
+        "architecture": {
+          "const": "single_agent_private_skills"
+        },
+        "active_skill": {
+          "enum": [
+            null,
+            "rp-project-foundation",
+            "rp-cast-authoring",
+            "rp-experience-authoring",
+            "st-runtime-authoring",
+            "st-frontend-authoring",
+            "st-integration-qa"
+          ]
+        },
+        "writable_stage": {
+          "$ref": "#/$defs/stage"
+        },
+        "readable_stages": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/stage"
           }
         }
       }
@@ -257,6 +300,12 @@
       "type": "array",
       "items": {
         "$ref": "#/$defs/backlog"
+      }
+    },
+    "handoffs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/handoff"
       }
     },
     "source_manifest": {
@@ -534,6 +583,48 @@
             "deferred",
             "resolved"
           ]
+        }
+      }
+    },
+    "handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "source_stage",
+        "target_stage",
+        "severity",
+        "reason",
+        "suggested_change",
+        "status"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "source_stage": {
+          "$ref": "#/$defs/stage"
+        },
+        "target_stage": {
+          "$ref": "#/$defs/stage"
+        },
+        "severity": {
+          "enum": ["advisory", "blocking"]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "suggested_change": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "status": {
+          "enum": ["open", "accepted", "resolved", "rejected"]
         }
       }
     },

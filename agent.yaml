@@ -1,0 +1,19 @@
+schema_version: 1.0.0
+id: rp-card-studio
+display_name: SillyTavern制卡工坊
+description: 单一主 Agent 协调多个私有专业 Skill，分阶段创作、实现、验证并交付完整 SillyTavern RP 项目包。
+entry: AGENT.md
+language: zh-CN
+invocation:
+  mode: explicit_only
+  natural_language_trigger: false
+private_skills_root: internal-skills
+routing: orchestrator/routing.yaml
+ledger:
+  semantic: project.yaml
+  technical: .rp-card-state.json
+forge:
+  entry: scripts/rp-card-forge.bundle.mjs
+  source: scripts/rp-card-forge.mjs
+default_delivery:
+  - character_card_json

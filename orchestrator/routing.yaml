@@ -1,0 +1,57 @@
+schema_version: 1.0.0
+agent: rp-card-studio
+
+stages:
+  preflight:
+    owner: agent
+    primary_skill: null
+    supporting_skills: []
+  positioning:
+    owner: rp-project-foundation
+    primary_skill: rp-project-foundation
+    supporting_skills: []
+  materials:
+    owner: rp-project-foundation
+    primary_skill: rp-project-foundation
+    supporting_skills: []
+  worldbuilding:
+    owner: rp-project-foundation
+    primary_skill: rp-project-foundation
+    supporting_skills: [st-worldbook-regex]
+  character:
+    owner: rp-cast-authoring
+    primary_skill: rp-cast-authoring
+    supporting_skills: [st-worldbook-regex]
+  systems:
+    owner: rp-experience-authoring
+    primary_skill: rp-experience-authoring
+    supporting_skills: [st-worldbook-regex]
+  scenes:
+    owner: rp-experience-authoring
+    primary_skill: rp-experience-authoring
+    supporting_skills: [st-worldbook-regex]
+  mvu_ejs:
+    owner: st-runtime-authoring
+    primary_skill: st-runtime-authoring
+    supporting_skills: [st-worldbook-regex]
+  narrative_opening:
+    owner: rp-experience-authoring
+    primary_skill: rp-experience-authoring
+    supporting_skills: [st-frontend-authoring, st-runtime-authoring, st-worldbook-regex]
+  status_ui:
+    owner: st-frontend-authoring
+    primary_skill: st-frontend-authoring
+    supporting_skills: [st-runtime-authoring, st-worldbook-regex]
+  integration:
+    owner: st-integration-qa
+    primary_skill: st-integration-qa
+    supporting_skills: [st-worldbook-regex, st-runtime-authoring, st-frontend-authoring]
+
+skill_paths:
+  rp-project-foundation: internal-skills/rp-project-foundation/SKILL.md
+  rp-cast-authoring: internal-skills/rp-cast-authoring/SKILL.md
+  rp-experience-authoring: internal-skills/rp-experience-authoring/SKILL.md
+  st-runtime-authoring: internal-skills/st-runtime-authoring/SKILL.md
+  st-frontend-authoring: internal-skills/st-frontend-authoring/SKILL.md
+  st-worldbook-regex: internal-skills/st-worldbook-regex/SKILL.md
+  st-integration-qa: internal-skills/st-integration-qa/SKILL.md

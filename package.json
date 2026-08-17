@@ -1,9 +1,9 @@
 {
-  "name": "rp-card-studio",
-  "version": "0.1.0",
+  "name": "rp-card-studio-agent",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "Maintenance toolchain for the rp-card-studio skill.",
+  "description": "Harness-neutral core Agent, private skills, and Forge toolchain for SillyTavern RP projects.",
   "engines": {
     "node": ">=20"
   },

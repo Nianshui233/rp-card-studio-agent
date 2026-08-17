@@ -4,6 +4,13 @@ import {
   selectOpeningMessages,
 } from '../rp-card-runtime.mjs';
 
+import {
+  AGENT_ARCHITECTURE,
+  agentLedgerForStage,
+  primarySkillForStage,
+  readableStagesForState,
+} from './agent-routing.mjs';
+
 import { inputError, integrityError, validationError } from './errors.mjs';
 import {
   commitNewDirectory,
@@ -79,11 +86,13 @@ var PROJECT_ROOT_KEYS = /* @__PURE__ */ new Set([
   "project",
   "preflight",
   "workflow",
+  "agent",
   "features",
   "deliverables",
   "materials",
   "decisions",
   "cross_stage_backlog",
+  "handoffs",
   "source_manifest",
   "runtime_target",
   "release"
@@ -253,8 +262,10 @@ export function makeProject({ name, target = "character_card", nsfw, operation =
     workflow: {
       stage_order: [...WORKFLOW_STAGES],
       optional_stages: [...OPTIONAL_STAGES],
-      planned_stages: [...selectedStages]
+      planned_stages: [...selectedStages],
+      current_stage: "positioning"
     },
+    agent: agentLedgerForStage("positioning", initialStages(), STAGES),
     features: {
       materials: false,
       systems: false,
@@ -278,6 +289,7 @@ export function makeProject({ name, target = "character_card", nsfw, operation =
       history: []
     }],
     cross_stage_backlog: [],
+    handoffs: [],
     source_manifest: sourceManifest,
     runtime_target: {
       application: "SillyTavern",
@@ -304,6 +316,19 @@ export function makeState(project, { revision = 0 } = {}) {
     transaction: null,
     updated_at: null
   };
+}
+export function syncAgentLedger(project, state) {
+  const stage = state.active_stage;
+  project.workflow.current_stage = stage;
+  project.agent = stage === "preflight"
+    ? {
+        architecture: AGENT_ARCHITECTURE,
+        active_skill: null,
+        writable_stage: "preflight",
+        readable_stages: readableStagesForState(state.stages, stage, STAGES),
+      }
+    : agentLedgerForStage(stage, state.stages, STAGES);
+  return project.agent;
 }
 async function projectFilesForInit(root, { type = "character", nsfw, stageRoute = DEFAULT_STAGE_ROUTE } = {}) {
   const name = path.basename(path.resolve(root));
@@ -453,6 +478,16 @@ export function validateProjectModel(project, state, root) {
   if (!semanticEqual(project?.workflow?.stage_order, WORKFLOW_STAGES)) issues.push(modelIssue("/workflow/stage_order", "const", "阶段顺序与规范不一致"));
   if (!semanticEqual(project?.workflow?.optional_stages, OPTIONAL_STAGES)) issues.push(modelIssue("/workflow/optional_stages", "const", "可选阶段清单与规范不一致"));
   try { normalizeStagePlan(project?.workflow?.planned_stages); } catch (error) { issues.push(modelIssue("/workflow/planned_stages", "route", error.message)); }
+  if (!STAGES.includes(project?.workflow?.current_stage)) issues.push(modelIssue("/workflow/current_stage", "enum", "当前阶段无效"));
+  if (project?.workflow?.current_stage !== state?.active_stage) issues.push(modelIssue("/workflow/current_stage", "integrity", "语义账本 current_stage 与技术状态 active_stage 不一致"));
+  if (project?.agent?.architecture !== AGENT_ARCHITECTURE) issues.push(modelIssue("/agent/architecture", "const", `Agent 架构必须为 ${AGENT_ARCHITECTURE}`));
+  const expectedSkill = STAGES.includes(state?.active_stage) && state.active_stage !== "preflight"
+    ? primarySkillForStage(state.active_stage)
+    : null;
+  if (expectedSkill && project?.agent?.active_skill !== expectedSkill) issues.push(modelIssue("/agent/active_skill", "route", `当前阶段必须路由到 ${expectedSkill}`));
+  if (project?.agent?.writable_stage !== state?.active_stage) issues.push(modelIssue("/agent/writable_stage", "integrity", "私有 Skill 可写阶段必须等于当前阶段"));
+  const expectedReadable = readableStagesForState(state?.stages, state?.active_stage, STAGES);
+  if (!semanticEqual(project?.agent?.readable_stages, expectedReadable)) issues.push(modelIssue("/agent/readable_stages", "integrity", "私有 Skill 可读阶段与实际完成状态不一致"));
   for (const feature of ["materials", "systems", "scenes", "mvu", "ejs", "status_ui"]) {
     if (typeof project?.features?.[feature] !== "boolean") issues.push(modelIssue(`/features/${feature}`, "type", "功能开关必须是布尔值"));
   }
@@ -488,6 +523,7 @@ export function validateProjectModel(project, state, root) {
   }
   validateDecisions(project.decisions, issues);
   validateProjectTitleDecisionLocks(project.decisions, issues);
+  validateHandoffs(project.handoffs, issues);
   if (project?.runtime_target?.application !== "SillyTavern") issues.push(modelIssue("/runtime_target/application", "const", "运行目标必须是 SillyTavern"));
   if (!Array.isArray(project?.runtime_target?.dependencies)) issues.push(modelIssue("/runtime_target/dependencies", "type", "dependencies 必须是数组"));
   if (!Array.isArray(project?.release?.accepted_warnings)) issues.push(modelIssue("/release/accepted_warnings", "type", "accepted_warnings 必须是数组"));
@@ -499,6 +535,25 @@ export function validateProjectModel(project, state, root) {
     issues.push(modelIssue("/source_manifest", "source", error.message));
   }
   return { issues, warnings };
+}
+function validateHandoffs(handoffs, issues) {
+  if (!Array.isArray(handoffs)) {
+    issues.push(modelIssue("/handoffs", "type", "handoffs 必须是数组"));
+    return;
+  }
+  const ids = new Set();
+  for (const [index, handoff] of handoffs.entries()) {
+    const base = `/handoffs/${index}`;
+    if (!ID_PATTERN.test(handoff?.id ?? "")) issues.push(modelIssue(`${base}/id`, "pattern", "交接 ID 必须是 snake_case"));
+    else if (ids.has(handoff.id)) issues.push(modelIssue(`${base}/id`, "unique", `交接 ID 重复: ${handoff.id}`));
+    ids.add(handoff?.id);
+    if (!STAGES.includes(handoff?.source_stage)) issues.push(modelIssue(`${base}/source_stage`, "enum", "交接来源阶段无效"));
+    if (!STAGES.includes(handoff?.target_stage)) issues.push(modelIssue(`${base}/target_stage`, "enum", "交接目标阶段无效"));
+    if (!['advisory', 'blocking'].includes(handoff?.severity)) issues.push(modelIssue(`${base}/severity`, "enum", "交接严重度无效"));
+    if (typeof handoff?.reason !== "string" || handoff.reason.trim() === "") issues.push(modelIssue(`${base}/reason`, "required", "交接原因不能为空"));
+    if (!Array.isArray(handoff?.suggested_change) || handoff.suggested_change.length === 0) issues.push(modelIssue(`${base}/suggested_change`, "minItems", "交接至少需要一个建议改动"));
+    if (!['open', 'accepted', 'resolved', 'rejected'].includes(handoff?.status)) issues.push(modelIssue(`${base}/status`, "enum", "交接状态无效"));
+  }
 }
 function validateDecisions(decisions, issues) {
   if (!Array.isArray(decisions)) {
@@ -1342,12 +1397,21 @@ export async function runProjectMutation(root, callback, options = {}) {
   const absolute = path.resolve(root);
   return withProjectLock(absolute, () => callback(absolute), options);
 }
-export function migrateProject(project) {
+export function migrateProject(project, state = null) {
   if (project?.schema_version === PROJECT_SCHEMA_VERSION) {
     const hasPlan = Array.isArray(project?.workflow?.planned_stages);
     const legacyRoute = Array.isArray(project?.workflow?.selected_stages) ? project.workflow.selected_stages : null;
     const hasLegacyDecision = (project?.decisions ?? []).some((decision) => decision.id === "preflight.stage_route");
-    if (project?.preflight?.workflow_confirmed === true && hasPlan && !legacyRoute && !hasLegacyDecision) return { value: project, migrated: false };
+    const activeStage = STAGES.includes(state?.active_stage)
+      ? state.active_stage
+      : STAGES.includes(project?.workflow?.current_stage)
+        ? project.workflow.current_stage
+        : "positioning";
+    const hasAgent = project?.agent?.architecture === AGENT_ARCHITECTURE
+      && project?.agent?.writable_stage === activeStage
+      && project?.workflow?.current_stage === activeStage
+      && Array.isArray(project?.handoffs);
+    if (project?.preflight?.workflow_confirmed === true && hasPlan && !legacyRoute && !hasLegacyDecision && hasAgent) return { value: project, migrated: false };
     const migrated = structuredClone(project);
     migrated.preflight ??= {};
     migrated.preflight.workflow_confirmed = true;
@@ -1358,6 +1422,10 @@ export function migrateProject(project) {
     delete migrated.workflow.selected_stages;
     migrated.decisions ??= [];
     migrated.decisions = migrated.decisions.filter((decision) => decision.id !== "preflight.stage_route");
+    migrated.handoffs ??= [];
+    const stageState = state ? structuredClone(state) : { active_stage: activeStage, stages: initialStages() };
+    stageState.active_stage = activeStage;
+    syncAgentLedger(migrated, stageState);
     return { value: migrated, migrated: true };
   }
   if (![0, "0", "0.1.0"].includes(project?.schema_version)) {
@@ -1366,6 +1434,9 @@ export function migrateProject(project) {
   if (isPlainObject(project?.preflight) && isPlainObject(project?.source_manifest)) {
     const migrated = structuredClone(project);
     migrated.schema_version = PROJECT_SCHEMA_VERSION;
+    migrated.handoffs ??= [];
+    const activeStage = STAGES.includes(state?.active_stage) ? state.active_stage : "positioning";
+    syncAgentLedger(migrated, state ?? { active_stage: activeStage, stages: initialStages() });
     return { value: migrated, migrated: true };
   }
   const legacyName = project?.project?.name ?? project?.name ?? project?.project?.id ?? "project";

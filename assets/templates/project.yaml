@@ -46,6 +46,15 @@ workflow:
     - narrative_opening
     - status_ui
     - integration
+  current_stage: positioning
+
+agent:
+  architecture: single_agent_private_skills
+  active_skill: rp-project-foundation
+  writable_stage: positioning
+  readable_stages:
+    - preflight
+    - positioning
 
 features:
   materials: false
@@ -61,6 +70,7 @@ deliverables:
 materials: []
 decisions: []
 cross_stage_backlog: []
+handoffs: []
 
 source_manifest:
   positioning: []
