@@ -61,6 +61,14 @@ capabilities:
   planned: []
   evidence: []
 
+blueprint:
+  mode: direct
+  total_design: null
+  first_playable: null
+  growth_tracks: []
+  parking_lot: []
+  next: null
+
 features:
   materials: false
   systems: false

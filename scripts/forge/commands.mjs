@@ -68,7 +68,7 @@ export var HELP_TEXT = `rp-card-forge - 离线、事务式 SillyTavern 制卡工
   pack <project-dir>                 构建 JSON，或写入 PNG chara/ccv3 双块
   diff <left> <right>                比较语义 JSON
   roundtrip <input>                  验证 JSON/PNG 语义往返与 PNG 图像数据
-  state <project-dir> [action]       show/migrate/operation/plan/lock/unlock/stage/handoff/handoff-status/capability
+  state <project-dir> [action]       show/migrate/operation/plan/blueprint/lock/unlock/stage/handoff/handoff-status/capability
   doctor [project-dir]               检查 Node、依赖与项目健康
 
 通用选项:
@@ -631,6 +631,7 @@ async function commandState(args, options) {
       plannedStages: loaded.project?.workflow?.planned_stages ?? null,
       agent: loaded.project?.agent ?? null,
       capabilities: loaded.project?.capabilities ?? null,
+      blueprint: loaded.project?.blueprint ?? null,
       handoffs: loaded.project?.handoffs ?? [],
       decisions: loaded.project?.decisions ?? [],
       decisionLocks: loaded.state?.decision_locks ?? []
@@ -762,6 +763,21 @@ async function commandState(args, options) {
       decision.status = "superseded";
       nextState.decision_locks = nextState.decision_locks.filter((entry) => entry.decision_id !== id);
       projectChanged = true;
+    } else if (action === "blueprint") {
+      exactArgs("state blueprint", args, 3);
+      const mode = args[2];
+      if (!["direct", "single_blueprint", "blueprint_set", "program_blueprint_set"].includes(mode)) throw inputError(`未知蓝图模式: ${mode}`);
+      nextProject.blueprint = mode === "direct"
+        ? { mode, total_design: null, first_playable: null, growth_tracks: [], parking_lot: [], next: null }
+        : {
+            mode,
+            total_design: "design/total-design.yaml",
+            first_playable: "design/first-playable.yaml",
+            growth_tracks: ["design/growth-tracks.yaml"],
+            parking_lot: ["design/parking-lot.yaml"],
+            next: "NEXT.md",
+          };
+      projectChanged = true;
     } else if (action === "capability") {
       exactArgs("state capability", args, 4);
       const [, , operation, id] = args;
@@ -886,6 +902,8 @@ async function commandState(args, options) {
       activeStage: nextState.active_stage,
       stageStatus: nextState.stages[nextState.active_stage].status,
       agent: nextProject.agent,
+      capabilities: nextProject.capabilities,
+      blueprint: nextProject.blueprint,
       handoffs: nextProject.handoffs,
       decisionLocks: nextState.decision_locks,
       dryRun: Boolean(options["dry-run"])

@@ -1,6 +1,6 @@
 # SillyTavern制卡工坊
 
-`rp-card-studio` 是一个只在用户明确进入时工作的个人 SillyTavern RP 项目 Agent。它由一个主 Agent、八个按阶段加载的私有 Skill、共享项目账本和 Forge 工具链组成，把“角色卡”视为完整 RP 包的便携载体，而不是默认把所有内容围绕某一个角色堆进卡面。
+`rp-card-studio` 是一个只在用户明确进入时工作的个人 SillyTavern RP 项目 Agent。它由一个主 Agent、十三个按需加载的私有 Skill、共享项目账本和 Forge 工具链组成，把“角色卡”视为完整 RP 包的便携载体，而不是默认把所有内容围绕某一个角色堆进卡面。
 
 它适合制作：
 
@@ -20,7 +20,7 @@
 7. UI 位于聊天消息或用户明确选择的卡内载体。唯一长期禁止的是在 SillyTavern 页面外层挂一个与消息脱离的常驻状态面板。
 8. 默认最终只交付一个可导入角色卡 `.json`；PNG、独立世界书、源码归档等必须由用户明确需要。
 9. Agent 只适配 SillyTavern 和插件，不修改 SillyTavern、Tavern Helper 或其他插件本体。
-10. 这是个人自用工作流：创作自由、视觉效果和实际可玩性优先。父页面 DOM、私有 API、远程资源和复杂 JS 可以按项目需要使用，只需如实记录依赖和实测结果。Agent 使用自包含原创样本，不把外部卡片、仓库或网页当作用户材料。
+10. 这是个人自用工作流：创作自由、视觉效果和实际可玩性优先。父页面 DOM、私有 API、远程资源和复杂 JS 可以按项目需要使用，只需如实记录依赖和实测结果。用户明确提供或授权的开源卡片、仓库、网页和接口资料可以直接吸收；最终 Agent 规则和项目源码保持自包含，不依赖原参考目录。
 
 ## Agent 架构
 
@@ -31,7 +31,7 @@ AGENT.md：唯一主协调 Agent
   ├─ project.yaml：语义账本
   ├─ .rp-card-state.json：Forge 技术镜像
   ├─ orchestrator/routing.yaml：阶段路由
-  ├─ internal-skills/：八个私有专业 Skill
+  ├─ internal-skills/：十三个私有专业 Skill
   └─ Forge：状态、装配与验证
 ```
 
@@ -49,8 +49,13 @@ AGENT.md：唯一主协调 Agent
 | `st-worldbook-regex` | 世界书调度、输出合同、XML/标记生产和正则 |
 | `st-host-capabilities` | 宿主能力探测、世界书绑定、事件生命周期、生成、流式前端和回退 |
 | `st-integration-qa` | 装配、Forge、角色卡 JSON、SillyTavern 实机验收和故障归因 |
+| `rp-project-blueprint` | 大型项目总设计、First Playable、Growth Tracks、Parking Lot 和 NEXT |
+| `st-api-reference` | 精确函数签名、事件 payload、版本差异和宿主 API 核对 |
+| `st-runtime-debug` | 真实 SillyTavern 导入、浏览器、Console、DOM、交互和生命周期验收 |
+| `st-render-regex` | 正则 fixture、阶段 trace、placement、深度和 prompt/display 验证 |
+| `st-component-architecture` | 组件 Registry、Recipe、依赖图、组件更新和源码/制品一致性 |
 
-其中 `st-worldbook-regex` 是无独立用户阶段的支援模块。用户不会被要求先理解或选择这些 Skill；主 Agent 根据 `project.yaml` 当前阶段自动调度。
+其中 `st-worldbook-regex`、`st-host-capabilities`、`rp-project-blueprint`、`st-api-reference`、`st-runtime-debug`、`st-render-regex` 和 `st-component-architecture` 都是无独立用户阶段的支援模块。用户不会被要求先理解或选择这些 Skill；主 Agent 根据 `project.yaml` 当前阶段和已启用能力自动调度。
 
 `st-host-capabilities` 也是无独立用户阶段的支援模块。它把宿主能力做成可扩展注册表：项目只启用实际需要的能力，并分别记录 `declared`、`source_checked`、`artifact_checked` 和 `runtime` 证据。以后新增宿主能力不需要把所有规则重新塞回主 Agent。
 
@@ -224,7 +229,7 @@ UI 阶段第一批必须确认配套 UI 的规模。等级衡量的是玩家端�
 - 重型：进一步加入强主题演出、复杂功能联动、大量游戏行为入口、深度宿主协作和可靠生命周期。
 - 超重型 / 独立前端 / 0层游玩：完整继承前述能力，消息 HTML 成为主要游玩界面，并具有应用级路由、状态管理、持久化和复杂宿主协作。
 
-Agent 内置样本只是体验与成熟规模的参照，不是代码配额。`experience_evidence` 用于复盘导航、数据、交互、反馈、响应式、主题与数据绑定，不按填写数量定级或阻断。正则替换是默认示例，但酒馆助手脚本、EJS、inline HTML、框架和既有路线同样允许，只校验项目实际选择的运行链。不要把外部样本路径写入 `source_refs` 或 `assembly.yaml`。
+Agent 内置样本只是体验与成熟规模的参照，不是代码配额。`experience_evidence` 用于复盘导航、数据、交互、反馈、响应式、主题与数据绑定，不按填写数量定级或阻断。正则替换是默认示例，但酒馆助手脚本、EJS、inline HTML、框架和既有路线同样允许，只校验项目实际选择的运行链。用户明确采用某个外部开源资料时，可以在 `materials` 或 `source_refs` 中记录来源与版本；不需要为了“自包含”反复阻止用户使用已授权参考。
 
 用户选定的等级是交付下限，不是只写进 YAML 的标签。Forge 会读取实际 HTML 做功能面质量探针，检查导航、数据视图、信息工具、操作入口、反馈、响应式、宿主联动、数据读取和生命周期信号；不按文件字节或代码行数评分。锁定的中型/重型 UI 如果只是小面板、静态展示或无数据空壳，会阻断交付。
 

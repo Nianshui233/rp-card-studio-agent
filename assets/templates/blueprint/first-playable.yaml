@@ -1,0 +1,13 @@
+schema_version: 1.0.0
+project_id: project_id
+goal: 第一版真实可玩闭环
+included: []
+excluded: []
+entry: ""
+core_loop: ""
+state_sources: []
+runtime_dependencies: []
+failure_paths: []
+deliverables:
+  - character_card_json
+acceptance: []

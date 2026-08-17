@@ -1,6 +1,11 @@
 export const AGENT_ARCHITECTURE = "single_agent_private_skills";
 
 export const CAPABILITY_IDS = Object.freeze([
+  "agent.project_blueprint",
+  "engineering.component_registry",
+  "engineering.regex_trace",
+  "host.api_reference",
+  "host.runtime_debug",
   "host.message_history",
   "host.message_lifecycle",
   "host.variable_scopes",

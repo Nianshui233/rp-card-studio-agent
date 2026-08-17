@@ -28,7 +28,7 @@ test("repository is a single Agent with private skills and no legacy monolithic 
 
   const routing = YAML.parse(readFileSync(path.join(root, "orchestrator", "routing.yaml"), "utf8"));
   const privateSkills = Object.entries(routing.skill_paths);
-  assert.equal(privateSkills.length, 8);
+  assert.equal(privateSkills.length, 13);
   for (const [id, relative] of privateSkills) {
     const text = readFileSync(path.join(root, relative), "utf8");
     assert.match(text, new RegExp(`name: ${id.replaceAll("-", "\\-")}`));
@@ -61,6 +61,7 @@ test("new project ledger records current private skill and handoff collection", 
   assert.deepEqual(project.agent.readable_stages, ["preflight", "positioning"]);
   assert.deepEqual(project.handoffs, []);
   assert.deepEqual(project.capabilities, { enabled: [], planned: [], evidence: [] });
+  assert.deepEqual(project.blueprint, { mode: "direct", total_design: null, first_playable: null, growth_tracks: [], parking_lot: [], next: null });
   assert.deepEqual(validateProjectModel(project, state).issues, []);
 });
 
@@ -82,6 +83,22 @@ test("capability registry can be planned, enabled, and evidenced without adding 
   assert.deepEqual(project.capabilities.enabled, ["host.worldbook_binding"]);
   assert.deepEqual(project.capabilities.planned, []);
   assert.deepEqual(project.capabilities.evidence[0], { id: "host.worldbook_binding", status: "pass", level: "artifact_checked", notes: "卡内声明和装配绑定一致" });
+});
+
+test("blueprint mode is optional and does not create a new user stage", async (t) => {
+  const temp = await mkdtemp(path.join(os.tmpdir(), "rp-agent-blueprint-"));
+  t.after(() => rm(temp, { recursive: true, force: true }));
+  const forge = path.join(root, "scripts", "rp-card-forge.mjs");
+  const run = (...args) => spawnSync(process.execPath, [forge, ...args, "--json"], { cwd: root, encoding: "utf8" });
+  const route = JSON.stringify(["positioning", "worldbuilding", "character", "narrative_opening", "integration"]);
+  let result = run("init", temp, "--nsfw", "disabled", "--stages", route);
+  assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
+  result = run("state", temp, "blueprint", "single_blueprint");
+  assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
+  const project = YAML.parse(await readFile(path.join(temp, "project.yaml"), "utf8"));
+  assert.equal(project.blueprint.mode, "single_blueprint");
+  assert.equal(project.blueprint.first_playable, "design/first-playable.yaml");
+  assert.equal(project.workflow.current_stage, "positioning");
 });
 
 test("Forge stage routing and handoff commands update the shared ledger", async (t) => {

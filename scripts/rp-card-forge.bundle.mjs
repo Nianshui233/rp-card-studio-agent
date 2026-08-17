@@ -14545,6 +14545,11 @@ var init_agent_routing = __esm({
   "scripts/forge/agent-routing.mjs"() {
     AGENT_ARCHITECTURE = "single_agent_private_skills";
     CAPABILITY_IDS = Object.freeze([
+      "agent.project_blueprint",
+      "engineering.component_registry",
+      "engineering.regex_trace",
+      "host.api_reference",
+      "host.runtime_debug",
       "host.message_history",
       "host.message_lifecycle",
       "host.variable_scopes",
@@ -16165,6 +16170,7 @@ var PROJECT_ROOT_KEYS = /* @__PURE__ */ new Set([
   "workflow",
   "agent",
   "capabilities",
+  "blueprint",
   "features",
   "deliverables",
   "materials",
@@ -16339,6 +16345,14 @@ function makeProject({ name, target = "character_card", nsfw, operation = "creat
     },
     agent: agentLedgerForStage("positioning", initialStages(), STAGES),
     capabilities: { enabled: [], planned: [], evidence: [] },
+    blueprint: {
+      mode: "direct",
+      total_design: null,
+      first_playable: null,
+      growth_tracks: [],
+      parking_lot: [],
+      next: null
+    },
     features: {
       materials: false,
       systems: false,
@@ -16594,6 +16608,7 @@ function validateProjectModel(project, state, root) {
   validateProjectTitleDecisionLocks(project.decisions, issues);
   validateHandoffs(project.handoffs, issues);
   validateCapabilities(project.capabilities, issues);
+  validateBlueprint(project.blueprint, issues);
   if (project?.runtime_target?.application !== "SillyTavern") issues.push(modelIssue("/runtime_target/application", "const", "\u8FD0\u884C\u76EE\u6807\u5FC5\u987B\u662F SillyTavern"));
   if (!Array.isArray(project?.runtime_target?.dependencies)) issues.push(modelIssue("/runtime_target/dependencies", "type", "dependencies \u5FC5\u987B\u662F\u6570\u7EC4"));
   if (!Array.isArray(project?.release?.accepted_warnings)) issues.push(modelIssue("/release/accepted_warnings", "type", "accepted_warnings \u5FC5\u987B\u662F\u6570\u7EC4"));
@@ -16654,6 +16669,24 @@ function validateCapabilities(capabilities, issues) {
     if (!["not_run", "pass", "fail", "blocked"].includes(record?.status)) issues.push(modelIssue(`/capabilities/evidence/${index}/status`, "enum", "\u80FD\u529B\u8BC1\u636E\u72B6\u6001\u65E0\u6548"));
     if (!["declared", "source_checked", "artifact_checked", "runtime"].includes(record?.level)) issues.push(modelIssue(`/capabilities/evidence/${index}/level`, "enum", "\u80FD\u529B\u8BC1\u636E\u5C42\u7EA7\u65E0\u6548"));
     if (typeof record?.notes !== "string") issues.push(modelIssue(`/capabilities/evidence/${index}/notes`, "type", "\u80FD\u529B\u8BC1\u636E\u8BF4\u660E\u5FC5\u987B\u662F\u5B57\u7B26\u4E32"));
+  }
+}
+function validateBlueprint(blueprint, issues) {
+  if (!isPlainObject(blueprint)) {
+    issues.push(modelIssue("/blueprint", "type", "blueprint \u5FC5\u987B\u662F\u5BF9\u8C61"));
+    return;
+  }
+  if (!["direct", "single_blueprint", "blueprint_set", "program_blueprint_set"].includes(blueprint.mode)) {
+    issues.push(modelIssue("/blueprint/mode", "enum", "\u84DD\u56FE\u6A21\u5F0F\u65E0\u6548"));
+  }
+  for (const field of ["total_design", "first_playable", "next"]) {
+    if (blueprint[field] !== null && typeof blueprint[field] !== "string") issues.push(modelIssue(`/blueprint/${field}`, "type", `${field} \u5FC5\u987B\u662F\u8DEF\u5F84\u5B57\u7B26\u4E32\u6216 null`));
+  }
+  for (const field of ["growth_tracks", "parking_lot"]) {
+    if (!Array.isArray(blueprint[field]) || blueprint[field].some((entry) => typeof entry !== "string" || !entry.trim())) issues.push(modelIssue(`/blueprint/${field}`, "type", `${field} \u5FC5\u987B\u662F\u5B57\u7B26\u4E32\u8DEF\u5F84\u6570\u7EC4`));
+  }
+  if (blueprint.mode === "direct" && ["total_design", "first_playable", "next"].some((field) => blueprint[field] !== null)) {
+    issues.push(modelIssue("/blueprint", "mode", "direct \u6A21\u5F0F\u4E0D\u80FD\u58F0\u660E\u84DD\u56FE\u6267\u884C\u6587\u4EF6"));
   }
 }
 function validateDecisions(decisions, issues) {
@@ -17449,6 +17482,7 @@ function migrateProject(project, state = null) {
     migrated.decisions = migrated.decisions.filter((decision) => decision.id !== "preflight.stage_route");
     migrated.handoffs ??= [];
     migrated.capabilities ??= { enabled: [], planned: [], evidence: [] };
+    migrated.blueprint ??= { mode: "direct", total_design: null, first_playable: null, growth_tracks: [], parking_lot: [], next: null };
     const stageState = state ? structuredClone(state) : { active_stage: activeStage, stages: initialStages() };
     stageState.active_stage = activeStage;
     syncAgentLedger(migrated, stageState);
@@ -17462,6 +17496,7 @@ function migrateProject(project, state = null) {
     migrated.schema_version = PROJECT_SCHEMA_VERSION;
     migrated.handoffs ??= [];
     migrated.capabilities ??= { enabled: [], planned: [], evidence: [] };
+    migrated.blueprint ??= { mode: "direct", total_design: null, first_playable: null, growth_tracks: [], parking_lot: [], next: null };
     const activeStage = STAGES.includes(state?.active_stage) ? state.active_stage : "positioning";
     syncAgentLedger(migrated, state ?? { active_stage: activeStage, stages: initialStages() });
     return { value: migrated, migrated: true };
@@ -17616,7 +17651,7 @@ var HELP_TEXT = `rp-card-forge - \u79BB\u7EBF\u3001\u4E8B\u52A1\u5F0F SillyTaver
   pack <project-dir>                 \u6784\u5EFA JSON\uFF0C\u6216\u5199\u5165 PNG chara/ccv3 \u53CC\u5757
   diff <left> <right>                \u6BD4\u8F83\u8BED\u4E49 JSON
   roundtrip <input>                  \u9A8C\u8BC1 JSON/PNG \u8BED\u4E49\u5F80\u8FD4\u4E0E PNG \u56FE\u50CF\u6570\u636E
-  state <project-dir> [action]       show/migrate/operation/plan/lock/unlock/stage/handoff/handoff-status/capability
+  state <project-dir> [action]       show/migrate/operation/plan/blueprint/lock/unlock/stage/handoff/handoff-status/capability
   doctor [project-dir]               \u68C0\u67E5 Node\u3001\u4F9D\u8D56\u4E0E\u9879\u76EE\u5065\u5EB7
 
 \u901A\u7528\u9009\u9879:
@@ -18177,6 +18212,7 @@ async function commandState(args, options) {
       plannedStages: loaded.project?.workflow?.planned_stages ?? null,
       agent: loaded.project?.agent ?? null,
       capabilities: loaded.project?.capabilities ?? null,
+      blueprint: loaded.project?.blueprint ?? null,
       handoffs: loaded.project?.handoffs ?? [],
       decisions: loaded.project?.decisions ?? [],
       decisionLocks: loaded.state?.decision_locks ?? []
@@ -18308,6 +18344,19 @@ async function commandState(args, options) {
       decision.status = "superseded";
       nextState.decision_locks = nextState.decision_locks.filter((entry) => entry.decision_id !== id);
       projectChanged = true;
+    } else if (action === "blueprint") {
+      exactArgs("state blueprint", args, 3);
+      const mode = args[2];
+      if (!["direct", "single_blueprint", "blueprint_set", "program_blueprint_set"].includes(mode)) throw inputError(`\u672A\u77E5\u84DD\u56FE\u6A21\u5F0F: ${mode}`);
+      nextProject.blueprint = mode === "direct" ? { mode, total_design: null, first_playable: null, growth_tracks: [], parking_lot: [], next: null } : {
+        mode,
+        total_design: "design/total-design.yaml",
+        first_playable: "design/first-playable.yaml",
+        growth_tracks: ["design/growth-tracks.yaml"],
+        parking_lot: ["design/parking-lot.yaml"],
+        next: "NEXT.md"
+      };
+      projectChanged = true;
     } else if (action === "capability") {
       exactArgs("state capability", args, 4);
       const [, , operation, id] = args;
@@ -18434,6 +18483,8 @@ async function commandState(args, options) {
       activeStage: nextState.active_stage,
       stageStatus: nextState.stages[nextState.active_stage].status,
       agent: nextProject.agent,
+      capabilities: nextProject.capabilities,
+      blueprint: nextProject.blueprint,
       handoffs: nextProject.handoffs,
       decisionLocks: nextState.decision_locks,
       dryRun: Boolean(options["dry-run"])

@@ -11,6 +11,7 @@
     "workflow",
     "agent",
     "capabilities",
+    "blueprint",
     "features",
     "deliverables",
     "materials",
@@ -223,6 +224,21 @@
             "$ref": "#/$defs/capabilityEvidence"
           }
         }
+      }
+    },
+    "blueprint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "total_design", "first_playable", "growth_tracks", "parking_lot", "next"],
+      "properties": {
+        "mode": {
+          "enum": ["direct", "single_blueprint", "blueprint_set", "program_blueprint_set"]
+        },
+        "total_design": { "type": ["string", "null"] },
+        "first_playable": { "type": ["string", "null"] },
+        "growth_tracks": { "$ref": "#/$defs/pathList" },
+        "parking_lot": { "$ref": "#/$defs/pathList" },
+        "next": { "type": ["string", "null"] }
       }
     },
     "features": {

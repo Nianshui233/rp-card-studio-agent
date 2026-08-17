@@ -9,7 +9,7 @@ stages:
   positioning:
     owner: rp-project-foundation
     primary_skill: rp-project-foundation
-    supporting_skills: []
+    supporting_skills: [rp-project-blueprint]
   materials:
     owner: rp-project-foundation
     primary_skill: rp-project-foundation
@@ -17,37 +17,38 @@ stages:
   worldbuilding:
     owner: rp-project-foundation
     primary_skill: rp-project-foundation
-    supporting_skills: [st-worldbook-regex, st-host-capabilities]
+    supporting_skills: [st-worldbook-regex, st-host-capabilities, st-api-reference]
   character:
     owner: rp-cast-authoring
     primary_skill: rp-cast-authoring
-    supporting_skills: [st-worldbook-regex]
+    supporting_skills: [st-worldbook-regex, st-component-architecture]
   systems:
     owner: rp-experience-authoring
     primary_skill: rp-experience-authoring
-    supporting_skills: [st-worldbook-regex]
+    supporting_skills: [st-worldbook-regex, st-component-architecture]
   scenes:
     owner: rp-experience-authoring
     primary_skill: rp-experience-authoring
-    supporting_skills: [st-worldbook-regex]
+    supporting_skills: [st-worldbook-regex, st-component-architecture]
   mvu_ejs:
     owner: st-runtime-authoring
     primary_skill: st-runtime-authoring
-    supporting_skills: [st-worldbook-regex, st-host-capabilities]
+    supporting_skills: [st-worldbook-regex, st-host-capabilities, st-api-reference, st-component-architecture]
   narrative_opening:
     owner: rp-experience-authoring
     primary_skill: rp-experience-authoring
-    supporting_skills: [st-frontend-authoring, st-runtime-authoring, st-worldbook-regex, st-host-capabilities]
+    supporting_skills: [st-frontend-authoring, st-runtime-authoring, st-worldbook-regex, st-host-capabilities, st-api-reference, st-component-architecture]
   status_ui:
     owner: st-frontend-authoring
     primary_skill: st-frontend-authoring
-    supporting_skills: [st-runtime-authoring, st-worldbook-regex, st-host-capabilities]
+    supporting_skills: [st-runtime-authoring, st-worldbook-regex, st-host-capabilities, st-api-reference, st-runtime-debug, st-render-regex, st-component-architecture]
   integration:
     owner: st-integration-qa
     primary_skill: st-integration-qa
-    supporting_skills: [st-worldbook-regex, st-runtime-authoring, st-frontend-authoring, st-host-capabilities]
+    supporting_skills: [st-worldbook-regex, st-runtime-authoring, st-frontend-authoring, st-host-capabilities, st-api-reference, st-runtime-debug, st-render-regex, st-component-architecture]
 
 skill_paths:
+  rp-project-blueprint: internal-skills/rp-project-blueprint/SKILL.md
   rp-project-foundation: internal-skills/rp-project-foundation/SKILL.md
   rp-cast-authoring: internal-skills/rp-cast-authoring/SKILL.md
   rp-experience-authoring: internal-skills/rp-experience-authoring/SKILL.md
@@ -55,4 +56,8 @@ skill_paths:
   st-frontend-authoring: internal-skills/st-frontend-authoring/SKILL.md
   st-worldbook-regex: internal-skills/st-worldbook-regex/SKILL.md
   st-host-capabilities: internal-skills/st-host-capabilities/SKILL.md
+  st-api-reference: internal-skills/st-api-reference/SKILL.md
+  st-runtime-debug: internal-skills/st-runtime-debug/SKILL.md
+  st-render-regex: internal-skills/st-render-regex/SKILL.md
+  st-component-architecture: internal-skills/st-component-architecture/SKILL.md
   st-integration-qa: internal-skills/st-integration-qa/SKILL.md

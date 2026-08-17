@@ -3,6 +3,31 @@ agent: rp-card-studio
 
 # 这是能力目录，不是所有项目的强制清单。主 Agent 根据项目需求、宿主版本和真实证据启用其中的能力。
 capabilities:
+  - id: agent.project_blueprint
+    owner: rp-project-blueprint
+    consumers: [rp-project-foundation, st-integration-qa]
+    supports: [total_design, first_playable, growth_tracks, parking_lot, next_handoff]
+    fallback: 使用直接阶段流程
+  - id: engineering.component_registry
+    owner: st-component-architecture
+    consumers: [st-runtime-authoring, st-frontend-authoring, st-integration-qa]
+    supports: [registry, recipe, dependency_graph, component_update, source_artifact_parity]
+    fallback: 直接维护项目 src 并整卡构建
+  - id: engineering.regex_trace
+    owner: st-render-regex
+    consumers: [st-worldbook-regex, st-integration-qa]
+    supports: [validate, fixtures, stage_trace, prompt_display_channels]
+    fallback: 现有 Forge 正则静态验证
+  - id: host.api_reference
+    owner: st-api-reference
+    consumers: [st-host-capabilities, st-runtime-authoring, st-frontend-authoring]
+    supports: [signature, event_payload, variable_scope, version_provider, fallback]
+    fallback: 记录 API 未确认并返回技术交接
+  - id: host.runtime_debug
+    owner: st-runtime-debug
+    consumers: [st-integration-qa]
+    supports: [browser, console, dom, interaction, lifecycle, runtime_evidence]
+    fallback: runtime not_run
   - id: host.message_history
     owner: st-host-capabilities
     consumers: [st-runtime-authoring, st-frontend-authoring, st-integration-qa]

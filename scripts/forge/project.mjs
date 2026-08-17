@@ -89,6 +89,7 @@ var PROJECT_ROOT_KEYS = /* @__PURE__ */ new Set([
   "workflow",
   "agent",
   "capabilities",
+  "blueprint",
   "features",
   "deliverables",
   "materials",
@@ -269,6 +270,14 @@ export function makeProject({ name, target = "character_card", nsfw, operation =
     },
     agent: agentLedgerForStage("positioning", initialStages(), STAGES),
     capabilities: { enabled: [], planned: [], evidence: [] },
+    blueprint: {
+      mode: "direct",
+      total_design: null,
+      first_playable: null,
+      growth_tracks: [],
+      parking_lot: [],
+      next: null,
+    },
     features: {
       materials: false,
       systems: false,
@@ -528,6 +537,7 @@ export function validateProjectModel(project, state, root) {
   validateProjectTitleDecisionLocks(project.decisions, issues);
   validateHandoffs(project.handoffs, issues);
   validateCapabilities(project.capabilities, issues);
+  validateBlueprint(project.blueprint, issues);
   if (project?.runtime_target?.application !== "SillyTavern") issues.push(modelIssue("/runtime_target/application", "const", "运行目标必须是 SillyTavern"));
   if (!Array.isArray(project?.runtime_target?.dependencies)) issues.push(modelIssue("/runtime_target/dependencies", "type", "dependencies 必须是数组"));
   if (!Array.isArray(project?.release?.accepted_warnings)) issues.push(modelIssue("/release/accepted_warnings", "type", "accepted_warnings 必须是数组"));
@@ -588,6 +598,24 @@ function validateCapabilities(capabilities, issues) {
     if (!["not_run", "pass", "fail", "blocked"].includes(record?.status)) issues.push(modelIssue(`/capabilities/evidence/${index}/status`, "enum", "能力证据状态无效"));
     if (!["declared", "source_checked", "artifact_checked", "runtime"].includes(record?.level)) issues.push(modelIssue(`/capabilities/evidence/${index}/level`, "enum", "能力证据层级无效"));
     if (typeof record?.notes !== "string") issues.push(modelIssue(`/capabilities/evidence/${index}/notes`, "type", "能力证据说明必须是字符串"));
+  }
+}
+function validateBlueprint(blueprint, issues) {
+  if (!isPlainObject(blueprint)) {
+    issues.push(modelIssue("/blueprint", "type", "blueprint 必须是对象"));
+    return;
+  }
+  if (!["direct", "single_blueprint", "blueprint_set", "program_blueprint_set"].includes(blueprint.mode)) {
+    issues.push(modelIssue("/blueprint/mode", "enum", "蓝图模式无效"));
+  }
+  for (const field of ["total_design", "first_playable", "next"]) {
+    if (blueprint[field] !== null && typeof blueprint[field] !== "string") issues.push(modelIssue(`/blueprint/${field}`, "type", `${field} 必须是路径字符串或 null`));
+  }
+  for (const field of ["growth_tracks", "parking_lot"]) {
+    if (!Array.isArray(blueprint[field]) || blueprint[field].some((entry) => typeof entry !== "string" || !entry.trim())) issues.push(modelIssue(`/blueprint/${field}`, "type", `${field} 必须是字符串路径数组`));
+  }
+  if (blueprint.mode === "direct" && ["total_design", "first_playable", "next"].some((field) => blueprint[field] !== null)) {
+    issues.push(modelIssue("/blueprint", "mode", "direct 模式不能声明蓝图执行文件"));
   }
 }
 function validateDecisions(decisions, issues) {
@@ -1460,6 +1488,7 @@ export function migrateProject(project, state = null) {
     migrated.decisions = migrated.decisions.filter((decision) => decision.id !== "preflight.stage_route");
     migrated.handoffs ??= [];
     migrated.capabilities ??= { enabled: [], planned: [], evidence: [] };
+    migrated.blueprint ??= { mode: "direct", total_design: null, first_playable: null, growth_tracks: [], parking_lot: [], next: null };
     const stageState = state ? structuredClone(state) : { active_stage: activeStage, stages: initialStages() };
     stageState.active_stage = activeStage;
     syncAgentLedger(migrated, stageState);
@@ -1473,6 +1502,7 @@ export function migrateProject(project, state = null) {
     migrated.schema_version = PROJECT_SCHEMA_VERSION;
     migrated.handoffs ??= [];
     migrated.capabilities ??= { enabled: [], planned: [], evidence: [] };
+    migrated.blueprint ??= { mode: "direct", total_design: null, first_playable: null, growth_tracks: [], parking_lot: [], next: null };
     const activeStage = STAGES.includes(state?.active_stage) ? state.active_stage : "positioning";
     syncAgentLedger(migrated, state ?? { active_stage: activeStage, stages: initialStages() });
     return { value: migrated, migrated: true };
