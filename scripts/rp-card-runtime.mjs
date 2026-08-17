@@ -4,6 +4,7 @@ import path from "node:path";
 import YAML from "yaml";
 
 import { projectModelSource, semanticLeafPointers } from "./forge/projection.mjs";
+import { inspectUiApp } from "./ui-app-builder.mjs";
 
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -62,6 +63,99 @@ function validateUiExperienceEvidence(statusUi, base, status, issues, warnings) 
   }
   if (level === "super_heavy" && evidence.primary_play_surface !== true) {
     stageTarget(status, issues, warnings).push(issue(`${base}/experience_evidence/primary_play_surface`, "ui.experience_primary_surface", "超重型/0层游玩应明确持续消息前端是主要游玩表面"));
+  }
+}
+
+function countUiSignals(text, pattern) {
+  return (String(text ?? '').match(pattern) ?? []).length;
+}
+
+function inspectUiHtml(text) {
+  const source = String(text ?? '');
+  return {
+    complete_document: /<!doctype\s+html|<html\b/i.test(source) && /<body\b[\s>]/i.test(source),
+    navigation: countUiSignals(source, /data-(?:tab|view|page)|class=["'][^"']*(?:tabs?|nav|menu)|\b(?:goStep|switchTab|switchView)\s*\(/gi),
+    views: countUiSignals(source, /<(?:section|article|main|nav|dialog)\b|id=["'][^"']*(?:panel|view|page|tab)[^"']*["']/gi),
+    actions: countUiSignals(source, /<button\b|data-action\s*=|onclick\s*=|addEventListener\s*\(/gi),
+    fields: countUiSignals(source, /<(?:input|select|textarea|form)\b/gi),
+    data_binding: countUiSignals(source, /Mvu\.getMvuData|Mvu\.replaceMvuData|stat_data|display_data|window\.__RP_STATE__|window\.__ST_STATE__|getVariables\s*\(|replaceVariables\s*\(/gi),
+    host_actions: countUiSignals(source, /TavernHelper|window\.parent|sendTextareaMessage|createChatMessages|setChatMessages|generate\s*\(/gi),
+    information_tools: countUiSignals(source, /search|filter|detail|dialog|modal|accordion|折叠|详情|搜索|筛选|弹窗/gi),
+    feedback: countUiSignals(source, /loading|spinner|empty|error|success|fallback|retry|失败|成功|回退|重试|空态/gi),
+    responsive: countUiSignals(source, /<meta[^>]+viewport|@media|prefers-reduced-motion/gi),
+    lifecycle: countUiSignals(source, /pagehide|beforeunload|CHAT_CHANGED|MESSAGE_UPDATED|MESSAGE_SWIPED|eventOn\s*\(/gi),
+    mvu_direct: /(?:window\.)?Mvu\s*\./i.test(source),
+    mvu_parent_bridge: /(?:window\.)?parent(?:\?\.|\.)Mvu\b/i.test(source),
+  };
+}
+
+function uiScaleRequirements(level, kind) {
+  if (kind === 'opening') {
+    return {
+      light: { journey: 1, fields: 1, actions: 1, host_actions: 1, feedback: 1, responsive: 1, views: 1 },
+      light_medium: { journey: 2, fields: 2, actions: 2, host_actions: 1, feedback: 1, responsive: 1, views: 2 },
+      medium: { journey: 3, fields: 3, actions: 3, host_actions: 1, feedback: 1, responsive: 1, views: 3 },
+      heavy: { journey: 4, fields: 4, actions: 4, host_actions: 1, feedback: 1, responsive: 1, views: 4 },
+      super_heavy: { journey: 5, fields: 4, actions: 5, host_actions: 2, feedback: 2, responsive: 1, views: 5 },
+    }[level] ?? null;
+  }
+  return {
+    light: { navigation: 2, views: 2, actions: 1, data_binding: 1, host_actions: 1, information_tools: 1, feedback: 1, responsive: 1 },
+    light_medium: { navigation: 2, views: 3, actions: 2, data_binding: 1, host_actions: 1, information_tools: 2, feedback: 1, responsive: 1 },
+    medium: { navigation: 3, views: 4, actions: 2, data_binding: 1, host_actions: 1, information_tools: 2, feedback: 2, responsive: 1 },
+    heavy: { navigation: 4, views: 5, actions: 3, data_binding: 1, host_actions: 2, information_tools: 3, feedback: 3, responsive: 1, lifecycle: 1 },
+    super_heavy: { navigation: 4, views: 6, actions: 4, data_binding: 2, host_actions: 2, information_tools: 3, feedback: 3, responsive: 1, lifecycle: 2 },
+  }[level] ?? null;
+}
+
+async function validateUiHtmlExperience({ source, file, projectRoot, base, status, kind, issues, warnings }) {
+  if (typeof file !== 'string' || !file.trim()) return;
+  let html;
+  try { html = await readFile(resolveWithin(projectRoot, file), 'utf8'); }
+  catch { return; }
+  const level = source?.experience_level ?? source?.status_ui?.experience_level ?? source?.opening_ui?.experience_level ?? 'light';
+  const requirements = uiScaleRequirements(level, kind);
+  if (!requirements) return;
+  const signals = inspectUiHtml(html);
+  const measured = kind === 'opening'
+    ? { ...signals, journey: countUiSignals(html, /step-|route|preset|preview|confirm|start|开局|创角|预览|确认入局/gi) }
+    : signals;
+  const missing = Object.entries(requirements)
+    .filter(([key, minimum]) => Number(measured[key] ?? 0) < minimum)
+    .map(([key, minimum]) => `${key}=${measured[key] ?? 0}/${minimum}`);
+  if (!signals.complete_document) missing.push('complete_document=0/1');
+  const target = stageTarget(status, issues, warnings);
+  if (signals.mvu_direct && !signals.mvu_parent_bridge) {
+    target.push(issue(`${base}/file`, 'ui.host_scope', 'HTML 直接使用 window.Mvu/Mvu，但没有同时探测 window.parent.Mvu；消息 iframe 可能只能得到空壳和空态。请建立当前窗口/父窗口能力桥并读回验证。'));
+  }
+  if (missing.length > 0) {
+    target.push(issue(`${base}/experience_level`, 'ui.scale_floor', `${kind === 'opening' ? '开场' : '持续'} UI 声明为 ${level}，但实际 HTML 缺少玩家可观察能力：${missing.join('、')}。这不是代码行数门槛，而是体验级别的功能底线。`));
+  }
+}
+
+async function validateUiAuthoringProject({ authoringMode, manifest, file, projectRoot, base, status, level, issues, warnings }) {
+  if (authoringMode !== "multi_file_html") return;
+  const target = stageTarget(status, issues, warnings);
+  if (typeof manifest !== "string" || !manifest.trim()) {
+    target.push(issue(`${base}/app_manifest`, "ui.app_manifest", "multi_file_html 必须声明模块化前端应用清单；最终 HTML 是构建产物，不是开发入口"));
+    return;
+  }
+  if (typeof file !== "string" || !file.trim()) return;
+  try {
+    const manifestPath = resolveWithin(projectRoot, manifest);
+    const outputPath = resolveWithin(projectRoot, file);
+    const inspected = await inspectUiApp(manifestPath, outputPath);
+    if (!inspected.outputPathMatches) {
+      target.push(issue(`${base}/app_manifest`, "ui.app_output", `UI 应用清单输出 ${inspected.declaredOutput} 与运行时 HTML ${outputPath} 不一致`));
+    }
+    if (!inspected.outputMatches) {
+      target.push(issue(`${base}/file`, "ui.app_stale", "模块化 UI 源码与最终内联 HTML 不一致；请先运行 rp-card-forge ui-build，再装配角色卡"));
+    }
+    if (["medium", "heavy", "super_heavy"].includes(level) && !inspected.mockState) {
+      warnings.push(issue(`${base}/app_manifest`, "ui.mock_state", `${level} UI 建议提供完整模拟状态，用于在未连接 SillyTavern 时检查满数据、长文本和空/错状态`));
+    }
+  } catch (error) {
+    target.push(issue(`${base}/app_manifest`, "ui.app_manifest", `模块化 UI 应用无法构建: ${error.message}`));
   }
 }
 
@@ -1479,6 +1573,18 @@ async function validateOpeningUiSources(sources, projectRoot, assembly, issues, 
       const file = openingUi.file;
       if (typeof file !== "string" || !file) target.push(issue(`${base}/file`, "opening_ui.source", `${route} 开场前端需要真实 HTML 源文件`));
       else { try { await stat(resolveWithin(projectRoot, file)); } catch { target.push(issue(`${base}/file`, "opening_ui.source", `开场前端源文件不存在: ${file}`)); } }
+      await validateUiAuthoringProject({
+        authoringMode: openingUi.authoring_mode ?? "direct_html",
+        manifest: openingUi.app_manifest,
+        file,
+        projectRoot,
+        base,
+        status: source.status,
+        level: openingUi.experience_level ?? "light",
+        issues,
+        warnings,
+      });
+      await validateUiHtmlExperience({ source: openingUi, file, projectRoot, base, status: source.status, kind: "opening", issues, warnings });
     }
     if (route === "regex_replace") {
       if (!marker) target.push(issue(`${base}/marker`, "opening_ui.marker", "正则替换路线必须声明首消息标记"));
@@ -1514,6 +1620,18 @@ async function validateUiSurfaceProducers(sources, projectRoot, assembly, openin
       const base = `/runtime/ui/${uiIndex}/status_ui/surfaces/${surfaceIndex}`;
       const route = surface?.render_route ?? "regex_replace";
       const marker = typeof surface?.marker === "string" ? surface.marker.trim() : "";
+      await validateUiAuthoringProject({
+        authoringMode: statusUi.authoring_mode ?? "direct_html",
+        manifest: surface?.app_manifest,
+        file: surface?.file,
+        projectRoot,
+        base,
+        status: uiSource.status,
+        level: statusUi.experience_level ?? "light",
+        issues,
+        warnings,
+      });
+      await validateUiHtmlExperience({ source: statusUi, file: surface?.file, projectRoot, base, status: uiSource.status, kind: "status", issues, warnings });
       if (route === "regex_replace") {
         if (!marker) { target.push(issue(`${base}/marker`, "ui.marker", "正则替换路线必须声明真实捕获标记或 XML 样例")); continue; }
         if (!displayPatterns.some((pattern) => regexMatchesMarker(pattern, marker))) target.push(issue(`${base}/marker`, "ui.marker_consumer", `UI 标记 ${marker} 没有对应 display 正则`));

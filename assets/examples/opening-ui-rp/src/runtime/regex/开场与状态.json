@@ -1,4 +1,0 @@
-[
-  {"id":"9c5d7e21-3f46-4a8d-b2e0-6f1a9c7d5e34","scriptName":"开场页","findRegex":"/<雨幕开场\\s*\\/>/g","replaceString":"","trimStrings":[],"placement":[2],"disabled":false,"markdownOnly":true,"promptOnly":false,"runOnEdit":true,"substituteRegex":0,"minDepth":null,"maxDepth":null},
-  {"id":"1b8f4d62-7e31-4c95-a0d2-5f6b9e3a7c18","scriptName":"持续状态页","findRegex":"/<雨幕状态\\s*\\/>/g","replaceString":"","trimStrings":[],"placement":[2],"disabled":false,"markdownOnly":true,"promptOnly":false,"runOnEdit":true,"substituteRegex":0,"minDepth":null,"maxDepth":null}
-]

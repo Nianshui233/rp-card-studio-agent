@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://rp-card-studio.local/schemas/status-ui.schema.json",
-  "title": "Direct Message UI Plan",
+  "title": "Message UI Application Plan",
   "type": "object",
   "additionalProperties": true,
   "required": ["schema_version", "status", "status_ui", "source_refs"],
@@ -32,6 +32,7 @@
               "name": { "type": "string", "minLength": 1 },
               "marker": { "type": "string", "minLength": 1 },
               "file": { "type": "string", "minLength": 1 },
+              "app_manifest": { "type": ["string", "null"] },
               "render_route": { "enum": ["regex_replace", "helper_script", "ejs", "inline_html", "framework", "existing"] },
               "render_ref": { "type": ["string", "null"] },
               "render_evidence": { "$ref": "#/$defs/stringArray" },

@@ -14,6 +14,7 @@ var SCHEMA_NAMES = Object.freeze([
   "mvu",
   "opening",
   "status-ui",
+  "ui-app",
   "assembly"
 ]);
 var ajv = new Ajv2020({ allErrors: true, strict: true, allowUnionTypes: true });

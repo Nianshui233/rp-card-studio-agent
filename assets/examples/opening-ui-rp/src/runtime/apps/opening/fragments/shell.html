@@ -1,0 +1,37 @@
+<main class="ledger" id="app">
+  <header class="hero">
+    <div><p class="eyebrow">RAIN CURTAIN INN · NIGHT REGISTER</p><h1>雨幕旅店</h1><p>暴雨封住了山路，也把彼此陌生的人留在同一栋旧屋里。</p></div>
+    <div class="weather"><strong>雨势 · 大</strong><span>灯火尚暖，空房三间</span></div>
+  </header>
+  <nav class="steps" aria-label="入住步骤">
+    <button class="step active" data-view="guide">旅店导览</button>
+    <button class="step" data-view="register">今夜登记</button>
+    <button class="step" data-view="preview">确认入夜</button>
+  </nav>
+  <section class="view active" id="view-guide">
+    <div class="feature-grid">
+      <article><b>住客自行生活</b><p>每个人都有自己的来处、目的、作息和不能明说的事。</p></article>
+      <article><b>雨夜持续变化</b><p>房门、走廊、厨房、马厩与后院会随着时间发生新的动静。</p></article>
+      <article><b>没有固定主线</b><p>可以交谈、观察、休息、调查，也可以只安静度过一个雨夜。</p></article>
+    </div>
+    <div class="notice"><b>游玩提示</b><p>开场页只负责导览和登记。进入故事后，持续状态页负责房态、住客和事件，不会反复显示本页。</p></div>
+    <button class="primary" data-next="register">开始登记</button>
+  </section>
+  <section class="view" id="view-register">
+    <div class="form-grid">
+      <label>姓名<input id="name" autocomplete="off"></label>
+      <label>入住房间<select id="room"><option>二楼临街房</option><option>二楼背院房</option><option>一楼灶间旁小室</option></select></label>
+      <label class="wide">今夜来意<textarea id="reason" rows="3"></textarea></label>
+      <label>与雨的关系<select id="rainMood"><option>只是躲雨</option><option>被雨困住</option><option>故意等雨</option><option>正在逃离什么</option></select></label>
+      <label>开场节奏<select id="pace"><option>安静观察</option><option>自然交谈</option><option>麻烦很快上门</option></select></label>
+    </div>
+    <div class="preset-row"><button data-preset="traveler">赶路人</button><button data-preset="messenger">寻信人</button><button data-preset="runaway">避事者</button></div>
+    <button class="primary" data-next="preview">查看登记结果</button>
+  </section>
+  <section class="view" id="view-preview">
+    <div class="preview-card"><div class="seal" id="monogram">林</div><div><h2 id="previewName">林砚</h2><p id="previewSummary"></p></div></div>
+    <pre id="xmlPreview"></pre>
+    <div class="actions"><button data-back="register">返回修改</button><button class="primary" id="confirm">确认并写入输入框</button></div>
+    <p class="feedback" id="feedback" role="status"></p>
+  </section>
+</main>

@@ -45,6 +45,7 @@ function commandNames() {
     "unpack",
     "validate",
     "build",
+    "ui-build",
     "pack",
     "diff",
     "roundtrip",

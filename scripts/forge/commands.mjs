@@ -1,4 +1,5 @@
 import { validateRuntimeSources } from '../rp-card-runtime.mjs';
+import { buildUiApp } from '../ui-app-builder.mjs';
 
 import { conflictError, inputError, integrityError, unsupportedError, validationError } from './errors.mjs';
 import { commitNewDirectory, commitWrites, planWrites, resolveWithin } from './fs-transaction.mjs';
@@ -62,6 +63,7 @@ export var HELP_TEXT = `rp-card-forge - 离线、事务式 SillyTavern 制卡工
   unpack <input> --nsfw <mode>       解包为可维护项目，保留原始输入与未知字段
   validate <input>                   校验项目或制品
   build <project-dir>                从源码构建 JSON 制品
+  ui-build <ui-app.yaml>             把模块化 HTML/CSS/JS 前端构建为自包含 HTML
   pack <project-dir>                 构建 JSON，或写入 PNG chara/ccv3 双块
   diff <left> <right>                比较语义 JSON
   roundtrip <input>                  验证 JSON/PNG 语义往返与 PNG 图像数据
@@ -94,6 +96,8 @@ export async function runCommand(command, args, options) {
       return commandValidate(args, options);
     case "build":
       return commandBuild(args, options);
+    case "ui-build":
+      return commandUiBuild(args, options);
     case "pack":
       return commandPack(args, options);
     case "diff":
@@ -386,6 +390,29 @@ async function validateLoadedProject(loaded) {
 async function commandBuild(args, options) {
   exactArgs("build", args, 1);
   return buildOrPack("build", args[0], options, false);
+}
+async function commandUiBuild(args, options) {
+  exactArgs("ui-build", args, 1);
+  const manifestPath = path.resolve(args[0]);
+  const result = await buildUiApp(manifestPath, {
+    output: options.output,
+    dryRun: Boolean(options["dry-run"]),
+  });
+  return successReport("ui-build", {
+    manifest: result.manifest,
+    output: result.output,
+    surface: result.surface,
+    experienceLevel: result.experienceLevel,
+    styles: result.styles,
+    scripts: result.scripts,
+    fragments: result.fragments,
+    mockState: result.mockState,
+    previewOutput: result.previewOutput,
+    previewBytes: result.previewBytes,
+    bytes: result.bytes,
+    sha256: result.sha256,
+    dryRun: result.dryRun,
+  }, [], result.dryRun ? [{ action: "plan", path: result.output }] : [{ action: "write", path: result.output }]);
 }
 async function commandPack(args, options) {
   exactArgs("pack", args, 1);

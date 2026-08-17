@@ -1,0 +1,21 @@
+:root {
+  --surface-page: #16191d;
+  --surface-panel: #20252b;
+  --surface-raised: #282f37;
+  --text-primary: #f3efe6;
+  --text-secondary: #b9b3a8;
+  --accent: #d69b55;
+  --accent-soft: rgba(214,155,85,.18);
+  --line: rgba(255,255,255,.12);
+  --danger: #d06b63;
+  --success: #76a979;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --motion-fast: 140ms;
+  --motion-normal: 240ms;
+}

@@ -1,0 +1,10 @@
+<main class="status-app" id="app">
+  <header class="status-head"><div><p class="eyebrow">RAIN CURTAIN INN</p><h1>夜间房态</h1></div><div class="sync" id="sync">等待读取</div></header>
+  <div class="weather-strip"><span id="time">深夜</span><span id="weather">暴雨</span><span id="location">二楼临街房</span><span id="noise">走廊有人经过</span></div>
+  <nav class="tabs"><button class="tab active" data-view="room">房态</button><button class="tab" data-view="guests">住客</button><button class="tab" data-view="events">事件</button></nav>
+  <section class="view active" id="view-room"><div class="metric-grid" id="roomMetrics"></div><article class="panel"><h2>眼下动静</h2><p id="situation"></p></article><div class="quick"><button data-action="环顾房间和窗外的雨势">环顾</button><button data-action="侧耳听走廊里的动静">倾听</button><button data-action="检查门窗和随身物品">检查</button><button data-action="熄灯休息一阵">休息</button></div></section>
+  <section class="view" id="view-guests"><label class="search">搜索住客<input id="guestSearch" type="search" placeholder="姓名、身份、关系或心事"></label><div id="guestList" class="card-list"></div></section>
+  <section class="view" id="view-events"><div id="eventList" class="timeline"></div></section>
+  <footer class="action-bar"><input id="customAction" placeholder="写下接下来想做的事"><button id="writeAction">写入输入框</button></footer>
+  <div class="toast" id="toast" role="status"></div>
+</main>

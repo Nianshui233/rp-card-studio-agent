@@ -1,0 +1,9 @@
+@media (max-width: 640px) {
+  .app-shell { width: calc(100% - 12px); margin: 6px auto; }
+  .app-header { align-items: flex-start; padding: var(--space-3); }
+  .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .action-dock { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

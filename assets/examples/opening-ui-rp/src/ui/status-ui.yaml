@@ -1,0 +1,50 @@
+schema_version: 2.0.0
+status: locked
+
+status_ui:
+  enabled: true
+  authoring_mode: multi_file_html
+  experience_level: light
+  theme_direction: "雨夜旅店房牌、灯火与住客簿"
+  device_priority: equal
+  surfaces:
+    - id: status
+      name: "雨幕旅店持续状态"
+      marker: "<雨幕状态/>"
+      app_manifest: "src/runtime/apps/status/ui-app.yaml"
+      file: "src/runtime/ui/状态页.html"
+      render_route: regex_replace
+      render_ref: null
+      render_evidence: ["模块化状态应用构建为完整 HTML"]
+      emission:
+        producer: model_output
+        cadence: every_assistant_message
+        source_ref: wb_rain_status_contract
+        evidence: ["常驻输出契约要求每轮末尾产生同一标记"]
+  data_sources:
+    - "非 MVU XML 状态块经项目解析层映射到 window.__RAIN_STATE__"
+  host_interactions:
+    - "把调查、交谈和休息行动写入 SillyTavern 输入框"
+  opening_relationship: separate
+  experience_evidence:
+    baseline:
+      navigation: ["房态、住客、事件三个内部视图"]
+      data_views: ["当前房间、天气、住客、事件和线索"]
+      information_tools: ["住客搜索与详情展开"]
+      host_actions: ["行动写入宿主输入框，失败时复制"]
+      feedback_states: ["加载、空态、成功、失败与复制回退"]
+      responsive_checks: ["窄屏双列转单列、中文长文本、减少动画"]
+      theme_features: ["雨线、暖灯、房牌与深色木墙"]
+      data_binding: ["真实运行读取 window.__RAIN_STATE__，预览读取隔离模拟状态"]
+    level_advancements:
+      usability: []
+      information_architecture: []
+      interaction_depth: []
+      visual_expression: []
+      host_integration: []
+      persistence_lifecycle: []
+    primary_play_surface: false
+  lifecycle_checks: ["重复渲染", "消息编辑", "Swipe", "聊天切换"]
+  runtime: not_run
+
+source_refs: []

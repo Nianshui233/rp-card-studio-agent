@@ -198,9 +198,32 @@ UI 阶段第一批必须确认配套 UI 的规模。等级衡量的是玩家端�
 
 技能内置样本只是体验与成熟规模的参照，不是代码配额。`experience_evidence` 用于复盘导航、数据、交互、反馈、响应式、主题与数据绑定，不按填写数量定级或阻断。正则替换是默认示例，但酒馆助手脚本、EJS、inline HTML、框架和既有路线同样允许，只校验项目实际选择的运行链。不要把外部样本路径写入 `source_refs` 或 `assembly.yaml`。
 
+用户选定的等级是交付下限，不是只写进 YAML 的标签。Forge 会读取实际 HTML 做功能面质量探针，检查导航、数据视图、信息工具、操作入口、反馈、响应式、宿主联动、数据读取和生命周期信号；不按文件字节或代码行数评分。锁定的中型/重型 UI 如果只是小面板、静态展示或无数据空壳，会阻断交付。
+
+MVU/Tavern Helper 消息前端还必须同时考虑当前 iframe 与父窗口的宿主全局。只读取 `window.Mvu`、但加载器实际把对象挂在 `window.parent.Mvu`，会让完整前端退化为加载/空态外壳；质量探针会单独报告这个作用域断链。
+
 不同技术路线的原创自包含夹具见 `assets/examples/README.md`，包括非 MVU XML、原生 MVU、MVU_ZOD、开场/持续 UI 分离、多功能消息表面和超重型独立前端。
 
 同一个功能面应尽量保持在一份完整 HTML 中，通过页签、抽屉、弹窗等组织。不要为了“组件化”拆成几十条互不连贯的小正则。
+
+这里的“一份完整 HTML”指最终运行制品，不是开发时必须把所有内容塞进一个文件。技能现在默认把开场前端和持续状态前端当作真正浏览器应用开发：HTML 结构、CSS 视觉层、JavaScript 状态/渲染/交互、宿主适配和模拟数据分别维护，完成浏览器与真实宿主验收后，再用 `ui-build` 拼成一个自包含 HTML。
+
+```text
+src/runtime/apps/status/
+├─ ui-app.yaml
+├─ index.html
+├─ fragments/
+├─ styles/
+├─ scripts/
+└─ mock/state.json
+
+src/runtime/ui/
+└─ 状态界面.html          # 构建产物，供正则/装配使用
+```
+
+`multi_file_html` 模式下，`app_manifest` 指向开发清单，`file` 指向构建结果。Forge 会检查构建结果是否过期。中型及以上默认使用完整模拟状态先检查满数据、空态、错误态、长中文、多人物和多事件，模拟数据不会在真实运行时冒充当前楼层状态。详细契约见 `references/ui-app-authoring.md`。
+
+可复制的原创工程骨架位于 `assets/templates/ui-app/`。它只提供应用结构和宿主桥接范式；主题、页面、组件和交互必须根据当前 RP 项目重新设计。
 
 玩家端验收重点包括：中文字段映射、CJK 排版、窄屏、触控、软键盘、空数据、长文本、错误反馈、按钮响应、编辑、Swipe、重载和聊天切换。
 
@@ -221,6 +244,7 @@ UI 阶段第一批必须确认配套 UI 的规模。等级衡量的是玩家端�
 │  │  ├─ mvu/
 │  │  ├─ ejs/
 │  │  ├─ scripts/
+│  │  ├─ apps/              # 模块化开场/状态前端源码
 │  │  └─ ui/
 │  └─ integration/assembly.yaml
 ├─ dist/
@@ -238,6 +262,7 @@ node scripts/rp-card-forge.bundle.mjs init <项目目录> --nsfw enabled --stage
 node scripts/rp-card-forge.bundle.mjs inspect <JSON或PNG>
 node scripts/rp-card-forge.bundle.mjs unpack <JSON或PNG> --output <项目目录> --nsfw disabled
 node scripts/rp-card-forge.bundle.mjs validate <项目目录>
+node scripts/rp-card-forge.bundle.mjs ui-build <项目目录>/src/runtime/apps/status/ui-app.yaml
 node scripts/rp-card-forge.bundle.mjs build <项目目录>
 node scripts/rp-card-forge.bundle.mjs roundtrip <JSON或PNG>
 node scripts/rp-card-forge.bundle.mjs state <项目目录> show
@@ -250,6 +275,7 @@ Forge 的职责：
 - 校验项目、世界书调度、正则和制品格式；
 - 保留未知导入字段和用户已有扩展；
 - 原样装配完整 HTML/JS/EJS；
+- 把模块化 HTML/CSS/JS/片段构建为自包含 HTML，并检查源码与制品是否一致；
 - 稳定分配 CharacterBook ID；
 - 验证 JSON/PNG 往返。
 

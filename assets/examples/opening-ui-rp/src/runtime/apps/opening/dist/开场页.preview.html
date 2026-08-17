@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>雨幕旅店 · 今夜登记</title>
+  <style>
+/* ===== style: styles/tokens.css ===== */
+:root {
+  --night: #111820;
+  --wood: #2a2322;
+  --panel: #302927;
+  --paper: #eee2cc;
+  --ink: #211b19;
+  --cream: #f6ead5;
+  --muted: #b9aa98;
+  --amber: #dfa45f;
+  --amber-soft: rgba(223,164,95,.16);
+  --blue: #6f91a4;
+  --line: rgba(255,255,255,.14);
+  --danger: #cf776e;
+  --success: #89aa7a;
+  --radius: 14px;
+  --space-1: 5px;
+  --space-2: 9px;
+  --space-3: 14px;
+  --space-4: 20px;
+}
+
+/* ===== style: styles/app.css ===== */
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body { padding: 14px; color: var(--cream); background: radial-gradient(circle at 50% -10%, #31404a, var(--night) 48%), var(--night); font: 15px/1.7 "Microsoft YaHei", "Noto Sans SC", sans-serif; }
+body::before { content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .25; background: repeating-linear-gradient(105deg, transparent 0 18px, rgba(160,200,220,.15) 19px, transparent 20px); }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.ledger { width: min(900px, 100%); margin: auto; border: 1px solid #725b4a; border-radius: var(--radius); overflow: hidden; background: linear-gradient(145deg, rgba(47,39,37,.98), rgba(24,24,29,.98)); box-shadow: 0 16px 48px rgba(0,0,0,.38); }
+.hero { display: grid; grid-template-columns: 1fr auto; gap: var(--space-4); padding: 26px 28px; border-bottom: 1px solid var(--line); background: linear-gradient(110deg, rgba(21,28,35,.96), rgba(64,43,32,.9)); }
+.eyebrow { margin: 0 0 5px; color: var(--amber); font-size: 10px; letter-spacing: 3px; }
+.hero h1 { margin: 0; color: var(--amber); font: 700 34px/1.25 "STKaiti", "KaiTi", serif; letter-spacing: 6px; }
+.hero p { margin: 8px 0 0; color: #d8cbbd; }
+.weather { min-width: 180px; align-self: center; border: 1px solid rgba(223,164,95,.4); padding: 12px 14px; background: rgba(10,14,18,.42); }
+.weather strong, .weather span { display: block; }.weather strong { color: var(--amber); }.weather span { margin-top: 4px; color: var(--muted); font-size: 12px; }
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); }
+.step { min-height: 50px; border: 0; color: var(--muted); background: #262326; }
+.step:hover, .step.active { color: var(--amber); background: var(--amber-soft); }
+.view { display: none; padding: 24px 28px 28px; }.view.active { display: block; animation: rise .22s ease-out; }
+@keyframes rise { from { opacity: 0; transform: translateY(7px); } }
+.feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.feature-grid article, .notice, .preview-card { border: 1px solid var(--line); border-radius: 10px; background: rgba(255,255,255,.035); padding: 16px; }
+.feature-grid b, .notice b { color: var(--amber); }.feature-grid p, .notice p { margin: 6px 0 0; color: #c9bcae; font-size: 13px; }
+.notice { margin: 12px 0 18px; border-left: 3px solid var(--blue); }
+.primary, .actions button, .preset-row button { border: 1px solid var(--amber); border-radius: 8px; padding: 9px 15px; color: var(--cream); background: transparent; }
+.primary { color: #211912; background: var(--amber); }
+.form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 13px; }
+.form-grid label { display: grid; gap: 5px; color: #d8c8b6; }.form-grid .wide { grid-column: 1 / -1; }
+input, select, textarea { width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: 8px; color: var(--cream); background: #17181d; padding: 10px 11px; }
+textarea { resize: vertical; }
+.preset-row { display: flex; gap: 7px; flex-wrap: wrap; margin: 14px 0; }.preset-row button { padding: 6px 11px; color: var(--muted); border-color: var(--line); }.preset-row button:hover { color: var(--amber); border-color: var(--amber); }
+.preview-card { display: grid; grid-template-columns: 72px 1fr; gap: 14px; align-items: center; }
+.seal { width: 66px; height: 66px; display: grid; place-items: center; border: 2px solid var(--amber); border-radius: 50%; color: var(--amber); font: 700 26px/1 "STKaiti", "KaiTi", serif; }
+.preview-card h2 { margin: 0; color: var(--amber); }.preview-card p { margin: 5px 0 0; color: #cfc1b0; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--line); border-radius: 10px; background: #14161a; color: #c6d4d8; padding: 14px; }
+.actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.feedback { min-height: 1.6em; color: var(--amber); }.feedback.error { color: var(--danger); }.feedback.success { color: var(--success); }
+
+/* ===== style: styles/responsive.css ===== */
+@media (max-width: 640px) {
+  body { padding: 6px; }
+  .hero { grid-template-columns: 1fr; padding: 19px 16px; }
+  .weather { min-width: 0; }
+  .hero h1 { font-size: 28px; }
+  .view { padding: 18px 14px 22px; }
+  .feature-grid, .form-grid { grid-template-columns: 1fr; }
+  .form-grid .wide { grid-column: auto; }
+  .steps { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+</style>
+</head>
+<body>
+  <!-- fragment:APP_SHELL -->
+<main class="ledger" id="app">
+  <header class="hero">
+    <div><p class="eyebrow">RAIN CURTAIN INN · NIGHT REGISTER</p><h1>雨幕旅店</h1><p>暴雨封住了山路，也把彼此陌生的人留在同一栋旧屋里。</p></div>
+    <div class="weather"><strong>雨势 · 大</strong><span>灯火尚暖，空房三间</span></div>
+  </header>
+  <nav class="steps" aria-label="入住步骤">
+    <button class="step active" data-view="guide">旅店导览</button>
+    <button class="step" data-view="register">今夜登记</button>
+    <button class="step" data-view="preview">确认入夜</button>
+  </nav>
+  <section class="view active" id="view-guide">
+    <div class="feature-grid">
+      <article><b>住客自行生活</b><p>每个人都有自己的来处、目的、作息和不能明说的事。</p></article>
+      <article><b>雨夜持续变化</b><p>房门、走廊、厨房、马厩与后院会随着时间发生新的动静。</p></article>
+      <article><b>没有固定主线</b><p>可以交谈、观察、休息、调查，也可以只安静度过一个雨夜。</p></article>
+    </div>
+    <div class="notice"><b>游玩提示</b><p>开场页只负责导览和登记。进入故事后，持续状态页负责房态、住客和事件，不会反复显示本页。</p></div>
+    <button class="primary" data-next="register">开始登记</button>
+  </section>
+  <section class="view" id="view-register">
+    <div class="form-grid">
+      <label>姓名<input id="name" autocomplete="off"></label>
+      <label>入住房间<select id="room"><option>二楼临街房</option><option>二楼背院房</option><option>一楼灶间旁小室</option></select></label>
+      <label class="wide">今夜来意<textarea id="reason" rows="3"></textarea></label>
+      <label>与雨的关系<select id="rainMood"><option>只是躲雨</option><option>被雨困住</option><option>故意等雨</option><option>正在逃离什么</option></select></label>
+      <label>开场节奏<select id="pace"><option>安静观察</option><option>自然交谈</option><option>麻烦很快上门</option></select></label>
+    </div>
+    <div class="preset-row"><button data-preset="traveler">赶路人</button><button data-preset="messenger">寻信人</button><button data-preset="runaway">避事者</button></div>
+    <button class="primary" data-next="preview">查看登记结果</button>
+  </section>
+  <section class="view" id="view-preview">
+    <div class="preview-card"><div class="seal" id="monogram">林</div><div><h2 id="previewName">林砚</h2><p id="previewSummary"></p></div></div>
+    <pre id="xmlPreview"></pre>
+    <div class="actions"><button data-back="register">返回修改</button><button class="primary" id="confirm">确认并写入输入框</button></div>
+    <p class="feedback" id="feedback" role="status"></p>
+  </section>
+</main>
+
+<!-- /fragment:APP_SHELL -->
+  <script>
+window.__RP_UI_MOCK__ = {"name":"林砚","room":"二楼临街房","reason":"躲雨并寻找一名失踪的信使","rainMood":"被雨困住","pace":"自然交谈"};
+</script>
+<script>
+(() => {
+"use strict";
+/* ===== script: scripts/state.js ===== */
+const AppState = {
+  currentView: "guide",
+  form: { name: "林砚", room: "二楼临街房", reason: "躲雨并寻找一名失踪的信使", rainMood: "被雨困住", pace: "自然交谈" },
+};
+
+function escapeXml(value) {
+  return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+}
+
+function collectForm() {
+  AppState.form = {
+    name: document.querySelector("#name").value.trim() || "无名旅客",
+    room: document.querySelector("#room").value,
+    reason: document.querySelector("#reason").value.trim() || "只为躲雨",
+    rainMood: document.querySelector("#rainMood").value,
+    pace: document.querySelector("#pace").value,
+  };
+  return AppState.form;
+}
+
+function buildUserBlock() {
+  const form = collectForm();
+  return `<雨幕创角>\nname: ${escapeXml(form.name)}\nroom: ${escapeXml(form.room)}\nreason: ${escapeXml(form.reason)}\nrain_mood: ${escapeXml(form.rainMood)}\nopening_pace: ${escapeXml(form.pace)}\n</雨幕创角>`;
+}
+
+/* ===== script: scripts/host-adapter.js ===== */
+const Host = {
+  writeInput(text) {
+    try {
+      const input = window.parent?.document?.getElementById("send_textarea");
+      if (input) { input.value = text; input.focus(); return { ok: true, route: "textarea" }; }
+    } catch {}
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+      return { ok: false, route: "clipboard" };
+    }
+    return { ok: false, route: "manual" };
+  },
+};
+
+/* ===== script: scripts/render.js ===== */
+function showView(name) {
+  AppState.currentView = name;
+  document.querySelectorAll(".view,.step").forEach(node => node.classList.remove("active"));
+  document.querySelector(`#view-${name}`)?.classList.add("active");
+  document.querySelector(`.step[data-view="${name}"]`)?.classList.add("active");
+  if (name === "preview") renderPreview();
+}
+
+function renderPreview() {
+  const form = collectForm();
+  document.querySelector("#monogram").textContent = form.name.charAt(0) || "客";
+  document.querySelector("#previewName").textContent = form.name;
+  document.querySelector("#previewSummary").textContent = `${form.room} · ${form.rainMood} · ${form.pace}。今夜来意：${form.reason}`;
+  document.querySelector("#xmlPreview").textContent = buildUserBlock();
+}
+
+function applyPreset(name) {
+  const presets = {
+    traveler: { reason: "赶了一整日山路，只想找个地方躲雨歇脚", rainMood: "只是躲雨", pace: "安静观察" },
+    messenger: { reason: "寻找一名失踪的信使和他最后送出的信", rainMood: "故意等雨", pace: "自然交谈" },
+    runaway: { reason: "不愿说明来处，只想在天亮前避开追索", rainMood: "正在逃离什么", pace: "麻烦很快上门" },
+  };
+  const preset = presets[name];
+  if (!preset) return;
+  document.querySelector("#reason").value = preset.reason;
+  document.querySelector("#rainMood").value = preset.rainMood;
+  document.querySelector("#pace").value = preset.pace;
+}
+
+/* ===== script: scripts/interactions.js ===== */
+document.addEventListener("click", event => {
+  const view = event.target.closest("[data-view]")?.dataset.view;
+  const next = event.target.closest("[data-next]")?.dataset.next;
+  const back = event.target.closest("[data-back]")?.dataset.back;
+  const preset = event.target.closest("[data-preset]")?.dataset.preset;
+  if (view) showView(view);
+  if (next) showView(next);
+  if (back) showView(back);
+  if (preset) applyPreset(preset);
+});
+
+document.querySelector("#confirm").addEventListener("click", () => {
+  const feedback = document.querySelector("#feedback");
+  const text = buildUserBlock();
+  const result = Host.writeInput(text);
+  feedback.className = `feedback ${result.ok ? "success" : ""}`;
+  feedback.textContent = result.ok ? "主控设定块已写入酒馆输入框，请检查后发送。" : result.route === "clipboard" ? "无法直接访问输入框，设定块已复制，请粘贴发送。" : `无法自动写入，请手动复制上方设定块。`;
+});
+
+/* ===== script: scripts/bootstrap.js ===== */
+function bootstrap() {
+  const mock = window.__RP_UI_MOCK__;
+  if (mock && typeof mock === "object") Object.assign(AppState.form, mock);
+  document.querySelector("#name").value = AppState.form.name;
+  document.querySelector("#room").value = AppState.form.room;
+  document.querySelector("#reason").value = AppState.form.reason;
+  document.querySelector("#rainMood").value = AppState.form.rainMood;
+  document.querySelector("#pace").value = AppState.form.pace;
+  showView("guide");
+}
+bootstrap();
+})();
+</script>
+</body>
+</html>

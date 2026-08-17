@@ -62,7 +62,7 @@ runtime_manifest:
   extension_fields: {}
 ```
 
-Forge 只读取文件内容并填入 `replaceString` / `content`。不得把这些源码再次转换成通用 UI、额外运行层、合成 EJS 条目或固定正则组。
+模块化 UI 先按 `ui-app.yaml` 执行 `rp-card-forge ui-build`，得到项目专属的自包含 HTML；随后 Forge 只读取该构建结果并填入 `replaceString` / `content`。不得把这些源码再次转换成通用 UI、额外运行层、合成 EJS 条目或固定正则组。
 
 EJS 文件通常通过 `worldbook_manifest.entries[].source.kind: file` 放进明确的世界书条目。MVU 初始变量必须由名称含 `[initvar]` 的真实文件条目装入；更新规则和输出格式也进入各自明确目标。具体启用与路由由目标实现决定。
 
@@ -99,14 +99,15 @@ Forge 负责第 1 项并写出第 3 项的目标名称，但标准角色卡 JSON
 
 ## 构建纪律
 
-1. 从 `src/` 构建候选；
-2. 校验 YAML/JSON/JS/EJS/HTML/正则语法和引用；
-3. 检查 CharacterBook ID、顺序、触发和递归；
-4. 检查实际扩展字段结构、脚本启用状态和依赖；
-5. 重新打开产物，确认大段 HTML/JS/EJS 未被截断或重写；
-6. 需要 PNG 时再将已通过的 JSON 嵌入图像；
-7. 在真实 SillyTavern 中导入内嵌 CharacterBook、确认角色主世界书已挂载，再验证首聊、变量、正则、UI、按钮与生命周期；
-8. 没有实机只声明候选与 `runtime: not_run`。
+1. 先构建所有 `multi_file_html` 前端，确认不存在 `ui.app_stale`；
+2. 从 `src/` 构建候选；
+3. 校验 YAML/JSON/JS/EJS/HTML/正则语法和引用；
+4. 检查 CharacterBook ID、顺序、触发和递归；
+5. 检查实际扩展字段结构、脚本启用状态和依赖；
+6. 重新打开产物，确认大段 HTML/JS/EJS 未被截断或重写；
+7. 需要 PNG 时再将已通过的 JSON 嵌入图像；
+8. 在真实 SillyTavern 中导入内嵌 CharacterBook、确认角色主世界书已挂载，再验证首聊、变量、正则、UI、按钮与生命周期；
+9. 没有实机只声明候选与 `runtime: not_run`。
 
 ## 完成门槛
 

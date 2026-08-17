@@ -1,0 +1,56 @@
+schema_version: 2.0.0
+status: locked
+
+narrative:
+  point_of_view: "第三人称有限视角"
+  pacing: "雨夜慢节奏，事件随住客行动自然推进"
+  prose_and_dialogue: "环境声、人物动作与简洁对白并重"
+  npc_and_world_initiative: ["旅店住客有自己的行程、秘密与冲突"]
+  never_decide_for_user_character: ["不替主控决定行动、想法或台词"]
+  information_policy: ["只呈现当前可见、可听或已经获得的信息"]
+  reply_handoff: "以正在变化的现场收束"
+
+opening_ui:
+  enabled: true
+  authoring_mode: multi_file_html
+  app_manifest: "src/runtime/apps/opening/ui-app.yaml"
+  marker: "<雨幕开场/>"
+  file: "src/runtime/ui/开场页.html"
+  render_route: regex_replace
+  render_ref: null
+  render_evidence: ["模块化开场应用构建为完整 HTML"]
+  opening_id: default
+  experience_level: medium
+  theme_direction: "旧旅店、雨夜登记簿与暖灯"
+  device_priority: equal
+  journey: "阅读导览 → 选择来意 → 填写身份 → 预览设定块 → 写入酒馆输入框"
+  fallback: "界面失效时仍显示可直接复制的主控设定块"
+  runtime: not_run
+
+creation_bridge:
+  enabled: true
+  input_fields:
+    - { id: name, label: 姓名, type: text, required: true }
+    - { id: room, label: 入住房间, type: text, required: true }
+    - { id: reason, label: 今夜来意, type: text, required: false }
+  bindings:
+    - { input: name, targets: { user_entry: "profile.name" }, transform: text }
+    - { input: room, targets: { user_entry: "profile.entry_point.location" }, transform: text }
+    - { input: reason, targets: { user_entry: "profile.entry_point.current_activity" }, transform: text }
+  commit:
+    route: user_message
+    marker: "<雨幕创角>"
+    source_file: "src/runtime/apps/opening/scripts/host-adapter.js"
+    api_ref: null
+    readback: "预览中的姓名、房间和来意与写入输入框的 XML 块一致"
+    failure_fallback: "保留表单并显示完整可复制文本"
+
+openings:
+  - id: default
+    display_name: "雨夜入住"
+    is_default: true
+    visible_text: "<雨幕开场/>"
+    prompt_visible_text: "暴雨中的旅店正在接纳今夜来客，等待实际主控设定后开始。"
+
+dialogue_examples: []
+source_refs: []

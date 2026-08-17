@@ -21,8 +21,10 @@ test("runtime stages require actual source instead of proprietary generators", (
   assert.match(mvu, /\.ejs/);
   assert.match(mvu, /不在实际实现之外追加第二套合成校验层/);
   assert.match(ui, /完整 HTML 文档/);
-  assert.match(ui, /不要把 HTML 重新拆成 `ui\.yaml \+ theme\.yaml \+ components\/\*\.yaml`/);
-  assert.match(integration, /Forge 只读取文件内容并填入 `replaceString` \/ `content`/);
+  assert.match(ui, /源码应像真正浏览器应用一样按结构、视觉系统、布局、组件、动效、状态、渲染、交互和宿主适配拆分/);
+  assert.match(ui, /rp-card-forge ui-build/);
+  assert.match(skill, /single file is the deployment artifact, not the development method/);
+  assert.match(integration, /随后 Forge 只读取该构建结果并填入 `replaceString` \/ `content`/);
   assert.doesNotMatch(skill, /generic `ui\.yaml` component compiler as the default authoring route[\s\S]*legacy_generated/);
 });
 

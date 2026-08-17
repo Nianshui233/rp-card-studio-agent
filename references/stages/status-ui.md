@@ -2,6 +2,8 @@
 
 本阶段只创作进入RP后的持续消息前端：状态、物品、关系、任务、地图、线索、调查、通知和交互工具。首条消息的项目介绍、路线选择和创角前端已经属于“叙事与开场”阶段，不在这里重复设计。
 
+本阶段默认采用[模块化浏览器前端应用工作流](../ui-app-authoring.md)：开发时拆分 HTML、CSS、JavaScript、宿主适配和模拟数据，验收后再构建成一份完整、自包含的消息 HTML。
+
 ## 第一批必须问
 
 > 进入游戏后的持续状态/功能 UI 希望做到轻型、轻中型、中型、重型还是超重型？
@@ -19,6 +21,8 @@
 | 超重型 | 独立前端/0层游玩应用；完整继承前述能力，消息 HTML 成为主要游玩表面，并具备应用级路由、状态管理、持久化、复杂宿主协作与完整生命周期。 |
 
 等级不规定页数、字段数、正则数、文件字节或代码行数。技能内置样本只是帮助理解其成熟规模，不是生成配额；轻型不能用短代码和静态假数据降级，超重型也不能用堆代码冒充体验。后续每一档都必须说明相对轻型基线真正新增了哪些玩家功能、交互、便利性、视觉演出或宿主联动。
+
+用户选定的等级是最终交付下限，不是可以只写进 YAML 的标签。锁定阶段前必须读取实际 HTML，确认功能面真实存在。Forge 会做一轮静态质量探针，检查导航、数据视图、信息工具、操作入口、反馈、响应式、宿主联动、数据读取和生命周期信号；它不按字节或行数评分。声明为中型/重型却只有小面板、静态展示或空壳时，锁定阶段会阻断。
 
 ## 体验证据用于复盘，不是填表门禁
 
@@ -43,40 +47,51 @@
 
 开场与持续 UI 默认职责分离，但可以通过 `opening_relationship: shared_source / opening_to_runtime / unified_zero_layer` 明确共享源码、开场转运行或0层统一应用。
 
-## 先定功能面，不拆碎组件
+## 先定完整功能面，再拆分开发源码
 
 通常优先形成一份完整的持续状态应用：在一个统一界面内承载本项目需要的状态、任务、物品、关系、情报、地图、调查、事件等内部页面。检定结果、临时选项、通知等仅在生命周期不同且独立出现时再拆成单独正则。
 
 不要把一个功能页里的每张卡片、标签或按钮各自做成独立 HTML/正则，也不要把首楼介绍/创角应用作为一个 `status_ui.surface` 混进来。
 
+这不等于要求开发期间只能维护一个巨型 HTML。源码应像真正浏览器应用一样按结构、视觉系统、布局、组件、动效、状态、渲染、交互和宿主适配拆分；“不拆碎”约束的是最终消息表面和正则职责，不是源码工程。
+
 ## 维护源码
 
-推荐：
+默认推荐：
 
 ```text
+src/runtime/apps/status/
+  ui-app.yaml
+  index.html
+  fragments/
+  styles/
+  scripts/
+  mock/state.json
+
 src/runtime/ui/
-  状态界面.html
-  检定结果.html          # 仅按需
+  状态界面.html          # ui-build 生成的完整运行制品
+  检定结果.html          # 生命周期独立时才另建应用/制品
 ```
 
-每份是完整 HTML 文档或可构建为完整文档的小项目，通常包含：
+`status_ui.authoring_mode` 默认使用 `multi_file_html`；每个 surface 同时记录开发清单和运行制品：
 
-```html
-<!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <style>/* 项目专属完整样式 */</style>
-</head>
-<body>
-  <!-- 一个功能面内的全部页面与组件 -->
-  <script type="module">/* 真实交互、数据读取和宿主联动 */</script>
-</body>
-</html>
+```yaml
+status_ui:
+  authoring_mode: multi_file_html
+  surfaces:
+    - id: status
+      name: "持续状态界面"
+      app_manifest: "src/runtime/apps/status/ui-app.yaml"
+      file: "src/runtime/ui/状态界面.html"
 ```
 
-不要把 HTML 重新拆成 `ui.yaml + theme.yaml + components/*.yaml` 再由通用代码合成。确有现成前端工程时可以编译，但构建产物必须是项目专属完整 HTML，而不是通用模板。
+运行 `rp-card-forge ui-build <ui-app.yaml>` 把源码构建到 `file`。锁定阶段或角色卡构建前，源码和运行制品必须一致；只改 CSS/JS 却忘记重建会报告 `ui.app_stale`。
+
+构建结果必须是一份完整 HTML 文档，包含实际结构、内联样式和内联脚本；角色卡装配只读取这份运行制品。
+
+不要退回 `ui.yaml + theme.yaml + components/*.yaml` 这种抽象配置生成器。这里拆分的是实际 HTML/CSS/JS 源码，每一层都由模型直接创作。已有 Vite/React/Vue/Svelte 工程可以使用 `compiled_frontend`，但默认的轻型至重型无需为了形式强行引入框架。
+
+中型及以上默认制作完整模拟状态，先在普通浏览器里查看满数据、多人物、多事件、长中文、空态和错误态，再接入真实 MVU/Tavern Helper。模拟数据只能用于开发预览，不能在真实运行时伪装成当前楼层状态。
 
 ## 数据与运行链
 
@@ -92,6 +107,8 @@ src/runtime/ui/
 ```
 
 MVU 状态栏通常等待 `Mvu` 就绪，再用 `Mvu.getMvuData({ type: 'message', message_id: getCurrentMessageId() })` 读取当前楼层 `stat_data`，并监听目标版本的实际更新事件。`display_data` / `delta_data` 在当前 MVU 源码中已标为 deprecated，不作为新 UI 的唯一数据源。非 MVU 状态栏可捕获模型输出的稳定状态块。不要让正则凭空“把变量变成 HTML”，也不要把示例初值硬编码成运行数据。
+
+消息 iframe 中的全局对象可能位于当前 `window`，也可能只位于 `window.parent`。MVU/Tavern Helper UI 必须建立能力桥：安全探测当前窗口和父窗口，选择实际存在的 `Mvu`、`TavernHelper`、`eventOn` 与楼层 API。只写 `window.Mvu`、只写 `window.getCurrentMessageId`，而项目运行契约又声明对象挂在父窗口，会使完整 UI 退化为加载框、空态或无数据外壳。
 
 ## 标记生产链
 
@@ -137,6 +154,7 @@ Forge 会检查生产者、标记和正则消费者是否闭合。只有 HTML �
 - 持续状态功能面、内部导航和进入RP后的用户旅程清楚；
 - 没有把首条介绍、路线选择或创角前端混进 `status_ui.surfaces`；
 - 实际 HTML/CSS/JS 已生成，而非只有组件配置；
+- 模块化模式下 `app_manifest`、开发源码和 `file` 构建结果一致，且已用模拟满数据进行浏览器验收；
 - 所有可见字段都有真实数据来源和中文显示映射；
 - 所有按钮有真实处理、反馈和失败状态；
 - 正则触发标记、提示词分离和宿主依赖明确；

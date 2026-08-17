@@ -4,6 +4,8 @@ import { join } from "node:path";
 import test from "node:test";
 import YAML from "yaml";
 
+import { inspectUiApp } from "../scripts/ui-app-builder.mjs";
+
 const root = join(process.cwd(), "assets", "examples", "self-contained-rp");
 const sampleRoots = [
   "self-contained-rp",
@@ -77,7 +79,42 @@ test("the sample matrix stays self-contained and free of external URLs", async (
       const text = await readFile(file, "utf8");
       assert.doesNotMatch(text, /https?:\/\//i, file);
       assert.doesNotMatch(text, /我，非我|尸变纪元|呕吐内心的少女|二十一人会/, file);
-      if (file.endsWith(".html")) assert.match(text, /<!doctype html>/i, file);
+      if (file.endsWith(".html") && !file.includes(`${join("fragments", "")}`)) assert.match(text, /<!doctype html>/i, file);
+      if (file.endsWith(".html") && file.includes(`${join("fragments", "")}`)) assert.match(text, /<(?:main|section|article|div)\b/i, file);
     }
   }
+});
+
+test("opening/status separation sample is a reproducible modular double application", async () => {
+  const sample = join(process.cwd(), "assets", "examples", "opening-ui-rp");
+  const openingManifest = join(sample, "src", "runtime", "apps", "opening", "ui-app.yaml");
+  const statusManifest = join(sample, "src", "runtime", "apps", "status", "ui-app.yaml");
+  const openingOutput = join(sample, "src", "runtime", "ui", "开场页.html");
+  const statusOutput = join(sample, "src", "runtime", "ui", "状态页.html");
+  const opening = await inspectUiApp(openingManifest, openingOutput);
+  const status = await inspectUiApp(statusManifest, statusOutput);
+  assert.equal(opening.outputMatches, true);
+  assert.equal(status.outputMatches, true);
+  assert.ok(opening.mockState);
+  assert.ok(status.mockState);
+
+  const openingHtml = await readFile(openingOutput, "utf8");
+  const statusHtml = await readFile(statusOutput, "utf8");
+  assert.doesNotMatch(openingHtml, /window\.__RP_UI_MOCK__\s*=/);
+  assert.doesNotMatch(statusHtml, /window\.__RP_UI_MOCK__\s*=/);
+  const openingPreview = await readFile(join(sample, "src", "runtime", "apps", "opening", "dist", "开场页.preview.html"), "utf8");
+  const statusPreview = await readFile(join(sample, "src", "runtime", "apps", "status", "dist", "状态页.preview.html"), "utf8");
+  assert.match(openingPreview, /window\.__RP_UI_MOCK__\s*=/);
+  assert.match(statusPreview, /window\.__RP_UI_MOCK__\s*=/);
+
+  const openingPlan = YAML.parse(await readFile(join(sample, "src", "opening.yaml"), "utf8"));
+  const statusPlan = YAML.parse(await readFile(join(sample, "src", "ui", "status-ui.yaml"), "utf8"));
+  assert.equal(openingPlan.opening_ui.authoring_mode, "multi_file_html");
+  assert.equal(statusPlan.status_ui.authoring_mode, "multi_file_html");
+  assert.equal(statusPlan.status_ui.surfaces[0].app_manifest, "src/runtime/apps/status/ui-app.yaml");
+
+  const assembly = YAML.parse(await readFile(join(sample, "assembly.yaml"), "utf8"));
+  assert.ok(assembly.runtime_manifest.regex_scripts.some(item => item.replace_file === "src/runtime/ui/开场页.html"));
+  assert.ok(assembly.runtime_manifest.regex_scripts.some(item => item.replace_file === "src/runtime/ui/状态页.html"));
+  assert.ok(assembly.worldbook_manifest.entries.some(item => item.id === "wb_rain_status_contract"));
 });

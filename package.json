@@ -11,7 +11,7 @@
     "build:forge": "node scripts/build-forge.mjs",
     "check:forge": "node scripts/build-forge.mjs --check",
     "test": "node --test tests/*.test.mjs",
-    "verify": "npm run check:forge && node --check scripts/rp-card-runtime.mjs && node --check scripts/rp-card-forge.bundle.mjs && node scripts/rp-card-forge.bundle.mjs doctor --json && npm test"
+    "verify": "npm run check:forge && node --check scripts/ui-app-builder.mjs && node --check scripts/rp-card-runtime.mjs && node --check scripts/rp-card-forge.bundle.mjs && node scripts/rp-card-forge.bundle.mjs doctor --json && npm test"
   },
   "devDependencies": {
     "ajv": "8.20.0",

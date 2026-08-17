@@ -1,0 +1,11 @@
+.app-shell { width: min(920px, calc(100% - 20px)); margin: 10px auto; border: 1px solid var(--line); background: var(--surface-panel); }
+.app-header { display: flex; justify-content: space-between; gap: var(--space-4); align-items: center; padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--line); }
+.eyebrow { margin-bottom: var(--space-1); color: var(--accent); font-size: 11px; letter-spacing: 3px; }
+.app-header h1 { margin-bottom: 0; font-size: 24px; }
+.app-nav { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); }
+.view { display: none; padding: var(--space-4); }
+.view.active { display: block; animation: view-in var(--motion-normal) ease-out; }
+.metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); margin-bottom: var(--space-3); }
+.card-list { display: grid; gap: var(--space-2); }
+.action-dock { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-top: 1px solid var(--line); }
+@keyframes view-in { from { opacity: 0; transform: translateY(6px); } }

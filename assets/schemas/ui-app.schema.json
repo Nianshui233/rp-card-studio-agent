@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rp-card-studio.local/schemas/ui-app.schema.json",
+  "title": "Modular Browser UI Application",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "ui_app"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "ui_app": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "surface", "experience_level", "entry_html", "styles", "scripts", "output"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+        "surface": { "enum": ["opening", "status", "message_tool", "zero_layer"] },
+        "experience_level": { "enum": ["light", "light_medium", "medium", "heavy", "super_heavy"] },
+        "entry_html": { "type": "string", "minLength": 1 },
+        "styles": { "$ref": "#/$defs/nonEmptyStringArray" },
+        "scripts": { "$ref": "#/$defs/nonEmptyStringArray" },
+        "fragments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["slot", "file"],
+            "properties": {
+              "slot": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+$" },
+              "file": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "mock_state": { "type": ["string", "null"] },
+        "preview_output": { "type": ["string", "null"] },
+        "script_wrapper": { "enum": ["iife", "none"] },
+        "output": { "type": "string", "minLength": 1 }
+      }
+    }
+  },
+  "$defs": {
+    "nonEmptyStringArray": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

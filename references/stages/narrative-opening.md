@@ -2,6 +2,8 @@
 
 本阶段写实际叙事规则、示例、可游玩的开场，以及首条消息承载的项目介绍/路线选择/创角前端。开场前端属于开场体验，不属于后续状态栏阶段；它不替用户角色做决定。
 
+启用开场前端时，默认按[模块化浏览器前端应用工作流](../ui-app-authoring.md)制作：先把它当完整浏览器应用开发和预览，最后才构建为正则或开场载体需要的自包含 HTML。
+
 ## 允许讨论
 
 - 叙事人称、镜头距离、节奏、对白与描写比例；
@@ -46,8 +48,10 @@
 ```yaml
 opening_ui:
   enabled: true
+  authoring_mode: multi_file_html
+  app_manifest: "src/runtime/apps/opening/ui-app.yaml"
   marker: "<雾港开局页/>"
-  file: "src/runtime/opening/开局界面.html"
+  file: "src/runtime/ui/开局界面.html"
   opening_id: opening_default
   experience_level: medium
   theme_direction: "潮湿港口档案与夜班登记册"
@@ -57,7 +61,25 @@ opening_ui:
   runtime: not_run
 ```
 
-它可以包含版本、世界观、更新信息、作者留言、游玩指南、预制路线、自定义创角和确认入局，但这些内容只属于首条消息生命周期。源码推荐放在 `src/runtime/opening/`，不要塞进 `status-ui.yaml` 或后续状态应用目录。
+它可以包含版本、世界观、更新信息、作者留言、游玩指南、预制路线、自定义创角和确认入局，但这些内容只属于首条消息生命周期。开发源码推荐放在 `src/runtime/apps/opening/`，构建结果放在 `src/runtime/ui/开局界面.html`；不要塞进 `status-ui.yaml` 或后续状态应用目录。
+
+重型开场不应从零一次性写成一个巨大 HTML。先确认信息架构和完整用户旅程，再分别创作：
+
+```text
+index.html / fragments     页面结构与语义
+styles/tokens.css          主题令牌
+styles/layout.css          应用布局
+styles/components.css      路线、地区、创角、预览等组件
+styles/effects.css         主题演出和动效
+styles/responsive.css      聊天宽度与移动端
+scripts/state.js           表单、草稿和页面状态
+scripts/host-adapter.js    MVU/Tavern Helper/SillyTavern 桥接
+scripts/render.js          页面渲染
+scripts/interactions.js    导航、创角、预览和确认
+mock/state.json            浏览器满数据预览
+```
+
+先用模拟数据完成普通浏览器验收，再接入真实宿主，最后执行 `rp-card-forge ui-build`。单文件 HTML 是部署制品，不是限制创作规模的开发方式。
 
 ## 创角表单必须有“变量桥”
 
@@ -106,6 +128,10 @@ creation_bridge:
 
 开场 `<initvar>` 或默认初始值仍然只是基线；创角桥负责把开场页选择的值覆盖到正确路径。两者不能互相冒充。`<user>` 世界书条目仍可作为长期主控设定模板，但它是上下文资料，不会自动把同名字段同步进 MVU。
 
+开场前端的等级也是交付下限。重型开场必须在实际 HTML 中形成完整玩家旅程，例如项目导读、规则/版本信息、实质不同的路线或预设、创角、实时预览、确认提交、状态写入/回读和失败回退；不能只把一张表单配色后声明为 `heavy`。Forge 会读取 HTML 做功能面探针，锁定后缺少承重能力会阻断。
+
+MVU 创角页还要安全探测 `window.Mvu` 与 `window.parent.Mvu`。如果项目加载器声明全局对象挂在父窗口，而开场页只检查当前窗口，就会在确认时无法写入变量，页面看起来完整却只能使用默认值或停在失败状态。
+
 ## 推荐源码
 
 ```yaml
@@ -131,6 +157,7 @@ creation_bridge:
 - 每条开场可直接游玩且不替用户作决定；
 - 普通文本、UI 标记、prompt 回退与初始化关系清楚；
 - `opening_ui` 的标记、HTML、目标 opening、prompt 回退和确认入局消息形成闭环，且未混入 `status_ui.surfaces`；
+- 模块化模式下开发源码、模拟状态、`app_manifest` 与最终 HTML 构建结果一致；
 - 备选开场确实不同，而不是换一句欢迎词；
 - 不把完整 HTML 直接送入模型上下文；
 - 示例对话属于角色或叙事校准，不重复塞进多个高级定义字段。

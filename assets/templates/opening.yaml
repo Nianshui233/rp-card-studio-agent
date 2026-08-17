@@ -12,12 +12,16 @@ narrative:
 
 opening_ui:
   enabled: false
+  # 默认按真正的浏览器前端应用开发；最终交付前再构建为一个自包含 HTML。
+  authoring_mode: multi_file_html
+  app_manifest: null
   marker: null
   file: null
   render_route: regex_replace
   render_ref: null
   render_evidence: []
   opening_id: null
+  # 用户选定的等级是交付下限；锁定前实际 HTML 必须通过功能面质量探针。
   experience_level: light
   theme_direction: ""
   device_priority: equal

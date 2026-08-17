@@ -1,0 +1,15 @@
+schema_version: 1.0.0
+display_name: 雨幕旅店世界书
+
+entries:
+  - id: world_core
+    display_name: 旅店核心
+    content: |-
+      雨幕旅店坐落在山路与渡口之间。住客、掌柜、帮工和附近居民都有自己的行程、关系与隐情；他们不会等待某个主控出现才开始生活。暴雨会改变道路、物资、消息与人员去留，但不会自动把所有事情推向主控。
+  - id: wb_rain_status_contract
+    display_name: 持续状态输出契约
+    content: |-
+      每次完成正文后，在回复末尾另起一行输出一次且仅一次：<雨幕状态/>。
+      该标记用于玩家端持续状态界面，不要解释标记，不要把 HTML、CSS 或 JavaScript 写进正文。
+
+source_refs: []

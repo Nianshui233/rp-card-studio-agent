@@ -3,10 +3,13 @@ status: draft
 
 status_ui:
   enabled: false
-  authoring_mode: direct_html
+  # 开发期拆分 HTML/CSS/JS/模拟数据；最终构建为 surface.file 指向的单文件 HTML。
+  authoring_mode: multi_file_html
+  # 用户选定的等级是交付下限；锁定前实际 HTML 必须通过功能面质量探针。
   experience_level: light
   theme_direction: ""
   device_priority: equal
+  # 每个 surface 在 multi_file_html 模式下同时记录 app_manifest（开发清单）与 file（构建结果）。
   surfaces: []
   data_sources: []
   host_interactions: []

@@ -1,0 +1,102 @@
+schema_version: 1.0.0
+status: locked
+
+card_entry:
+  mode: core_world_contract
+  content: |-
+    雨幕旅店是一份雨夜群像 RP 包。卡面入口负责介绍项目，开场应用负责登记今夜身份，持续状态应用负责进入故事后的房态、住客和事件。
+  source_refs: [src/world/旅店世界书.yaml]
+
+worldbook_manifest:
+  id: rain_inn_worldbook
+  display_name: 雨幕旅店世界书
+  scan_depth: null
+  token_budget: null
+  recursive_scanning: false
+  preserve_imported_entries: true
+  duplicate_policy: error
+  entries:
+    - id: world_core
+      display_name: 旅店核心
+      source: { kind: file, path: src/world/旅店世界书.yaml, selector: /entries/0/content }
+      enabled: true
+      activation: { mode: constant, primary_keys: [], secondary_keys: [], selective: false, logic: any, case_sensitive: false, match_whole_words: false }
+      insertion: { position: before_char, order: 100, depth: null, role: system }
+      probability: 100
+      scan_depth: null
+      recursion: { prevent_incoming: false, prevent_outgoing: false, delay_until_recursion: false }
+      recipient: shared
+      visibility: model
+      fallback: block
+    - id: wb_rain_status_contract
+      display_name: 持续状态输出契约
+      source: { kind: file, path: src/world/旅店世界书.yaml, selector: /entries/1/content }
+      enabled: true
+      activation: { mode: constant, primary_keys: [], secondary_keys: [], selective: false, logic: any, case_sensitive: false, match_whole_words: false }
+      insertion: { position: at_depth, order: 900, depth: 0, role: system }
+      probability: 100
+      scan_depth: null
+      recursion: { prevent_incoming: true, prevent_outgoing: true, delay_until_recursion: false }
+      recipient: shared
+      visibility: model
+      fallback: block
+
+media_manifest:
+  enabled: false
+  assets: []
+
+runtime_manifest:
+  mode: authored
+  regex_scripts:
+    - id: 9c5d7e21-3f46-4a8d-b2e0-6f1a9c7d5e34
+      script_name: 开场页
+      find_regex: /<雨幕开场\s*\/>/g
+      replace_file: src/runtime/ui/开场页.html
+      wrap_as_html_codeblock: true
+      placement: [2]
+      disabled: false
+      markdown_only: true
+      prompt_only: false
+      run_on_edit: true
+      substitute_regex: 0
+      min_depth: null
+      max_depth: null
+    - id: 4f0c2a9d-7e51-4b63-8a2d-1c9e5f7a3b60
+      script_name: 开场页-提示词回退
+      find_regex: /<雨幕开场\s*\/>/g
+      replace_string: "雨幕旅店正在等待今夜来客完成身份登记。"
+      placement: [1]
+      disabled: false
+      markdown_only: false
+      prompt_only: true
+      run_on_edit: true
+      substitute_regex: 0
+      min_depth: null
+      max_depth: null
+    - id: 1b8f4d62-7e31-4c95-a0d2-5f6b9e3a7c18
+      script_name: 持续状态页
+      find_regex: /<雨幕状态\s*\/>/g
+      replace_file: src/runtime/ui/状态页.html
+      wrap_as_html_codeblock: true
+      placement: [2]
+      disabled: false
+      markdown_only: true
+      prompt_only: false
+      run_on_edit: true
+      substitute_regex: 0
+      min_depth: null
+      max_depth: null
+    - id: 7a2e5d19-6c43-4f80-9b1d-3e8a5c2f7046
+      script_name: 持续状态页-提示词清理
+      find_regex: /<雨幕状态\s*\/>/g
+      replace_string: ""
+      placement: [1]
+      disabled: false
+      markdown_only: false
+      prompt_only: true
+      run_on_edit: true
+      substitute_regex: 0
+      min_depth: null
+      max_depth: null
+  tavern_helper_scripts: []
+  extension_fields: {}

@@ -1,0 +1,23 @@
+schema_version: 1.0.0
+ui_app:
+  id: rain-inn-status
+  surface: status
+  experience_level: light
+  entry_html: index.html
+  fragments:
+    - slot: APP_SHELL
+      file: fragments/shell.html
+  styles:
+    - styles/tokens.css
+    - styles/app.css
+    - styles/responsive.css
+  scripts:
+    - scripts/state.js
+    - scripts/host-adapter.js
+    - scripts/render.js
+    - scripts/interactions.js
+    - scripts/bootstrap.js
+  mock_state: mock/state.json
+  preview_output: dist/状态页.preview.html
+  script_wrapper: iife
+  output: ../../ui/状态页.html

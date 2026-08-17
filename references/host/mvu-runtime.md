@@ -32,6 +32,8 @@ await Mvu.replaceMvuData(next, { type: 'message', message_id: messageId });
 const verified = Mvu.getMvuData({ type: 'message', message_id: messageId });
 ```
 
+上面的 `Mvu` 只是接口示意。在消息 iframe 中，先建立宿主能力桥：安全尝试当前窗口和父窗口，选择实际存在的 `Mvu`、`waitGlobalInitialized`、`eventOn` 和 `getCurrentMessageId`。项目加载器若声明挂载到 `window.parent.Mvu`，UI 就不能只轮询 `window.Mvu`。
+
 实际项目必须根据目标版本确认全局对象、可写范围和消息楼层是否已存在。直接修改一个本地对象、只调用 `createChatMessages({ data: ... })`、或只把新值写进普通叙事文本，都不能代替最后的 `replace` 与回读。
 
 若项目选择让更新块经过正常模型更新管线，则应生成真实的 `<UpdateVariable>`，并确认该消息会被目标 MVU 解析。不要同时保留一个“直接写入器”和一个“消息更新器”去竞争同一批字段。

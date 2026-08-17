@@ -107,16 +107,17 @@ EJS 作为真实文件，由世界书条目的 `source.kind: file` 装入指定�
 
 ## 9. 构建顺序
 
-1. 读取并校验项目与源文件；
-2. 生成基础角色卡/世界书表面；
-3. 装配 CharacterBook；
-4. 原样装配 Regex、Tavern Helper 脚本和扩展字段；
-5. 恢复保真导入字段；
-6. 绑定内嵌 CharacterBook；
-7. 校验最终制品；
-8. 写入 JSON；
-9. 用户明确需要 PNG 时再嵌入图像；
-10. 执行 roundtrip 和真实宿主验收。
+1. 先把模块化 UI 源码构建为项目专属、自包含 HTML；
+2. 读取并校验项目与源文件，阻断过期 UI 制品；
+3. 生成基础角色卡/世界书表面；
+4. 装配 CharacterBook；
+5. 原样装配 Regex、Tavern Helper 脚本和扩展字段；
+6. 恢复保真导入字段；
+7. 绑定内嵌 CharacterBook；
+8. 校验最终制品；
+9. 写入 JSON；
+10. 用户明确需要 PNG 时再嵌入图像；
+11. 执行 roundtrip 和真实宿主验收。
 
 ## 10. 禁止的 Forge 职责
 

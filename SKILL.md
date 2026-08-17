@@ -195,6 +195,7 @@ does not prove the installed host's render order.
 ### Opening Experience UI
 
 Read [narrative-opening.md](references/stages/narrative-opening.md).
+Read [ui-app-authoring.md](references/ui-app-authoring.md) whenever opening UI is enabled.
 
 The required narrative/opening stage owns the first-message introduction and creation
 frontend as `opening_ui`: version and world introduction, updates, author notes, play
@@ -209,9 +210,18 @@ verified commit route, and read the value back before starting the opening. Atta
 runtime state changed. A failed commit must remain visible and recoverable instead of
 silently starting on defaults.
 
+Treat the opening frontend as a real browser application during authoring. Default to
+`multi_file_html`: separate semantic HTML/fragments, design tokens, layout, components,
+effects, responsive CSS, state, rendering, interactions, host adaptation, and mock data;
+then run `rp-card-forge ui-build` to produce the single self-contained HTML referenced by
+`opening_ui.file`. The single file is the deployment artifact, not the development method.
+Do not ask the model to create a heavy opening as one monolithic HTML pass and then reduce
+scope merely to keep that pass manageable.
+
 ### Ongoing Message UI
 
 Read [status-ui.md](references/stages/status-ui.md).
+Read [ui-app-authoring.md](references/ui-app-authoring.md).
 
 This optional stage owns only the ongoing in-RP message interface after entry: status,
 inventory, relationships, tasks, clues, maps, checks, notifications, and host-linked
@@ -220,10 +230,21 @@ creation frontend in `status_ui.surfaces`; that belongs to `opening_ui` in the p
 required stage. Keep one coherent ongoing surface together instead of scattering every
 small widget into a separate regex and generic component template.
 
-The maintained source may be one complete `.html` file or a small source project that
-builds one complete replacement HTML. The final regex `replaceString` must contain or
-load the actual complete result. Do not use the generic `ui.yaml` component compiler
-as the default authoring route.
+Default to a real modular browser application rather than a cautious embedded widget.
+Maintain actual HTML/fragments, CSS layers, JavaScript modules-by-concatenation, host
+adapter, and mock state in a per-surface application directory. Build them into one
+complete replacement HTML with `rp-card-forge ui-build`; the final regex `replaceString`
+must contain or load that complete result. Source modularity must not become many tiny
+regex surfaces. Do not use the generic `ui.yaml` component compiler as the authoring
+route.
+
+For `multi_file_html`, record both the development manifest and built artifact:
+`status_ui.surfaces[].app_manifest` points to `ui-app.yaml`, while `.file` points to the
+generated self-contained HTML. Locking or card build must fail when source and artifact
+are stale. Medium and above should normally include full mock state so the application
+can be reviewed with populated, empty, error, long-text, multi-character, and multi-event
+conditions before connecting to SillyTavern. Mock state is preview data, never a runtime
+substitute for the current message state.
 
 Regex replacement is common, not exclusive. A surface may instead be rendered by a
 Tavern Helper script, EJS, inline message HTML, a verified framework, or an existing
@@ -237,6 +258,18 @@ pages. Design from the Chinese player's actual reading and interaction experienc
 localized labels, intentional hierarchy, good CJK typography, useful density,
 responsive layout, visible feedback, touch targets, focus, empty/error/loading states,
 and lifecycle-safe host actions.
+
+A user-selected UI level is a delivery floor, not decorative metadata. Do not silently
+downgrade `heavy` to a styled form or `medium` to a read-only dashboard. Before locking
+the stage, inspect the built HTML for navigation, data views, information tools,
+compound interaction flows, feedback, responsive behavior, host actions, and live data
+binding. The source-quality probe must pass; descriptive YAML evidence cannot substitute
+for missing player-visible capability.
+
+For MVU-backed message iframes, resolve host capabilities across the current frame and
+`window.parent`. Code that only checks `window.Mvu` or only checks `window.TavernHelper`
+is incomplete unless the target runtime proves those globals are injected into the
+iframe. A rendered shell with no live state does not satisfy any UI level.
 
 Treat the complete ongoing HTML in the bundled
 `assets/examples/self-contained-rp/src/runtime/ui/潮痕状态栏.html` sample as the
