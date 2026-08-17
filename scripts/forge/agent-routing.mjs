@@ -1,5 +1,25 @@
 export const AGENT_ARCHITECTURE = "single_agent_private_skills";
 
+export const CAPABILITY_IDS = Object.freeze([
+  "host.message_history",
+  "host.message_lifecycle",
+  "host.variable_scopes",
+  "host.worldbook_binding",
+  "host.worldbook_runtime",
+  "host.regex_control",
+  "host.script_lifecycle",
+  "host.prompt_generation",
+  "host.prompt_injection",
+  "host.streaming_surface",
+  "host.parent_dom_bridge",
+  "runtime.ejs_phases",
+  "frontend.compiled_application",
+  "frontend.zero_layer",
+  "runtime.external_dependency",
+]);
+
+export const CAPABILITY_ID_SET = new Set(CAPABILITY_IDS);
+
 export const STAGE_PRIMARY_SKILL = Object.freeze({
   preflight: null,
   positioning: "rp-project-foundation",

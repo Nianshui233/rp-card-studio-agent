@@ -22,6 +22,8 @@ description: "Private module for MVU, MVU_ZOD, EJS, Tavern Helper scripts, messa
 
 EJS 必须是实际 EJS 文件，并进入按稳定名称指定的 CharacterBook 条目；需要时使用 `manual` 或 `ejs_only`，不能让它参与普通关键词扫描。
 
+涉及 global/character/chat/message/script/extension 作用域、EJS cache/preparation/render 阶段、远程 Loader、生成注入、消息编辑/Swipe 或自动世界书挂载时，先加载 `st-host-capabilities`，以能力记录和回退路径为准，不把类型声明中的可用函数误报成已验证运行。
+
 ## 边界
 
 作为主 Skill 时只询问 MVU/EJS 阶段问题。作为支援 Skill 时不询问用户，直接实现锁定需求或返回交接。不得设计 UI 视觉层级、重写 RP 内容，也不得为了一个组件另造第二套状态树。

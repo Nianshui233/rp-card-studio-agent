@@ -68,7 +68,7 @@ export var HELP_TEXT = `rp-card-forge - 离线、事务式 SillyTavern 制卡工
   pack <project-dir>                 构建 JSON，或写入 PNG chara/ccv3 双块
   diff <left> <right>                比较语义 JSON
   roundtrip <input>                  验证 JSON/PNG 语义往返与 PNG 图像数据
-  state <project-dir> [action]       show/migrate/operation/plan/lock/unlock/stage/handoff/handoff-status
+  state <project-dir> [action]       show/migrate/operation/plan/lock/unlock/stage/handoff/handoff-status/capability
   doctor [project-dir]               检查 Node、依赖与项目健康
 
 通用选项:
@@ -84,6 +84,8 @@ export var HELP_TEXT = `rp-card-forge - 离线、事务式 SillyTavern 制卡工
   --summary <text>                  state stage 完成或跳过时的阶段摘要
   --severity <advisory|blocking>    state handoff 的严重度
   --suggested <json-array>          state handoff 的建议改动列表
+  --level <level>                   state capability 的证据层级
+  --notes <text>                    state capability 的证据说明
   -h, --help                         显示帮助
   --version                          显示版本
 `;
@@ -628,6 +630,7 @@ async function commandState(args, options) {
       stages: loaded.state?.stages ?? null,
       plannedStages: loaded.project?.workflow?.planned_stages ?? null,
       agent: loaded.project?.agent ?? null,
+      capabilities: loaded.project?.capabilities ?? null,
       handoffs: loaded.project?.handoffs ?? [],
       decisions: loaded.project?.decisions ?? [],
       decisionLocks: loaded.state?.decision_locks ?? []
@@ -758,6 +761,35 @@ async function commandState(args, options) {
       decision.locked = false;
       decision.status = "superseded";
       nextState.decision_locks = nextState.decision_locks.filter((entry) => entry.decision_id !== id);
+      projectChanged = true;
+    } else if (action === "capability") {
+      exactArgs("state capability", args, 4);
+      const [, , operation, id] = args;
+      const { CAPABILITY_ID_SET } = await import("./agent-routing.mjs");
+      if (!CAPABILITY_ID_SET.has(id)) throw inputError(`未知宿主能力: ${id}`, { supported: [...CAPABILITY_ID_SET] });
+      if (!["plan", "enable", "evidence", "disable"].includes(operation)) throw inputError(`未知 capability 操作: ${operation}`);
+      const capabilities = nextProject.capabilities;
+      if (operation === "plan") {
+        if (!capabilities.planned.includes(id)) capabilities.planned.push(id);
+      } else if (operation === "enable") {
+        if (!capabilities.enabled.includes(id)) capabilities.enabled.push(id);
+        capabilities.planned = capabilities.planned.filter((entry) => entry !== id);
+        const existing = capabilities.evidence.find((entry) => entry.id === id);
+        const record = { id, status: "not_run", level: "declared", notes: options.notes?.trim() ?? "已声明使用，尚未完成宿主实证" };
+        if (existing) Object.assign(existing, record); else capabilities.evidence.push(record);
+      } else if (operation === "evidence") {
+        const status = options.status ?? "pass";
+        const level = options.level ?? "runtime";
+        if (!["not_run", "pass", "fail", "blocked"].includes(status)) throw inputError(`未知能力证据状态: ${status}`);
+        if (!["declared", "source_checked", "artifact_checked", "runtime"].includes(level)) throw inputError(`未知能力证据层级: ${level}`);
+        const existing = capabilities.evidence.find((entry) => entry.id === id);
+        const record = { id, status, level, notes: options.notes?.trim() ?? "" };
+        if (existing) Object.assign(existing, record); else capabilities.evidence.push(record);
+      } else {
+        capabilities.enabled = capabilities.enabled.filter((entry) => entry !== id);
+        capabilities.planned = capabilities.planned.filter((entry) => entry !== id);
+        capabilities.evidence = capabilities.evidence.filter((entry) => entry.id !== id);
+      }
       projectChanged = true;
     } else if (action === "handoff") {
       exactArgs("state handoff", args, 5);

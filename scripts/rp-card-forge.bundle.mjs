@@ -12,8 +12,15 @@ var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require
   if (typeof require !== "undefined") return require.apply(this, arguments);
   throw Error('Dynamic require of "' + x + '" is not supported');
 });
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
 var __commonJS = (cb, mod) => function __require2() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+};
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
@@ -14499,6 +14506,78 @@ var require__ = __commonJS({
   }
 });
 
+// scripts/forge/agent-routing.mjs
+var agent_routing_exports = {};
+__export(agent_routing_exports, {
+  AGENT_ARCHITECTURE: () => AGENT_ARCHITECTURE,
+  CAPABILITY_IDS: () => CAPABILITY_IDS,
+  CAPABILITY_ID_SET: () => CAPABILITY_ID_SET,
+  STAGE_PRIMARY_SKILL: () => STAGE_PRIMARY_SKILL,
+  agentLedgerForStage: () => agentLedgerForStage,
+  primarySkillForStage: () => primarySkillForStage,
+  readableStagesForState: () => readableStagesForState
+});
+function primarySkillForStage(stage) {
+  if (!Object.hasOwn(STAGE_PRIMARY_SKILL, stage)) {
+    throw new Error(`\u672A\u77E5 Agent \u9636\u6BB5: ${stage}`);
+  }
+  return STAGE_PRIMARY_SKILL[stage];
+}
+function readableStagesForState(stages, activeStage, orderedStages) {
+  return orderedStages.filter((stage) => {
+    if (stage === activeStage) return true;
+    const status = stages?.[stage]?.status;
+    return status === "complete" || status === "skipped";
+  });
+}
+function agentLedgerForStage(stage, stages, orderedStages) {
+  const activeSkill = primarySkillForStage(stage);
+  if (!activeSkill) throw new Error("preflight \u7531\u4E3B Agent \u76F4\u63A5\u5904\u7406\uFF0C\u4E0D\u5206\u6D3E\u79C1\u6709 Skill");
+  return {
+    architecture: AGENT_ARCHITECTURE,
+    active_skill: activeSkill,
+    writable_stage: stage,
+    readable_stages: readableStagesForState(stages, stage, orderedStages)
+  };
+}
+var AGENT_ARCHITECTURE, CAPABILITY_IDS, CAPABILITY_ID_SET, STAGE_PRIMARY_SKILL;
+var init_agent_routing = __esm({
+  "scripts/forge/agent-routing.mjs"() {
+    AGENT_ARCHITECTURE = "single_agent_private_skills";
+    CAPABILITY_IDS = Object.freeze([
+      "host.message_history",
+      "host.message_lifecycle",
+      "host.variable_scopes",
+      "host.worldbook_binding",
+      "host.worldbook_runtime",
+      "host.regex_control",
+      "host.script_lifecycle",
+      "host.prompt_generation",
+      "host.prompt_injection",
+      "host.streaming_surface",
+      "host.parent_dom_bridge",
+      "runtime.ejs_phases",
+      "frontend.compiled_application",
+      "frontend.zero_layer",
+      "runtime.external_dependency"
+    ]);
+    CAPABILITY_ID_SET = new Set(CAPABILITY_IDS);
+    STAGE_PRIMARY_SKILL = Object.freeze({
+      preflight: null,
+      positioning: "rp-project-foundation",
+      materials: "rp-project-foundation",
+      worldbuilding: "rp-project-foundation",
+      character: "rp-cast-authoring",
+      systems: "rp-experience-authoring",
+      scenes: "rp-experience-authoring",
+      mvu_ejs: "st-runtime-authoring",
+      narrative_opening: "rp-experience-authoring",
+      status_ui: "st-frontend-authoring",
+      integration: "st-integration-qa"
+    });
+  }
+});
+
 // scripts/forge/errors.mjs
 var ExitCode = Object.freeze({
   OK: 0,
@@ -14554,7 +14633,7 @@ function normalizeError(error) {
 
 // scripts/forge/args.mjs
 var BOOLEAN_OPTIONS = /* @__PURE__ */ new Set(["json", "dry-run", "force", "help", "version"]);
-var VALUE_OPTIONS = /* @__PURE__ */ new Set(["output", "type", "nsfw", "stages", "source", "rationale", "summary", "severity", "suggested"]);
+var VALUE_OPTIONS = /* @__PURE__ */ new Set(["output", "type", "nsfw", "stages", "source", "status", "rationale", "summary", "severity", "suggested", "level", "notes"]);
 function setOption(options, name, value) {
   if (Object.hasOwn(options, name)) {
     throw usageError(`\u9009\u9879\u91CD\u590D: --${name}`);
@@ -15879,50 +15958,12 @@ async function loadArtifact(inputPath) {
 }
 
 // scripts/forge/project.mjs
+init_agent_routing();
 import {
   applyAssemblyManifest,
   createCharacterBookIdAllocator,
   selectOpeningMessages
 } from "./rp-card-runtime.mjs";
-
-// scripts/forge/agent-routing.mjs
-var AGENT_ARCHITECTURE = "single_agent_private_skills";
-var STAGE_PRIMARY_SKILL = Object.freeze({
-  preflight: null,
-  positioning: "rp-project-foundation",
-  materials: "rp-project-foundation",
-  worldbuilding: "rp-project-foundation",
-  character: "rp-cast-authoring",
-  systems: "rp-experience-authoring",
-  scenes: "rp-experience-authoring",
-  mvu_ejs: "st-runtime-authoring",
-  narrative_opening: "rp-experience-authoring",
-  status_ui: "st-frontend-authoring",
-  integration: "st-integration-qa"
-});
-function primarySkillForStage(stage) {
-  if (!Object.hasOwn(STAGE_PRIMARY_SKILL, stage)) {
-    throw new Error(`\u672A\u77E5 Agent \u9636\u6BB5: ${stage}`);
-  }
-  return STAGE_PRIMARY_SKILL[stage];
-}
-function readableStagesForState(stages, activeStage, orderedStages) {
-  return orderedStages.filter((stage) => {
-    if (stage === activeStage) return true;
-    const status = stages?.[stage]?.status;
-    return status === "complete" || status === "skipped";
-  });
-}
-function agentLedgerForStage(stage, stages, orderedStages) {
-  const activeSkill = primarySkillForStage(stage);
-  if (!activeSkill) throw new Error("preflight \u7531\u4E3B Agent \u76F4\u63A5\u5904\u7406\uFF0C\u4E0D\u5206\u6D3E\u79C1\u6709 Skill");
-  return {
-    architecture: AGENT_ARCHITECTURE,
-    active_skill: activeSkill,
-    writable_stage: stage,
-    readable_stages: readableStagesForState(stages, stage, orderedStages)
-  };
-}
 
 // scripts/forge/yaml.mjs
 var import_yaml2 = __toESM(require_dist(), 1);
@@ -16123,6 +16164,7 @@ var PROJECT_ROOT_KEYS = /* @__PURE__ */ new Set([
   "preflight",
   "workflow",
   "agent",
+  "capabilities",
   "features",
   "deliverables",
   "materials",
@@ -16296,6 +16338,7 @@ function makeProject({ name, target = "character_card", nsfw, operation = "creat
       current_stage: "positioning"
     },
     agent: agentLedgerForStage("positioning", initialStages(), STAGES),
+    capabilities: { enabled: [], planned: [], evidence: [] },
     features: {
       materials: false,
       systems: false,
@@ -16550,6 +16593,7 @@ function validateProjectModel(project, state, root) {
   validateDecisions(project.decisions, issues);
   validateProjectTitleDecisionLocks(project.decisions, issues);
   validateHandoffs(project.handoffs, issues);
+  validateCapabilities(project.capabilities, issues);
   if (project?.runtime_target?.application !== "SillyTavern") issues.push(modelIssue("/runtime_target/application", "const", "\u8FD0\u884C\u76EE\u6807\u5FC5\u987B\u662F SillyTavern"));
   if (!Array.isArray(project?.runtime_target?.dependencies)) issues.push(modelIssue("/runtime_target/dependencies", "type", "dependencies \u5FC5\u987B\u662F\u6570\u7EC4"));
   if (!Array.isArray(project?.release?.accepted_warnings)) issues.push(modelIssue("/release/accepted_warnings", "type", "accepted_warnings \u5FC5\u987B\u662F\u6570\u7EC4"));
@@ -16579,6 +16623,37 @@ function validateHandoffs(handoffs, issues) {
     if (typeof handoff?.reason !== "string" || handoff.reason.trim() === "") issues.push(modelIssue(`${base}/reason`, "required", "\u4EA4\u63A5\u539F\u56E0\u4E0D\u80FD\u4E3A\u7A7A"));
     if (!Array.isArray(handoff?.suggested_change) || handoff.suggested_change.length === 0) issues.push(modelIssue(`${base}/suggested_change`, "minItems", "\u4EA4\u63A5\u81F3\u5C11\u9700\u8981\u4E00\u4E2A\u5EFA\u8BAE\u6539\u52A8"));
     if (!["open", "accepted", "resolved", "rejected"].includes(handoff?.status)) issues.push(modelIssue(`${base}/status`, "enum", "\u4EA4\u63A5\u72B6\u6001\u65E0\u6548"));
+  }
+}
+function validateCapabilities(capabilities, issues) {
+  if (!isPlainObject(capabilities)) {
+    issues.push(modelIssue("/capabilities", "type", "capabilities \u5FC5\u987B\u662F\u5BF9\u8C61"));
+    return;
+  }
+  for (const field of ["enabled", "planned"]) {
+    if (!Array.isArray(capabilities[field])) {
+      issues.push(modelIssue(`/capabilities/${field}`, "type", `${field} \u5FC5\u987B\u662F\u6570\u7EC4`));
+      continue;
+    }
+    const seen = /* @__PURE__ */ new Set();
+    for (const [index, id] of capabilities[field].entries()) {
+      if (typeof id !== "string" || !CAPABILITY_ID_SET.has(id)) issues.push(modelIssue(`/capabilities/${field}/${index}`, "enum", `\u672A\u77E5\u5BBF\u4E3B\u80FD\u529B: ${id}`));
+      if (seen.has(id)) issues.push(modelIssue(`/capabilities/${field}/${index}`, "unique", `\u80FD\u529B\u91CD\u590D: ${id}`));
+      seen.add(id);
+    }
+  }
+  if (!Array.isArray(capabilities.evidence)) {
+    issues.push(modelIssue("/capabilities/evidence", "type", "capabilities.evidence \u5FC5\u987B\u662F\u6570\u7EC4"));
+    return;
+  }
+  const evidenceIds = /* @__PURE__ */ new Set();
+  for (const [index, record] of capabilities.evidence.entries()) {
+    if (!CAPABILITY_ID_SET.has(record?.id)) issues.push(modelIssue(`/capabilities/evidence/${index}/id`, "enum", `\u672A\u77E5\u5BBF\u4E3B\u80FD\u529B: ${record?.id}`));
+    if (evidenceIds.has(record?.id)) issues.push(modelIssue(`/capabilities/evidence/${index}/id`, "unique", `\u80FD\u529B\u8BC1\u636E\u91CD\u590D: ${record?.id}`));
+    evidenceIds.add(record?.id);
+    if (!["not_run", "pass", "fail", "blocked"].includes(record?.status)) issues.push(modelIssue(`/capabilities/evidence/${index}/status`, "enum", "\u80FD\u529B\u8BC1\u636E\u72B6\u6001\u65E0\u6548"));
+    if (!["declared", "source_checked", "artifact_checked", "runtime"].includes(record?.level)) issues.push(modelIssue(`/capabilities/evidence/${index}/level`, "enum", "\u80FD\u529B\u8BC1\u636E\u5C42\u7EA7\u65E0\u6548"));
+    if (typeof record?.notes !== "string") issues.push(modelIssue(`/capabilities/evidence/${index}/notes`, "type", "\u80FD\u529B\u8BC1\u636E\u8BF4\u660E\u5FC5\u987B\u662F\u5B57\u7B26\u4E32"));
   }
 }
 function validateDecisions(decisions, issues) {
@@ -17360,7 +17435,7 @@ function migrateProject(project, state = null) {
     const legacyRoute = Array.isArray(project?.workflow?.selected_stages) ? project.workflow.selected_stages : null;
     const hasLegacyDecision = (project?.decisions ?? []).some((decision) => decision.id === "preflight.stage_route");
     const activeStage = STAGES.includes(state?.active_stage) ? state.active_stage : STAGES.includes(project?.workflow?.current_stage) ? project.workflow.current_stage : "positioning";
-    const hasAgent = project?.agent?.architecture === AGENT_ARCHITECTURE && project?.agent?.writable_stage === activeStage && project?.workflow?.current_stage === activeStage && Array.isArray(project?.handoffs);
+    const hasAgent = project?.agent?.architecture === AGENT_ARCHITECTURE && project?.agent?.writable_stage === activeStage && project?.workflow?.current_stage === activeStage && Array.isArray(project?.handoffs) && isPlainObject(project?.capabilities);
     if (project?.preflight?.workflow_confirmed === true && hasPlan && !legacyRoute && !hasLegacyDecision && hasAgent) return { value: project, migrated: false };
     const migrated = structuredClone(project);
     migrated.preflight ??= {};
@@ -17373,6 +17448,7 @@ function migrateProject(project, state = null) {
     migrated.decisions ??= [];
     migrated.decisions = migrated.decisions.filter((decision) => decision.id !== "preflight.stage_route");
     migrated.handoffs ??= [];
+    migrated.capabilities ??= { enabled: [], planned: [], evidence: [] };
     const stageState = state ? structuredClone(state) : { active_stage: activeStage, stages: initialStages() };
     stageState.active_stage = activeStage;
     syncAgentLedger(migrated, stageState);
@@ -17385,6 +17461,7 @@ function migrateProject(project, state = null) {
     const migrated = structuredClone(project);
     migrated.schema_version = PROJECT_SCHEMA_VERSION;
     migrated.handoffs ??= [];
+    migrated.capabilities ??= { enabled: [], planned: [], evidence: [] };
     const activeStage = STAGES.includes(state?.active_stage) ? state.active_stage : "positioning";
     syncAgentLedger(migrated, state ?? { active_stage: activeStage, stages: initialStages() });
     return { value: migrated, migrated: true };
@@ -17539,7 +17616,7 @@ var HELP_TEXT = `rp-card-forge - \u79BB\u7EBF\u3001\u4E8B\u52A1\u5F0F SillyTaver
   pack <project-dir>                 \u6784\u5EFA JSON\uFF0C\u6216\u5199\u5165 PNG chara/ccv3 \u53CC\u5757
   diff <left> <right>                \u6BD4\u8F83\u8BED\u4E49 JSON
   roundtrip <input>                  \u9A8C\u8BC1 JSON/PNG \u8BED\u4E49\u5F80\u8FD4\u4E0E PNG \u56FE\u50CF\u6570\u636E
-  state <project-dir> [action]       show/migrate/operation/plan/lock/unlock/stage/handoff/handoff-status
+  state <project-dir> [action]       show/migrate/operation/plan/lock/unlock/stage/handoff/handoff-status/capability
   doctor [project-dir]               \u68C0\u67E5 Node\u3001\u4F9D\u8D56\u4E0E\u9879\u76EE\u5065\u5EB7
 
 \u901A\u7528\u9009\u9879:
@@ -17555,6 +17632,8 @@ var HELP_TEXT = `rp-card-forge - \u79BB\u7EBF\u3001\u4E8B\u52A1\u5F0F SillyTaver
   --summary <text>                  state stage \u5B8C\u6210\u6216\u8DF3\u8FC7\u65F6\u7684\u9636\u6BB5\u6458\u8981
   --severity <advisory|blocking>    state handoff \u7684\u4E25\u91CD\u5EA6
   --suggested <json-array>          state handoff \u7684\u5EFA\u8BAE\u6539\u52A8\u5217\u8868
+  --level <level>                   state capability \u7684\u8BC1\u636E\u5C42\u7EA7
+  --notes <text>                    state capability \u7684\u8BC1\u636E\u8BF4\u660E
   -h, --help                         \u663E\u793A\u5E2E\u52A9
   --version                          \u663E\u793A\u7248\u672C
 `;
@@ -18097,6 +18176,7 @@ async function commandState(args, options) {
       stages: loaded.state?.stages ?? null,
       plannedStages: loaded.project?.workflow?.planned_stages ?? null,
       agent: loaded.project?.agent ?? null,
+      capabilities: loaded.project?.capabilities ?? null,
       handoffs: loaded.project?.handoffs ?? [],
       decisions: loaded.project?.decisions ?? [],
       decisionLocks: loaded.state?.decision_locks ?? []
@@ -18227,6 +18307,37 @@ async function commandState(args, options) {
       decision.locked = false;
       decision.status = "superseded";
       nextState.decision_locks = nextState.decision_locks.filter((entry) => entry.decision_id !== id);
+      projectChanged = true;
+    } else if (action === "capability") {
+      exactArgs("state capability", args, 4);
+      const [, , operation, id] = args;
+      const { CAPABILITY_ID_SET: CAPABILITY_ID_SET2 } = await Promise.resolve().then(() => (init_agent_routing(), agent_routing_exports));
+      if (!CAPABILITY_ID_SET2.has(id)) throw inputError(`\u672A\u77E5\u5BBF\u4E3B\u80FD\u529B: ${id}`, { supported: [...CAPABILITY_ID_SET2] });
+      if (!["plan", "enable", "evidence", "disable"].includes(operation)) throw inputError(`\u672A\u77E5 capability \u64CD\u4F5C: ${operation}`);
+      const capabilities = nextProject.capabilities;
+      if (operation === "plan") {
+        if (!capabilities.planned.includes(id)) capabilities.planned.push(id);
+      } else if (operation === "enable") {
+        if (!capabilities.enabled.includes(id)) capabilities.enabled.push(id);
+        capabilities.planned = capabilities.planned.filter((entry) => entry !== id);
+        const existing = capabilities.evidence.find((entry) => entry.id === id);
+        const record = { id, status: "not_run", level: "declared", notes: options.notes?.trim() ?? "\u5DF2\u58F0\u660E\u4F7F\u7528\uFF0C\u5C1A\u672A\u5B8C\u6210\u5BBF\u4E3B\u5B9E\u8BC1" };
+        if (existing) Object.assign(existing, record);
+        else capabilities.evidence.push(record);
+      } else if (operation === "evidence") {
+        const status = options.status ?? "pass";
+        const level = options.level ?? "runtime";
+        if (!["not_run", "pass", "fail", "blocked"].includes(status)) throw inputError(`\u672A\u77E5\u80FD\u529B\u8BC1\u636E\u72B6\u6001: ${status}`);
+        if (!["declared", "source_checked", "artifact_checked", "runtime"].includes(level)) throw inputError(`\u672A\u77E5\u80FD\u529B\u8BC1\u636E\u5C42\u7EA7: ${level}`);
+        const existing = capabilities.evidence.find((entry) => entry.id === id);
+        const record = { id, status, level, notes: options.notes?.trim() ?? "" };
+        if (existing) Object.assign(existing, record);
+        else capabilities.evidence.push(record);
+      } else {
+        capabilities.enabled = capabilities.enabled.filter((entry) => entry !== id);
+        capabilities.planned = capabilities.planned.filter((entry) => entry !== id);
+        capabilities.evidence = capabilities.evidence.filter((entry) => entry.id !== id);
+      }
       projectChanged = true;
     } else if (action === "handoff") {
       exactArgs("state handoff", args, 5);

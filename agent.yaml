@@ -9,6 +9,7 @@ invocation:
   natural_language_trigger: false
 private_skills_root: internal-skills
 routing: orchestrator/routing.yaml
+capabilities: orchestrator/capabilities.yaml
 ledger:
   semantic: project.yaml
   technical: .rp-card-state.json

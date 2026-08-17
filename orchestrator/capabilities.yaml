@@ -1,0 +1,80 @@
+schema_version: 1.0.0
+agent: rp-card-studio
+
+# 这是能力目录，不是所有项目的强制清单。主 Agent 根据项目需求、宿主版本和真实证据启用其中的能力。
+capabilities:
+  - id: host.message_history
+    owner: st-host-capabilities
+    consumers: [st-runtime-authoring, st-frontend-authoring, st-integration-qa]
+    supports: [getChatMessages, setChatMessages, createChatMessages, deleteChatMessages, rotateChatMessages]
+    fallback: 手动复制文本、普通叙事回退或不启用按钮
+  - id: host.message_lifecycle
+    owner: st-host-capabilities
+    consumers: [st-runtime-authoring, st-frontend-authoring]
+    supports: [edit, swipe, reload, chat_switch, current_message_id, displayed_message_refresh]
+    fallback: 只读渲染并在生命周期不确定时清理实例
+  - id: host.variable_scopes
+    owner: st-host-capabilities
+    consumers: [st-runtime-authoring, st-frontend-authoring]
+    supports: [global, character, chat, message, script, extension, mvu]
+    fallback: 只读当前消息或不提供持久化按钮
+  - id: host.worldbook_binding
+    owner: st-host-capabilities
+    consumers: [st-worldbook-regex, st-integration-qa]
+    supports: [inspect, import, bind_character, bind_chat, bind_global, create_chat_worldbook]
+    fallback: 标准 JSON 交付并明确记录需要用户执行导入/绑定
+  - id: host.worldbook_runtime
+    owner: st-host-capabilities
+    consumers: [st-worldbook-regex, st-runtime-authoring]
+    supports: [getwi, activewi, preprocess_activation, recursive_activation, conditional_entry]
+    fallback: 普通关键词扫描或常驻条目
+  - id: host.regex_control
+    owner: st-host-capabilities
+    consumers: [st-worldbook-regex, st-integration-qa]
+    supports: [inspect_regex, replace_regex, scoped_enable, run_on_edit, prompt_display_channels]
+    fallback: 卡内静态正则或手动启用说明
+  - id: host.script_lifecycle
+    owner: st-host-capabilities
+    consumers: [st-runtime-authoring, st-frontend-authoring]
+    supports: [event_on, event_once, event_emit, unload_cleanup, script_buttons, reload_iframe]
+    fallback: 局部 DOM 监听与 pagehide 清理
+  - id: host.prompt_generation
+    owner: st-host-capabilities
+    consumers: [rp-experience-authoring, st-runtime-authoring, st-frontend-authoring]
+    supports: [generate, generate_raw, quiet_generation, stop_generation, prompt_injection]
+    fallback: 使用酒馆原生输入框和普通生成流程
+  - id: host.prompt_injection
+    owner: st-host-capabilities
+    consumers: [st-runtime-authoring, st-integration-qa]
+    supports: [inject_prompt, uninject_prompts, preset_prompt_order, trigger_slash]
+    fallback: 只把要求写入模型可见世界书条目或普通提示词
+  - id: host.streaming_surface
+    owner: st-host-capabilities
+    consumers: [st-frontend-authoring, st-integration-qa]
+    supports: [streaming_message_mount, stream_delta, message_replacement]
+    fallback: 等待文本完成后再渲染消息前端
+  - id: host.parent_dom_bridge
+    owner: st-host-capabilities
+    consumers: [st-frontend-authoring, st-runtime-authoring]
+    supports: [parent_dom, input_box, host_global, iframe_bridge, capability_detection]
+    fallback: iframe 内独立 UI、复制文本或普通输入框回退
+  - id: runtime.ejs_phases
+    owner: st-runtime-authoring
+    consumers: [st-runtime-authoring, st-worldbook-regex]
+    supports: [preparation, generate, render, render_permanent, cache, no_cache, inject]
+    fallback: 不使用 EJS 或改为静态世界书条目
+  - id: frontend.compiled_application
+    owner: st-frontend-authoring
+    consumers: [st-integration-qa]
+    supports: [multi_file_html, typescript, vue, pinia, zod, tailwind, vite, deterministic_build]
+    fallback: 原生 HTML/CSS/JS 模块化工程
+  - id: frontend.zero_layer
+    owner: st-frontend-authoring
+    consumers: [st-integration-qa]
+    supports: [message_replacement, history_restore, fullscreen, persistence, chat_switch_restore]
+    fallback: 普通消息内前端
+  - id: runtime.external_dependency
+    owner: st-host-capabilities
+    consumers: [st-runtime-authoring, st-frontend-authoring]
+    supports: [remote_loader, version_pin, load_order, fallback, runtime_evidence]
+    fallback: 内嵌源码或删除该外部依赖

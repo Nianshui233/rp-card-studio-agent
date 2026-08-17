@@ -30,6 +30,8 @@ description: "Private module for opening/creation frontends, ongoing message UIs
 
 模拟数据只用于预览。正式渲染必须读取 `st-runtime-authoring` 提供的真实路径，或明确的非 MVU XML/消息合同。缺少数据时显示加载、空态、损坏、陈旧或不可用状态，不能用看似合理的假数值伪装成功。
 
+若需要流式楼层、主动 `generate/generateRaw`、消息替换、Vue/Pinia/Zod/Tailwind/Vite 工程、父页面补充组件或聊天切换自动重载，先由 `st-host-capabilities` 协商能力。普通消息内 UI 默认等文本完成后再渲染；流式表面必须单独记录挂载宿主、消息过滤、增量事件、失效楼层清理和卸载函数。
+
 ## 边界
 
 作为主 Skill 时，只询问状态栏/UI 阶段问题；需要时分别询问开场前端与持续状态栏前端的规模。作为叙事与开场阶段的支援 Skill 时不询问 UI 阶段问题，只实现已经锁定的开场内容。缺少数据或标记合同时返回交接。

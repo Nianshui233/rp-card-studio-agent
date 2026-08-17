@@ -56,6 +56,11 @@ agent:
     - preflight
     - positioning
 
+capabilities:
+  enabled: []
+  planned: []
+  evidence: []
+
 features:
   materials: false
   systems: false

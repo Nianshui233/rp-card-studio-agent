@@ -15,6 +15,8 @@ description: "Private supporting specialist for CharacterBook scheduling, model-
 - 世界书名、条目名和正则名尽量使用中文。
 - EJS 专用目标从普通扫描中禁用，通过稳定名称调用。
 
+当需求涉及 `getwi`、`activewi`、预处理世界书、条件 `@@if`、角色/聊天世界书绑定或自动启用局部正则时，先把对应 capability 交给 `st-host-capabilities` 做探测和证据记录；本 Skill 负责条目语义与正则配对，不自行假设宿主对象一定存在。
+
 ## 生产者与消费者闭环
 
 每个正则消费者都必须有真实生产者：开场消息标记、常驻的模型可见输出合同条目、MVU 回复格式/更新协议、酒馆助手或框架脚本、明确用户操作。

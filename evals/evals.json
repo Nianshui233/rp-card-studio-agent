@@ -97,6 +97,19 @@
         "记录 source_stage、target_stage、severity、reason、suggested_change 和 status",
         "只有主 Agent 修改当前阶段并处理返工"
       ]
+    },
+    {
+      "id": 8,
+      "prompt": "我已进入 SillyTavern制卡工坊 Agent。这个项目需要自动挂载卡内世界书、局部正则、事件监听、流式状态栏和聊天切换恢复；如果宿主能力不确定，先不要假装可用。",
+      "expected_output": "Agent 识别并登记多个宿主能力，读取宿主能力矩阵，分别记录探测、回退和证据；不把这些能力变成新的用户阶段，也不修改 SillyTavern 本体。",
+      "files": [],
+      "expectations": [
+        "使用 capability registry 记录 worldbook_binding、regex_control、message_lifecycle、streaming_surface 等能力",
+        "自动挂载、流式楼层和聊天恢复分别记录成功路径与回退",
+        "没有实机证据时状态为 not_run 或 declared，而不是 runtime pass",
+        "私有宿主 Skill 作为支援模块工作，不向用户增加新的阶段问题",
+        "最终运行仍兼容普通消息内前端和标准 JSON 交付"
+      ]
     }
   ]
 }

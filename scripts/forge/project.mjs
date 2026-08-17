@@ -6,6 +6,7 @@ import {
 
 import {
   AGENT_ARCHITECTURE,
+  CAPABILITY_ID_SET,
   agentLedgerForStage,
   primarySkillForStage,
   readableStagesForState,
@@ -87,6 +88,7 @@ var PROJECT_ROOT_KEYS = /* @__PURE__ */ new Set([
   "preflight",
   "workflow",
   "agent",
+  "capabilities",
   "features",
   "deliverables",
   "materials",
@@ -266,6 +268,7 @@ export function makeProject({ name, target = "character_card", nsfw, operation =
       current_stage: "positioning"
     },
     agent: agentLedgerForStage("positioning", initialStages(), STAGES),
+    capabilities: { enabled: [], planned: [], evidence: [] },
     features: {
       materials: false,
       systems: false,
@@ -524,6 +527,7 @@ export function validateProjectModel(project, state, root) {
   validateDecisions(project.decisions, issues);
   validateProjectTitleDecisionLocks(project.decisions, issues);
   validateHandoffs(project.handoffs, issues);
+  validateCapabilities(project.capabilities, issues);
   if (project?.runtime_target?.application !== "SillyTavern") issues.push(modelIssue("/runtime_target/application", "const", "运行目标必须是 SillyTavern"));
   if (!Array.isArray(project?.runtime_target?.dependencies)) issues.push(modelIssue("/runtime_target/dependencies", "type", "dependencies 必须是数组"));
   if (!Array.isArray(project?.release?.accepted_warnings)) issues.push(modelIssue("/release/accepted_warnings", "type", "accepted_warnings 必须是数组"));
@@ -553,6 +557,37 @@ function validateHandoffs(handoffs, issues) {
     if (typeof handoff?.reason !== "string" || handoff.reason.trim() === "") issues.push(modelIssue(`${base}/reason`, "required", "交接原因不能为空"));
     if (!Array.isArray(handoff?.suggested_change) || handoff.suggested_change.length === 0) issues.push(modelIssue(`${base}/suggested_change`, "minItems", "交接至少需要一个建议改动"));
     if (!['open', 'accepted', 'resolved', 'rejected'].includes(handoff?.status)) issues.push(modelIssue(`${base}/status`, "enum", "交接状态无效"));
+  }
+}
+function validateCapabilities(capabilities, issues) {
+  if (!isPlainObject(capabilities)) {
+    issues.push(modelIssue("/capabilities", "type", "capabilities 必须是对象"));
+    return;
+  }
+  for (const field of ["enabled", "planned"]) {
+    if (!Array.isArray(capabilities[field])) {
+      issues.push(modelIssue(`/capabilities/${field}`, "type", `${field} 必须是数组`));
+      continue;
+    }
+    const seen = new Set();
+    for (const [index, id] of capabilities[field].entries()) {
+      if (typeof id !== "string" || !CAPABILITY_ID_SET.has(id)) issues.push(modelIssue(`/capabilities/${field}/${index}`, "enum", `未知宿主能力: ${id}`));
+      if (seen.has(id)) issues.push(modelIssue(`/capabilities/${field}/${index}`, "unique", `能力重复: ${id}`));
+      seen.add(id);
+    }
+  }
+  if (!Array.isArray(capabilities.evidence)) {
+    issues.push(modelIssue("/capabilities/evidence", "type", "capabilities.evidence 必须是数组"));
+    return;
+  }
+  const evidenceIds = new Set();
+  for (const [index, record] of capabilities.evidence.entries()) {
+    if (!CAPABILITY_ID_SET.has(record?.id)) issues.push(modelIssue(`/capabilities/evidence/${index}/id`, "enum", `未知宿主能力: ${record?.id}`));
+    if (evidenceIds.has(record?.id)) issues.push(modelIssue(`/capabilities/evidence/${index}/id`, "unique", `能力证据重复: ${record?.id}`));
+    evidenceIds.add(record?.id);
+    if (!["not_run", "pass", "fail", "blocked"].includes(record?.status)) issues.push(modelIssue(`/capabilities/evidence/${index}/status`, "enum", "能力证据状态无效"));
+    if (!["declared", "source_checked", "artifact_checked", "runtime"].includes(record?.level)) issues.push(modelIssue(`/capabilities/evidence/${index}/level`, "enum", "能力证据层级无效"));
+    if (typeof record?.notes !== "string") issues.push(modelIssue(`/capabilities/evidence/${index}/notes`, "type", "能力证据说明必须是字符串"));
   }
 }
 function validateDecisions(decisions, issues) {
@@ -1410,7 +1445,8 @@ export function migrateProject(project, state = null) {
     const hasAgent = project?.agent?.architecture === AGENT_ARCHITECTURE
       && project?.agent?.writable_stage === activeStage
       && project?.workflow?.current_stage === activeStage
-      && Array.isArray(project?.handoffs);
+      && Array.isArray(project?.handoffs)
+      && isPlainObject(project?.capabilities);
     if (project?.preflight?.workflow_confirmed === true && hasPlan && !legacyRoute && !hasLegacyDecision && hasAgent) return { value: project, migrated: false };
     const migrated = structuredClone(project);
     migrated.preflight ??= {};
@@ -1423,6 +1459,7 @@ export function migrateProject(project, state = null) {
     migrated.decisions ??= [];
     migrated.decisions = migrated.decisions.filter((decision) => decision.id !== "preflight.stage_route");
     migrated.handoffs ??= [];
+    migrated.capabilities ??= { enabled: [], planned: [], evidence: [] };
     const stageState = state ? structuredClone(state) : { active_stage: activeStage, stages: initialStages() };
     stageState.active_stage = activeStage;
     syncAgentLedger(migrated, stageState);
@@ -1435,6 +1472,7 @@ export function migrateProject(project, state = null) {
     const migrated = structuredClone(project);
     migrated.schema_version = PROJECT_SCHEMA_VERSION;
     migrated.handoffs ??= [];
+    migrated.capabilities ??= { enabled: [], planned: [], evidence: [] };
     const activeStage = STAGES.includes(state?.active_stage) ? state.active_stage : "positioning";
     syncAgentLedger(migrated, state ?? { active_stage: activeStage, stages: initialStages() });
     return { value: migrated, migrated: true };

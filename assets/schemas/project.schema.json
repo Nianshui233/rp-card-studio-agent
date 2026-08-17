@@ -10,6 +10,7 @@
     "preflight",
     "workflow",
     "agent",
+    "capabilities",
     "features",
     "deliverables",
     "materials",
@@ -201,6 +202,25 @@
           "uniqueItems": true,
           "items": {
             "$ref": "#/$defs/stage"
+          }
+        }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "planned", "evidence"],
+      "properties": {
+        "enabled": {
+          "$ref": "#/$defs/capabilityIdList"
+        },
+        "planned": {
+          "$ref": "#/$defs/capabilityIdList"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/capabilityEvidence"
           }
         }
       }
@@ -627,6 +647,36 @@
           "enum": ["open", "accepted", "resolved", "rejected"]
         }
       }
+    },
+    "capabilityEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "level", "notes"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/capabilityId"
+        },
+        "status": {
+          "enum": ["not_run", "pass", "fail", "blocked"]
+        },
+        "level": {
+          "enum": ["declared", "source_checked", "artifact_checked", "runtime"]
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "capabilityIdList": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/capabilityId"
+      }
+    },
+    "capabilityId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$"
     },
     "pathList": {
       "type": "array",

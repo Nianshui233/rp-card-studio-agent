@@ -1,6 +1,6 @@
 # SillyTavern制卡工坊
 
-`rp-card-studio` 是一个只在用户明确进入时工作的个人 SillyTavern RP 项目 Agent。它由一个主 Agent、七个按阶段加载的私有 Skill、共享项目账本和 Forge 工具链组成，把“角色卡”视为完整 RP 包的便携载体，而不是默认把所有内容围绕某一个角色堆进卡面。
+`rp-card-studio` 是一个只在用户明确进入时工作的个人 SillyTavern RP 项目 Agent。它由一个主 Agent、八个按阶段加载的私有 Skill、共享项目账本和 Forge 工具链组成，把“角色卡”视为完整 RP 包的便携载体，而不是默认把所有内容围绕某一个角色堆进卡面。
 
 它适合制作：
 
@@ -31,13 +31,13 @@ AGENT.md：唯一主协调 Agent
   ├─ project.yaml：语义账本
   ├─ .rp-card-state.json：Forge 技术镜像
   ├─ orchestrator/routing.yaml：阶段路由
-  ├─ internal-skills/：七个私有专业 Skill
+  ├─ internal-skills/：八个私有专业 Skill
   └─ Forge：状态、装配与验证
 ```
 
 私有 Skill 不作为独立入口安装，也不维护自己的项目状态。主 Agent 每轮只读取当前主 Skill，确有技术依赖时才读取支援 Skill。旧的根 `SKILL.md` 单体流程已经删除，不存在兼容或回退入口。
 
-七个私有 Skill 的分工：
+八个私有 Skill 的分工：
 
 | 私有 Skill | 主要负责 |
 |---|---|
@@ -47,9 +47,12 @@ AGENT.md：唯一主协调 Agent
 | `st-runtime-authoring` | MVU、MVU_ZOD、EJS、初值、更新、脚本和创角变量桥 |
 | `st-frontend-authoring` | 开场/创角前端、持续状态前端、轻到超重型 UI、0 层玩法 |
 | `st-worldbook-regex` | 世界书调度、输出合同、XML/标记生产和正则 |
+| `st-host-capabilities` | 宿主能力探测、世界书绑定、事件生命周期、生成、流式前端和回退 |
 | `st-integration-qa` | 装配、Forge、角色卡 JSON、SillyTavern 实机验收和故障归因 |
 
 其中 `st-worldbook-regex` 是无独立用户阶段的支援模块。用户不会被要求先理解或选择这些 Skill；主 Agent 根据 `project.yaml` 当前阶段自动调度。
+
+`st-host-capabilities` 也是无独立用户阶段的支援模块。它把宿主能力做成可扩展注册表：项目只启用实际需要的能力，并分别记录 `declared`、`source_checked`、`artifact_checked` 和 `runtime` 证据。以后新增宿主能力不需要把所有规则重新塞回主 Agent。
 
 ## 正确的项目结构
 
@@ -294,6 +297,8 @@ node scripts/rp-card-forge.bundle.mjs state <项目目录> show
 node scripts/rp-card-forge.bundle.mjs state <项目目录> plan '<阶段数组>'
 node scripts/rp-card-forge.bundle.mjs state <项目目录> handoff <交接ID> <目标阶段> '<原因>' --severity blocking --suggested '["建议一","建议二"]'
 node scripts/rp-card-forge.bundle.mjs state <项目目录> handoff-status <交接ID> resolved
+node scripts/rp-card-forge.bundle.mjs state <项目目录> capability enable host.worldbook_binding --notes "项目要求零手工挂载"
+node scripts/rp-card-forge.bundle.mjs state <项目目录> capability evidence host.worldbook_binding --status pass --level runtime --notes "已在目标宿主读回绑定结果"
 ```
 
 Forge 的职责：
