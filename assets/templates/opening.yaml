@@ -28,6 +28,16 @@ opening_ui:
   journey: ""
   fallback: ""
   runtime: not_run
+  # compiled_frontend 路线记录源码根、构建命令、输出格式与制品哈希。
+  frontend_build: null
+
+# swipe_switch 可把介绍/创角页切到备用开场白，不与持续状态栏混为一体。
+opening_transition:
+  route: none
+  source_message: null
+  target_opening: null
+  api_ref: null
+  evidence: []
 
 # 只要开场表单会改变 MVU/EJS、状态栏或其他运行时数据，就在这里记录
 # “表单字段 → 状态路径 → 提交 → 回读”的真实桥接；不能只附加聊天楼 data。
@@ -40,6 +50,11 @@ creation_bridge:
     marker: null
     source_file: null
     api_ref: null
+    # worldbook_api / hybrid 可同时 upsert <user> 条目并写入运行变量。
+    worldbook_ref: null
+    entry_name: null
+    write_mode: none
+    worldbook_readback: null
     readback: ""
     failure_fallback: ""
 

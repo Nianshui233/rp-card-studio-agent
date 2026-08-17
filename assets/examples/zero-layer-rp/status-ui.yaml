@@ -1,0 +1,60 @@
+schema_version: 2.0.0
+status: locked
+status_ui:
+  enabled: true
+  authoring_mode: direct_html
+  experience_level: super_heavy
+  theme_direction: "雾港航行终端"
+  device_priority: equal
+  surfaces:
+    - id: floating_terminal
+      name: 浮桥终端
+      marker: "<浮桥终端>...</浮桥终端>"
+      file: src/runtime/ui/浮桥终端.html
+      app_manifest: null
+      render_route: regex_replace
+      render_ref: zero_display
+      render_evidence: ["整楼 XML 由 display 正则替换为主游玩应用"]
+      emission: { producer: model_output, cadence: every_assistant_message, source_ref: zero_output_contract, evidence: [] }
+      prompt_channel: { mode: replace, regex_ref: zero_prompt, fallback_text: "浮桥终端已显示，继续依据状态推进", evidence: [] }
+  data_sources: ["当前消息 stat_data"]
+  state_contract:
+    root: stat_data
+    scope: { type: message, message_id: current }
+    refresh: { mode: event_and_poll, events: [CHAT_CHANGED, MESSAGE_UPDATED, MESSAGE_SWIPED, GENERATION_ENDED], interval_ms: 2500 }
+    paths:
+      - { path: 世界.当前区域, type: string, readers: [floating_terminal], writers: [model_update], fallback: 未记录, readable_by: [ui, ejs], writable_by: [model_update], readonly: false, derived: false, update_guard: "场景切换时更新" }
+      - { path: 载具.完整度, type: number, readers: [floating_terminal], writers: [model_update], fallback: 0, readable_by: [ui], writable_by: [model_update], readonly: false, derived: false, update_guard: "0..100" }
+  host_interactions: ["读取当前楼层", "写入输入框", "读取历史消息", "响应聊天切换与 Swipe"]
+  frontend_build: null
+  zero_layer:
+    message_replacement: whole_message
+    floor_policy: latest_only
+    chat_switch: reload_application
+    primary_play_surface: true
+    history_access: through_frontend
+    fullscreen: supported
+    persistence: [message_state, local_storage]
+    lifecycle_script: zero_lifecycle
+  opening_relationship: unified_zero_layer
+  experience_evidence:
+    baseline:
+      navigation: ["六个主功能区"]
+      data_views: ["世界、载具、事件、风险、人物、物资、线索、行动、历史"]
+      information_tools: ["搜索、详情、历史读取"]
+      host_actions: ["输入框写入、当前楼层读取"]
+      feedback_states: ["加载、空态、失败、成功回退"]
+      responsive_checks: ["桌面、窄屏、触控"]
+      theme_features: ["雾港仪表终端视觉"]
+      data_binding: ["当前消息 stat_data 与事件刷新"]
+    level_advancements:
+      usability: ["应用内完成主要游玩操作"]
+      information_architecture: ["六区导航与跨域搜索"]
+      interaction_depth: ["确认弹窗、输入框联动、历史读取"]
+      visual_expression: ["主题化仪表和状态反馈"]
+      host_integration: ["消息、事件、输入框、历史 API"]
+      persistence_lifecycle: ["聊天切换、Swipe、编辑、定时刷新、卸载解绑"]
+    primary_play_surface: true
+  lifecycle_checks: ["切换聊天后重载", "Swipe 后读取当前楼层", "pagehide 清理事件和定时器"]
+  runtime: not_run
+source_refs: []

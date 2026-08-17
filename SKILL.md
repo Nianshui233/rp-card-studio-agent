@@ -165,12 +165,15 @@ For host-facing lifecycle, iframe, message, and event behavior, also read
 For EJS execution stages, variable scopes, decorators, world-info access, and
 template diagnostics, also read [ejs-runtime.md](references/host/ejs-runtime.md).
 
-An MVU implementation is a closed chain: framework loading, actual initial data, the selected native/MVU_ZOD/hybrid/existing schema route, model-visible update rules, output format, per-opening initialization, prompt routing, and UI readers. `stat_data` is the primary game-state tree unless the target project proves another shape. For every new MVU route, maintain a real initial-values file and project it through `worldbook_manifest.entries` as a CharacterBook entry whose name contains `[initvar]`. MVU_ZOD registers project structure; it does not replace initial data. Treat opening `<initvar>` as an override after lorebook initialization, never as a standalone bootstrap when no primary lorebook is installed and linked. Never confuse the project schema script with the MVU framework loader. Preserve real Tavern Helper Script/ScriptFolder trees.
+An MVU implementation is a closed chain: framework loading, actual initial data, the selected native/MVU_ZOD/hybrid/existing schema route, model-visible update rules, output format, per-opening initialization, prompt routing, and UI readers. `stat_data` is the primary game-state tree unless the target project proves another shape. For every new MVU route, maintain a real initial-values file and project it through `worldbook_manifest.entries` as a CharacterBook entry whose name contains `[initvar]`. MVU_ZOD registers project structure; it does not replace initial data. Treat opening `<initvar>` as an override after lorebook initialization, never as a standalone bootstrap when no primary lorebook is installed and linked. Never confuse the project schema script with the MVU framework loader. Preserve real Tavern Helper Script/ScriptFolder trees. In development sources, record script role, phase, dependencies, provided capabilities, and expected globals so Loader → Schema → synchronization → lifecycle order is auditable; these fields need not be forced into the final host extension when the host does not consume them.
 
 EJS is actual ST-Prompt-Template source. It may project a compressed MVU context,
 choose text, or route prompt content, but it is not a generic condition table and it
 does not replace MVU storage. Keep `.ejs` source intact and package it into the exact
-CharacterBook entry or host surface that owns it.
+CharacterBook entry or host surface that owns it. Record its execution phase, state reads,
+output target, cache behavior, and every CharacterBook entry invoked by `getwi()` or API.
+Entries used only by name should use `manual` / `ejs_only` activation: disabled, without
+keywords, and validated against actual entry names.
 
 Do not add a second synthetic runtime layer, fake event system, or invented API when the selected MVU/Tavern Helper/ST-Prompt-Template stack already owns that behavior. Verify exact symbols against the target runtime before writing version-sensitive code.
 
@@ -208,7 +211,10 @@ If the creation form changes MVU/EJS, status-bar, or other runtime data, also ma
 verified commit route, and read the value back before starting the opening. Attaching
 `data` to `createChatMessages` or changing only a local page object is not proof that
 runtime state changed. A failed commit must remain visible and recoverable instead of
-silently starting on defaults.
+silently starting on defaults. The bridge may use `worldbook_api` or `hybrid` to upsert the
+reserved `<user>` entry and update/read back MVU state in one confirmed flow. If the
+introduction switches into an alternate greeting through Swipe, record the source message,
+target opening, and real `getChatMessages` / `setChatMessage` route as `opening_transition`.
 
 Treat the opening frontend as a real browser application during authoring. Default to
 `multi_file_html`: separate semantic HTML/fragments, design tokens, layout, components,
@@ -240,11 +246,17 @@ route.
 
 For `multi_file_html`, record both the development manifest and built artifact:
 `status_ui.surfaces[].app_manifest` points to `ui-app.yaml`, while `.file` points to the
-generated self-contained HTML. Locking or card build must fail when source and artifact
-are stale. Medium and above should normally include full mock state so the application
-can be reviewed with populated, empty, error, long-text, multi-character, and multi-event
-conditions before connecting to SillyTavern. Mock state is preview data, never a runtime
-substitute for the current message state.
+generated self-contained HTML. Set `ui_app.output_mode` to `message_surface` when the
+runtime artifact intentionally uses SillyTavern's `head + body` message form; previews
+may wrap it as a standalone document, but deployment must preserve the chosen form.
+Locking or card build must fail when source and artifact are stale. Medium and above
+should normally include full mock state so the application can be reviewed with populated,
+empty, error, long-text, multi-character, and multi-event conditions before connecting to
+SillyTavern. Mock state is preview data, never a runtime substitute for current message state.
+
+When `compiled_frontend` is chosen, treat it as a real build route: record the source root,
+package and lock files, build command, output artifact, runtime format, and expected hash.
+Do not force Vue, Pinia, Vite, a CDN, or any other stack; preserve the project's actual toolchain.
 
 Regex replacement is common, not exclusive. A surface may instead be rendered by a
 Tavern Helper script, EJS, inline message HTML, a verified framework, or an existing
@@ -269,7 +281,11 @@ for missing player-visible capability.
 For MVU-backed message iframes, resolve host capabilities across the current frame and
 `window.parent`. Code that only checks `window.Mvu` or only checks `window.TavernHelper`
 is incomplete unless the target runtime proves those globals are injected into the
-iframe. A rendered shell with no live state does not satisfy any UI level.
+iframe. A rendered shell with no live state does not satisfy any UI level. Maintain
+`status_ui.state_contract` for data-bearing surfaces: state root, current message scope,
+refresh events/polling, concrete paths, readers, writers, fallbacks, and write ownership.
+Also maintain each regex surface's `prompt_channel`, so the same marker has both a player
+display consumer and an explicit model-prompt consumer.
 
 Treat the complete ongoing HTML in the bundled
 `assets/examples/self-contained-rp/src/runtime/ui/潮痕状态栏.html` sample as the
@@ -284,7 +300,9 @@ sample's byte or line count; use
 `status_ui.experience_evidence` as a review note rather than a numeric gate. Every level above `light` should name genuine additions
 in functionality, interaction, convenience, visual performance, host integration, or
 lifecycle depth. `super_heavy` additionally makes the message application the primary
-play surface.
+play surface and records `zero_layer`: whole-message replacement, old-floor policy, chat
+switch recovery, history access, fullscreen support, persistence, and the real Tavern Helper
+lifecycle script.
 
 ### Integration
 

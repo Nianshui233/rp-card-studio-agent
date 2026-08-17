@@ -1,3 +1,5 @@
-<%_ const state = typeof stat_data === 'object' && stat_data ? stat_data : {}; _%>
-当前议会时间：<%= state.世界?.当前时间 ?? '未记录' %>
-舆论稳定度：<%= state.舆论?.稳定度 ?? '未记录' %>
+<%_ const root = typeof stat_data === 'object' && stat_data ? stat_data : {}; _%>
+当前议会时间：<%= root.世界?.当前时间 ?? '未初始化' %>
+当前议案：<%= root.议案?.当前 ?? '未初始化' %>
+舆论稳定度：<%= root.舆论?.稳定度 ?? '未初始化' %>
+<%_ const called = getwi ? getwi('议案历史索引') : ''; _%><%= called || '' %>

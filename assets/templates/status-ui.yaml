@@ -11,8 +11,15 @@ status_ui:
   device_priority: equal
   # 每个 surface 在 multi_file_html 模式下同时记录 app_manifest（开发清单）与 file（构建结果）。
   surfaces: []
+  # 每个持续表面应同时声明玩家显示消费者与模型提示词消费者，避免技术标记回流。
+  # surfaces[].prompt_channel: { mode, regex_ref, fallback_text, evidence }
   data_sources: []
+  # state_contract 把真实状态根、当前消息作用域、刷新方式、读写者和回退值连成一条链。
+  state_contract: null
   host_interactions: []
+  frontend_build: null
+  # super_heavy / 0层路线在这里声明整楼替换、楼层策略、聊天切换与持久化。
+  zero_layer: null
   opening_relationship: separate
   experience_evidence:
     # 轻型以成熟持续状态应用为体验基准；按项目实际记录，不适用的维度可留空并在阶段总结说明理由。

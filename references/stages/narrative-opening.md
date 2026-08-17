@@ -161,3 +161,9 @@ MVU 创角页还要安全探测 `window.Mvu` 与 `window.parent.Mvu`。如果项
 - 备选开场确实不同，而不是换一句欢迎词；
 - 不把完整 HTML 直接送入模型上下文；
 - 示例对话属于角色或叙事校准，不重复塞进多个高级定义字段。
+
+## Swipe 切换与混合创角提交
+
+介绍/创角前端若通过备用开场白进入剧情，使用 `opening_transition.route: swipe_switch` 记录源消息、目标 opening，以及实际的消息读取/修改路线。
+
+创角资料既需要长期写入 `<user>` 世界书条目、又需要立刻影响 MVU 状态时，使用 `creation_bridge.commit.route: hybrid`：先 upsert 目标条目并读回，再写入当前消息变量并读回，最后才触发开局。任一步失败都保留表单和可复制回退文本。

@@ -1,0 +1,34 @@
+[
+  {
+    "scriptName": "议会变量完整块隐藏",
+    "findRegex": "/<议会变量>[\\s\\S]*?<\\/议会变量>/g",
+    "replaceString": "",
+    "trimStrings": [],
+    "placement": [
+      2
+    ],
+    "disabled": false,
+    "markdownOnly": true,
+    "promptOnly": false,
+    "runOnEdit": true,
+    "substituteRegex": 0,
+    "minDepth": null,
+    "maxDepth": null
+  },
+  {
+    "scriptName": "议会变量流式隐藏",
+    "findRegex": "/<议会变量>(?:(?!<\\/议会变量>)[\\s\\S])*$/g",
+    "replaceString": "",
+    "trimStrings": [],
+    "placement": [
+      2
+    ],
+    "disabled": false,
+    "markdownOnly": true,
+    "promptOnly": false,
+    "runOnEdit": true,
+    "substituteRegex": 0,
+    "minDepth": null,
+    "maxDepth": null
+  }
+]

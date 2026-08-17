@@ -1,0 +1,5 @@
+输出格式:
+  marker: "<议会变量>...</议会变量>"
+  cadence: "每次回复末尾一次"
+  dialect: "lodash_commands"
+  example: "<议会变量><Analysis>变化依据</Analysis>_.set('议案.支持', 3, 4);</议会变量>"

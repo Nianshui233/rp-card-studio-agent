@@ -64,6 +64,21 @@ test("ui-build combines real HTML/CSS/JS sources into one self-contained documen
   assert.ok(inspected.mockState.endsWith(path.join("mock", "state.json")));
 });
 
+test("ui-build preserves head + body message surfaces while wrapping only the preview", async () => {
+  const fixture = await makeApp();
+  const manifestText = await readFile(fixture.manifest, "utf8");
+  await writeFile(fixture.manifest, manifestText.replace("  experience_level: light\n", "  experience_level: light\n  output_mode: message_surface\n"));
+  await writeFile(path.join(fixture.app, "index.html"), `<head><meta name="viewport" content="width=device-width"><!-- RP_UI_STYLES --></head><body><!-- RP_UI_FRAGMENT:APP_SHELL --><!-- RP_UI_SCRIPTS --></body>`);
+  const result = await buildUiApp(fixture.manifest);
+  const html = await readFile(fixture.output, "utf8");
+  const preview = await readFile(path.join(fixture.app, "dist", "status.preview.html"), "utf8");
+  assert.equal(result.outputMode, "message_surface");
+  assert.doesNotMatch(html, /<!doctype html>/i);
+  assert.match(html, /^<head>/i);
+  assert.match(preview, /<!doctype html>/i);
+  assert.match(preview, /window\.__RP_UI_MOCK__/);
+});
+
 test("runtime validation reports stale modular UI artifacts", async () => {
   const fixture = await makeApp();
   await buildUiApp(fixture.manifest);

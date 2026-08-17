@@ -14674,6 +14674,7 @@ async function loadUiAppManifest(manifestPath) {
       id: assertString(app.id, "ui_app.id"),
       surface: assertString(app.surface, "ui_app.surface"),
       experience_level: assertString(app.experience_level, "ui_app.experience_level"),
+      output_mode: app.output_mode === "message_surface" ? "message_surface" : "standalone_document",
       entry_html: entryHtml,
       styles,
       scripts,
@@ -14743,8 +14744,13 @@ ${css}
   html = html.replace(SCRIPT_SLOT, `<script>
 ${js}
 </script>`);
-  if (!/<!doctype\s+html/i.test(html) || !/<html\b/i.test(html) || !/<body\b/i.test(html)) {
-    throw new Error("\u6784\u5EFA\u7ED3\u679C\u5FC5\u987B\u662F\u5305\u542B doctype\u3001html \u548C body \u7684\u5B8C\u6574 HTML \u6587\u6863");
+  const isStandaloneDocument = /<!doctype\s+html/i.test(html) && /<html\b/i.test(html) && /<body\b/i.test(html);
+  const isMessageSurface = /<head\b/i.test(html) && /<body\b/i.test(html);
+  if (app.output_mode === "standalone_document" && !isStandaloneDocument) {
+    throw new Error("standalone_document \u6784\u5EFA\u7ED3\u679C\u5FC5\u987B\u5305\u542B doctype\u3001html \u548C body");
+  }
+  if (app.output_mode === "message_surface" && !isMessageSurface) {
+    throw new Error("message_surface \u6784\u5EFA\u7ED3\u679C\u5FC5\u987B\u81F3\u5C11\u5305\u542B head \u548C body\uFF1B\u6B63\u5F0F\u8F93\u51FA\u4F1A\u539F\u6837\u4FDD\u7559\u4E3A SillyTavern \u6D88\u606F\u8868\u9762");
   }
   if (/RP_UI_(?:STYLES|SCRIPTS|FRAGMENT)/.test(html)) throw new Error("\u6784\u5EFA\u7ED3\u679C\u4ECD\u6709\u672A\u89E3\u6790\u7684 UI \u69FD\u4F4D");
   const declaredOutput = options.output ? path.resolve(options.output) : path.resolve(root, app.output);
@@ -14756,7 +14762,11 @@ ${js}
     mockState = mock.absolute;
   }
   const previewOutput = !options.output && app.preview_output ? path.resolve(root, app.preview_output) : null;
-  const previewHtml = previewOutput && mockValue !== null ? html.replace(/<script>/i, `<script>
+  const runtimePreviewHtml = app.output_mode === "message_surface" ? `<!doctype html>
+<html lang="zh-CN">
+${html}
+</html>` : html;
+  const previewHtml = previewOutput && mockValue !== null ? runtimePreviewHtml.replace(/<script>/i, `<script>
 window.__RP_UI_MOCK__ = ${JSON.stringify(mockValue).replaceAll("<", "\\u003c")};
 </script>
 <script>`) : null;
@@ -14774,6 +14784,7 @@ window.__RP_UI_MOCK__ = ${JSON.stringify(mockValue).replaceAll("<", "\\u003c")};
     output: declaredOutput,
     dryRun: Boolean(options.dryRun),
     surface: app.surface,
+    outputMode: app.output_mode,
     experienceLevel: app.experience_level,
     entryHtml: entry.absolute,
     styles: app.styles.length,

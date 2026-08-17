@@ -161,3 +161,13 @@ Forge 不生成 MVU 引擎、Schema、Guard、EJS 或固定回复合同。缺少
 - 控制台首个因果错误。
 
 不能实测时，交付候选 JSON并列出准确的 `not_run` 项目。
+
+## 新运行契约检查
+
+- `message_surface` 允许 head + body，预览包装不改变正式制品；
+- 数据型持续 UI 检查状态根、路径初始化、HTML 读取者、写入权属与回退；
+- display 与 prompt-only 消费者使用同一标记；
+- `compiled_frontend` 检查源码、包/锁文件、命令、输出与哈希；
+- `manual/ejs_only` 世界书条目默认关闭且不使用关键词，EJS 引用必须存在；
+- 0层检查整楼替换、旧楼策略、聊天切换、历史、持久化和真实生命周期脚本；
+- 大型合成测试覆盖 600KB 级 HTML、模块脚本、422 条世界书与 2MB 以上角色卡 JSON 往返。

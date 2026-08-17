@@ -73,7 +73,7 @@ function countUiSignals(text, pattern) {
 function inspectUiHtml(text) {
   const source = String(text ?? '');
   return {
-    complete_document: /<!doctype\s+html|<html\b/i.test(source) && /<body\b[\s>]/i.test(source),
+    complete_document: ((/<!doctype\s+html|<html\b/i.test(source)) || /<head\b/i.test(source)) && /<body\b[\s>]/i.test(source),
     navigation: countUiSignals(source, /data-(?:tab|view|page)|class=["'][^"']*(?:tabs?|nav|menu)|\b(?:goStep|switchTab|switchView)\s*\(/gi),
     views: countUiSignals(source, /<(?:section|article|main|nav|dialog)\b|id=["'][^"']*(?:panel|view|page|tab)[^"']*["']/gi),
     actions: countUiSignals(source, /<button\b|data-action\s*=|onclick\s*=|addEventListener\s*\(/gi),
@@ -133,30 +133,27 @@ async function validateUiHtmlExperience({ source, file, projectRoot, base, statu
   }
 }
 
-async function validateUiAuthoringProject({ authoringMode, manifest, file, projectRoot, base, status, level, issues, warnings }) {
-  if (authoringMode !== "multi_file_html") return;
-  const target = stageTarget(status, issues, warnings);
-  if (typeof manifest !== "string" || !manifest.trim()) {
-    target.push(issue(`${base}/app_manifest`, "ui.app_manifest", "multi_file_html 必须声明模块化前端应用清单；最终 HTML 是构建产物，不是开发入口"));
+async function validateUiAuthoringProject({ authoringMode, manifest, frontendBuild, file, projectRoot, base, status, level, issues, warnings }) {
+  if (authoringMode === "multi_file_html") {
+    const target = stageTarget(status, issues, warnings);
+    if (typeof manifest !== "string" || !manifest.trim()) { target.push(issue(`${base}/app_manifest`, "ui.app_manifest", "multi_file_html 必须声明模块化前端应用清单；最终 HTML 是构建产物，不是开发入口")); return; }
+    if (typeof file !== "string" || !file.trim()) return;
+    try {
+      const manifestPath = resolveWithin(projectRoot, manifest); const outputPath = resolveWithin(projectRoot, file); const inspected = await inspectUiApp(manifestPath, outputPath);
+      if (!inspected.outputPathMatches) target.push(issue(`${base}/app_manifest`, "ui.app_output", `UI 应用清单输出 ${inspected.declaredOutput} 与运行时 HTML ${outputPath} 不一致`));
+      if (!inspected.outputMatches) target.push(issue(`${base}/file`, "ui.app_stale", "模块化 UI 源码与最终内联 HTML 不一致；请先运行 rp-card-forge ui-build，再装配角色卡"));
+      if (["medium", "heavy", "super_heavy"].includes(level) && !inspected.mockState) warnings.push(issue(`${base}/app_manifest`, "ui.mock_state", `${level} UI 建议提供完整模拟状态，用于在未连接 SillyTavern 时检查满数据、长文本和空/错状态`));
+    } catch (error) { target.push(issue(`${base}/app_manifest`, "ui.app_manifest", `模块化 UI 应用无法构建: ${error.message}`)); }
     return;
   }
-  if (typeof file !== "string" || !file.trim()) return;
-  try {
-    const manifestPath = resolveWithin(projectRoot, manifest);
-    const outputPath = resolveWithin(projectRoot, file);
-    const inspected = await inspectUiApp(manifestPath, outputPath);
-    if (!inspected.outputPathMatches) {
-      target.push(issue(`${base}/app_manifest`, "ui.app_output", `UI 应用清单输出 ${inspected.declaredOutput} 与运行时 HTML ${outputPath} 不一致`));
-    }
-    if (!inspected.outputMatches) {
-      target.push(issue(`${base}/file`, "ui.app_stale", "模块化 UI 源码与最终内联 HTML 不一致；请先运行 rp-card-forge ui-build，再装配角色卡"));
-    }
-    if (["medium", "heavy", "super_heavy"].includes(level) && !inspected.mockState) {
-      warnings.push(issue(`${base}/app_manifest`, "ui.mock_state", `${level} UI 建议提供完整模拟状态，用于在未连接 SillyTavern 时检查满数据、长文本和空/错状态`));
-    }
-  } catch (error) {
-    target.push(issue(`${base}/app_manifest`, "ui.app_manifest", `模块化 UI 应用无法构建: ${error.message}`));
-  }
+  if (authoringMode !== "compiled_frontend") return;
+  const target = stageTarget(status, issues, warnings);
+  if (!isObject(frontendBuild) || frontendBuild.mode !== "compiled_frontend") { target.push(issue(`${base}/frontend_build`, "ui.frontend_build", "compiled_frontend 需要记录源码根、包文件、锁文件、构建命令、输出格式和制品哈希")); return; }
+  for (const key of ["source_root", "package_file", "output"]) { try { await stat(resolveWithin(projectRoot, frontendBuild[key])); } catch { target.push(issue(`${base}/frontend_build/${key}`, "ui.frontend_source", `编译型前端文件不存在: ${frontendBuild[key]}`)); } }
+  if (frontendBuild.lock_file) { try { await stat(resolveWithin(projectRoot, frontendBuild.lock_file)); } catch { target.push(issue(`${base}/frontend_build/lock_file`, "ui.frontend_source", `锁文件不存在: ${frontendBuild.lock_file}`)); } }
+  else warnings.push(issue(`${base}/frontend_build/lock_file`, "ui.frontend_lock", "编译型前端未记录锁文件；仍可继续，但复现构建时依赖版本可能漂移"));
+  if (typeof frontendBuild.build_command !== "string" || !frontendBuild.build_command.trim()) target.push(issue(`${base}/frontend_build/build_command`, "ui.frontend_build", "缺少实际构建命令"));
+  try { const artifact = await readFile(resolveWithin(projectRoot, frontendBuild.output)); const actual = createHash("sha256").update(artifact).digest("hex"); if (frontendBuild.expected_sha256 && actual !== frontendBuild.expected_sha256) target.push(issue(`${base}/frontend_build/expected_sha256`, "ui.frontend_stale", "编译制品哈希与记录不一致；请重新构建并更新装配产物")); } catch { }
 }
 
 function canonicalJson(value) {
@@ -663,6 +660,10 @@ function worldbookHostIssues(manifest, target, basePath = "/runtime/assembly") {
     const secondaryKeys = activation.secondary_keys ?? [];
     if (activation.mode === "keywords" && primaryKeys.length === 0) {
       issues.push(issue(`${entryPath}/activation/primary_keys`, "assembly.activation", "关键词条目至少需要一个主关键词"));
+    }
+    if (["manual", "ejs_only"].includes(activation.mode)) {
+      if (entry.enabled !== false) issues.push(issue(`${entryPath}/enabled`, "assembly.manual_activation", "manual/ejs_only 条目应默认禁用，避免被普通扫描误触发"));
+      if (primaryKeys.length > 0 || secondaryKeys.length > 0) issues.push(issue(`${entryPath}/activation`, "assembly.manual_activation", "manual/ejs_only 条目不应依赖关键词；由 EJS/API 按条目名调用"));
     }
     const insertion = entry.insertion ?? {};
     if (insertion.position === "at_depth") {
@@ -1552,12 +1553,17 @@ function uiPromptRegexPatterns(runtime) {
   return patterns;
 }
 
+function validateOpeningTransitionAndBridge(source, assembly, base, issues, warnings) { const target=stageTarget(source.status,issues,warnings); const openings=source.openings??[]; const transition=source.opening_transition; if(isObject(transition)&&transition.route!=="none"){ if(transition.route==="swipe_switch"){ if(!Number.isInteger(transition.source_message))target.push(issue(`${base}/opening_transition/source_message`,"opening.transition","swipe_switch 需要明确源消息楼层，通常为 0")); if(!openings.some((opening)=>opening.id===transition.target_opening))target.push(issue(`${base}/opening_transition/target_opening`,"opening.transition","swipe_switch 指向的备用开场不存在")); if(!transition.api_ref && !(transition.evidence??[]).length)target.push(issue(`${base}/opening_transition/api_ref`,"opening.transition","swipe_switch 需要记录 getChatMessages/setChatMessage 等真实宿主路线")); } }
+  const bridge=source.creation_bridge; if(!isObject(bridge)||!bridge.enabled)return; const commit=bridge.commit??{}; if(["worldbook_api","hybrid"].includes(commit.route)){ const book=assembly?.worldbook_manifest; if(commit.worldbook_ref && ![book?.id,book?.display_name].includes(commit.worldbook_ref))target.push(issue(`${base}/creation_bridge/commit/worldbook_ref`,"opening.worldbook_bridge","创角桥指向的世界书不是本卡主世界书")); if(!commit.entry_name)target.push(issue(`${base}/creation_bridge/commit/entry_name`,"opening.worldbook_bridge","worldbook_api/hybrid 需要明确 <user> 条目名")); if(!["create","update","upsert"].includes(commit.write_mode))target.push(issue(`${base}/creation_bridge/commit/write_mode`,"opening.worldbook_bridge","需要选择 create、update 或 upsert")); if(!commit.worldbook_readback)target.push(issue(`${base}/creation_bridge/commit/worldbook_readback`,"opening.worldbook_bridge","写入世界书后必须声明读回验证")); }
+  if(commit.route==="hybrid"&&!commit.api_ref&&!commit.source_file)target.push(issue(`${base}/creation_bridge/commit`,"opening.hybrid_bridge","hybrid 还需要真实变量写入 API 或桥接脚本")); }
+
 async function validateOpeningUiSources(sources, projectRoot, assembly, issues, warnings) {
   const runtime = assembly?.runtime_manifest;
   const displayPatterns = uiDisplayRegexPatterns(runtime);
   const promptPatterns = uiPromptRegexPatterns(runtime);
   const helperIds = helperRuntimeIds(runtime?.tavern_helper_scripts);
   for (const [sourceIndex, source] of values(sources, "prompts").entries()) {
+    validateOpeningTransitionAndBridge(source, assembly, `/runtime/opening/${sourceIndex}`, issues, warnings);
     const openingUi = source.opening_ui;
     if (!isObject(openingUi) || !openingUi.enabled) continue;
     const base = `/runtime/opening/${sourceIndex}/opening_ui`;
@@ -1576,6 +1582,7 @@ async function validateOpeningUiSources(sources, projectRoot, assembly, issues, 
       await validateUiAuthoringProject({
         authoringMode: openingUi.authoring_mode ?? "direct_html",
         manifest: openingUi.app_manifest,
+        frontendBuild: openingUi.frontend_build,
         file,
         projectRoot,
         base,
@@ -1603,6 +1610,29 @@ async function validateOpeningUiSources(sources, projectRoot, assembly, issues, 
   }
 }
 
+async function readOptionalProjectFile(projectRoot, relativePath) { if (typeof relativePath !== "string" || !relativePath.trim()) return ""; try { return await readFile(resolveWithin(projectRoot, relativePath), "utf8"); } catch { return ""; } }
+
+async function validateStatusStateContract(statusUi, uiSource, projectRoot, sources, base, issues, warnings) {
+  const contract = statusUi?.state_contract; if (!isObject(contract)) { const target = Array.isArray(statusUi?.data_sources) && statusUi.data_sources.length > 0 ? stageTarget(uiSource.status, issues, warnings) : warnings; target.push(issue(`${base}/state_contract`, "ui.state_contract", "持续 UI 缺少真实状态契约；一旦读取运行数据，应补齐状态根、作用域、刷新方式、路径和读写权属")); return; }
+  const target = stageTarget(uiSource.status, issues, warnings); const mvuSource = values(sources, "mvu").find((source) => source?.mvu?.enabled);
+  if (mvuSource?.mvu?.state_root && contract.root !== mvuSource.mvu.state_root) target.push(issue(`${base}/state_contract/root`, "ui.state_root", `UI 状态根 ${contract.root} 与 MVU 状态根 ${mvuSource.mvu.state_root} 不一致`));
+  const sourceTexts = []; for (const key of ["initial_values", "schema_script", "update_rules"]) sourceTexts.push(await readOptionalProjectFile(projectRoot, mvuSource?.mvu?.files?.[key])); const stateSources = sourceTexts.join("\n");
+  const surfaceHtml = new Map(); for (const surface of (statusUi.surfaces ?? [])) surfaceHtml.set(surface.id, await readOptionalProjectFile(projectRoot, surface.file));
+  for (const [index, pathContract] of (contract.paths ?? []).entries()) { const pointer = pathContract?.path ?? ""; const leaf = pointer.split(/[./]/).filter(Boolean).at(-1) ?? ""; if (!pointer) { target.push(issue(`${base}/state_contract/paths/${index}/path`, "ui.state_path", "状态路径不能为空")); continue; }
+    if (pathContract.readonly === true && Array.isArray(pathContract.writers) && pathContract.writers.length > 0) target.push(issue(`${base}/state_contract/paths/${index}/writers`, "ui.state_ownership", "readonly 路径不能同时声明写入者"));
+    if (pathContract.derived !== true && stateSources && !stateSources.includes(pointer) && !stateSources.includes(leaf)) target.push(issue(`${base}/state_contract/paths/${index}/path`, "ui.state_initialization", `初始值/Schema/更新规则中未找到状态路径 ${pointer}`));
+    for (const reader of (pathContract.readers ?? [])) { const html = surfaceHtml.get(reader); if (html !== undefined && !html.includes(pointer) && !html.includes(leaf)) target.push(issue(`${base}/state_contract/paths/${index}/readers`, "ui.state_reader", `表面 ${reader} 声称读取 ${pointer}，但 HTML 中未找到对应路径或字段`)); }
+    if ((!Array.isArray(pathContract.writers) || pathContract.writers.length === 0) && pathContract.readonly !== true && pathContract.derived !== true) warnings.push(issue(`${base}/state_contract/paths/${index}/writers`, "ui.state_ownership", `状态路径 ${pointer} 没有写入权属；若为只读或派生值请显式标记`));
+  }
+}
+
+function validatePromptChannel(surface, runtime, marker, base, status, issues, warnings) { const target = stageTarget(status, issues, warnings); const channel = surface?.prompt_channel; if (!isObject(channel)) { warnings.push(issue(`${base}/prompt_channel`, "ui.prompt_channel", "建议声明模型提示词侧如何处理同一标记：remove、replace、preserve 或 existing；新制卡时应补齐，既有卡可保留迁移证据")); return; }
+  if (["remove", "replace"].includes(channel.mode)) { const regex = (runtime?.regex_scripts ?? []).find((item) => item?.id === channel.regex_ref || item?.script_name === channel.regex_ref); if (!regex || regex.prompt_only !== true) { target.push(issue(`${base}/prompt_channel/regex_ref`, "ui.prompt_consumer", "prompt_channel 必须指向实际启用的 prompt-only 正则")); return; } try { if (marker && !regexMatchesMarker(parseRegexLiteral(regex.find_regex), marker)) target.push(issue(`${base}/prompt_channel/regex_ref`, "ui.prompt_consumer", "prompt-only 正则没有消费与玩家显示层相同的标记")); } catch { } if (channel.mode === "replace" && !channel.fallback_text) target.push(issue(`${base}/prompt_channel/fallback_text`, "ui.prompt_fallback", "replace 模式需要模型可见的文本回退")); }
+  else if (["preserve", "existing"].includes(channel.mode) && !(channel.evidence ?? []).some((item) => typeof item === "string" && item.trim())) target.push(issue(`${base}/prompt_channel/evidence`, "ui.prompt_consumer", `${channel.mode} 模式需要记录为何保留标记或由何处处理`));
+}
+
+function validateZeroLayerContract(statusUi, runtime, base, status, issues, warnings) { if (statusUi?.experience_level !== "super_heavy") return; const target = stageTarget(status, issues, warnings); const contract = statusUi.zero_layer; if (!isObject(contract)) { target.push(issue(`${base}/zero_layer`, "ui.zero_layer", "超重型/0层路线缺少整楼替换、楼层策略、聊天切换、历史访问和持久化合同")); return; } if (contract.primary_play_surface !== true) target.push(issue(`${base}/zero_layer/primary_play_surface`, "ui.zero_layer", "0层前端应明确为主要游玩表面")); if (contract.message_replacement === "whole_message" && !(statusUi.surfaces ?? []).some((surface) => surface.marker && surface.render_route === "regex_replace")) target.push(issue(`${base}/zero_layer/message_replacement`, "ui.zero_layer", "整楼替换路线缺少实际消息标记与 display 正则表面")); if (contract.lifecycle_script && !helperRuntimeIds(runtime?.tavern_helper_scripts).has(contract.lifecycle_script)) target.push(issue(`${base}/zero_layer/lifecycle_script`, "ui.zero_layer_lifecycle", "0层生命周期脚本未在 Tavern Helper 脚本树中找到")); }
+
 async function validateUiSurfaceProducers(sources, projectRoot, assembly, openings, issues, warnings) {
   const runtime = assembly?.runtime_manifest;
   const displayPatterns = uiDisplayRegexPatterns(runtime);
@@ -1615,6 +1645,8 @@ async function validateUiSurfaceProducers(sources, projectRoot, assembly, openin
     const uiBase = `/runtime/ui/${uiIndex}/status_ui`;
     const target = stageTarget(uiSource.status, issues, warnings);
     validateUiExperienceEvidence(statusUi, uiBase, uiSource.status, issues, warnings);
+    await validateStatusStateContract(statusUi, uiSource, projectRoot, sources, uiBase, issues, warnings);
+    validateZeroLayerContract(statusUi, runtime, uiBase, uiSource.status, issues, warnings);
     const relationship = statusUi.opening_relationship ?? "separate";
     for (const [surfaceIndex, surface] of (statusUi.surfaces ?? []).entries()) {
       const base = `/runtime/ui/${uiIndex}/status_ui/surfaces/${surfaceIndex}`;
@@ -1623,6 +1655,7 @@ async function validateUiSurfaceProducers(sources, projectRoot, assembly, openin
       await validateUiAuthoringProject({
         authoringMode: statusUi.authoring_mode ?? "direct_html",
         manifest: surface?.app_manifest,
+        frontendBuild: statusUi.frontend_build,
         file: surface?.file,
         projectRoot,
         base,
@@ -1633,6 +1666,7 @@ async function validateUiSurfaceProducers(sources, projectRoot, assembly, openin
       });
       await validateUiHtmlExperience({ source: statusUi, file: surface?.file, projectRoot, base, status: uiSource.status, kind: "status", issues, warnings });
       if (route === "regex_replace") {
+        validatePromptChannel(surface, runtime, marker, base, uiSource.status, issues, warnings);
         if (!marker) { target.push(issue(`${base}/marker`, "ui.marker", "正则替换路线必须声明真实捕获标记或 XML 样例")); continue; }
         if (!displayPatterns.some((pattern) => regexMatchesMarker(pattern, marker))) target.push(issue(`${base}/marker`, "ui.marker_consumer", `UI 标记 ${marker} 没有对应 display 正则`));
       } else if (route === "inline_html") {
@@ -1762,7 +1796,7 @@ async function validateAuthoredRuntime(runtime, projectRoot, issues, warnings) {
     }
     try {
       const replacement = await authoredText(projectRoot, regex.replace_string, regex.replace_file, base);
-      if (regex.wrap_as_html_codeblock && !/<!doctype html|<html\b/i.test(replacement)) warnings.push(issue(base, "ui.document", "HTML wrapper requested but source is not a complete HTML document"));
+      if (regex.wrap_as_html_codeblock && !((/<!doctype html|<html\b/i.test(replacement) || /<head\b/i.test(replacement)) && /<body\b/i.test(replacement))) warnings.push(issue(base, "ui.document", "HTML wrapper requested but source is neither a standalone document nor a head + body message surface"));
     } catch (error) { issues.push(issue(base, "runtime.source", error.message)); }
   }
   async function validateHelperNode(script, base) {
@@ -1781,6 +1815,19 @@ async function validateAuthoredRuntime(runtime, projectRoot, issues, warnings) {
   }
   for (const [index, script] of (runtime.tavern_helper_scripts ?? []).entries()) {
     await validateHelperNode(script, `/runtime_manifest/tavern_helper_scripts/${index}`);
+  }
+  const helperNodes = [];
+  function collectHelperNodes(nodes) { for (const node of (nodes ?? [])) { helperNodes.push(node); if (node?.type === "folder") collectHelperNodes(node.scripts); } }
+  collectHelperNodes(runtime.tavern_helper_scripts);
+  const helperById = new Map(helperNodes.map((node) => [node.id, node]));
+  for (const [index, node] of helperNodes.entries()) {
+    const base = `/runtime_manifest/tavern_helper_scripts/meta/${index}`;
+    for (const dependency of (node.depends_on ?? [])) {
+      if (!helperById.has(dependency)) issues.push(issue(`${base}/depends_on`, "runtime.helper_dependency", `脚本 ${node.id} 依赖不存在的脚本 ${dependency}`));
+      else if (Number.isInteger(node.phase) && Number.isInteger(helperById.get(dependency)?.phase) && helperById.get(dependency).phase > node.phase) issues.push(issue(`${base}/phase`, "runtime.helper_order", `脚本 ${node.id} 的 phase 早于其依赖 ${dependency}`));
+    }
+    if (node.required === true && node.enabled === false) issues.push(issue(`${base}/enabled`, "runtime.helper_required", `必需脚本 ${node.id} 不能禁用`));
+    if (node.expected_global && !(node.provides ?? []).includes(node.expected_global)) warnings.push(issue(`${base}/expected_global`, "runtime.helper_global", `脚本 ${node.id} 期待全局 ${node.expected_global}，但 provides 未记录该能力`));
   }
 }
 
@@ -1840,9 +1887,19 @@ async function validateMvuRuntimeSources(project, sources, projectRoot, assembly
     if (ejs.enabled && (!Array.isArray(ejs.templates) || ejs.templates.length === 0)) {
       target.push(issue(`${base}/ejs/templates`, "ejs.source", "启用 EJS 时至少需要一份真实模板及其宿主位置"));
     }
+    const worldbookEntries = assembly?.worldbook_manifest?.entries ?? [];
     for (const [templateIndex, template] of (ejs.templates ?? []).entries()) {
-      try { await stat(resolveWithin(projectRoot, template.file)); }
+      let templateText = "";
+      try { templateText = await readFile(resolveWithin(projectRoot, template.file), "utf8"); }
       catch { target.push(issue(`${base}/ejs/templates/${templateIndex}/file`, "ejs.source", `EJS 源文件不存在: ${template.file}`)); }
+      const invokes = Array.isArray(template.invokes_entries) ? template.invokes_entries : [];
+      if (/\bgetwi\s*\(/i.test(templateText) && invokes.length === 0) warnings.push(issue(`${base}/ejs/templates/${templateIndex}/invokes_entries`, "ejs.entry_contract", "模板使用 getwi()，建议显式登记可能按名调用的世界书条目，便于装配期查断链"));
+      for (const reference of invokes) {
+        const entry = worldbookEntries.find((candidate) => candidate?.id === reference || candidate?.display_name === reference);
+        if (!entry) { target.push(issue(`${base}/ejs/templates/${templateIndex}/invokes_entries`, "ejs.entry_reference", `EJS 调用的世界书条目不存在: ${reference}`)); continue; }
+        if (!["manual", "ejs_only"].includes(entry?.activation?.mode)) warnings.push(issue(`${base}/ejs/templates/${templateIndex}/invokes_entries`, "ejs.entry_activation", `条目 ${reference} 会被 EJS 按名调用，但仍参与普通扫描；若无需自然触发可改为 manual/ejs_only`));
+      }
+      if (!template.phase || !Array.isArray(template.reads) || !template.output_target || !template.cache) warnings.push(issue(`${base}/ejs/templates/${templateIndex}`, "ejs.template_contract", "建议记录 EJS 的执行阶段、读取路径、输出目标与缓存策略"));
     }
   }
 }

@@ -32,6 +32,8 @@ mvu:
 ejs:
   enabled: false
   engine: none
+  # 每份模板可记录 phase、reads、invokes_entries、output_target、cache；
+  # 仅供 getwi/API 按名调用的世界书条目使用 manual/ejs_only 激活模式。
   templates: []
   implementation_notes: []
 

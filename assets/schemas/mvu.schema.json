@@ -304,6 +304,40 @@
                   "string",
                   "null"
                 ]
+              },
+              "phase": {
+                "enum": [
+                  "before_prompt",
+                  "prompt",
+                  "after_prompt",
+                  "runtime",
+                  "existing"
+                ]
+              },
+              "reads": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "invokes_entries": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "output_target": {
+                "type": "string"
+              },
+              "cache": {
+                "enum": [
+                  "none",
+                  "turn",
+                  "chat",
+                  "existing"
+                ]
               }
             }
           }

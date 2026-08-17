@@ -314,6 +314,35 @@
         },
         "type": {
           "const": "script"
+        },
+        "role": {
+          "type": "string"
+        },
+        "phase": {
+          "type": "integer"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "provides": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "expected_global": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       }
     },
@@ -465,7 +494,9 @@
             "mode": {
               "enum": [
                 "constant",
-                "keywords"
+                "keywords",
+                "manual",
+                "ejs_only"
               ]
             },
             "primary_keys": {
@@ -962,6 +993,35 @@
             "error",
             "replace",
             "keep"
+          ]
+        },
+        "role": {
+          "type": "string"
+        },
+        "phase": {
+          "type": "integer"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "provides": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "expected_global": {
+          "type": [
+            "string",
+            "null"
           ]
         }
       }

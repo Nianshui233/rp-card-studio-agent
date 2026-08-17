@@ -4,6 +4,8 @@ ui_app:
   id: project-surface
   surface: status
   experience_level: medium
+  # standalone_document 用于独立预览；message_surface 保留 SillyTavern 消息内常见的 head + body 形态。
+  output_mode: message_surface
   entry_html: index.html
   fragments:
     - slot: APP_SHELL

@@ -200,3 +200,19 @@ UI 阶段按以下顺序多轮推进，每轮仍遵循“问题与信息采集 +
 - 正则 `replaceString` 使用构建结果，不引用开发目录；
 - 构建角色卡前不存在 `ui.app_stale`；
 - 默认交付仍是一个角色卡 `.json`，PNG 或源码归档只在用户明确要求时额外提供。
+
+## 运行输出形态与编译型工程
+
+
+`ui_app.output_mode` 区分两种合法制品：
+
+- `standalone_document`：带 doctype、html、head、body 的独立文档；
+- `message_surface`：保留 SillyTavern 消息内常见的 head + body，正式输出不擅自补外层，普通浏览器预览才包装成完整文档。
+
+若选择 `compiled_frontend`，在 `frontend_build` 中记录源码根、package 文件、锁文件、构建命令、输出、运行格式与 SHA-256。技能不规定框架；真正重要的是构建可复现、制品未过期、最终能装入正则或开场。
+
+## 状态路径与双通道消费者
+
+数据型持续 UI 使用 `state_contract` 把 `stat_data` 等状态根、当前消息作用域、刷新事件/轮询、路径、类型、读者、写者、回退值和更新守卫连起来。这样可以在装配前发现“模型输出有数据、HTML 也渲染了，但字段路径完全对不上”的断链。
+
+每个正则表面还应声明 `prompt_channel`：玩家显示正则负责把标记换成 UI，prompt-only 正则负责删除、替换或保留模型侧语义。两条规则消费同一标记，但服务不同受众。

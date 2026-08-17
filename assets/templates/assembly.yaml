@@ -32,5 +32,7 @@ media_manifest:
 runtime_manifest:
   mode: authored
   regex_scripts: []
+  # 开发源可为脚本记录 role/phase/required/depends_on/provides/expected_global；
+  # 用于表达 Loader → Schema → 同步器 → 生命周期脚本的真实依赖顺序。
   tavern_helper_scripts: []
   extension_fields: {}

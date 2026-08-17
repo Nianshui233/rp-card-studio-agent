@@ -15,6 +15,7 @@
         "id": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
         "surface": { "enum": ["opening", "status", "message_tool", "zero_layer"] },
         "experience_level": { "enum": ["light", "light_medium", "medium", "heavy", "super_heavy"] },
+        "output_mode": { "enum": ["standalone_document", "message_surface"] },
         "entry_html": { "type": "string", "minLength": 1 },
         "styles": { "$ref": "#/$defs/nonEmptyStringArray" },
         "scripts": { "$ref": "#/$defs/nonEmptyStringArray" },

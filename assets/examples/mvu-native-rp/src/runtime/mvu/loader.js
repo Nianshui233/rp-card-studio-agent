@@ -1,3 +1,2 @@
-// 本地夹具：只表达“卡内 Loader 已存在”的依赖位置，不伪装成 MVU 引擎。
-export const runtimeRoute = "native_mvu";
-export const expectedGlobal = "Mvu";
+// 原创宿主适配器：不伪装成 MVU 框架本体，只验证宿主已加载并建立当前楼层读写链。
+(async()=>{const host=window.parent&&window.parent!==window?window.parent:window;const wait=window.waitGlobalInitialized||host.waitGlobalInitialized;await wait?.('Mvu');const Mvu=window.Mvu||host.Mvu;if(!Mvu?.getMvuData||!Mvu?.replaceMvuData||!Mvu?.parseMessage)throw new Error('MVU 宿主接口不完整');const getId=window.getCurrentMessageId||host.getCurrentMessageId;const message_id=getId?.()??'current';const current=Mvu.getMvuData({type:'message',message_id});if(!current?.stat_data)throw new Error('[initvar] 尚未进入当前消息状态');host.__纸鸢台MVU={message_id,read:()=>Mvu.getMvuData({type:'message',message_id}),write:async commands=>{const before=Mvu.getMvuData({type:'message',message_id});const next=await Mvu.parseMessage(commands,before);await Mvu.replaceMvuData(next,{type:'message',message_id});return Mvu.getMvuData({type:'message',message_id})}}})();

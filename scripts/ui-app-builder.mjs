@@ -75,6 +75,7 @@ export async function loadUiAppManifest(manifestPath) {
       id: assertString(app.id, "ui_app.id"),
       surface: assertString(app.surface, "ui_app.surface"),
       experience_level: assertString(app.experience_level, "ui_app.experience_level"),
+      output_mode: app.output_mode === "message_surface" ? "message_surface" : "standalone_document",
       entry_html: entryHtml,
       styles,
       scripts,
@@ -141,8 +142,13 @@ export async function buildUiApp(manifestPath, options = {}) {
   html = html.replace(STYLE_SLOT, `<style>\n${css}\n</style>`);
   html = html.replace(SCRIPT_SLOT, `<script>\n${js}\n</script>`);
 
-  if (!/<!doctype\s+html/i.test(html) || !/<html\b/i.test(html) || !/<body\b/i.test(html)) {
-    throw new Error("构建结果必须是包含 doctype、html 和 body 的完整 HTML 文档");
+  const isStandaloneDocument = /<!doctype\s+html/i.test(html) && /<html\b/i.test(html) && /<body\b/i.test(html);
+  const isMessageSurface = /<head\b/i.test(html) && /<body\b/i.test(html);
+  if (app.output_mode === "standalone_document" && !isStandaloneDocument) {
+    throw new Error("standalone_document 构建结果必须包含 doctype、html 和 body");
+  }
+  if (app.output_mode === "message_surface" && !isMessageSurface) {
+    throw new Error("message_surface 构建结果必须至少包含 head 和 body；正式输出会原样保留为 SillyTavern 消息表面");
   }
   if (/RP_UI_(?:STYLES|SCRIPTS|FRAGMENT)/.test(html)) throw new Error("构建结果仍有未解析的 UI 槽位");
 
@@ -155,8 +161,11 @@ export async function buildUiApp(manifestPath, options = {}) {
     mockState = mock.absolute;
   }
   const previewOutput = !options.output && app.preview_output ? path.resolve(root, app.preview_output) : null;
+  const runtimePreviewHtml = app.output_mode === "message_surface"
+    ? `<!doctype html>\n<html lang="zh-CN">\n${html}\n</html>`
+    : html;
   const previewHtml = previewOutput && mockValue !== null
-    ? html.replace(/<script>/i, `<script>\nwindow.__RP_UI_MOCK__ = ${JSON.stringify(mockValue).replaceAll("<", "\\u003c")};\n</script>\n<script>`)
+    ? runtimePreviewHtml.replace(/<script>/i, `<script>\nwindow.__RP_UI_MOCK__ = ${JSON.stringify(mockValue).replaceAll("<", "\\u003c")};\n</script>\n<script>`)
     : null;
   if (!options.dryRun) {
     await mkdir(path.dirname(declaredOutput), { recursive: true });
@@ -173,6 +182,7 @@ export async function buildUiApp(manifestPath, options = {}) {
     output: declaredOutput,
     dryRun: Boolean(options.dryRun),
     surface: app.surface,
+    outputMode: app.output_mode,
     experienceLevel: app.experience_level,
     entryHtml: entry.absolute,
     styles: app.styles.length,

@@ -81,3 +81,9 @@ MVU 自身会在部分模式下清理历史 `<UpdateVariable>` 与 `<StatusPlace
 - Tavern Helper 保留 Script/ScriptFolder 真实结构；
 - 不在实际实现之外追加第二套合成校验层；没有虚构 API、重复 writer 或无人读取的变量；
 - 静态、制品与真实宿主证据分开记录。
+
+## EJS 按名调用与脚本依赖
+
+每份 EJS 模板记录 `phase`、`reads`、`invokes_entries`、`output_target` 和 `cache`。凡是通过 `getwi()` 或 API 按名调用的世界书条目，都在清单中登记并检查名称真实存在。只供按名调用的资料使用 `manual` / `ejs_only`：条目默认关闭、无关键词，不参与普通扫描。
+
+Tavern Helper 维护源可以记录 `role`、`phase`、`required`、`depends_on`、`provides`、`expected_global`，用来表达 Loader → Schema → 状态同步 → 0层生命周期的先后关系。它是开发和校验元信息，不要求宿主扩展认识这些字段。
