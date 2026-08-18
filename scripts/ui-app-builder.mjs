@@ -93,8 +93,10 @@ async function readSource(root, reference, label) {
   return { absolute, text: await readFile(absolute, "utf8") };
 }
 
-function fileBanner(kind, reference) {
-  return `/* ===== ${kind}: ${reference.replaceAll("\\", "/")} ===== */`;
+function fileBanner(kind) {
+  // The built HTML is a portable SillyTavern runtime artifact. Do not leave
+  // maintainer filesystem paths in comments that a user will import.
+  return `/* ===== ${kind} bundle ===== */`;
 }
 
 export async function buildUiApp(manifestPath, options = {}) {
@@ -123,7 +125,7 @@ export async function buildUiApp(manifestPath, options = {}) {
   for (const reference of app.styles) {
     const source = await readSource(root, reference, `style ${reference}`);
     if (/<\/style\s*>/i.test(source.text)) throw new Error(`CSS 源文件不能包含 </style>: ${reference}`);
-    styleParts.push(`${fileBanner("style", reference)}\n${source.text.trim()}`);
+    styleParts.push(`${fileBanner("style")}\n${source.text.trim()}`);
   }
 
   const scriptParts = [];
@@ -133,7 +135,7 @@ export async function buildUiApp(manifestPath, options = {}) {
     if (/^\s*(?:import|export)\s/m.test(source.text)) {
       throw new Error(`classic_concat 不接受 import/export；请改为共享命名空间/IIFE，或使用项目自有 compiled_frontend 构建: ${reference}`);
     }
-    scriptParts.push(`${fileBanner("script", reference)}\n${source.text.trim()}`);
+    scriptParts.push(`${fileBanner("script")}\n${source.text.trim()}`);
   }
 
   const css = styleParts.join("\n\n");

@@ -52,8 +52,9 @@ test("ui-build combines real HTML/CSS/JS sources into one self-contained documen
   const preview = await readFile(path.join(fixture.app, "dist", "status.preview.html"), "utf8");
   assert.equal(result.output, fixture.output);
   assert.match(html, /<!doctype html>/i);
-  assert.match(html, /<style>[\s\S]*tokens\.css[\s\S]*app\.css[\s\S]*<\/style>/);
-  assert.match(html, /<script>[\s\S]*state\.js[\s\S]*host-adapter\.js[\s\S]*app\.js[\s\S]*<\/script>/);
+  assert.match(html, /<style>[\s\S]*style bundle[\s\S]*<\/style>/);
+  assert.match(html, /<script>[\s\S]*script bundle[\s\S]*<\/script>/);
+  assert.doesNotMatch(html, /styles[\\/]tokens\.css|scripts[\\/]state\.js/);
   assert.match(html, /fragment:APP_SHELL/);
   assert.doesNotMatch(html, /RP_UI_(?:STYLES|SCRIPTS|FRAGMENT)/);
   assert.doesNotMatch(html, /__RP_UI_MOCK__\s*=/);

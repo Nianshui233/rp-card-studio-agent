@@ -199,7 +199,9 @@ export function validatePayload(value, format = detectJsonFormat(value)) {
   const warnings = [];
   if (isCharacterFormat(format)) {
     issues.push(...validateNamedSchema("character-card", value));
+    validatePortableDelivery(value, issues);
     validateCharacterRegexScripts(value, issues);
+    validateManagedMvuRuntimeClosure(value, issues);
     validateManagedMvuDisplayCleanup(value, issues);
     validateManagedOpeningUi(value, issues, warnings);
     validateManagedUiMarkerProducers(value, issues, warnings);
@@ -212,6 +214,48 @@ export function validatePayload(value, format = detectJsonFormat(value)) {
   }
   issues.push(issue("/", "unsupported", "无法识别为 Character Card V2/V3 或世界书 entries JSON"));
   return { format: null, issues, warnings };
+}
+
+function looksLikeExternalMaintenancePath(value) {
+  return typeof value === "string" && (
+    /^(?:[A-Za-z]:[\\/]|\\\\|\/)/.test(value)
+    || /(?:^|[\\/])src[\\/]/i.test(value)
+    || /\.rp-card(?:[\\/]|$)/i.test(value)
+    || /(?:^|\.\.)[\\/]/.test(value)
+  );
+}
+
+function validatePortableDelivery(value, issues) {
+  const forbiddenKeys = new Set(["source_refs", "replace_file", "content_file", "app_manifest"]);
+  const pathKeys = new Set(["file", "path"]);
+  function walk(node, basePath) {
+    if (Array.isArray(node)) {
+      node.forEach((item, index) => walk(item, `${basePath}/${index}`));
+      return;
+    }
+    if (!isPlainObject(node)) {
+      if (typeof node === "string" && /(?:^|\n)\s*source_ref:\s*["']?(?:src[\\/]|[A-Za-z]:|\.\.?[\\/])/i.test(node)) {
+        issues.push(issue(basePath, "delivery.portability", "最终角色卡正文不能携带维护源码的 source_ref 文件路径"));
+      }
+      if (typeof node === "string" && /(?:import\s+[^;]*?from\s*|(?:src|href)\s*=\s*|url\(\s*)["']?(?:\.\.?[\\/]|src[\\/])/i.test(node)) {
+        issues.push(issue(basePath, "delivery.portability", "最终角色卡中的 HTML/CSS/JS 不能继续引用本地相对文件；请把资源内嵌或改为明确的远程依赖"));
+      }
+      return;
+    }
+    for (const [key, child] of Object.entries(node)) {
+      const childPath = `${basePath}/${key}`;
+      if (forbiddenKeys.has(key)) {
+        issues.push(issue(childPath, "delivery.portability", `最终角色卡不能携带维护字段 ${key}；运行时必须使用已内嵌内容`));
+        continue;
+      }
+      if (pathKeys.has(key) && looksLikeExternalMaintenancePath(child)) {
+        issues.push(issue(childPath, "delivery.portability", `最终角色卡不能依赖外部维护文件路径: ${child}`));
+        continue;
+      }
+      walk(child, childPath);
+    }
+  }
+  walk(value, "");
 }
 
 function validateCharacterRegexScripts(value, issues) {
@@ -272,6 +316,37 @@ function managedMvuSources(value) {
   const sources = value?.data?.extensions?.rp_card_studio?.sources?.mvu;
   if (!Array.isArray(sources)) return [];
   return sources.map((source) => source?.value).filter((source) => isPlainObject(source?.mvu) && source.mvu.enabled === true);
+}
+
+function validateManagedMvuRuntimeClosure(value, issues) {
+  const mvuSources = managedMvuSources(value);
+  if (mvuSources.length === 0) return;
+  const nodes = [];
+  function collect(items) {
+    for (const item of items ?? []) {
+      if (!isPlainObject(item)) continue;
+      nodes.push(item);
+      if (item.type === "folder") collect(item.scripts);
+    }
+  }
+  collect(value?.data?.extensions?.tavern_helper?.scripts);
+  const ids = new Set(nodes.map((node) => node.id).filter(Boolean));
+  for (const [index, source] of mvuSources.entries()) {
+    const mvu = source.mvu ?? {};
+    if (mvu.route === "existing" || mvu.framework?.delivery === "host_required") continue;
+    const base = `/data/extensions/rp_card_studio/sources/mvu/${index}/value/mvu`;
+    const loaderId = mvu.framework?.loader_script_id;
+    if (!Array.isArray(value?.data?.extensions?.tavern_helper?.scripts) || nodes.length === 0) {
+      issues.push(issue(base, "mvu.runtime_script", "启用 MVU 的最终角色卡缺少已内嵌的 Tavern Helper 脚本；不能只在维护源里声明变量"));
+      continue;
+    }
+    if (mvu.framework?.delivery === "card_script" && (!loaderId || !ids.has(loaderId))) {
+      issues.push(issue(`${base}/framework/loader_script_id`, "mvu.runtime_script", `最终角色卡缺少 loader_script_id=${JSON.stringify(loaderId ?? null)} 对应的 Tavern Helper 脚本`));
+    }
+    if (nodes.every((node) => typeof node.content !== "string" || !node.content.trim())) {
+      issues.push(issue(base, "mvu.runtime_script", "Tavern Helper 脚本节点存在但没有实际内嵌代码"));
+    }
+  }
 }
 
 function artifactDisplayRegexPipeline(value) {

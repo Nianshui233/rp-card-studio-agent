@@ -357,7 +357,7 @@ function normalizeAssemblySelector(value) {
 }
 
 function resolveRegisteredAssemblySource(source, sources) {
-  if (!isObject(source) || !["registered_source", "path"].includes(source.kind)) return null;
+  if (!isObject(source) || !["registered_source", "path", "file"].includes(source.kind)) return null;
   const rawReference = source.ref ?? source.source_ref ?? source.path;
   if (typeof rawReference !== "string") return null;
   const [reference, inlinePointer] = rawReference.split("#/");
@@ -419,7 +419,7 @@ function assemblyRegistrations(manifest, sources) {
   })).filter((record) => record.resolved);
 }
 
-function validateCharacterBookCoverage(manifest, sources, base, warnings, project) {
+function validateCharacterBookCoverage(manifest, sources, base, warnings, project, issues, assemblyStatus = "draft") {
   const registrations = assemblyRegistrations(manifest, sources)
     .filter(({ entry }) => entry.enabled === true && entry.probability > 0);
   for (const required of requiredCharacterBookSources(sources, project)) {
@@ -435,7 +435,7 @@ function validateCharacterBookCoverage(manifest, sources, base, warnings, projec
       .join("、");
     const firstMissingRoot = missingPointers[0]?.split("/").slice(0, 2).join("/") ?? "";
     const sourceHint = `${required.relativePath}${firstMissingRoot ? `#${firstMissingRoot}` : ""}`;
-    warnings.push(issue(
+    (assemblyStatus === "locked" ? issues : warnings).push(issue(
       `${base}/worldbook_manifest/entries`,
       "assembly.coverage",
       `[assembly.coverage] 世界书装配未完整覆盖 ${required.label}（${sourceHint}；缺少 ${missingHint}）；可用一个整源条目或多个 selector 条目联合覆盖，并分别明确触发、插入、深度、顺序、概率与递归策略`,
@@ -530,7 +530,6 @@ async function materializeMediaManifest(mediaManifest, sources, projectRoot) {
     if (asset.delivery !== "embedded") continue;
     const pathValue = `/runtime/assembly/0/media_manifest/assets/${assetIndex}`;
     try {
-      const originalSource = clone(asset.source);
       const bytes = await resolveMediaBytes(asset, sources, projectRoot);
       validateMediaBytes(asset, bytes, pathValue, issues);
       asset.source = {
@@ -540,9 +539,11 @@ async function materializeMediaManifest(mediaManifest, sources, projectRoot) {
       };
       asset.integrity = { sha256: mediaDigest(bytes), bytes: bytes.length };
       asset.extensions = isObject(asset.extensions) ? asset.extensions : {};
+      const mediaTracking = isObject(asset.extensions.rp_card_studio) ? asset.extensions.rp_card_studio : {};
+      delete mediaTracking.original_source;
       asset.extensions.rp_card_studio = {
-        ...(isObject(asset.extensions.rp_card_studio) ? asset.extensions.rp_card_studio : {}),
-        original_source: originalSource
+        ...mediaTracking,
+        embedded: true
       };
     } catch (error) {
       issues.push(issue(`${pathValue}/source`, "media.embed", error.message));
@@ -772,7 +773,7 @@ async function validateAssembly(sources, projectRoot, issues, warnings, target, 
         "Every keyword-driven content entry blocks recursion in both directions; related people, places, factions, and clues cannot activate one another"
       ));
     }
-    validateCharacterBookCoverage(manifest, sources, `/runtime/assembly/${sourceIndex}`, warnings, project);
+    validateCharacterBookCoverage(manifest, sources, `/runtime/assembly/${sourceIndex}`, warnings, project, issues, assembly?.status);
     if (target === "character") {
       validateSingleCharacterEntry(manifest, sources, `/runtime/assembly/${sourceIndex}`, issues);
     }
@@ -1456,12 +1457,15 @@ export async function applyAssemblyManifest(payload, { sources, projectRoot, tar
   extension.worldbook_manifest = {
     authoritative: true,
     entry_ids: generatedIds,
-    configuration: clone(manifest)
+    display_name: typeof manifest.display_name === "string" ? manifest.display_name : undefined
   };
   const materializedMedia = await materializeMediaManifest(manifests[0]?.media_manifest, sources, projectRoot);
   issues.push(...materializedMedia.issues);
   extension.media_manifest = materializedMedia.manifest;
-  extension.assembly_extensions = clone(manifests[0]?.extensions ?? {});
+  // Assembly/source metadata is maintainer-only. Runtime behavior belongs in
+  // runtime_manifest.extension_fields and is already materialized above; do
+  // not export the assembly extension bag into the portable card.
+  delete extension.assembly_extensions;
   return { payload: output, issues, warnings };
 }
 

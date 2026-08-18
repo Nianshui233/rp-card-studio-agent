@@ -14774,8 +14774,8 @@ async function readSource(root, reference, label) {
   const absolute = resolveInside(root, reference, label);
   return { absolute, text: await readFile(absolute, "utf8") };
 }
-function fileBanner(kind, reference) {
-  return `/* ===== ${kind}: ${reference.replaceAll("\\", "/")} ===== */`;
+function fileBanner(kind) {
+  return `/* ===== ${kind} bundle ===== */`;
 }
 async function buildUiApp(manifestPath, options = {}) {
   const loaded = await loadUiAppManifest(manifestPath);
@@ -14803,7 +14803,7 @@ ${fragmentMap.get(slot)}
   for (const reference of app.styles) {
     const source = await readSource(root, reference, `style ${reference}`);
     if (/<\/style\s*>/i.test(source.text)) throw new Error(`CSS \u6E90\u6587\u4EF6\u4E0D\u80FD\u5305\u542B </style>: ${reference}`);
-    styleParts.push(`${fileBanner("style", reference)}
+    styleParts.push(`${fileBanner("style")}
 ${source.text.trim()}`);
   }
   const scriptParts = [];
@@ -14813,7 +14813,7 @@ ${source.text.trim()}`);
     if (/^\s*(?:import|export)\s/m.test(source.text)) {
       throw new Error(`classic_concat \u4E0D\u63A5\u53D7 import/export\uFF1B\u8BF7\u6539\u4E3A\u5171\u4EAB\u547D\u540D\u7A7A\u95F4/IIFE\uFF0C\u6216\u4F7F\u7528\u9879\u76EE\u81EA\u6709 compiled_frontend \u6784\u5EFA: ${reference}`);
     }
-    scriptParts.push(`${fileBanner("script", reference)}
+    scriptParts.push(`${fileBanner("script")}
 ${source.text.trim()}`);
   }
   const css = styleParts.join("\n\n");
@@ -15574,7 +15574,9 @@ function validatePayload(value, format = detectJsonFormat(value)) {
   const warnings = [];
   if (isCharacterFormat(format)) {
     issues.push(...validateNamedSchema("character-card", value));
+    validatePortableDelivery(value, issues);
     validateCharacterRegexScripts(value, issues);
+    validateManagedMvuRuntimeClosure(value, issues);
     validateManagedMvuDisplayCleanup(value, issues);
     validateManagedOpeningUi(value, issues, warnings);
     validateManagedUiMarkerProducers(value, issues, warnings);
@@ -15587,6 +15589,41 @@ function validatePayload(value, format = detectJsonFormat(value)) {
   }
   issues.push(issue("/", "unsupported", "\u65E0\u6CD5\u8BC6\u522B\u4E3A Character Card V2/V3 \u6216\u4E16\u754C\u4E66 entries JSON"));
   return { format: null, issues, warnings };
+}
+function looksLikeExternalMaintenancePath(value) {
+  return typeof value === "string" && (/^(?:[A-Za-z]:[\\/]|\\\\|\/)/.test(value) || /(?:^|[\\/])src[\\/]/i.test(value) || /\.rp-card(?:[\\/]|$)/i.test(value) || /(?:^|\.\.)[\\/]/.test(value));
+}
+function validatePortableDelivery(value, issues) {
+  const forbiddenKeys = /* @__PURE__ */ new Set(["source_refs", "replace_file", "content_file", "app_manifest"]);
+  const pathKeys = /* @__PURE__ */ new Set(["file", "path"]);
+  function walk(node, basePath) {
+    if (Array.isArray(node)) {
+      node.forEach((item, index) => walk(item, `${basePath}/${index}`));
+      return;
+    }
+    if (!isPlainObject(node)) {
+      if (typeof node === "string" && /(?:^|\n)\s*source_ref:\s*["']?(?:src[\\/]|[A-Za-z]:|\.\.?[\\/])/i.test(node)) {
+        issues.push(issue(basePath, "delivery.portability", "\u6700\u7EC8\u89D2\u8272\u5361\u6B63\u6587\u4E0D\u80FD\u643A\u5E26\u7EF4\u62A4\u6E90\u7801\u7684 source_ref \u6587\u4EF6\u8DEF\u5F84"));
+      }
+      if (typeof node === "string" && /(?:import\s+[^;]*?from\s*|(?:src|href)\s*=\s*|url\(\s*)["']?(?:\.\.?[\\/]|src[\\/])/i.test(node)) {
+        issues.push(issue(basePath, "delivery.portability", "\u6700\u7EC8\u89D2\u8272\u5361\u4E2D\u7684 HTML/CSS/JS \u4E0D\u80FD\u7EE7\u7EED\u5F15\u7528\u672C\u5730\u76F8\u5BF9\u6587\u4EF6\uFF1B\u8BF7\u628A\u8D44\u6E90\u5185\u5D4C\u6216\u6539\u4E3A\u660E\u786E\u7684\u8FDC\u7A0B\u4F9D\u8D56"));
+      }
+      return;
+    }
+    for (const [key, child] of Object.entries(node)) {
+      const childPath = `${basePath}/${key}`;
+      if (forbiddenKeys.has(key)) {
+        issues.push(issue(childPath, "delivery.portability", `\u6700\u7EC8\u89D2\u8272\u5361\u4E0D\u80FD\u643A\u5E26\u7EF4\u62A4\u5B57\u6BB5 ${key}\uFF1B\u8FD0\u884C\u65F6\u5FC5\u987B\u4F7F\u7528\u5DF2\u5185\u5D4C\u5185\u5BB9`));
+        continue;
+      }
+      if (pathKeys.has(key) && looksLikeExternalMaintenancePath(child)) {
+        issues.push(issue(childPath, "delivery.portability", `\u6700\u7EC8\u89D2\u8272\u5361\u4E0D\u80FD\u4F9D\u8D56\u5916\u90E8\u7EF4\u62A4\u6587\u4EF6\u8DEF\u5F84: ${child}`));
+        continue;
+      }
+      walk(child, childPath);
+    }
+  }
+  walk(value, "");
 }
 function validateCharacterRegexScripts(value, issues) {
   const scripts = value?.data?.extensions?.regex_scripts;
@@ -15643,6 +15680,36 @@ function managedMvuSources(value) {
   const sources = value?.data?.extensions?.rp_card_studio?.sources?.mvu;
   if (!Array.isArray(sources)) return [];
   return sources.map((source) => source?.value).filter((source) => isPlainObject(source?.mvu) && source.mvu.enabled === true);
+}
+function validateManagedMvuRuntimeClosure(value, issues) {
+  const mvuSources = managedMvuSources(value);
+  if (mvuSources.length === 0) return;
+  const nodes = [];
+  function collect(items) {
+    for (const item of items ?? []) {
+      if (!isPlainObject(item)) continue;
+      nodes.push(item);
+      if (item.type === "folder") collect(item.scripts);
+    }
+  }
+  collect(value?.data?.extensions?.tavern_helper?.scripts);
+  const ids = new Set(nodes.map((node) => node.id).filter(Boolean));
+  for (const [index, source] of mvuSources.entries()) {
+    const mvu = source.mvu ?? {};
+    if (mvu.route === "existing" || mvu.framework?.delivery === "host_required") continue;
+    const base = `/data/extensions/rp_card_studio/sources/mvu/${index}/value/mvu`;
+    const loaderId = mvu.framework?.loader_script_id;
+    if (!Array.isArray(value?.data?.extensions?.tavern_helper?.scripts) || nodes.length === 0) {
+      issues.push(issue(base, "mvu.runtime_script", "\u542F\u7528 MVU \u7684\u6700\u7EC8\u89D2\u8272\u5361\u7F3A\u5C11\u5DF2\u5185\u5D4C\u7684 Tavern Helper \u811A\u672C\uFF1B\u4E0D\u80FD\u53EA\u5728\u7EF4\u62A4\u6E90\u91CC\u58F0\u660E\u53D8\u91CF"));
+      continue;
+    }
+    if (mvu.framework?.delivery === "card_script" && (!loaderId || !ids.has(loaderId))) {
+      issues.push(issue(`${base}/framework/loader_script_id`, "mvu.runtime_script", `\u6700\u7EC8\u89D2\u8272\u5361\u7F3A\u5C11 loader_script_id=${JSON.stringify(loaderId ?? null)} \u5BF9\u5E94\u7684 Tavern Helper \u811A\u672C`));
+    }
+    if (nodes.every((node) => typeof node.content !== "string" || !node.content.trim())) {
+      issues.push(issue(base, "mvu.runtime_script", "Tavern Helper \u811A\u672C\u8282\u70B9\u5B58\u5728\u4F46\u6CA1\u6709\u5B9E\u9645\u5185\u5D4C\u4EE3\u7801"));
+    }
+  }
 }
 function artifactDisplayRegexPipeline(value) {
   const scripts = value?.data?.extensions?.regex_scripts;
@@ -16301,23 +16368,27 @@ function applyStagePlan(project, route) {
   return selected;
 }
 var applyStageRoute = applyStagePlan;
-function initialStages() {
+function initialProjectStage(operation) {
+  return ["edit", "audit"].includes(operation) ? "materials" : "positioning";
+}
+function initialStages(activeStage = "positioning") {
   return Object.fromEntries(STAGES.map((stage) => [stage, {
-    status: stage === "preflight" ? "complete" : stage === "positioning" ? "in_progress" : "not_started",
-    round: stage === "preflight" || stage === "positioning" ? 1 : 0,
+    status: stage === "preflight" ? "complete" : stage === activeStage ? "in_progress" : "not_started",
+    round: stage === "preflight" || stage === activeStage ? 1 : 0,
     summary: stage === "preflight" ? "\u9879\u76EE\u9884\u68C0\u5DF2\u8BB0\u5F55\uFF0C\u9636\u6BB5\u8BA1\u5212\u53EF\u968F\u9879\u76EE\u9700\u8981\u8C03\u6574" : null
   }]));
 }
-function makeProject({ name, target = "character_card", nsfw, operation = "create", stageRoute = DEFAULT_STAGE_ROUTE, reserveUserCharacter = false }) {
+function makeProject({ name, target = "character_card", nsfw, operation = "create", stageRoute = DEFAULT_STAGE_ROUTE, reserveUserCharacter = void 0 }) {
   if (typeof nsfw !== "boolean") throw inputError("\u521B\u5EFA\u9879\u76EE\u5FC5\u987B\u660E\u786E\u63D0\u4F9B NSFW enabled \u6216 disabled");
   const projectId = machineId(name);
   const selectedStages = normalizeStagePlan(stageRoute);
+  const activeStage = initialProjectStage(operation);
   const isWorldbook = target === "worldbook";
   const sourceManifest = emptySourceManifest();
   sourceManifest.positioning.push("src/positioning.yaml");
   if (isWorldbook) {
     sourceManifest.world.push("src/world/worldbook.yaml");
-  } else if (reserveUserCharacter) {
+  } else if ((reserveUserCharacter ?? operation !== "convert") !== false) {
     sourceManifest.user_character.push("src/user-character.yaml");
   }
   return {
@@ -16341,9 +16412,9 @@ function makeProject({ name, target = "character_card", nsfw, operation = "creat
       stage_order: [...WORKFLOW_STAGES],
       optional_stages: [...OPTIONAL_STAGES],
       planned_stages: [...selectedStages],
-      current_stage: "positioning"
+      current_stage: activeStage
     },
-    agent: agentLedgerForStage("positioning", initialStages(), STAGES),
+    agent: agentLedgerForStage(activeStage, initialStages(activeStage), STAGES),
     capabilities: { enabled: [], planned: [], evidence: [] },
     blueprint: {
       mode: "direct",
@@ -16387,13 +16458,14 @@ function makeProject({ name, target = "character_card", nsfw, operation = "creat
   };
 }
 function makeState(project, { revision = 0 } = {}) {
+  const activeStage = initialProjectStage(project?.project?.operation);
   const preflightDecisions = project.decisions.filter((decision) => decision.stage === "preflight" && decision.locked && decision.status === "active");
   return {
     schema_version: STATE_SCHEMA_VERSION,
     project_id: project.project.id,
     revision,
-    active_stage: "positioning",
-    stages: initialStages(),
+    active_stage: activeStage,
+    stages: initialStages(activeStage),
     decision_locks: preflightDecisions.map((decision) => decisionLock(decision)),
     delegations: [],
     cross_stage_backlog: [],
@@ -16580,6 +16652,16 @@ function validateProjectModel(project, state, root) {
     for (const item of project.deliverables) if (!DELIVERABLES.has(item)) issues.push(modelIssue("/deliverables", "enum", `\u672A\u77E5\u4EA4\u4ED8\u7269: ${item}`));
   }
   if (!isPlainObject(project.source_manifest)) issues.push(modelIssue("/source_manifest", "required", "\u7F3A\u5C11 source_manifest"));
+  const isCharacterProject = projectTarget(project) === "character_card";
+  const intakeOpen = ["edit", "audit"].includes(project?.project?.operation) && state?.active_stage === "materials" && ["in_progress", "awaiting_user", "blocked"].includes(state?.stages?.materials?.status);
+  const requiresUserTemplate = isCharacterProject && project?.project?.operation !== "convert" && !intakeOpen;
+  if (requiresUserTemplate && (!Array.isArray(project?.source_manifest?.user_character) || project.source_manifest.user_character.length === 0)) {
+    issues.push(modelIssue(
+      "/source_manifest/user_character",
+      "user_character.required",
+      "\u89D2\u8272\u5361\u9879\u76EE\u5FC5\u987B\u767B\u8BB0\u4E00\u4E2A\u72EC\u7ACB\u7684\u7A7A\u767D <user> \u6A21\u677F\u6E90\uFF1B\u5982\u9700\u6E05\u7406\u65E7\u7528\u6237\u6863\u6848\uFF0C\u5E94\u66FF\u6362\u800C\u4E0D\u662F\u5220\u9664"
+    ));
+  }
   const positioningEntries = project?.source_manifest?.positioning;
   if (Array.isArray(positioningEntries) && positioningEntries.length !== 1) {
     issues.push(modelIssue(
@@ -16604,15 +16686,30 @@ function validateProjectModel(project, state, root) {
       }
     }
   }
+  const sourceOwners = /* @__PURE__ */ new Map();
+  for (const group of SOURCE_GROUPS) {
+    for (const entry of project?.source_manifest?.[group] ?? []) {
+      if (typeof entry !== "string") continue;
+      const previous = sourceOwners.get(entry);
+      if (previous && previous !== group) {
+        issues.push(modelIssue(`/source_manifest/${group}`, "source.duplicate", `\u540C\u4E00\u7EF4\u62A4\u6E90\u4E0D\u80FD\u540C\u65F6\u767B\u8BB0\u5728 ${previous} \u548C ${group}: ${entry}`));
+      } else {
+        sourceOwners.set(entry, group);
+      }
+    }
+  }
   validateDecisions(project.decisions, issues);
   validateProjectTitleDecisionLocks(project.decisions, issues);
   validateHandoffs(project.handoffs, issues);
   validateCapabilities(project.capabilities, issues);
   validateBlueprint(project.blueprint, issues);
+  validateLegacyTransformationContract(project, state, issues);
   if (project?.runtime_target?.application !== "SillyTavern") issues.push(modelIssue("/runtime_target/application", "const", "\u8FD0\u884C\u76EE\u6807\u5FC5\u987B\u662F SillyTavern"));
   if (!Array.isArray(project?.runtime_target?.dependencies)) issues.push(modelIssue("/runtime_target/dependencies", "type", "dependencies \u5FC5\u987B\u662F\u6570\u7EC4"));
   if (!Array.isArray(project?.release?.accepted_warnings)) issues.push(modelIssue("/release/accepted_warnings", "type", "accepted_warnings \u5FC5\u987B\u662F\u6570\u7EC4"));
   validateState(state, project, issues);
+  validateStageLifecycle(project, state, issues);
+  validateFeatureSourceLifecycle(project, state, issues);
   validateMvuLifecycle(project, state, issues);
   try {
     projectSourcePath(project);
@@ -16719,6 +16816,141 @@ function validateProjectTitleDecisionLocks(decisions, issues) {
       "positioning.project_title_conflict",
       "positioning.project_title \u4E0E\u517C\u5BB9\u5B57\u6BB5 positioning.card_title \u4E0D\u80FD\u4FDD\u7559\u4E92\u76F8\u51B2\u7A81\u7684\u6709\u6548\u9501"
     ));
+  }
+}
+function validateLegacyTransformationContract(project, state, issues) {
+  const operation = project?.project?.operation;
+  if (!["edit", "convert", "audit"].includes(operation)) return;
+  if (["edit", "audit"].includes(operation) && !project?.workflow?.planned_stages?.includes("materials")) {
+    issues.push(modelIssue(
+      "/workflow/planned_stages",
+      "legacy.material_stage",
+      "\u65E7\u5361\u7F16\u8F91/\u5BA1\u67E5\u8F66\u9053\u5FC5\u987B\u628A materials \u7EB3\u5165\u9636\u6BB5\u8DEF\u7EBF\uFF0C\u4E0D\u80FD\u7528\u53EF\u9009\u9636\u6BB5\u914D\u7F6E\u7ED5\u8FC7\u6750\u6599\u76D8\u70B9"
+    ));
+  }
+  const preserved = project?.source_manifest?.preserved_imports;
+  if (!Array.isArray(preserved) || !preserved.some((entry) => /(?:^|[\\/])original\.json$/i.test(entry))) {
+    issues.push(modelIssue(
+      "/source_manifest/preserved_imports",
+      "legacy.original_preservation",
+      "\u65E7\u5361\u6539\u9020\u5FC5\u987B\u5148\u4FDD\u7559\u539F\u59CB\u89D2\u8272\u5361 original.json\uFF1B\u7981\u6B62\u5728\u672A\u5EFA\u7ACB\u53EF\u56DE\u6EAF\u526F\u672C\u524D\u76F4\u63A5\u6539\u5199\u65E7\u5361"
+    ));
+  }
+  if (!Array.isArray(preserved) || !preserved.some((entry) => /(?:^|[\\/])preserved\.json$/i.test(entry))) {
+    issues.push(modelIssue(
+      "/source_manifest/preserved_imports",
+      "legacy.preserved_manifest",
+      "\u65E7\u5361\u6539\u9020\u5FC5\u987B\u767B\u8BB0 preserved.json\uFF0C\u8BB0\u5F55\u4FDD\u7559\u3001\u8FC1\u79FB\u3001\u6E05\u7406\u548C\u672A\u77E5\u5B57\u6BB5\u7B56\u7565"
+    ));
+  }
+  if (!Array.isArray(project?.materials) || project.materials.length === 0) {
+    issues.push(modelIssue(
+      "/materials",
+      "legacy.material_inventory",
+      "\u65E7\u5361\u6539\u9020\u5728\u8FDB\u5165\u4E16\u754C\u89C2\u6216\u6574\u5408\u524D\u5FC5\u987B\u5B8C\u6210\u6750\u6599\u76D8\u70B9\uFF0C\u81F3\u5C11\u767B\u8BB0\u539F\u5361\u53CA\u5176\u9644\u5C5E\u4E16\u754C\u4E66\u3001\u6B63\u5219\u3001\u811A\u672C\u548C\u6269\u5C55"
+    ));
+  }
+  const userSources = project?.source_manifest?.user_character;
+  const intakeOpen = ["edit", "audit"].includes(operation) && state?.active_stage === "materials" && ["in_progress", "awaiting_user", "blocked"].includes(state?.stages?.materials?.status);
+  if (["edit", "audit"].includes(operation) && !intakeOpen && (!Array.isArray(userSources) || userSources.length === 0)) {
+    issues.push(modelIssue(
+      "/source_manifest/user_character",
+      "legacy.user_character_template",
+      "\u6E05\u7406\u65E7\u7528\u6237\u6863\u6848\u540E\u5FC5\u987B\u5EFA\u7ACB\u65B0\u7684\u7A7A\u767D <user> \u6A21\u677F\u6E90\uFF1B\u4E0D\u80FD\u53EA\u5220\u9664\u65E7\u6761\u76EE\u800C\u4E0D\u8865\u4F4D"
+    ));
+  }
+  const stage = state?.stages?.materials;
+  if (state?.stages?.integration?.status === "complete" && stage?.status !== "complete") {
+    issues.push(modelIssue(
+      "/state/stages/integration/status",
+      "legacy.stage_order",
+      "\u65E7\u5361\u6750\u6599\u76D8\u70B9\u672A\u5B8C\u6210\u65F6\u4E0D\u80FD\u628A\u6574\u5408\u4EA4\u4ED8\u6807\u8BB0\u4E3A complete"
+    ));
+  }
+}
+function validateStageLifecycle(project, state, issues) {
+  const stages = state?.stages ?? {};
+  const planned = new Set(project?.workflow?.planned_stages ?? []);
+  const ordered = WORKFLOW_STAGES;
+  const required = new Set(REQUIRED_WORKFLOW_STAGES);
+  for (const stage of ordered) {
+    const record = stages[stage];
+    if (!record) continue;
+    if (["complete", "skipped"].includes(record.status) && (typeof record.summary !== "string" || !record.summary.trim())) {
+      issues.push(modelIssue(`/state/stages/${stage}/summary`, "lifecycle.summary", `${stage} \u5DF2\u6807\u8BB0\u4E3A ${record.status}\uFF0C\u5FC5\u987B\u4FDD\u7559\u9636\u6BB5\u603B\u6C47\u6216\u8DF3\u8FC7\u7406\u7531`));
+    }
+    if (record.status !== "not_started" && !planned.has(stage)) {
+      issues.push(modelIssue(`/workflow/planned_stages`, "lifecycle.plan", `${stage} \u5DF2\u7ECF\u6267\u884C\u4F46\u6CA1\u6709\u767B\u8BB0\u5728 planned_stages`));
+    }
+  }
+  for (let index = 0; index < ordered.length; index += 1) {
+    const stage = ordered[index];
+    const record = stages[stage];
+    if (!record || !["complete", "skipped"].includes(record.status)) continue;
+    const unresolved = ordered.slice(0, index).filter((previous) => {
+      if (!planned.has(previous)) return false;
+      return !["complete", "skipped"].includes(stages[previous]?.status);
+    });
+    if (unresolved.length > 0) {
+      issues.push(modelIssue(`/state/stages/${stage}/status`, "lifecycle.order", `${stage} \u4E0D\u80FD\u5728\u524D\u7F6E\u9636\u6BB5\u5B8C\u6210\u524D\u6807\u8BB0\u4E3A ${record.status}: ${unresolved.join(", ")}`));
+    }
+    if (required.has(stage) && record.status === "skipped") {
+      issues.push(modelIssue(`/state/stages/${stage}/status`, "lifecycle.required", `${stage} \u662F\u5FC5\u7ECF\u9636\u6BB5\uFF0C\u4E0D\u80FD\u6807\u8BB0\u4E3A skipped`));
+    }
+  }
+  const active = state?.active_stage;
+  if (active && active !== "preflight" && !planned.has(active)) {
+    issues.push(modelIssue(`/state/active_stage`, "lifecycle.plan", `\u5F53\u524D\u9636\u6BB5 ${active} \u4E0D\u5728 planned_stages \u4E2D`));
+  }
+  if (stages.integration?.status === "complete") {
+    const unresolved = ordered.slice(0, -1).filter((stage) => planned.has(stage) && !["complete", "skipped"].includes(stages[stage]?.status));
+    if (unresolved.length > 0) {
+      issues.push(modelIssue(`/state/stages/integration/status`, "lifecycle.integration", `\u6574\u5408\u4EA4\u4ED8\u4E0D\u80FD\u5728\u8FD9\u4E9B\u9636\u6BB5\u672A\u5B8C\u6210\u65F6\u6807\u8BB0\u4E3A complete: ${unresolved.join(", ")}`));
+    }
+    const blockingHandoffs = (project?.handoffs ?? []).filter((handoff) => handoff.severity === "blocking" && ["open", "accepted"].includes(handoff.status));
+    if (blockingHandoffs.length > 0) {
+      issues.push(modelIssue(`/handoffs`, "lifecycle.handoff", `\u5B58\u5728\u672A\u89E3\u51B3\u7684 blocking \u4EA4\u63A5\uFF0C\u4E0D\u80FD\u5B8C\u6210\u6574\u5408\u4EA4\u4ED8: ${blockingHandoffs.map((handoff) => handoff.id).join(", ")}`));
+    }
+  }
+  if (project?.project?.status === "complete" && stages.integration?.status !== "complete") {
+    issues.push(modelIssue(`/project/status`, "lifecycle.project", "\u9879\u76EE status=complete \u65F6 integration \u5FC5\u987B\u5DF2\u7ECF\u5B8C\u6210"));
+  }
+  if (project?.project?.status === "complete" && (!Array.isArray(project?.release?.outputs) || project.release.outputs.length === 0)) {
+    issues.push(modelIssue(`/release/outputs`, "lifecycle.release", "\u9879\u76EE status=complete \u65F6\u5FC5\u987B\u767B\u8BB0\u5B9E\u9645\u4EA4\u4ED8\u8F93\u51FA"));
+  }
+}
+function validateFeatureSourceLifecycle(project, state, issues) {
+  const sourceManifest = project?.source_manifest ?? {};
+  const stages = state?.stages ?? {};
+  const contracts = [
+    ["materials", "materials", () => Array.isArray(project?.materials) && project.materials.length > 0],
+    ["systems", "systems", () => Array.isArray(sourceManifest.systems) && sourceManifest.systems.length > 0],
+    ["scenes", "scenes", () => Array.isArray(sourceManifest.scenes) && sourceManifest.scenes.length > 0],
+    ["status_ui", "ui", () => Array.isArray(sourceManifest.ui) && sourceManifest.ui.length > 0]
+  ];
+  for (const [feature, group, hasSource] of contracts) {
+    const enabled = project?.features?.[feature] === true;
+    const status = stages[feature]?.status;
+    if (status === "complete" && !enabled) {
+      issues.push(modelIssue(`/features/${feature}`, "lifecycle.flag", `${feature} \u9636\u6BB5\u5DF2\u5B8C\u6210\u4F46\u529F\u80FD\u5F00\u5173\u4ECD\u4E3A false`));
+    }
+    if (status === "skipped" && enabled) {
+      issues.push(modelIssue(`/features/${feature}`, "lifecycle.flag", `${feature} \u9636\u6BB5\u5DF2\u8DF3\u8FC7\u4F46\u529F\u80FD\u5F00\u5173\u4ECD\u4E3A true`));
+    }
+    if (enabled && status === "complete" && !hasSource()) {
+      issues.push(modelIssue(`/source_manifest/${group}`, "lifecycle.source", `${feature} \u5DF2\u542F\u7528\u5E76\u6807\u8BB0\u5B8C\u6210\uFF0C\u4F46\u6CA1\u6709\u5BF9\u5E94\u7EF4\u62A4\u6E90\u7801`));
+    }
+    if (!enabled && status === "skipped" && Array.isArray(sourceManifest[group]) && sourceManifest[group].length > 0) {
+      issues.push(modelIssue(`/source_manifest/${group}`, "lifecycle.source", `${feature} \u5DF2\u8DF3\u8FC7\u4F46\u4ECD\u767B\u8BB0\u4E86\u542F\u7528\u6E90\u7801\uFF1B\u8BF7\u8FC1\u79FB\u5230 preserved_imports \u6216\u91CD\u65B0\u542F\u7528\u8BE5\u9636\u6BB5`));
+    }
+  }
+  const runtimeStatus = stages.mvu_ejs?.status;
+  const runtimeEnabled = project?.features?.mvu === true || project?.features?.ejs === true;
+  if (runtimeStatus === "complete" && !runtimeEnabled) {
+    issues.push(modelIssue("/features", "lifecycle.flag", "mvu_ejs \u9636\u6BB5\u5DF2\u5B8C\u6210\u4F46 MVU/EJS \u529F\u80FD\u5F00\u5173\u90FD\u4E3A false"));
+  }
+  if (runtimeStatus === "skipped" && runtimeEnabled) {
+    issues.push(modelIssue("/features", "lifecycle.flag", "mvu_ejs \u9636\u6BB5\u5DF2\u8DF3\u8FC7\u4F46\u4ECD\u542F\u7528\u4E86 MVU \u6216 EJS"));
   }
 }
 function validateState(state, project, issues) {
@@ -17109,10 +17341,51 @@ function hasAdditionalAssemblySources(sources, target) {
 function renderStructured(value) {
   return stringifyYaml(value).trimEnd();
 }
+var PORTABLE_SOURCE_DROP_KEYS = /* @__PURE__ */ new Set([
+  "source_refs",
+  "replace_file",
+  "content_file",
+  "app_manifest",
+  "preview_output",
+  "output",
+  "entry_html",
+  "styles",
+  "scripts",
+  "fragments",
+  "mock_state",
+  "initial_values",
+  "schema_script",
+  "update_rules",
+  "output_format",
+  "config_override",
+  "helper_scripts",
+  "supporting_files"
+]);
+function looksLikeMaintenancePath(value) {
+  return typeof value === "string" && (/^(?:[A-Za-z]:[\\/]|\\\\|\/)/.test(value) || /(?:^|[\\/])src[\\/]/i.test(value) || /\.rp-card(?:[\\/]|$)/i.test(value) || /(?:^|\.\.)[\\/]/.test(value));
+}
+function portableSourceValue(value, key = "") {
+  if (Array.isArray(value)) return value.map((item) => portableSourceValue(item, key)).filter((item) => item !== void 0);
+  if (!isPlainObject(value)) {
+    if ((key === "source_ref" || key === "source") && looksLikeMaintenancePath(value)) return void 0;
+    return value;
+  }
+  const output = {};
+  for (const [childKey, childValue] of Object.entries(value)) {
+    if (PORTABLE_SOURCE_DROP_KEYS.has(childKey)) continue;
+    if (childKey === "source_refs") continue;
+    if (childKey === "file" && looksLikeMaintenancePath(childValue)) continue;
+    if ((childKey === "source_ref" || childKey === "source") && looksLikeMaintenancePath(childValue)) continue;
+    const next = portableSourceValue(childValue, childKey);
+    if (next !== void 0) output[childKey] = next;
+  }
+  return output;
+}
 function structuredSources(sources) {
-  return Object.fromEntries(Object.entries(sources).map(([group, entries]) => [
+  const portableGroups = /* @__PURE__ */ new Set(["positioning", "world", "characters", "user_character", "systems", "scenes", "mvu", "prompts", "ui"]);
+  return Object.fromEntries(Object.entries(sources).filter(([group]) => portableGroups.has(group)).map(([group, entries]) => [
     group,
-    entries.map((entry) => ({ path: entry.relativePath, value: structuredClone(entry.value) }))
+    entries.map((entry) => ({ value: portableSourceValue(entry.value) }))
   ]));
 }
 function mergeStructuredExtensions(existing, sources) {
@@ -18257,6 +18530,21 @@ async function commandState(args, options) {
         return successReport("state", { action, operation, unchanged: true });
       }
       nextProject.project.operation = operation;
+      if (["edit", "audit"].includes(operation)) {
+        const restartIndex = STAGES.indexOf("materials");
+        for (const stage of STAGES.slice(restartIndex)) {
+          if (stage === "materials") {
+            nextState.stages[stage].status = "in_progress";
+            nextState.stages[stage].summary = null;
+            nextState.stages[stage].round = Math.max(1, nextState.stages[stage].round + 1);
+          } else {
+            nextState.stages[stage].status = "not_started";
+            nextState.stages[stage].summary = null;
+            nextState.stages[stage].round = 0;
+          }
+        }
+        nextState.active_stage = "materials";
+      }
       projectChanged = true;
     } else if (action === "plan") {
       exactArgs("state plan", args, 3);

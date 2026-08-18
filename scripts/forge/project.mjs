@@ -224,25 +224,34 @@ export function applyStagePlan(project, route) {
   return selected;
 }
 export const applyStageRoute = applyStagePlan;
-function initialStages() {
+function initialProjectStage(operation) {
+  // `convert` is the raw unpack/intake operation; it must remain mechanically
+  // compatible with generic card round-trips. The Agent switches a real old-
+  // card editing or audit run to `edit`/`audit`, which starts at materials.
+  return ["edit", "audit"].includes(operation) ? "materials" : "positioning";
+}
+function initialStages(activeStage = "positioning") {
   return Object.fromEntries(STAGES.map((stage) => [stage, {
-    status: stage === "preflight" ? "complete" : stage === "positioning" ? "in_progress" : "not_started",
-    round: stage === "preflight" || stage === "positioning" ? 1 : 0,
+    status: stage === "preflight" ? "complete" : stage === activeStage ? "in_progress" : "not_started",
+    round: stage === "preflight" || stage === activeStage ? 1 : 0,
     summary: stage === "preflight" ? "项目预检已记录，阶段计划可随项目需要调整" : null
   }]));
 }
-export function makeProject({ name, target = "character_card", nsfw, operation = "create", stageRoute = DEFAULT_STAGE_ROUTE, reserveUserCharacter = false }) {
+export function makeProject({ name, target = "character_card", nsfw, operation = "create", stageRoute = DEFAULT_STAGE_ROUTE, reserveUserCharacter = undefined }) {
   if (typeof nsfw !== "boolean") throw inputError("创建项目必须明确提供 NSFW enabled 或 disabled");
   const projectId = machineId(name);
   const selectedStages = normalizeStagePlan(stageRoute);
+  const activeStage = initialProjectStage(operation);
   const isWorldbook = target === "worldbook";
   const sourceManifest = emptySourceManifest();
   sourceManifest.positioning.push("src/positioning.yaml");
   if (isWorldbook) {
     sourceManifest.world.push("src/world/worldbook.yaml");
-  } else if (reserveUserCharacter) {
-    // Every new character-card project reserves a disabled <user> template.
-    // It is a real CharacterBook source, not a user-character requirement.
+  } else if ((reserveUserCharacter ?? operation !== "convert") !== false) {
+    // Character-card projects reserve a disabled <user> template. The raw
+    // convert/intake operation is the one deliberate exception so generic
+    // card round-trips remain lossless; the Agent adds the template before
+    // entering the real edit/audit lane.
     sourceManifest.user_character.push("src/user-character.yaml");
   }
   return {
@@ -266,9 +275,9 @@ export function makeProject({ name, target = "character_card", nsfw, operation =
       stage_order: [...WORKFLOW_STAGES],
       optional_stages: [...OPTIONAL_STAGES],
       planned_stages: [...selectedStages],
-      current_stage: "positioning"
+      current_stage: activeStage
     },
-    agent: agentLedgerForStage("positioning", initialStages(), STAGES),
+    agent: agentLedgerForStage(activeStage, initialStages(activeStage), STAGES),
     capabilities: { enabled: [], planned: [], evidence: [] },
     blueprint: {
       mode: "direct",
@@ -312,13 +321,14 @@ export function makeProject({ name, target = "character_card", nsfw, operation =
   };
 }
 export function makeState(project, { revision = 0 } = {}) {
+  const activeStage = initialProjectStage(project?.project?.operation);
   const preflightDecisions = project.decisions.filter((decision) => decision.stage === "preflight" && decision.locked && decision.status === "active");
   return {
     schema_version: STATE_SCHEMA_VERSION,
     project_id: project.project.id,
     revision,
-    active_stage: "positioning",
-    stages: initialStages(),
+    active_stage: activeStage,
+    stages: initialStages(activeStage),
     decision_locks: preflightDecisions.map((decision) => decisionLock(decision)),
     delegations: [],
     cross_stage_backlog: [],
@@ -509,6 +519,18 @@ export function validateProjectModel(project, state, root) {
     for (const item of project.deliverables) if (!DELIVERABLES.has(item)) issues.push(modelIssue("/deliverables", "enum", `未知交付物: ${item}`));
   }
   if (!isPlainObject(project.source_manifest)) issues.push(modelIssue("/source_manifest", "required", "缺少 source_manifest"));
+  const isCharacterProject = projectTarget(project) === "character_card";
+  const intakeOpen = ["edit", "audit"].includes(project?.project?.operation)
+    && state?.active_stage === "materials"
+    && ["in_progress", "awaiting_user", "blocked"].includes(state?.stages?.materials?.status);
+  const requiresUserTemplate = isCharacterProject && project?.project?.operation !== "convert" && !intakeOpen;
+  if (requiresUserTemplate && (!Array.isArray(project?.source_manifest?.user_character) || project.source_manifest.user_character.length === 0)) {
+    issues.push(modelIssue(
+      "/source_manifest/user_character",
+      "user_character.required",
+      "角色卡项目必须登记一个独立的空白 <user> 模板源；如需清理旧用户档案，应替换而不是删除",
+    ));
+  }
   const positioningEntries = project?.source_manifest?.positioning;
   if (Array.isArray(positioningEntries) && positioningEntries.length !== 1) {
     issues.push(modelIssue(
@@ -533,15 +555,30 @@ export function validateProjectModel(project, state, root) {
       }
     }
   }
+  const sourceOwners = new Map();
+  for (const group of SOURCE_GROUPS) {
+    for (const entry of project?.source_manifest?.[group] ?? []) {
+      if (typeof entry !== "string") continue;
+      const previous = sourceOwners.get(entry);
+      if (previous && previous !== group) {
+        issues.push(modelIssue(`/source_manifest/${group}`, "source.duplicate", `同一维护源不能同时登记在 ${previous} 和 ${group}: ${entry}`));
+      } else {
+        sourceOwners.set(entry, group);
+      }
+    }
+  }
   validateDecisions(project.decisions, issues);
   validateProjectTitleDecisionLocks(project.decisions, issues);
   validateHandoffs(project.handoffs, issues);
   validateCapabilities(project.capabilities, issues);
   validateBlueprint(project.blueprint, issues);
+  validateLegacyTransformationContract(project, state, issues);
   if (project?.runtime_target?.application !== "SillyTavern") issues.push(modelIssue("/runtime_target/application", "const", "运行目标必须是 SillyTavern"));
   if (!Array.isArray(project?.runtime_target?.dependencies)) issues.push(modelIssue("/runtime_target/dependencies", "type", "dependencies 必须是数组"));
   if (!Array.isArray(project?.release?.accepted_warnings)) issues.push(modelIssue("/release/accepted_warnings", "type", "accepted_warnings 必须是数组"));
   validateState(state, project, issues);
+  validateStageLifecycle(project, state, issues);
+  validateFeatureSourceLifecycle(project, state, issues);
   validateMvuLifecycle(project, state, issues);
   try {
     projectSourcePath(project);
@@ -656,6 +693,153 @@ function validateProjectTitleDecisionLocks(decisions, issues) {
     ));
   }
 }
+
+function validateLegacyTransformationContract(project, state, issues) {
+  const operation = project?.project?.operation;
+  if (!['edit', 'convert', 'audit'].includes(operation)) return;
+
+  if (["edit", "audit"].includes(operation) && !project?.workflow?.planned_stages?.includes("materials")) {
+    issues.push(modelIssue(
+      "/workflow/planned_stages",
+      "legacy.material_stage",
+      "旧卡编辑/审查车道必须把 materials 纳入阶段路线，不能用可选阶段配置绕过材料盘点",
+    ));
+  }
+
+  const preserved = project?.source_manifest?.preserved_imports;
+  if (!Array.isArray(preserved) || !preserved.some((entry) => /(?:^|[\\/])original\.json$/i.test(entry))) {
+    issues.push(modelIssue(
+      '/source_manifest/preserved_imports',
+      'legacy.original_preservation',
+      '旧卡改造必须先保留原始角色卡 original.json；禁止在未建立可回溯副本前直接改写旧卡',
+    ));
+  }
+  if (!Array.isArray(preserved) || !preserved.some((entry) => /(?:^|[\\/])preserved\.json$/i.test(entry))) {
+    issues.push(modelIssue(
+      '/source_manifest/preserved_imports',
+      'legacy.preserved_manifest',
+      '旧卡改造必须登记 preserved.json，记录保留、迁移、清理和未知字段策略',
+    ));
+  }
+  if (!Array.isArray(project?.materials) || project.materials.length === 0) {
+    issues.push(modelIssue(
+      '/materials',
+      'legacy.material_inventory',
+      '旧卡改造在进入世界观或整合前必须完成材料盘点，至少登记原卡及其附属世界书、正则、脚本和扩展',
+    ));
+  }
+
+  const userSources = project?.source_manifest?.user_character;
+  const intakeOpen = ["edit", "audit"].includes(operation)
+    && state?.active_stage === "materials"
+    && ["in_progress", "awaiting_user", "blocked"].includes(state?.stages?.materials?.status);
+  if (["edit", "audit"].includes(operation) && !intakeOpen && (!Array.isArray(userSources) || userSources.length === 0)) {
+    issues.push(modelIssue(
+      '/source_manifest/user_character',
+      'legacy.user_character_template',
+      '清理旧用户档案后必须建立新的空白 <user> 模板源；不能只删除旧条目而不补位',
+    ));
+  }
+
+  const stage = state?.stages?.materials;
+  if (state?.stages?.integration?.status === 'complete' && stage?.status !== 'complete') {
+    issues.push(modelIssue(
+      '/state/stages/integration/status',
+      'legacy.stage_order',
+      '旧卡材料盘点未完成时不能把整合交付标记为 complete',
+    ));
+  }
+}
+function validateStageLifecycle(project, state, issues) {
+  const stages = state?.stages ?? {};
+  const planned = new Set(project?.workflow?.planned_stages ?? []);
+  const ordered = WORKFLOW_STAGES;
+  const required = new Set(REQUIRED_WORKFLOW_STAGES);
+
+  for (const stage of ordered) {
+    const record = stages[stage];
+    if (!record) continue;
+    if (["complete", "skipped"].includes(record.status) && (typeof record.summary !== "string" || !record.summary.trim())) {
+      issues.push(modelIssue(`/state/stages/${stage}/summary`, "lifecycle.summary", `${stage} 已标记为 ${record.status}，必须保留阶段总汇或跳过理由`));
+    }
+    if (record.status !== "not_started" && !planned.has(stage)) {
+      issues.push(modelIssue(`/workflow/planned_stages`, "lifecycle.plan", `${stage} 已经执行但没有登记在 planned_stages`));
+    }
+  }
+
+  for (let index = 0; index < ordered.length; index += 1) {
+    const stage = ordered[index];
+    const record = stages[stage];
+    if (!record || !["complete", "skipped"].includes(record.status)) continue;
+    const unresolved = ordered.slice(0, index).filter((previous) => {
+      if (!planned.has(previous)) return false;
+      return !["complete", "skipped"].includes(stages[previous]?.status);
+    });
+    if (unresolved.length > 0) {
+      issues.push(modelIssue(`/state/stages/${stage}/status`, "lifecycle.order", `${stage} 不能在前置阶段完成前标记为 ${record.status}: ${unresolved.join(", ")}`));
+    }
+    if (required.has(stage) && record.status === "skipped") {
+      issues.push(modelIssue(`/state/stages/${stage}/status`, "lifecycle.required", `${stage} 是必经阶段，不能标记为 skipped`));
+    }
+  }
+
+  const active = state?.active_stage;
+  if (active && active !== "preflight" && !planned.has(active)) {
+    issues.push(modelIssue(`/state/active_stage`, "lifecycle.plan", `当前阶段 ${active} 不在 planned_stages 中`));
+  }
+  if (stages.integration?.status === "complete") {
+    const unresolved = ordered.slice(0, -1).filter((stage) => planned.has(stage) && !["complete", "skipped"].includes(stages[stage]?.status));
+    if (unresolved.length > 0) {
+      issues.push(modelIssue(`/state/stages/integration/status`, "lifecycle.integration", `整合交付不能在这些阶段未完成时标记为 complete: ${unresolved.join(", ")}`));
+    }
+    const blockingHandoffs = (project?.handoffs ?? []).filter((handoff) => handoff.severity === "blocking" && ["open", "accepted"].includes(handoff.status));
+    if (blockingHandoffs.length > 0) {
+      issues.push(modelIssue(`/handoffs`, "lifecycle.handoff", `存在未解决的 blocking 交接，不能完成整合交付: ${blockingHandoffs.map((handoff) => handoff.id).join(", ")}`));
+    }
+  }
+  if (project?.project?.status === "complete" && stages.integration?.status !== "complete") {
+    issues.push(modelIssue(`/project/status`, "lifecycle.project", "项目 status=complete 时 integration 必须已经完成"));
+  }
+  if (project?.project?.status === "complete" && (!Array.isArray(project?.release?.outputs) || project.release.outputs.length === 0)) {
+    issues.push(modelIssue(`/release/outputs`, "lifecycle.release", "项目 status=complete 时必须登记实际交付输出"));
+  }
+}
+
+function validateFeatureSourceLifecycle(project, state, issues) {
+  const sourceManifest = project?.source_manifest ?? {};
+  const stages = state?.stages ?? {};
+  const contracts = [
+    ["materials", "materials", () => Array.isArray(project?.materials) && project.materials.length > 0],
+    ["systems", "systems", () => Array.isArray(sourceManifest.systems) && sourceManifest.systems.length > 0],
+    ["scenes", "scenes", () => Array.isArray(sourceManifest.scenes) && sourceManifest.scenes.length > 0],
+    ["status_ui", "ui", () => Array.isArray(sourceManifest.ui) && sourceManifest.ui.length > 0],
+  ];
+  for (const [feature, group, hasSource] of contracts) {
+    const enabled = project?.features?.[feature] === true;
+    const status = stages[feature]?.status;
+    if (status === "complete" && !enabled) {
+      issues.push(modelIssue(`/features/${feature}`, "lifecycle.flag", `${feature} 阶段已完成但功能开关仍为 false`));
+    }
+    if (status === "skipped" && enabled) {
+      issues.push(modelIssue(`/features/${feature}`, "lifecycle.flag", `${feature} 阶段已跳过但功能开关仍为 true`));
+    }
+    if (enabled && status === "complete" && !hasSource()) {
+      issues.push(modelIssue(`/source_manifest/${group}`, "lifecycle.source", `${feature} 已启用并标记完成，但没有对应维护源码`));
+    }
+    if (!enabled && status === "skipped" && Array.isArray(sourceManifest[group]) && sourceManifest[group].length > 0) {
+      issues.push(modelIssue(`/source_manifest/${group}`, "lifecycle.source", `${feature} 已跳过但仍登记了启用源码；请迁移到 preserved_imports 或重新启用该阶段`));
+    }
+  }
+  const runtimeStatus = stages.mvu_ejs?.status;
+  const runtimeEnabled = project?.features?.mvu === true || project?.features?.ejs === true;
+  if (runtimeStatus === "complete" && !runtimeEnabled) {
+    issues.push(modelIssue("/features", "lifecycle.flag", "mvu_ejs 阶段已完成但 MVU/EJS 功能开关都为 false"));
+  }
+  if (runtimeStatus === "skipped" && runtimeEnabled) {
+    issues.push(modelIssue("/features", "lifecycle.flag", "mvu_ejs 阶段已跳过但仍启用了 MVU 或 EJS"));
+  }
+}
+
 function validateState(state, project, issues) {
   if (!isPlainObject(state)) {
     issues.push(modelIssue(`/${STATE_FILE}`, "type", "状态根节点必须是对象"));
@@ -1101,10 +1285,56 @@ function hasAdditionalAssemblySources(sources, target) {
 function renderStructured(value) {
   return stringifyYaml(value).trimEnd();
 }
+const PORTABLE_SOURCE_DROP_KEYS = new Set([
+  "source_refs",
+  "replace_file",
+  "content_file",
+  "app_manifest",
+  "preview_output",
+  "output",
+  "entry_html",
+  "styles",
+  "scripts",
+  "fragments",
+  "mock_state",
+  "initial_values",
+  "schema_script",
+  "update_rules",
+  "output_format",
+  "config_override",
+  "helper_scripts",
+  "supporting_files",
+]);
+function looksLikeMaintenancePath(value) {
+  return typeof value === "string" && (
+    /^(?:[A-Za-z]:[\\/]|\\\\|\/)/.test(value)
+    || /(?:^|[\\/])src[\\/]/i.test(value)
+    || /\.rp-card(?:[\\/]|$)/i.test(value)
+    || /(?:^|\.\.)[\\/]/.test(value)
+  );
+}
+function portableSourceValue(value, key = "") {
+  if (Array.isArray(value)) return value.map((item) => portableSourceValue(item, key)).filter((item) => item !== undefined);
+  if (!isPlainObject(value)) {
+    if ((key === "source_ref" || key === "source") && looksLikeMaintenancePath(value)) return undefined;
+    return value;
+  }
+  const output = {};
+  for (const [childKey, childValue] of Object.entries(value)) {
+    if (PORTABLE_SOURCE_DROP_KEYS.has(childKey)) continue;
+    if (childKey === "source_refs") continue;
+    if (childKey === "file" && looksLikeMaintenancePath(childValue)) continue;
+    if ((childKey === "source_ref" || childKey === "source") && looksLikeMaintenancePath(childValue)) continue;
+    const next = portableSourceValue(childValue, childKey);
+    if (next !== undefined) output[childKey] = next;
+  }
+  return output;
+}
 function structuredSources(sources) {
-  return Object.fromEntries(Object.entries(sources).map(([group, entries]) => [
+  const portableGroups = new Set(["positioning", "world", "characters", "user_character", "systems", "scenes", "mvu", "prompts", "ui"]);
+  return Object.fromEntries(Object.entries(sources).filter(([group]) => portableGroups.has(group)).map(([group, entries]) => [
     group,
-    entries.map((entry) => ({ path: entry.relativePath, value: structuredClone(entry.value) }))
+    entries.map((entry) => ({ value: portableSourceValue(entry.value) }))
   ]));
 }
 function mergeStructuredExtensions(existing, sources) {

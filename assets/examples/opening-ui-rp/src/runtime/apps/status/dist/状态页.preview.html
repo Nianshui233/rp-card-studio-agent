@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>雨幕旅店 · 夜间房态</title>
   <style>
-/* ===== style: styles/tokens.css ===== */
+/* ===== style bundle ===== */
 :root {
   --night: #0f151b;
   --panel: #182128;
@@ -20,7 +20,7 @@
   --radius: 12px;
 }
 
-/* ===== style: styles/app.css ===== */
+/* ===== style bundle ===== */
 * { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; }
 body { padding: 10px; color: var(--text); background: linear-gradient(145deg, #10171d, #191619); font: 14px/1.65 "Microsoft YaHei", "Noto Sans SC", sans-serif; }
@@ -44,7 +44,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--lamp); outl
 .toast { position: fixed; left: 50%; bottom: 15px; transform: translate(-50%, 10px); opacity: 0; pointer-events: none; border: 1px solid var(--lamp); background: #12181c; color: var(--text); padding: 7px 12px; transition: .18s; }.toast.show { opacity: 1; transform: translate(-50%, 0); }
 .empty, .error { padding: 24px 10px; text-align: center; color: var(--muted); }.error { color: var(--danger); }
 
-/* ===== style: styles/responsive.css ===== */
+/* ===== style bundle ===== */
 @media (max-width: 600px) {
   body { padding: 5px; }
   .weather-strip, .metric-grid { grid-template-columns: repeat(2, 1fr); }
@@ -74,11 +74,11 @@ window.__RP_UI_MOCK__ = {"time":"子时二刻","weather":"暴雨未歇","locatio
 <script>
 (() => {
 "use strict";
-/* ===== script: scripts/state.js ===== */
+/* ===== script bundle ===== */
 const AppState = { data: null, currentView: "room", filter: "" };
 const text = (value, fallback = "—") => value === undefined || value === null || value === "" ? fallback : String(value);
 
-/* ===== script: scripts/host-adapter.js ===== */
+/* ===== script bundle ===== */
 const Host = {
   scopes() {
     const scopes = [window];
@@ -102,7 +102,7 @@ const Host = {
   },
 };
 
-/* ===== script: scripts/render.js ===== */
+/* ===== script bundle ===== */
 function renderChrome() {
   const data = AppState.data || {};
   document.querySelector("#time").textContent = text(data.time, "时间未明");
@@ -138,7 +138,7 @@ function showView(name) {
   document.querySelector(`.tab[data-view="${name}"]`)?.classList.add("active");
 }
 
-/* ===== script: scripts/interactions.js ===== */
+/* ===== script bundle ===== */
 let toastTimer = null;
 function toast(message) {
   const node = document.querySelector("#toast");
@@ -159,7 +159,7 @@ document.querySelector("#writeAction").addEventListener("click", () => {
   toast(Host.writeInput(input.value.trim()) ? "行动已写入输入框" : "无法直接写入，已尝试复制");
 });
 
-/* ===== script: scripts/bootstrap.js ===== */
+/* ===== script bundle ===== */
 function bootstrap() {
   const sync = document.querySelector("#sync");
   try {

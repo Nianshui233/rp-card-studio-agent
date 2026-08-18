@@ -676,6 +676,25 @@ async function commandState(args, options) {
         return successReport("state", { action, operation, unchanged: true });
       }
       nextProject.project.operation = operation;
+      if (["edit", "audit"].includes(operation)) {
+        // Switching an existing workspace into a real edit/audit run is a
+        // lifecycle change, not a label change. Reopen the materials gate and
+        // invalidate downstream completion claims so the Agent cannot resume
+        // at an old integration snapshot.
+        const restartIndex = STAGES.indexOf("materials");
+        for (const stage of STAGES.slice(restartIndex)) {
+          if (stage === "materials") {
+            nextState.stages[stage].status = "in_progress";
+            nextState.stages[stage].summary = null;
+            nextState.stages[stage].round = Math.max(1, nextState.stages[stage].round + 1);
+          } else {
+            nextState.stages[stage].status = "not_started";
+            nextState.stages[stage].summary = null;
+            nextState.stages[stage].round = 0;
+          }
+        }
+        nextState.active_stage = "materials";
+      }
       projectChanged = true;
     } else if (action === "plan") {
       exactArgs("state plan", args, 3);

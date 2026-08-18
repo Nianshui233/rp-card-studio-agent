@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>雨幕旅店 · 今夜登记</title>
   <style>
-/* ===== style: styles/tokens.css ===== */
+/* ===== style bundle ===== */
 :root {
   --night: #111820;
   --wood: #2a2322;
@@ -27,7 +27,7 @@
   --space-4: 20px;
 }
 
-/* ===== style: styles/app.css ===== */
+/* ===== style bundle ===== */
 * { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; }
 body { padding: 14px; color: var(--cream); background: radial-gradient(circle at 50% -10%, #31404a, var(--night) 48%), var(--night); font: 15px/1.7 "Microsoft YaHei", "Noto Sans SC", sans-serif; }
@@ -65,7 +65,7 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--li
 .actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 .feedback { min-height: 1.6em; color: var(--amber); }.feedback.error { color: var(--danger); }.feedback.success { color: var(--success); }
 
-/* ===== style: styles/responsive.css ===== */
+/* ===== style bundle ===== */
 @media (max-width: 640px) {
   body { padding: 6px; }
   .hero { grid-template-columns: 1fr; padding: 19px 16px; }
@@ -123,7 +123,7 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--li
   <script>
 (() => {
 "use strict";
-/* ===== script: scripts/state.js ===== */
+/* ===== script bundle ===== */
 const AppState = {
   currentView: "guide",
   form: { name: "林砚", room: "二楼临街房", reason: "躲雨并寻找一名失踪的信使", rainMood: "被雨困住", pace: "自然交谈" },
@@ -149,7 +149,7 @@ function buildUserBlock() {
   return `<雨幕创角>\nname: ${escapeXml(form.name)}\nroom: ${escapeXml(form.room)}\nreason: ${escapeXml(form.reason)}\nrain_mood: ${escapeXml(form.rainMood)}\nopening_pace: ${escapeXml(form.pace)}\n</雨幕创角>`;
 }
 
-/* ===== script: scripts/host-adapter.js ===== */
+/* ===== script bundle ===== */
 const Host = {
   writeInput(text) {
     try {
@@ -164,7 +164,7 @@ const Host = {
   },
 };
 
-/* ===== script: scripts/render.js ===== */
+/* ===== script bundle ===== */
 function showView(name) {
   AppState.currentView = name;
   document.querySelectorAll(".view,.step").forEach(node => node.classList.remove("active"));
@@ -194,7 +194,7 @@ function applyPreset(name) {
   document.querySelector("#pace").value = preset.pace;
 }
 
-/* ===== script: scripts/interactions.js ===== */
+/* ===== script bundle ===== */
 document.addEventListener("click", event => {
   const view = event.target.closest("[data-view]")?.dataset.view;
   const next = event.target.closest("[data-next]")?.dataset.next;
@@ -214,7 +214,7 @@ document.querySelector("#confirm").addEventListener("click", () => {
   feedback.textContent = result.ok ? "主控设定块已写入酒馆输入框，请检查后发送。" : result.route === "clipboard" ? "无法直接访问输入框，设定块已复制，请粘贴发送。" : `无法自动写入，请手动复制上方设定块。`;
 });
 
-/* ===== script: scripts/bootstrap.js ===== */
+/* ===== script bundle ===== */
 function bootstrap() {
   const mock = window.__RP_UI_MOCK__;
   if (mock && typeof mock === "object") Object.assign(AppState.form, mock);
