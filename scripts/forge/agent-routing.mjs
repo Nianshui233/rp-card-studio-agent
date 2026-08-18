@@ -20,6 +20,7 @@ export const CAPABILITY_IDS = Object.freeze([
   "runtime.ejs_phases",
   "frontend.compiled_application",
   "frontend.zero_layer",
+  "frontend.asset_library",
   "runtime.external_dependency",
 ]);
 

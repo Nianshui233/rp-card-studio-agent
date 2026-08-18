@@ -32,12 +32,15 @@ AGENT.md：唯一主协调 Agent
   ├─ project.yaml：语义账本
   ├─ .rp-card-state.json：Forge 技术镜像
   ├─ orchestrator/routing.yaml：阶段路由
+  ├─ orchestrator/stage-boundaries.md：阶段边界与 UI 需求访谈入口
   ├─ orchestrator/hooks.yaml：Forge 生命周期钩子合同
   ├─ internal-skills/：十三个私有专业 Skill
   └─ Forge：状态、装配与验证
 ```
 
 私有 Skill 不作为独立入口安装，也不维护自己的项目状态。主 Agent 每轮只读取当前主 Skill，确有技术依赖时才读取支援 Skill。旧的根 `SKILL.md` 单体流程已经删除，不存在兼容或回退入口。
+
+UI 需求不会被压成一张技术问卷：前端 Skill 使用 `references/ui-requirements-interview.md` 分轮收集用途、玩家旅程、信息优先级、交互、视觉、设备和数据规模，再把已锁定结果交给 HTML/CSS/JS、运行时和整合模块实现。字体与图标通过 `references/ui-assets.md` 作为可选资产能力处理：可用 ZeoSeven 进行中文字体选型、用 Font Awesome Free 选择功能 SVG，但不把整站资源或远程 CDN 变成默认依赖。
 
 Forge 的正式 Hooks 包含 `before_stage_write`、`before_source_write`、`before_build`、`after_build` 和 `after_delivery`。它们把阶段边界、写入路径、构建摘要和交付落盘检查集中成可追踪记录；只拦真实运行/交付错误，不限制创作规模，也不按 HTML 行数、变量数量或世界书条目数设上限。宿主适配层以后可以在内存中注册额外验收钩子，核心 Agent 不从项目目录加载任意外部脚本。
 

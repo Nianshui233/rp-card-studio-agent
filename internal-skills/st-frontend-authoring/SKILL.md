@@ -5,7 +5,7 @@ description: "Private module for opening/creation frontends, ongoing message UIs
 
 # SillyTavern Frontend Authoring
 
-只接受主 Agent 调度。完整读取 `shared/contracts/module-io.md`、`references/status-ui.md` 与 `references/ui-app-authoring.md`。
+只接受主 Agent 调度。完整读取 `shared/contracts/module-io.md`、`references/ui-requirements-interview.md`、`references/ui-assets.md`、`references/status-ui.md` 与 `references/ui-app-authoring.md`。
 
 ## 两种不同前端
 
@@ -13,6 +13,16 @@ description: "Private module for opening/creation frontends, ongoing message UIs
 2. 持续消息前端：状态、导航、行动、信息、反馈和长期游玩功能。
 
 不得把二者压成一个通用面板。分别决定规模、信息架构、源码目录、构建、正则路线、生命周期和验收。
+
+## 需求访谈
+
+UI 不是先写代码再补内容。进入对应前端阶段后，先按 `references/ui-requirements-interview.md` 建立 `ui_requirements`：只问缺失信息，每轮最多 3–4 个普通玩家能理解的问题，并在每轮给出方向差异、明确推荐和可直接合并的产品方案/源码片段。
+
+先读取已经锁定的世界观、角色、系统、场景、MVU/EJS 和开场事实，主动整理字段、优先级、空态、数据规模和候选组件，不让用户重复填写，也不要求用户决定触发标记、变量路径、API、正则或输出模式。技术载体由 Agent 根据体验目标选择并解释。
+
+“我不懂，给我推荐”时提供 2–3 个项目专属方向；用户明确完全放权时直接决定、报告理由并锁定，不再反复询问。视觉选项必须来自项目本身，不能只给通用的“蓝色科技仪表盘”。
+
+字体和图标按 `references/ui-assets.md` 作为可选资产能力处理：中文字体可从 ZeoSeven Fonts 等来源进行选型，功能图标可采用 Font Awesome Free 的选定 SVG，但不把整站资源或远程 CDN 变成默认依赖。优先记录字体回退、内嵌 SVG、远程依赖和许可来源；资源加载失败时保留可读文字与可操作回退。
 
 ## 规模
 

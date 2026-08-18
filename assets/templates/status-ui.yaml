@@ -9,6 +9,47 @@ status_ui:
   experience_level: light
   theme_direction: ""
   device_priority: equal
+  # UI需求访谈账本：只记录已知与已锁定事实；未确认项保持 unknown/空值，不虚构用户偏好。
+  ui_requirements:
+    interview_status: draft
+    purpose: ""
+    primary_journey: ""
+    player_tasks: []
+    information:
+      must_show: []
+      useful: []
+      detail_only: []
+      may_be_empty: []
+      data_scale: unknown
+      update_cadence: unknown
+    interactions:
+      desired: []
+      host_actions: []
+      feedback: []
+      avoid: []
+    visual:
+      direction: ""
+      palette: ""
+      font_direction: ""
+      icon_direction: ""
+      density: comfortable
+      theme_mode: single
+      motion: project_matched
+    device:
+      priority: equal
+      touch: true
+      narrow_screen: true
+      long_chinese_text: true
+    carrier:
+      user_facing_goal: ""
+      agent_choice: message_surface
+    assets:
+      font_strategy: system_stack
+      icon_strategy: project_svg
+      remote_dependencies: []
+    recommendations: []
+    open_questions: []
+    locked_decisions: []
   # 每个 surface 在 multi_file_html 模式下同时记录 app_manifest（开发清单）与 file（构建结果）。
   surfaces: []
   # 每个持续表面应同时声明玩家显示消费者与模型提示词消费者，避免技术标记回流。

@@ -7,6 +7,37 @@ status_ui:
   experience_level: light
   theme_direction: "雨夜旅店房牌、灯火与住客簿"
   device_priority: equal
+  ui_requirements:
+    interview_status: locked
+    purpose: "让玩家在每轮消息后查看旅店环境、住客、事件和线索，并快速发起行动"
+    primary_journey: "看当前房态 → 浏览住客/事件 → 展开详情 → 把调查或交谈行动写入输入框"
+    player_tasks: ["确认当前房间与天气", "寻找住客", "追踪事件和线索", "发起调查、交谈或休息"]
+    information:
+      must_show: ["房间", "天气", "当前住客", "进行中事件", "关键线索"]
+      useful: ["住客搜索", "事件详情", "最近行动反馈"]
+      detail_only: ["住客完整档案", "历史事件"]
+      may_be_empty: ["当前住客", "进行中事件", "关键线索"]
+      data_scale: medium_dynamic_lists
+      update_cadence: every_assistant_message
+    interactions:
+      desired: ["房态/住客/事件切页", "住客搜索", "详情展开", "行动快捷键"]
+      host_actions: ["把调查、交谈和休息文本写入输入框"]
+      feedback: ["加载", "空态", "行动已写入", "失败后复制"]
+      avoid: ["点击无反应", "没有数据时展示模拟住客"]
+    visual:
+      direction: "雨夜旅店房牌、灯火、住客簿和深色木墙"
+      palette: "暖灯金、雨夜蓝灰、深木棕"
+      font_direction: "正文优先清晰，房牌标题使用略带旧旅店气质的中文展示字"
+      icon_direction: "住客、事件、线索、搜索使用统一线性 SVG"
+      density: comfortable
+      theme_mode: single
+      motion: "轻雨线、房牌翻转和减少动画回退"
+    device: { priority: equal, touch: true, narrow_screen: true, long_chinese_text: true }
+    carrier: { user_facing_goal: "每条回复下方的完整持续状态应用", agent_choice: message_surface }
+    assets: { font_strategy: design_reference, icon_strategy: project_svg, remote_dependencies: [] }
+    recommendations: ["轻型完整应用", "窄屏三页导航", "长列表使用搜索和分段而非一次铺满"]
+    open_questions: []
+    locked_decisions: ["与开场应用分离", "所有可见字段使用中文映射", "真实数据缺失时显示空态"]
   surfaces:
     - id: status
       name: "雨幕旅店持续状态"

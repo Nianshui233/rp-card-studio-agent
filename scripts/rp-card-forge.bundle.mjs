@@ -14564,6 +14564,7 @@ var init_agent_routing = __esm({
       "runtime.ejs_phases",
       "frontend.compiled_application",
       "frontend.zero_layer",
+      "frontend.asset_library",
       "runtime.external_dependency"
     ]);
     CAPABILITY_ID_SET = new Set(CAPABILITY_IDS);

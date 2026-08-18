@@ -98,6 +98,11 @@ capabilities:
     consumers: [st-integration-qa]
     supports: [message_replacement, history_restore, fullscreen, persistence, chat_switch_restore]
     fallback: 普通消息内前端
+  - id: frontend.asset_library
+    owner: st-frontend-authoring
+    consumers: [st-frontend-authoring, st-integration-qa]
+    supports: [font_recommendation, icon_selection, inline_svg, local_font, remote_font, fallback, provenance]
+    fallback: 系统字体回退与项目自制 SVG/CSS
   - id: runtime.external_dependency
     owner: st-host-capabilities
     consumers: [st-runtime-authoring, st-frontend-authoring]

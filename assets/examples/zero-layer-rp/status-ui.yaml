@@ -6,6 +6,37 @@ status_ui:
   experience_level: super_heavy
   theme_direction: "雾港航行终端"
   device_priority: equal
+  ui_requirements:
+    interview_status: locked
+    purpose: "让前端承担雾港探索、航行、风险管理、人物与物资操作的主要游玩流程"
+    primary_journey: "读取当前世界 → 规划航线/行动 → 检查风险与物资 → 写入行动 → 查看新楼层结果"
+    player_tasks: ["探索区域", "管理载具与物资", "查看人物和线索", "发起主要行动", "读取历史"]
+    information:
+      must_show: ["当前区域", "载具状态", "主要风险", "人物", "物资", "行动入口"]
+      useful: ["事件", "线索", "历史消息", "跨域搜索"]
+      detail_only: ["完整事件档案", "历史状态快照"]
+      may_be_empty: ["人物", "线索", "事件"]
+      data_scale: large_cross_domain
+      update_cadence: event_and_poll
+    interactions:
+      desired: ["六区导航", "跨域搜索", "确认弹窗", "历史读取", "行动写入", "全屏"]
+      host_actions: ["读取当前楼层", "读取历史消息", "写入 SillyTavern 输入框"]
+      feedback: ["加载", "过期状态", "成功", "失败", "复制回退"]
+      avoid: ["把复杂项目压成单屏仪表盘", "切换聊天后沿用旧楼层"]
+    visual:
+      direction: "雾港航行终端、潮湿金属、信号灯和海图网格"
+      palette: "墨蓝、铁灰、航标橙、危险红"
+      font_direction: "正文采用窄屏可读的等宽/半等宽数据字体，标题使用工业终端展示字"
+      icon_direction: "航线、风险、人物、物资使用统一几何 SVG，主题徽记使用项目自制图形"
+      density: immersive
+      theme_mode: single
+      motion: "终端切页、风险脉冲与减少动画回退"
+    device: { priority: equal, touch: true, narrow_screen: true, long_chinese_text: true }
+    carrier: { user_facing_goal: "前端成为主要游玩表面", agent_choice: zero_layer }
+    assets: { font_strategy: local_font, icon_strategy: project_svg, remote_dependencies: [] }
+    recommendations: ["保留历史访问", "全屏与聊天消息间可恢复", "大列表使用搜索、分区和渐进展示"]
+    open_questions: []
+    locked_decisions: ["超重型/0层", "整楼消息替换", "聊天切换后重新读取当前楼层"]
   surfaces:
     - id: floating_terminal
       name: 浮桥终端
