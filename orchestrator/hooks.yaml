@@ -1,0 +1,40 @@
+schema_version: 1.0.0
+id: rp-card-studio-forge-hooks
+description: >-
+  Forge 生命周期钩子。它们把已有的阶段、源码、构建和交付校验整理成
+  可追踪的扩展面，不给创作内容设置规模上限。
+policy:
+  creative_scope: unrestricted
+  blocking_scope:
+    - syntax_or_schema_error
+    - path_escape
+    - broken_source_or_artifact_link
+    - digest_or_transaction_mismatch
+    - missing_required_delivery_output
+  advisory_scope:
+    - performance_cost
+    - large_artifact_size
+    - optional_host_capability_not_run
+events:
+  before_stage_write:
+    purpose: 阶段状态写入前，确认阶段属于当前路线且完成/跳过有总汇
+    default: forge.stage.lifecycle
+  before_source_write:
+    purpose: 源码、账本和构建元数据写入前，确认目标仍在项目工作区
+    default: forge.source.boundary
+  before_build:
+    purpose: 构建前复用项目与已登记源码校验结果
+    default: forge.build.preflight
+  after_build:
+    purpose: 构建候选产物与 build manifest 摘要一致
+    default: forge.build.artifact
+  after_delivery:
+    purpose: 交付完成后记录输出是否实际落盘
+    default: forge.delivery.exists
+extension:
+  custom_handlers: 由 Agent 或宿主适配层在内存中注册；核心 Agent 不从项目目录加载任意脚本
+  future_adapters:
+    - SillyTavern 实机验收
+    - Chrome/Playwright 交互回归
+    - GitHub 交付记录
+

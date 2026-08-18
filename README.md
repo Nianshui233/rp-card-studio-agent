@@ -32,13 +32,16 @@ AGENT.md：唯一主协调 Agent
   ├─ project.yaml：语义账本
   ├─ .rp-card-state.json：Forge 技术镜像
   ├─ orchestrator/routing.yaml：阶段路由
+  ├─ orchestrator/hooks.yaml：Forge 生命周期钩子合同
   ├─ internal-skills/：十三个私有专业 Skill
   └─ Forge：状态、装配与验证
 ```
 
 私有 Skill 不作为独立入口安装，也不维护自己的项目状态。主 Agent 每轮只读取当前主 Skill，确有技术依赖时才读取支援 Skill。旧的根 `SKILL.md` 单体流程已经删除，不存在兼容或回退入口。
 
-八个私有 Skill 的分工：
+Forge 的正式 Hooks 包含 `before_stage_write`、`before_source_write`、`before_build`、`after_build` 和 `after_delivery`。它们把阶段边界、写入路径、构建摘要和交付落盘检查集中成可追踪记录；只拦真实运行/交付错误，不限制创作规模，也不按 HTML 行数、变量数量或世界书条目数设上限。宿主适配层以后可以在内存中注册额外验收钩子，核心 Agent 不从项目目录加载任意外部脚本。
+
+私有 Skill 的分工：
 
 | 私有 Skill | 主要负责 |
 |---|---|

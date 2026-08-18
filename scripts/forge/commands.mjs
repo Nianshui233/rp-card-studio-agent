@@ -4,6 +4,7 @@ import { buildUiApp } from '../ui-app-builder.mjs';
 import { conflictError, inputError, integrityError, unsupportedError, validationError } from './errors.mjs';
 import { commitNewDirectory, commitWrites, planWrites, resolveWithin } from './fs-transaction.mjs';
 import { Format, formatSummary, isCharacterFormat, isPngCharacterFormat, loadArtifact } from './formats.mjs';
+import { createForgeHookRunner } from './hooks.mjs';
 import { isPlainObject, parseJsonText, prettyJson, semanticEqual, sha256 } from './json.mjs';
 import { ccv3Payload, embedCardInPng, extractCardFromPng, nonCardChunkDigest, parsePng } from './png.mjs';
 import {
@@ -426,6 +427,7 @@ async function commandPack(args, options) {
 async function buildOrPack(command, root, options, allowPng) {
   return runProjectMutation(root, async () => {
     const loaded = await loadProject(root);
+    const hooks = createForgeHookRunner({ projectRoot: loaded.projectRoot });
     const projectValidation = validateProjectModel(loaded.project, loaded.state, loaded.projectRoot);
     const registered = await validateRegisteredSources(loaded);
     projectValidation.issues.push(...registered.issues);
@@ -441,6 +443,12 @@ async function buildOrPack(command, root, options, allowPng) {
       projectValidation.warnings.push(...runtimeValidation.warnings);
     }
     if (projectValidation.issues.length > 0) throw validationError("项目状态无效", projectValidation);
+    await hooks.run("before_build", {
+      project: loaded.project,
+      state: loaded.state,
+      validation: projectValidation,
+      command,
+    });
     const source = await loadProjectSource(loaded);
     assertValidSource(source);
     const configured = projectOutputPaths(loaded.project);
@@ -499,6 +507,15 @@ async function buildOrPack(command, root, options, allowPng) {
       preserved_unknown_fields: source.restoredPaths,
       ...pngEvidence ? { png: pngEvidence } : {}
     };
+    await hooks.run("after_build", {
+      project: loaded.project,
+      state: loaded.state,
+      outputPath,
+      outputBuffer,
+      artifactDigest,
+      manifest,
+      command,
+    });
     const nextState = structuredClone(loaded.state);
     const nextProject = structuredClone(loaded.project);
     nextProject.release.outputs = [.../* @__PURE__ */ new Set([...nextProject.release.outputs ?? [], relativeOutput])];
@@ -517,15 +534,32 @@ async function buildOrPack(command, root, options, allowPng) {
     nextState.updated_at = finishedAt;
     const nextModel = validateProjectModel(nextProject, nextState, loaded.projectRoot);
     if (nextModel.issues.length > 0) throw validationError("构建后的项目与技术状态未通过 Schema", nextModel);
+    const writes = [
+      { path: outputPath, content: outputBuffer, role: "delivery" },
+      { path: manifestPath, content: prettyJson(manifest), role: "delivery" },
+      { path: loaded.projectPath, content: stringifyYaml(nextProject), role: "ledger" },
+      { path: loaded.statePath, content: prettyJson(nextState), role: "ledger" }
+    ];
+    await hooks.run("before_source_write", {
+      project: nextProject,
+      state: nextState,
+      writes,
+      reason: command,
+    });
     const commit = await commitWrites([
-      { path: outputPath, content: outputBuffer },
-      { path: manifestPath, content: prettyJson(manifest) },
-      { path: loaded.projectPath, content: stringifyYaml(nextProject) },
-      { path: loaded.statePath, content: prettyJson(nextState) }
+      ...writes
     ], {
       force: true,
       dryRun: Boolean(options["dry-run"])
     });
+    await hooks.run("after_delivery", {
+      project: nextProject,
+      state: nextState,
+      outputPath,
+      manifestPath,
+      dryRun: Boolean(options["dry-run"]),
+      command,
+    }, { enforce: false });
     return successReport(command, {
       projectRoot: loaded.projectRoot,
       output: outputPath,
@@ -534,6 +568,7 @@ async function buildOrPack(command, root, options, allowPng) {
       artifactDigest,
       preservedUnknownFieldsRestored: source.restoredPaths,
       png: pngEvidence,
+      hooks: hooks.snapshot(),
       dryRun: Boolean(options["dry-run"])
     }, projectValidation.warnings.map((warning) => warning.message), commit.changes);
   }, { force: Boolean(options.force), dryRun: Boolean(options["dry-run"]) });
@@ -639,6 +674,7 @@ async function commandState(args, options) {
   }
   return runProjectMutation(root, async () => {
     const loaded = await loadProject(root, { allowLegacy: true });
+    const hooks = createForgeHookRunner({ projectRoot: loaded.projectRoot });
     if (action === "migrate") {
       exactArgs("state migrate", args, 2);
       const projectMigration = migrateProject(loaded.project, loaded.state);
@@ -649,6 +685,15 @@ async function commandState(args, options) {
       }
       const model2 = validateProjectModel(projectMigration.value, stateMigration.value, loaded.projectRoot);
       if (model2.issues.length > 0) throw validationError("迁移结果未通过 Schema", model2);
+      await hooks.run("before_source_write", {
+        project: projectMigration.value,
+        state: stateMigration.value,
+        writes: [
+          { path: loaded.projectPath, content: stringifyYaml(projectMigration.value) },
+          { path: loaded.statePath, content: prettyJson(stateMigration.value) }
+        ],
+        reason: "state:migrate",
+      });
       const commit2 = await updateProjectAndState(loaded, projectMigration.value, stateMigration.value, {
         dryRun: Boolean(options["dry-run"])
       });
@@ -656,6 +701,7 @@ async function commandState(args, options) {
         action,
         projectMigrated: projectMigration.migrated,
         stateMigrated: stateMigration.migrated,
+        hooks: hooks.snapshot(),
         dryRun: Boolean(options["dry-run"])
       }, [], commit2.changes);
     }
@@ -702,10 +748,19 @@ async function commandState(args, options) {
       projectChanged = true;
       nextState.updated_at = (/* @__PURE__ */ new Date()).toISOString();
       nextState.revision += 1;
+      await hooks.run("before_source_write", {
+        project: nextProject,
+        state: nextState,
+        writes: [
+          { path: loaded.projectPath, content: stringifyYaml(nextProject) },
+          { path: loaded.statePath, content: prettyJson(nextState) }
+        ],
+        reason: "state:plan",
+      });
       const commit = await updateProjectAndState(loaded, nextProject, nextState, {
         dryRun: Boolean(options["dry-run"])
       });
-      return successReport("state", { action, plannedStages }, [], commit.changes);
+      return successReport("state", { action, plannedStages, hooks: hooks.snapshot() }, [], commit.changes);
     } else if (action === "lock") {
       exactArgs("state lock", args, 4, 4);
       const [, , id, rawValue] = args;
@@ -913,6 +968,29 @@ async function commandState(args, options) {
     projectChanged = true;
     const model = validateProjectModel(nextProject, nextState, loaded.projectRoot);
     if (model.issues.length > 0) throw validationError("状态更新未通过 Schema", model);
+    if (action === "stage") {
+      const stage = args[2];
+      const status = args[3] ?? "in_progress";
+      await hooks.run("before_stage_write", {
+        project: nextProject,
+        state: nextState,
+        stage,
+        status,
+        summary: options.summary,
+        plannedStages: nextProject.workflow.planned_stages,
+        reason: "state:stage",
+      });
+    }
+    const stateWrites = [
+      { path: loaded.projectPath, content: stringifyYaml(nextProject) },
+      { path: loaded.statePath, content: prettyJson(nextState) }
+    ];
+    await hooks.run("before_source_write", {
+      project: nextProject,
+      state: nextState,
+      writes: stateWrites,
+      reason: `state:${action}`,
+    });
     const commit = await (projectChanged ? updateProjectAndState : updateManagedState)(loaded, ...projectChanged ? [nextProject, nextState, { dryRun: Boolean(options["dry-run"]) }] : [nextState, { dryRun: Boolean(options["dry-run"]) }]);
     return successReport("state", {
       action,
@@ -925,6 +1003,7 @@ async function commandState(args, options) {
       blueprint: nextProject.blueprint,
       handoffs: nextProject.handoffs,
       decisionLocks: nextState.decision_locks,
+      hooks: hooks.snapshot(),
       dryRun: Boolean(options["dry-run"])
     }, [], commit.changes);
   }, { force: Boolean(options.force), dryRun: Boolean(options["dry-run"]) });

@@ -10,6 +10,7 @@ invocation:
 private_skills_root: internal-skills
 routing: orchestrator/routing.yaml
 capabilities: orchestrator/capabilities.yaml
+hooks: orchestrator/hooks.yaml
 ledger:
   semantic: project.yaml
   technical: .rp-card-state.json

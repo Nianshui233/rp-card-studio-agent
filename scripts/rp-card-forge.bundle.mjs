@@ -116,17 +116,17 @@ var require_visit = __commonJS({
     visit.BREAK = BREAK;
     visit.SKIP = SKIP;
     visit.REMOVE = REMOVE;
-    function visit_(key, node, visitor, path6) {
-      const ctrl = callVisitor(key, node, visitor, path6);
+    function visit_(key, node, visitor, path7) {
+      const ctrl = callVisitor(key, node, visitor, path7);
       if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
-        replaceNode(key, path6, ctrl);
-        return visit_(key, ctrl, visitor, path6);
+        replaceNode(key, path7, ctrl);
+        return visit_(key, ctrl, visitor, path7);
       }
       if (typeof ctrl !== "symbol") {
         if (identity.isCollection(node)) {
-          path6 = Object.freeze(path6.concat(node));
+          path7 = Object.freeze(path7.concat(node));
           for (let i = 0; i < node.items.length; ++i) {
-            const ci = visit_(i, node.items[i], visitor, path6);
+            const ci = visit_(i, node.items[i], visitor, path7);
             if (typeof ci === "number")
               i = ci - 1;
             else if (ci === BREAK)
@@ -137,13 +137,13 @@ var require_visit = __commonJS({
             }
           }
         } else if (identity.isPair(node)) {
-          path6 = Object.freeze(path6.concat(node));
-          const ck = visit_("key", node.key, visitor, path6);
+          path7 = Object.freeze(path7.concat(node));
+          const ck = visit_("key", node.key, visitor, path7);
           if (ck === BREAK)
             return BREAK;
           else if (ck === REMOVE)
             node.key = null;
-          const cv = visit_("value", node.value, visitor, path6);
+          const cv = visit_("value", node.value, visitor, path7);
           if (cv === BREAK)
             return BREAK;
           else if (cv === REMOVE)
@@ -164,17 +164,17 @@ var require_visit = __commonJS({
     visitAsync.BREAK = BREAK;
     visitAsync.SKIP = SKIP;
     visitAsync.REMOVE = REMOVE;
-    async function visitAsync_(key, node, visitor, path6) {
-      const ctrl = await callVisitor(key, node, visitor, path6);
+    async function visitAsync_(key, node, visitor, path7) {
+      const ctrl = await callVisitor(key, node, visitor, path7);
       if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
-        replaceNode(key, path6, ctrl);
-        return visitAsync_(key, ctrl, visitor, path6);
+        replaceNode(key, path7, ctrl);
+        return visitAsync_(key, ctrl, visitor, path7);
       }
       if (typeof ctrl !== "symbol") {
         if (identity.isCollection(node)) {
-          path6 = Object.freeze(path6.concat(node));
+          path7 = Object.freeze(path7.concat(node));
           for (let i = 0; i < node.items.length; ++i) {
-            const ci = await visitAsync_(i, node.items[i], visitor, path6);
+            const ci = await visitAsync_(i, node.items[i], visitor, path7);
             if (typeof ci === "number")
               i = ci - 1;
             else if (ci === BREAK)
@@ -185,13 +185,13 @@ var require_visit = __commonJS({
             }
           }
         } else if (identity.isPair(node)) {
-          path6 = Object.freeze(path6.concat(node));
-          const ck = await visitAsync_("key", node.key, visitor, path6);
+          path7 = Object.freeze(path7.concat(node));
+          const ck = await visitAsync_("key", node.key, visitor, path7);
           if (ck === BREAK)
             return BREAK;
           else if (ck === REMOVE)
             node.key = null;
-          const cv = await visitAsync_("value", node.value, visitor, path6);
+          const cv = await visitAsync_("value", node.value, visitor, path7);
           if (cv === BREAK)
             return BREAK;
           else if (cv === REMOVE)
@@ -218,23 +218,23 @@ var require_visit = __commonJS({
       }
       return visitor;
     }
-    function callVisitor(key, node, visitor, path6) {
+    function callVisitor(key, node, visitor, path7) {
       if (typeof visitor === "function")
-        return visitor(key, node, path6);
+        return visitor(key, node, path7);
       if (identity.isMap(node))
-        return visitor.Map?.(key, node, path6);
+        return visitor.Map?.(key, node, path7);
       if (identity.isSeq(node))
-        return visitor.Seq?.(key, node, path6);
+        return visitor.Seq?.(key, node, path7);
       if (identity.isPair(node))
-        return visitor.Pair?.(key, node, path6);
+        return visitor.Pair?.(key, node, path7);
       if (identity.isScalar(node))
-        return visitor.Scalar?.(key, node, path6);
+        return visitor.Scalar?.(key, node, path7);
       if (identity.isAlias(node))
-        return visitor.Alias?.(key, node, path6);
+        return visitor.Alias?.(key, node, path7);
       return void 0;
     }
-    function replaceNode(key, path6, node) {
-      const parent = path6[path6.length - 1];
+    function replaceNode(key, path7, node) {
+      const parent = path7[path7.length - 1];
       if (identity.isCollection(parent)) {
         parent.items[key] = node;
       } else if (identity.isPair(parent)) {
@@ -844,10 +844,10 @@ var require_Collection = __commonJS({
     var createNode = require_createNode();
     var identity = require_identity();
     var Node = require_Node();
-    function collectionFromPath(schema, path6, value) {
+    function collectionFromPath(schema, path7, value) {
       let v = value;
-      for (let i = path6.length - 1; i >= 0; --i) {
-        const k = path6[i];
+      for (let i = path7.length - 1; i >= 0; --i) {
+        const k = path7[i];
         if (typeof k === "number" && Number.isInteger(k) && k >= 0) {
           const a = [];
           a[k] = v;
@@ -866,7 +866,7 @@ var require_Collection = __commonJS({
         sourceObjects: /* @__PURE__ */ new Map()
       });
     }
-    var isEmptyPath = (path6) => path6 == null || typeof path6 === "object" && !!path6[Symbol.iterator]().next().done;
+    var isEmptyPath = (path7) => path7 == null || typeof path7 === "object" && !!path7[Symbol.iterator]().next().done;
     var Collection = class extends Node.NodeBase {
       constructor(type, schema) {
         super(type);
@@ -896,11 +896,11 @@ var require_Collection = __commonJS({
        * be a Pair instance or a `{ key, value }` object, which may not have a key
        * that already exists in the map.
        */
-      addIn(path6, value) {
-        if (isEmptyPath(path6))
+      addIn(path7, value) {
+        if (isEmptyPath(path7))
           this.add(value);
         else {
-          const [key, ...rest] = path6;
+          const [key, ...rest] = path7;
           const node = this.get(key, true);
           if (identity.isCollection(node))
             node.addIn(rest, value);
@@ -914,8 +914,8 @@ var require_Collection = __commonJS({
        * Removes a value from the collection.
        * @returns `true` if the item was found and removed.
        */
-      deleteIn(path6) {
-        const [key, ...rest] = path6;
+      deleteIn(path7) {
+        const [key, ...rest] = path7;
         if (rest.length === 0)
           return this.delete(key);
         const node = this.get(key, true);
@@ -929,8 +929,8 @@ var require_Collection = __commonJS({
        * scalar values from their surrounding node; to disable set `keepScalar` to
        * `true` (collections are always returned intact).
        */
-      getIn(path6, keepScalar) {
-        const [key, ...rest] = path6;
+      getIn(path7, keepScalar) {
+        const [key, ...rest] = path7;
         const node = this.get(key, true);
         if (rest.length === 0)
           return !keepScalar && identity.isScalar(node) ? node.value : node;
@@ -948,8 +948,8 @@ var require_Collection = __commonJS({
       /**
        * Checks if the collection includes a value with the key `key`.
        */
-      hasIn(path6) {
-        const [key, ...rest] = path6;
+      hasIn(path7) {
+        const [key, ...rest] = path7;
         if (rest.length === 0)
           return this.has(key);
         const node = this.get(key, true);
@@ -959,8 +959,8 @@ var require_Collection = __commonJS({
        * Sets a value in this collection. For `!!set`, `value` needs to be a
        * boolean to add/remove the item from the set.
        */
-      setIn(path6, value) {
-        const [key, ...rest] = path6;
+      setIn(path7, value) {
+        const [key, ...rest] = path7;
         if (rest.length === 0) {
           this.set(key, value);
         } else {
@@ -3475,9 +3475,9 @@ var require_Document = __commonJS({
           this.contents.add(value);
       }
       /** Adds a value to the document. */
-      addIn(path6, value) {
+      addIn(path7, value) {
         if (assertCollection(this.contents))
-          this.contents.addIn(path6, value);
+          this.contents.addIn(path7, value);
       }
       /**
        * Create a new `Alias` node, ensuring that the target `node` has the required anchor.
@@ -3552,14 +3552,14 @@ var require_Document = __commonJS({
        * Removes a value from the document.
        * @returns `true` if the item was found and removed.
        */
-      deleteIn(path6) {
-        if (Collection.isEmptyPath(path6)) {
+      deleteIn(path7) {
+        if (Collection.isEmptyPath(path7)) {
           if (this.contents == null)
             return false;
           this.contents = null;
           return true;
         }
-        return assertCollection(this.contents) ? this.contents.deleteIn(path6) : false;
+        return assertCollection(this.contents) ? this.contents.deleteIn(path7) : false;
       }
       /**
        * Returns item at `key`, or `undefined` if not found. By default unwraps
@@ -3574,10 +3574,10 @@ var require_Document = __commonJS({
        * scalar values from their surrounding node; to disable set `keepScalar` to
        * `true` (collections are always returned intact).
        */
-      getIn(path6, keepScalar) {
-        if (Collection.isEmptyPath(path6))
+      getIn(path7, keepScalar) {
+        if (Collection.isEmptyPath(path7))
           return !keepScalar && identity.isScalar(this.contents) ? this.contents.value : this.contents;
-        return identity.isCollection(this.contents) ? this.contents.getIn(path6, keepScalar) : void 0;
+        return identity.isCollection(this.contents) ? this.contents.getIn(path7, keepScalar) : void 0;
       }
       /**
        * Checks if the document includes a value with the key `key`.
@@ -3588,10 +3588,10 @@ var require_Document = __commonJS({
       /**
        * Checks if the document includes a value at `path`.
        */
-      hasIn(path6) {
-        if (Collection.isEmptyPath(path6))
+      hasIn(path7) {
+        if (Collection.isEmptyPath(path7))
           return this.contents !== void 0;
-        return identity.isCollection(this.contents) ? this.contents.hasIn(path6) : false;
+        return identity.isCollection(this.contents) ? this.contents.hasIn(path7) : false;
       }
       /**
        * Sets a value in this document. For `!!set`, `value` needs to be a
@@ -3608,13 +3608,13 @@ var require_Document = __commonJS({
        * Sets a value in this document. For `!!set`, `value` needs to be a
        * boolean to add/remove the item from the set.
        */
-      setIn(path6, value) {
-        if (Collection.isEmptyPath(path6)) {
+      setIn(path7, value) {
+        if (Collection.isEmptyPath(path7)) {
           this.contents = value;
         } else if (this.contents == null) {
-          this.contents = Collection.collectionFromPath(this.schema, Array.from(path6), value);
+          this.contents = Collection.collectionFromPath(this.schema, Array.from(path7), value);
         } else if (assertCollection(this.contents)) {
-          this.contents.setIn(path6, value);
+          this.contents.setIn(path7, value);
         }
       }
       /**
@@ -5574,9 +5574,9 @@ var require_cst_visit = __commonJS({
     visit.BREAK = BREAK;
     visit.SKIP = SKIP;
     visit.REMOVE = REMOVE;
-    visit.itemAtPath = (cst, path6) => {
+    visit.itemAtPath = (cst, path7) => {
       let item = cst;
-      for (const [field, index] of path6) {
+      for (const [field, index] of path7) {
         const tok = item?.[field];
         if (tok && "items" in tok) {
           item = tok.items[index];
@@ -5585,23 +5585,23 @@ var require_cst_visit = __commonJS({
       }
       return item;
     };
-    visit.parentCollection = (cst, path6) => {
-      const parent = visit.itemAtPath(cst, path6.slice(0, -1));
-      const field = path6[path6.length - 1][0];
+    visit.parentCollection = (cst, path7) => {
+      const parent = visit.itemAtPath(cst, path7.slice(0, -1));
+      const field = path7[path7.length - 1][0];
       const coll = parent?.[field];
       if (coll && "items" in coll)
         return coll;
       throw new Error("Parent collection not found");
     };
-    function _visit(path6, item, visitor) {
-      let ctrl = visitor(item, path6);
+    function _visit(path7, item, visitor) {
+      let ctrl = visitor(item, path7);
       if (typeof ctrl === "symbol")
         return ctrl;
       for (const field of ["key", "value"]) {
         const token = item[field];
         if (token && "items" in token) {
           for (let i = 0; i < token.items.length; ++i) {
-            const ci = _visit(Object.freeze(path6.concat([[field, i]])), token.items[i], visitor);
+            const ci = _visit(Object.freeze(path7.concat([[field, i]])), token.items[i], visitor);
             if (typeof ci === "number")
               i = ci - 1;
             else if (ci === BREAK)
@@ -5612,10 +5612,10 @@ var require_cst_visit = __commonJS({
             }
           }
           if (typeof ctrl === "function" && field === "key")
-            ctrl = ctrl(item, path6);
+            ctrl = ctrl(item, path7);
         }
       }
-      return typeof ctrl === "function" ? ctrl(item, path6) : ctrl;
+      return typeof ctrl === "function" ? ctrl(item, path7) : ctrl;
     }
     exports.visit = visit;
   }
@@ -9258,10 +9258,10 @@ var require_keyword = __commonJS({
       if (def.async && !schemaEnv.$async)
         throw new Error("async keyword in sync schema");
     }
-    function useKeyword(gen, keyword, result) {
-      if (result === void 0)
+    function useKeyword(gen, keyword, result2) {
+      if (result2 === void 0)
         throw new Error(`keyword "${keyword}" failed to compile`);
-      return gen.scopeValue("keyword", typeof result == "function" ? { ref: result } : { ref: result, code: (0, codegen_1.stringify)(result) });
+      return gen.scopeValue("keyword", typeof result2 == "function" ? { ref: result2 } : { ref: result2, code: (0, codegen_1.stringify)(result2) });
     }
     function validSchemaType(schema, schemaType, allowUndefined = false) {
       return !schemaType.length || schemaType.some((st) => st === "array" ? Array.isArray(schema) : st === "object" ? schema && typeof schema == "object" && !Array.isArray(schema) : typeof schema == st || allowUndefined && typeof schema == "undefined");
@@ -10562,8 +10562,8 @@ var require_utils = __commonJS({
       }
       return ind;
     }
-    function removeDotSegments(path6) {
-      let input = path6;
+    function removeDotSegments(path7) {
+      let input = path7;
       const output = [];
       let nextSlash = -1;
       let len = 0;
@@ -10815,8 +10815,8 @@ var require_schemes = __commonJS({
         wsComponent.secure = void 0;
       }
       if (wsComponent.resourceName) {
-        const [path6, query] = wsComponent.resourceName.split("?");
-        wsComponent.path = path6 && path6 !== "/" ? path6 : void 0;
+        const [path7, query] = wsComponent.resourceName.split("?");
+        wsComponent.path = path7 && path7 !== "/" ? path7 : void 0;
         wsComponent.query = query;
         wsComponent.resourceName = void 0;
       }
@@ -15321,8 +15321,8 @@ function embedCardInPng(buffer, payload, label = "PNG") {
     }
     output.push(chunk.raw);
   }
-  const result = Buffer.concat(output);
-  const reparsed = parsePng(result, `${label} \u8F93\u51FA`);
+  const result2 = Buffer.concat(output);
+  const reparsed = parsePng(result2, `${label} \u8F93\u51FA`);
   const beforeDigest = nonCardChunkDigest(parsed.chunks);
   const afterDigest = nonCardChunkDigest(reparsed.chunks);
   if (beforeDigest !== afterDigest) {
@@ -15331,7 +15331,7 @@ function embedCardInPng(buffer, payload, label = "PNG") {
       afterDigest
     });
   }
-  return result;
+  return result2;
 }
 
 // scripts/forge/schema.mjs
@@ -16029,6 +16029,170 @@ async function loadArtifact(inputPath) {
   };
 }
 
+// scripts/forge/hooks.mjs
+import { access as access2 } from "node:fs/promises";
+import path4 from "node:path";
+var FORGE_HOOK_EVENTS = Object.freeze([
+  "before_stage_write",
+  "before_source_write",
+  "before_build",
+  "after_build",
+  "after_delivery"
+]);
+var EVENT_INDEX = new Set(FORGE_HOOK_EVENTS);
+function result(status, id, message, evidence = []) {
+  return {
+    status,
+    id,
+    message,
+    evidence: Array.isArray(evidence) ? evidence : [evidence]
+  };
+}
+function inside(root, target) {
+  const relative = path4.relative(path4.resolve(root), path4.resolve(target));
+  return relative === "" || !relative.startsWith("..") && !path4.isAbsolute(relative);
+}
+async function pathExists2(target) {
+  try {
+    await access2(target);
+    return true;
+  } catch (error) {
+    if (error?.code === "ENOENT") return false;
+    throw error;
+  }
+}
+function builtInHandlers() {
+  return {
+    before_stage_write: [
+      {
+        id: "forge.stage.lifecycle",
+        run: ({ stage, status, summary, plannedStages = [] }) => {
+          if (!stage || !status) return result("block", "forge.stage.lifecycle", "\u9636\u6BB5\u5199\u5165\u7F3A\u5C11 stage \u6216 status");
+          if (!plannedStages.includes(stage) && status !== "skipped" && stage !== "preflight") {
+            return result("block", "forge.stage.lifecycle", `\u9636\u6BB5 ${stage} \u4E0D\u5728\u5F53\u524D planned_stages \u4E2D`, [stage]);
+          }
+          if (["complete", "skipped"].includes(status) && !String(summary ?? "").trim()) {
+            return result("block", "forge.stage.lifecycle", `\u9636\u6BB5 ${stage} \u5B8C\u6210\u6216\u8DF3\u8FC7\u65F6\u5FC5\u987B\u6709\u9636\u6BB5\u603B\u6C47`, [stage, status]);
+          }
+          return result("pass", "forge.stage.lifecycle", "\u9636\u6BB5\u5199\u5165\u6EE1\u8DB3\u6700\u5C0F\u751F\u547D\u5468\u671F\u6761\u4EF6", [stage, status]);
+        }
+      }
+    ],
+    before_source_write: [
+      {
+        id: "forge.source.boundary",
+        run: ({ projectRoot, writes = [] }) => {
+          if (!projectRoot) return result("block", "forge.source.boundary", "\u6E90\u7801\u5199\u5165\u7F3A\u5C11 projectRoot");
+          const sourceWrites = writes.filter((entry) => entry?.role !== "delivery");
+          const outside = sourceWrites.map((entry) => entry?.path).filter(Boolean).filter((target) => !inside(projectRoot, target));
+          if (outside.length > 0) {
+            return result("block", "forge.source.boundary", "\u5199\u5165\u76EE\u6807\u8D8A\u51FA\u9879\u76EE\u5DE5\u4F5C\u533A", outside);
+          }
+          return result("pass", "forge.source.boundary", "\u6E90\u7801\u4E0E\u8D26\u672C\u5199\u5165\u76EE\u6807\u5747\u4F4D\u4E8E\u9879\u76EE\u5DE5\u4F5C\u533A\u5185", sourceWrites.map((entry) => entry?.path).filter(Boolean));
+        }
+      }
+    ],
+    before_build: [
+      {
+        id: "forge.build.preflight",
+        run: ({ validation }) => {
+          const blockers = validation?.issues ?? [];
+          if (blockers.length > 0) {
+            return result("block", "forge.build.preflight", "\u6784\u5EFA\u524D\u4ECD\u5B58\u5728\u9879\u76EE\u963B\u65AD\u9519\u8BEF", blockers.map((issue2) => issue2?.path ?? issue2?.message ?? "unknown"));
+          }
+          return result("pass", "forge.build.preflight", "\u6784\u5EFA\u524D\u9879\u76EE\u6821\u9A8C\u5DF2\u901A\u8FC7");
+        }
+      }
+    ],
+    after_build: [
+      {
+        id: "forge.build.artifact",
+        run: ({ outputBuffer, artifactDigest, manifest }) => {
+          if (!outputBuffer || outputBuffer.length === 0) {
+            return result("block", "forge.build.artifact", "\u6784\u5EFA\u4EA7\u7269\u4E3A\u7A7A");
+          }
+          if (manifest?.artifact_digest && manifest.artifact_digest !== artifactDigest) {
+            return result("block", "forge.build.artifact", "\u6784\u5EFA\u6E05\u5355\u4E2D\u7684 artifact_digest \u4E0E\u5B9E\u9645\u4EA7\u7269\u4E0D\u4E00\u81F4", [manifest.artifact_digest, artifactDigest]);
+          }
+          return result("pass", "forge.build.artifact", "\u6784\u5EFA\u4EA7\u7269\u4E0E\u6E05\u5355\u6458\u8981\u4E00\u81F4", [artifactDigest]);
+        }
+      }
+    ],
+    after_delivery: [
+      {
+        id: "forge.delivery.exists",
+        run: async ({ outputPath, dryRun }) => {
+          if (dryRun) return result("pass", "forge.delivery.exists", "dry-run \u672A\u6267\u884C\u5B9E\u9645\u4EA4\u4ED8\u5199\u5165");
+          if (!outputPath || !await pathExists2(outputPath)) {
+            return result("warn", "forge.delivery.exists", "\u4EA4\u4ED8\u547D\u4EE4\u5DF2\u5B8C\u6210\uFF0C\u4F46\u79BB\u7EBF\u94A9\u5B50\u672A\u627E\u5230\u8F93\u51FA\u6587\u4EF6", [outputPath ?? null]);
+          }
+          return result("pass", "forge.delivery.exists", "\u4EA4\u4ED8\u8F93\u51FA\u5DF2\u843D\u76D8", [outputPath]);
+        }
+      }
+    ]
+  };
+}
+function createForgeHookRunner({ projectRoot = null, handlers = {}, now = () => (/* @__PURE__ */ new Date()).toISOString() } = {}) {
+  const registry = /* @__PURE__ */ new Map();
+  const trace = [];
+  const add = (event, id, run) => {
+    if (!EVENT_INDEX.has(event)) throw new TypeError(`\u672A\u77E5 Forge hook \u4E8B\u4EF6: ${event}`);
+    if (typeof run !== "function") throw new TypeError(`Forge hook ${id} \u5FC5\u987B\u662F\u51FD\u6570`);
+    const list = registry.get(event) ?? [];
+    list.push({ id, run });
+    registry.set(event, list);
+  };
+  for (const [event, list] of Object.entries(builtInHandlers())) {
+    for (const handler of list) add(event, handler.id, handler.run);
+  }
+  for (const event of FORGE_HOOK_EVENTS) {
+    const custom = handlers[event];
+    if (!custom) continue;
+    for (const handler of Array.isArray(custom) ? custom : [custom]) {
+      add(event, handler.id ?? `custom.${event}`, handler.run ?? handler);
+    }
+  }
+  return {
+    register(event, id, run) {
+      add(event, id, run);
+      return this;
+    },
+    async run(event, context = {}, { enforce = true } = {}) {
+      if (!EVENT_INDEX.has(event)) throw new TypeError(`\u672A\u77E5 Forge hook \u4E8B\u4EF6: ${event}`);
+      const payload = { ...context, projectRoot: context.projectRoot ?? projectRoot };
+      const entries = registry.get(event) ?? [];
+      const eventTrace = [];
+      for (const handler of entries) {
+        let entry;
+        try {
+          entry = await handler.run(payload);
+        } catch (error) {
+          entry = result("block", handler.id, `\u94A9\u5B50\u6267\u884C\u5931\u8D25: ${error.message}`, [error.stack ?? error.message]);
+        }
+        const normalized = {
+          status: ["pass", "warn", "block"].includes(entry?.status) ? entry.status : "pass",
+          id: entry?.id ?? handler.id,
+          message: entry?.message ?? "\u94A9\u5B50\u5B8C\u6210",
+          evidence: Array.isArray(entry?.evidence) ? entry.evidence : []
+        };
+        eventTrace.push(normalized);
+        trace.push({ event, ...normalized, at: now() });
+        if (normalized.status === "block" && enforce) {
+          throw validationError(`Forge hook ${event} \u963B\u65AD\u4E86\u5F53\u524D\u64CD\u4F5C: ${normalized.message}`, {
+            hook: normalized.id,
+            event,
+            evidence: normalized.evidence
+          });
+        }
+      }
+      return eventTrace;
+    },
+    snapshot() {
+      return structuredClone(trace);
+    }
+  };
+}
+
 // scripts/forge/project.mjs
 init_agent_routing();
 import {
@@ -16182,7 +16346,7 @@ function projectModelSource(group, source) {
 }
 
 // scripts/forge/project.mjs
-import path4 from "node:path";
+import path5 from "node:path";
 import { readFile as readFile5 } from "node:fs/promises";
 var PROJECT_FILE = "project.yaml";
 var STATE_FILE = ".rp-card-state.json";
@@ -16488,7 +16652,7 @@ function syncAgentLedger(project, state) {
   return project.agent;
 }
 async function projectFilesForInit(root, { type = "character", nsfw, stageRoute = DEFAULT_STAGE_ROUTE } = {}) {
-  const name = path4.basename(path4.resolve(root));
+  const name = path5.basename(path5.resolve(root));
   if (!["character", "worldbook"].includes(type)) {
     throw inputError(`init --type \u4EC5\u652F\u6301 character \u6216 worldbook\uFF0C\u6536\u5230: ${type}`);
   }
@@ -16524,7 +16688,7 @@ async function projectFilesForInit(root, { type = "character", nsfw, stageRoute 
 }
 async function initializeProject(root, options = {}) {
   const prepared = await projectFilesForInit(root, options);
-  const model = validateProjectModel(prepared.project, prepared.state, path4.resolve(root));
+  const model = validateProjectModel(prepared.project, prepared.state, path5.resolve(root));
   model.issues.push(...validateNamedSchema("positioning", prepared.positioning, "/src/positioning.yaml"));
   if (prepared.source) {
     model.issues.push(...validateNamedSchema("world", prepared.source, `/${projectSourcePath(prepared.project)}`));
@@ -16532,8 +16696,8 @@ async function initializeProject(root, options = {}) {
   if (prepared.userCharacter) model.issues.push(...validateNamedSchema("user-character", prepared.userCharacter, "/src/user-character.yaml"));
   if (prepared.uiSource) model.issues.push(...validateNamedSchema("status-ui", prepared.uiSource, "/src/ui/status-ui.yaml"));
   if (model.issues.length > 0) throw validationError("\u521D\u59CB\u5316\u5019\u9009\u672A\u901A\u8FC7\u5185\u7F6E Schema", model);
-  const result = await commitNewDirectory(root, prepared.files, options);
-  return { ...prepared, ...result };
+  const result2 = await commitNewDirectory(root, prepared.files, options);
+  return { ...prepared, ...result2 };
 }
 async function applyNsfwTemplates(project, characterSource) {
   if (project?.preflight?.nsfw?.enabled !== true || projectTarget(project) !== "character_card") {
@@ -16558,9 +16722,9 @@ async function templateAssetUrl(relativePath) {
   throw inputError(`\u627E\u4E0D\u5230\u5185\u7F6E\u6A21\u677F: ${relativePath}`);
 }
 async function loadProject(root, { allowLegacy = false } = {}) {
-  const projectRoot = path4.resolve(root);
-  const projectPath = path4.join(projectRoot, PROJECT_FILE);
-  const statePath = path4.join(projectRoot, STATE_FILE);
+  const projectRoot = path5.resolve(root);
+  const projectPath = path5.join(projectRoot, PROJECT_FILE);
+  const statePath = path5.join(projectRoot, STATE_FILE);
   const project = await readYaml(projectPath);
   const state = await readJson(statePath);
   if (!allowLegacy) {
@@ -17716,23 +17880,23 @@ function decisionLock(decision, lockedAt = (/* @__PURE__ */ new Date()).toISOStr
   };
 }
 async function updateManagedState(loaded, nextState, options = {}) {
-  const result = await commitWrites([
+  const result2 = await commitWrites([
     { path: loaded.statePath, content: prettyJson(nextState) }
   ], { ...options, force: true });
   loaded.state = nextState;
-  return result;
+  return result2;
 }
 async function updateProjectAndState(loaded, nextProject, nextState, options = {}) {
-  const result = await commitWrites([
+  const result2 = await commitWrites([
     { path: loaded.projectPath, content: stringifyYaml(nextProject) },
     { path: loaded.statePath, content: prettyJson(nextState) }
   ], { ...options, force: true });
   loaded.project = nextProject;
   loaded.state = nextState;
-  return result;
+  return result2;
 }
 async function runProjectMutation(root, callback, options = {}) {
-  const absolute = path4.resolve(root);
+  const absolute = path5.resolve(root);
   return withProjectLock(absolute, () => callback(absolute), options);
 }
 function migrateProject(project, state = null) {
@@ -17907,7 +18071,7 @@ function printReport(report, jsonMode = false) {
 // scripts/forge/commands.mjs
 import { readFile as readFile6 } from "node:fs/promises";
 import os from "node:os";
-import path5 from "node:path";
+import path6 from "node:path";
 import process2 from "node:process";
 var HELP_TEXT = `rp-card-forge - \u79BB\u7EBF\u3001\u4E8B\u52A1\u5F0F SillyTavern \u5236\u5361\u5DE5\u5177
 
@@ -17975,8 +18139,8 @@ async function runCommand(command, args, options) {
 }
 async function commandInit(args, options) {
   exactArgs("init", args, 1);
-  const root = path5.resolve(args[0]);
-  const result = await initializeProject(root, {
+  const root = path6.resolve(args[0]);
+  const result2 = await initializeProject(root, {
     type: options.type ?? "character",
     nsfw: parseNsfwOption(options, "init"),
     stageRoute: options.stages === void 0 ? void 0 : parseCliValue(options.stages),
@@ -17985,10 +18149,10 @@ async function commandInit(args, options) {
   });
   return successReport("init", {
     projectRoot: root,
-    projectId: result.project.project.id,
-    target: projectTarget(result.project),
-    dryRun: result.dryRun
-  }, [], result.changes);
+    projectId: result2.project.project.id,
+    target: projectTarget(result2.project),
+    dryRun: result2.dryRun
+  }, [], result2.changes);
 }
 async function commandInspect(args) {
   exactArgs("inspect", args, 1);
@@ -18035,9 +18199,9 @@ async function commandUnpack(args, options) {
   if (artifact.validation.issues.length > 0) {
     throw validationError("\u8F93\u5165\u5236\u54C1\u672A\u901A\u8FC7\u7ED3\u6784\u6821\u9A8C", artifact.validation);
   }
-  const defaultName = path5.basename(artifact.path, path5.extname(artifact.path));
+  const defaultName = path6.basename(artifact.path, path6.extname(artifact.path));
   const displayName = artifact.payload?.data?.name || artifact.payload?.name || defaultName;
-  const outputRoot = path5.resolve(options.output ?? path5.join(path5.dirname(artifact.path), `${defaultName}.rp-card`));
+  const outputRoot = path6.resolve(options.output ?? path6.join(path6.dirname(artifact.path), `${defaultName}.rp-card`));
   const target = artifact.format === Format.WORLDBOOK ? "worldbook" : "character_card";
   const project = makeProject({
     name: displayName,
@@ -18087,7 +18251,7 @@ async function commandUnpack(args, options) {
   if (candidateValidation.issues.length > 0) {
     throw validationError("\u89E3\u5305\u5019\u9009\u672A\u901A\u8FC7\u5185\u7F6E Schema", candidateValidation);
   }
-  const result = await commitNewDirectory(outputRoot, files, {
+  const result2 = await commitNewDirectory(outputRoot, files, {
     force: Boolean(options.force),
     dryRun: Boolean(options["dry-run"])
   });
@@ -18096,11 +18260,11 @@ async function commandUnpack(args, options) {
     sourceFormat: artifact.format,
     preservedUnknownFields: preserved.entries.length,
     originalDigest: artifact.digest,
-    dryRun: result.dryRun
+    dryRun: result2.dryRun
   }, [
     ...artifact.validation.warnings,
     ...repairableIssues
-  ].map((candidate) => candidate.message), result.changes);
+  ].map((candidate) => candidate.message), result2.changes);
 }
 async function commandValidate(args, options) {
   exactArgs("validate", args, 1);
@@ -18108,13 +18272,13 @@ async function commandValidate(args, options) {
   if (artifact.format === Format.PROJECT) {
     return runProjectMutation(artifact.projectRoot, async () => {
       const loaded = await loadProject(artifact.projectRoot, { allowLegacy: true });
-      const result2 = await validateLoadedProject(loaded);
-      const reportData2 = validationReportData(result2);
-      const output = path5.resolve(options.output ?? path5.join(loaded.projectRoot, "reports", "validation.json"));
+      const result22 = await validateLoadedProject(loaded);
+      const reportData2 = validationReportData(result22);
+      const output = path6.resolve(options.output ?? path6.join(loaded.projectRoot, "reports", "validation.json"));
       assertOutputDoesNotOverwriteSource(output, projectProtectedPaths(loaded));
       await planWrites([{ path: output, content: prettyJson(reportData2) }], { force: Boolean(options.force) });
       const nextState = structuredClone(loaded.state);
-      const validationStatus = result2.issues.length > 0 ? "fail" : result2.warnings.length > 0 ? "warning" : "pass";
+      const validationStatus = result22.issues.length > 0 ? "fail" : result22.warnings.length > 0 ? "warning" : "pass";
       nextState.revision += 1;
       nextState.validation = isPlainObject(nextState.validation) ? nextState.validation : { status: "not_run", runs: [] };
       nextState.validation.runs = Array.isArray(nextState.validation.runs) ? nextState.validation.runs : [];
@@ -18132,26 +18296,26 @@ async function commandValidate(args, options) {
         { path: output, content: prettyJson(reportData2) },
         { path: loaded.statePath, content: prettyJson(nextState) }
       ], { force: true, dryRun: Boolean(options["dry-run"]) });
-      if (result2.issues.length > 0) throw validationError("\u6821\u9A8C\u5931\u8D25", reportData2);
+      if (result22.issues.length > 0) throw validationError("\u6821\u9A8C\u5931\u8D25", reportData2);
       return successReport(
         "validate",
         reportData2,
-        result2.warnings.map((warning) => warning.message),
+        result22.warnings.map((warning) => warning.message),
         commit.changes
       );
     }, { force: Boolean(options.force), dryRun: Boolean(options["dry-run"]) });
   }
-  const result = {
+  const result2 = {
     subject: artifact.path,
     format: artifact.format,
     issues: artifact.validation.issues,
     warnings: artifact.validation.warnings,
     checks: artifactChecks(artifact)
   };
-  const reportData = validationReportData(result);
+  const reportData = validationReportData(result2);
   const changes = [];
   if (options.output) {
-    const output = path5.resolve(options.output);
+    const output = path6.resolve(options.output);
     assertOutputDoesNotOverwriteSource(output, [artifact.path]);
     const commit = await commitWrites([{ path: output, content: prettyJson(reportData) }], {
       force: Boolean(options.force),
@@ -18159,10 +18323,10 @@ async function commandValidate(args, options) {
     });
     changes.push(...commit.changes);
   }
-  if (result.issues.length > 0) {
+  if (result2.issues.length > 0) {
     throw validationError("\u6821\u9A8C\u5931\u8D25", reportData);
   }
-  return successReport("validate", reportData, result.warnings.map((warning) => warning.message), changes);
+  return successReport("validate", reportData, result2.warnings.map((warning) => warning.message), changes);
 }
 async function validateLoadedProject(loaded) {
   const model = validateProjectModel(loaded.project, loaded.state, loaded.projectRoot);
@@ -18252,26 +18416,26 @@ async function commandBuild(args, options) {
 }
 async function commandUiBuild(args, options) {
   exactArgs("ui-build", args, 1);
-  const manifestPath = path5.resolve(args[0]);
-  const result = await buildUiApp(manifestPath, {
+  const manifestPath = path6.resolve(args[0]);
+  const result2 = await buildUiApp(manifestPath, {
     output: options.output,
     dryRun: Boolean(options["dry-run"])
   });
   return successReport("ui-build", {
-    manifest: result.manifest,
-    output: result.output,
-    surface: result.surface,
-    experienceLevel: result.experienceLevel,
-    styles: result.styles,
-    scripts: result.scripts,
-    fragments: result.fragments,
-    mockState: result.mockState,
-    previewOutput: result.previewOutput,
-    previewBytes: result.previewBytes,
-    bytes: result.bytes,
-    sha256: result.sha256,
-    dryRun: result.dryRun
-  }, [], result.dryRun ? [{ action: "plan", path: result.output }] : [{ action: "write", path: result.output }]);
+    manifest: result2.manifest,
+    output: result2.output,
+    surface: result2.surface,
+    experienceLevel: result2.experienceLevel,
+    styles: result2.styles,
+    scripts: result2.scripts,
+    fragments: result2.fragments,
+    mockState: result2.mockState,
+    previewOutput: result2.previewOutput,
+    previewBytes: result2.previewBytes,
+    bytes: result2.bytes,
+    sha256: result2.sha256,
+    dryRun: result2.dryRun
+  }, [], result2.dryRun ? [{ action: "plan", path: result2.output }] : [{ action: "write", path: result2.output }]);
 }
 async function commandPack(args, options) {
   exactArgs("pack", args, 1);
@@ -18280,6 +18444,7 @@ async function commandPack(args, options) {
 async function buildOrPack(command, root, options, allowPng) {
   return runProjectMutation(root, async () => {
     const loaded = await loadProject(root);
+    const hooks = createForgeHookRunner({ projectRoot: loaded.projectRoot });
     const projectValidation = validateProjectModel(loaded.project, loaded.state, loaded.projectRoot);
     const registered = await validateRegisteredSources(loaded);
     projectValidation.issues.push(...registered.issues);
@@ -18295,6 +18460,12 @@ async function buildOrPack(command, root, options, allowPng) {
       projectValidation.warnings.push(...runtimeValidation.warnings);
     }
     if (projectValidation.issues.length > 0) throw validationError("\u9879\u76EE\u72B6\u6001\u65E0\u6548", projectValidation);
+    await hooks.run("before_build", {
+      project: loaded.project,
+      state: loaded.state,
+      validation: projectValidation,
+      command
+    });
     const source = await loadProjectSource(loaded);
     assertValidSource(source);
     const configured = projectOutputPaths(loaded.project);
@@ -18306,7 +18477,7 @@ async function buildOrPack(command, root, options, allowPng) {
     if (allowPng && (options.output?.toLowerCase().endsWith(".png") || !options.output && pngBase)) {
       if (projectTarget(loaded.project) === "worldbook") throw unsupportedError("\u72EC\u7ACB\u4E16\u754C\u4E66\u4E0D\u80FD\u6253\u5305\u4E3A\u89D2\u8272\u5361 PNG");
       const base = await readOriginalPng(loaded);
-      outputPath = path5.resolve(options.output ?? resolveWithin(loaded.projectRoot, configured.png));
+      outputPath = path6.resolve(options.output ?? resolveWithin(loaded.projectRoot, configured.png));
       assertOutputDoesNotOverwriteSource(outputPath, projectProtectedPaths(loaded));
       const before = parsePng(base.buffer, base.pngPath);
       outputBuffer = embedCardInPng(base.buffer, source.payload, base.pngPath);
@@ -18322,12 +18493,12 @@ async function buildOrPack(command, root, options, allowPng) {
       };
       outputFormat = Format.PNG_CHARACTER_V3;
     } else {
-      outputPath = path5.resolve(options.output ?? resolveWithin(loaded.projectRoot, configured.json));
+      outputPath = path6.resolve(options.output ?? resolveWithin(loaded.projectRoot, configured.json));
       assertOutputDoesNotOverwriteSource(outputPath, projectProtectedPaths(loaded));
       outputBuffer = Buffer.from(prettyJson(source.payload), "utf8");
       outputFormat = source.format;
     }
-    const manifestPath = path5.join(loaded.projectRoot, "reports", "build-manifest.json");
+    const manifestPath = path6.join(loaded.projectRoot, "reports", "build-manifest.json");
     const protectedPaths = projectProtectedPaths(loaded);
     assertOutputDoesNotOverwriteSource(manifestPath, protectedPaths);
     assertDistinctWriteTargets([outputPath, manifestPath]);
@@ -18353,6 +18524,15 @@ async function buildOrPack(command, root, options, allowPng) {
       preserved_unknown_fields: source.restoredPaths,
       ...pngEvidence ? { png: pngEvidence } : {}
     };
+    await hooks.run("after_build", {
+      project: loaded.project,
+      state: loaded.state,
+      outputPath,
+      outputBuffer,
+      artifactDigest,
+      manifest,
+      command
+    });
     const nextState = structuredClone(loaded.state);
     const nextProject = structuredClone(loaded.project);
     nextProject.release.outputs = [.../* @__PURE__ */ new Set([...nextProject.release.outputs ?? [], relativeOutput])];
@@ -18371,15 +18551,32 @@ async function buildOrPack(command, root, options, allowPng) {
     nextState.updated_at = finishedAt;
     const nextModel = validateProjectModel(nextProject, nextState, loaded.projectRoot);
     if (nextModel.issues.length > 0) throw validationError("\u6784\u5EFA\u540E\u7684\u9879\u76EE\u4E0E\u6280\u672F\u72B6\u6001\u672A\u901A\u8FC7 Schema", nextModel);
+    const writes = [
+      { path: outputPath, content: outputBuffer, role: "delivery" },
+      { path: manifestPath, content: prettyJson(manifest), role: "delivery" },
+      { path: loaded.projectPath, content: stringifyYaml(nextProject), role: "ledger" },
+      { path: loaded.statePath, content: prettyJson(nextState), role: "ledger" }
+    ];
+    await hooks.run("before_source_write", {
+      project: nextProject,
+      state: nextState,
+      writes,
+      reason: command
+    });
     const commit = await commitWrites([
-      { path: outputPath, content: outputBuffer },
-      { path: manifestPath, content: prettyJson(manifest) },
-      { path: loaded.projectPath, content: stringifyYaml(nextProject) },
-      { path: loaded.statePath, content: prettyJson(nextState) }
+      ...writes
     ], {
       force: true,
       dryRun: Boolean(options["dry-run"])
     });
+    await hooks.run("after_delivery", {
+      project: nextProject,
+      state: nextState,
+      outputPath,
+      manifestPath,
+      dryRun: Boolean(options["dry-run"]),
+      command
+    }, { enforce: false });
     return successReport(command, {
       projectRoot: loaded.projectRoot,
       output: outputPath,
@@ -18388,6 +18585,7 @@ async function buildOrPack(command, root, options, allowPng) {
       artifactDigest,
       preservedUnknownFieldsRestored: source.restoredPaths,
       png: pngEvidence,
+      hooks: hooks.snapshot(),
       dryRun: Boolean(options["dry-run"])
     }, projectValidation.warnings.map((warning) => warning.message), commit.changes);
   }, { force: Boolean(options.force), dryRun: Boolean(options["dry-run"]) });
@@ -18448,7 +18646,7 @@ async function commandRoundtrip(args, options) {
   }
   const changes = [];
   if (options.output) {
-    const outputPath = path5.resolve(options.output);
+    const outputPath = path6.resolve(options.output);
     const protectedPaths = comparable.project ? projectProtectedPaths(comparable.project) : [comparable.path];
     assertOutputDoesNotOverwriteSource(outputPath, protectedPaths);
     const commit = await commitWrites([{ path: outputPath, content: candidate }], {
@@ -18493,6 +18691,7 @@ async function commandState(args, options) {
   }
   return runProjectMutation(root, async () => {
     const loaded = await loadProject(root, { allowLegacy: true });
+    const hooks = createForgeHookRunner({ projectRoot: loaded.projectRoot });
     if (action === "migrate") {
       exactArgs("state migrate", args, 2);
       const projectMigration = migrateProject(loaded.project, loaded.state);
@@ -18503,6 +18702,15 @@ async function commandState(args, options) {
       }
       const model2 = validateProjectModel(projectMigration.value, stateMigration.value, loaded.projectRoot);
       if (model2.issues.length > 0) throw validationError("\u8FC1\u79FB\u7ED3\u679C\u672A\u901A\u8FC7 Schema", model2);
+      await hooks.run("before_source_write", {
+        project: projectMigration.value,
+        state: stateMigration.value,
+        writes: [
+          { path: loaded.projectPath, content: stringifyYaml(projectMigration.value) },
+          { path: loaded.statePath, content: prettyJson(stateMigration.value) }
+        ],
+        reason: "state:migrate"
+      });
       const commit2 = await updateProjectAndState(loaded, projectMigration.value, stateMigration.value, {
         dryRun: Boolean(options["dry-run"])
       });
@@ -18510,6 +18718,7 @@ async function commandState(args, options) {
         action,
         projectMigrated: projectMigration.migrated,
         stateMigrated: stateMigration.migrated,
+        hooks: hooks.snapshot(),
         dryRun: Boolean(options["dry-run"])
       }, [], commit2.changes);
     }
@@ -18552,10 +18761,19 @@ async function commandState(args, options) {
       projectChanged = true;
       nextState.updated_at = (/* @__PURE__ */ new Date()).toISOString();
       nextState.revision += 1;
+      await hooks.run("before_source_write", {
+        project: nextProject,
+        state: nextState,
+        writes: [
+          { path: loaded.projectPath, content: stringifyYaml(nextProject) },
+          { path: loaded.statePath, content: prettyJson(nextState) }
+        ],
+        reason: "state:plan"
+      });
       const commit2 = await updateProjectAndState(loaded, nextProject, nextState, {
         dryRun: Boolean(options["dry-run"])
       });
-      return successReport("state", { action, plannedStages }, [], commit2.changes);
+      return successReport("state", { action, plannedStages, hooks: hooks.snapshot() }, [], commit2.changes);
     } else if (action === "lock") {
       exactArgs("state lock", args, 4, 4);
       const [, , id, rawValue] = args;
@@ -18763,6 +18981,29 @@ async function commandState(args, options) {
     projectChanged = true;
     const model = validateProjectModel(nextProject, nextState, loaded.projectRoot);
     if (model.issues.length > 0) throw validationError("\u72B6\u6001\u66F4\u65B0\u672A\u901A\u8FC7 Schema", model);
+    if (action === "stage") {
+      const stage = args[2];
+      const status = args[3] ?? "in_progress";
+      await hooks.run("before_stage_write", {
+        project: nextProject,
+        state: nextState,
+        stage,
+        status,
+        summary: options.summary,
+        plannedStages: nextProject.workflow.planned_stages,
+        reason: "state:stage"
+      });
+    }
+    const stateWrites = [
+      { path: loaded.projectPath, content: stringifyYaml(nextProject) },
+      { path: loaded.statePath, content: prettyJson(nextState) }
+    ];
+    await hooks.run("before_source_write", {
+      project: nextProject,
+      state: nextState,
+      writes: stateWrites,
+      reason: `state:${action}`
+    });
     const commit = await (projectChanged ? updateProjectAndState : updateManagedState)(loaded, ...projectChanged ? [nextProject, nextState, { dryRun: Boolean(options["dry-run"]) }] : [nextState, { dryRun: Boolean(options["dry-run"]) }]);
     return successReport("state", {
       action,
@@ -18775,6 +19016,7 @@ async function commandState(args, options) {
       blueprint: nextProject.blueprint,
       handoffs: nextProject.handoffs,
       decisionLocks: nextState.decision_locks,
+      hooks: hooks.snapshot(),
       dryRun: Boolean(options["dry-run"])
     }, [], commit.changes);
   }, { force: Boolean(options.force), dryRun: Boolean(options["dry-run"]) });
@@ -18854,18 +19096,18 @@ function artifactChecks(artifact) {
   checks.push(check("runtime.sillytavern", "not_run", "info", "runtime", ["\u79BB\u7EBF\u6821\u9A8C\u4E0D\u80FD\u4EE3\u66FF\u771F\u5B9E SillyTavern \u9A8C\u6536"]));
   return checks;
 }
-function validationReportData(result) {
-  const blockers = result.issues.length;
+function validationReportData(result2) {
+  const blockers = result2.issues.length;
   return {
     schema_version: "1.0.0",
-    subject: result.subject,
-    format: result.format,
-    project_id: result.projectId ?? null,
-    source_revision: result.sourceRevision ?? null,
-    summary: { blockers, warnings: result.warnings.length },
-    issues: result.issues,
-    warnings: result.warnings,
-    checks: result.checks,
+    subject: result2.subject,
+    format: result2.format,
+    project_id: result2.projectId ?? null,
+    source_revision: result2.sourceRevision ?? null,
+    summary: { blockers, warnings: result2.warnings.length },
+    issues: result2.issues,
+    warnings: result2.warnings,
+    checks: result2.checks,
     runtime: {
       status: "not_run",
       reason: "\u5C1A\u672A\u5728\u76EE\u6807 SillyTavern \u4E2D\u6267\u884C"
@@ -18891,15 +19133,15 @@ function summarizeValidation(validation) {
   };
 }
 function relativeOrAbsolute(root, target) {
-  const relative = path5.relative(root, target);
-  if (!relative.startsWith("..") && !path5.isAbsolute(relative)) return relative.replaceAll(path5.sep, "/");
+  const relative = path6.relative(root, target);
+  if (!relative.startsWith("..") && !path6.isAbsolute(relative)) return relative.replaceAll(path6.sep, "/");
   return target;
 }
 function assertOutputDoesNotOverwriteSource(output, sources) {
   const resolvedOutput = comparablePath(output);
   for (const source of sources.filter(Boolean)) {
     if (resolvedOutput === comparablePath(source)) {
-      throw conflictError(`\u8F93\u51FA\u4E0D\u80FD\u8986\u76D6\u7EF4\u62A4\u6E90\u7801\u3001\u6280\u672F\u72B6\u6001\u6216\u539F\u59CB\u8F93\u5165: ${path5.resolve(output)}`);
+      throw conflictError(`\u8F93\u51FA\u4E0D\u80FD\u8986\u76D6\u7EF4\u62A4\u6E90\u7801\u3001\u6280\u672F\u72B6\u6001\u6216\u539F\u59CB\u8F93\u5165: ${path6.resolve(output)}`);
     }
   }
 }
@@ -18908,7 +19150,7 @@ function assertDistinctWriteTargets(targets) {
   for (const target of targets.filter(Boolean)) {
     const comparable = comparablePath(target);
     if (seen.has(comparable)) {
-      throw conflictError(`\u6784\u5EFA\u5199\u5165\u76EE\u6807\u4E0D\u80FD\u91CD\u590D: ${path5.resolve(target)}`);
+      throw conflictError(`\u6784\u5EFA\u5199\u5165\u76EE\u6807\u4E0D\u80FD\u91CD\u590D: ${path6.resolve(target)}`);
     }
     seen.set(comparable, target);
   }
@@ -18924,7 +19166,7 @@ function projectProtectedPaths(loaded) {
   return [loaded.projectPath, loaded.statePath, ...manifestPaths];
 }
 function comparablePath(target) {
-  const resolved = path5.resolve(target);
+  const resolved = path6.resolve(target);
   return process2.platform === "win32" ? resolved.toLowerCase() : resolved;
 }
 function parseCliValue(raw) {
