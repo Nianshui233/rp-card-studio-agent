@@ -15270,13 +15270,13 @@ function helperScriptFiles(nodes, outputRoot, parent = []) {
   }
   return files;
 }
-async function sourceFiles(projectRoot, relativePaths) {
+async function sourceFiles(projectRoot, relativePaths, section = "") {
   const files = [];
   for (const relativePath of relativePaths ?? []) {
     const absolutePath = resolveWithin(projectRoot, relativePath);
     const content = await readFile4(absolutePath);
     files.push({
-      relativePath: `07_MVU\u4E0EEJS/${safeName(path3.basename(relativePath))}`,
+      relativePath: `07_MVU\u4E0EEJS/${section ? `${safeName(section)}/` : ""}${safeName(path3.basename(relativePath))}`,
       content,
       source: relativePath
     });
@@ -15317,8 +15317,8 @@ async function buildDeliveryPackage({ project, projectRoot, source, outputRoot }
     mvu_loader: helperFiles.filter((file) => file.role === "mvu_loader" || /MagicalAstrogy\/MagVarUpdate(?:@[^/]+)?\/artifact\/bundle\.js/.test(String(file.content))).map((file) => ({ id: file.id, name: file.name, file: file.relativePath, role: "mvu_loader" })),
     mvu_schema: helperFiles.filter((file) => file.role === "mvu_schema" || /registerMvuSchema/.test(String(file.content))).map((file) => ({ id: file.id, name: file.name, file: file.relativePath, role: "mvu_schema", source_file: file.source_file ?? null }))
   };
-  const mvuPaths = (project.source_manifest?.mvu ?? []).filter(Boolean);
-  packageFiles.push(...await sourceFiles(projectRoot, mvuPaths));
+  packageFiles.push(...await sourceFiles(projectRoot, (project.source_manifest?.mvu ?? []).filter(Boolean), "MVU"));
+  packageFiles.push(...await sourceFiles(projectRoot, (project.source_manifest?.ejs ?? []).filter(Boolean), "EJS"));
   const manifest = {
     schema_version: "1.0.0",
     delivery_mode: "rp_project_package",
@@ -15575,6 +15575,7 @@ var SCHEMA_NAMES = Object.freeze([
   "scene",
   "user-character",
   "mvu",
+  "ejs",
   "opening",
   "status-ui",
   "ui-app",
@@ -15609,6 +15610,7 @@ var SOURCE_SCHEMA_BY_GROUP = Object.freeze({
   systems: "system",
   scenes: "scene",
   mvu: "mvu",
+  ejs: "ejs",
   prompts: "opening",
   ui: "status-ui",
   assembly: "assembly"
@@ -16709,6 +16711,7 @@ var SOURCE_GROUPS = Object.freeze([
   "systems",
   "scenes",
   "mvu",
+  "ejs",
   "prompts",
   "ui",
   "assembly",
@@ -17394,6 +17397,7 @@ function validateFeatureSourceLifecycle(project, state, issues) {
     ["materials", "materials", () => Array.isArray(project?.materials) && project.materials.length > 0],
     ["systems", "systems", () => Array.isArray(sourceManifest.systems) && sourceManifest.systems.length > 0],
     ["scenes", "scenes", () => Array.isArray(sourceManifest.scenes) && sourceManifest.scenes.length > 0],
+    ["ejs", "ejs", () => Array.isArray(sourceManifest.ejs) && sourceManifest.ejs.length > 0],
     ["status_ui", "ui", () => Array.isArray(sourceManifest.ui) && sourceManifest.ui.length > 0]
   ];
   for (const [feature, group, hasSource] of contracts) {
@@ -17468,24 +17472,31 @@ function validateMvuLifecycle(project, state, issues) {
   const ejsEnabled = project?.features?.ejs === true;
   const anyEnabled = mvuEnabled || ejsEnabled;
   const sourceCount = Array.isArray(project?.source_manifest?.mvu) ? project.source_manifest.mvu.length : 0;
+  const ejsSourceCount = Array.isArray(project?.source_manifest?.ejs) ? project.source_manifest.ejs.length : 0;
   const isCreateRun = project?.project?.operation === "create";
   if (status === "skipped" && (typeof stage?.summary !== "string" || stage.summary.trim() === "")) {
     issues.push(modelIssue("/state/stages/mvu_ejs/summary", "required", "mvu_ejs \u6807\u8BB0\u4E3A skipped \u65F6\u5FC5\u987B\u8BB0\u5F55\u8DF3\u8FC7\u7406\u7531"));
   }
   if (isCreateRun && status === "skipped") {
     if (anyEnabled) issues.push(modelIssue("/features", "lifecycle", "\u65B0\u5EFA\u9879\u76EE\u8DF3\u8FC7 mvu_ejs \u65F6\u4E0D\u80FD\u542F\u7528 MVU \u6216 EJS"));
-    if (sourceCount > 0) issues.push(modelIssue("/source_manifest/mvu", "lifecycle", "\u65B0\u5EFA\u9879\u76EE\u8DF3\u8FC7 mvu_ejs \u65F6\u4E0D\u80FD\u767B\u8BB0 MVU/EJS \u6E90\u7801"));
+    if (sourceCount > 0 || ejsSourceCount > 0) issues.push(modelIssue("/source_manifest", "lifecycle", "\u65B0\u5EFA\u9879\u76EE\u8DF3\u8FC7 mvu_ejs \u65F6\u4E0D\u80FD\u767B\u8BB0 MVU/EJS \u6E90\u7801"));
     return;
   }
   if (isCreateRun && status === "complete" && !anyEnabled) {
     issues.push(modelIssue("/state/stages/mvu_ejs/status", "lifecycle", "\u65B0\u5EFA\u9879\u76EE\u672A\u542F\u7528 MVU \u6216 EJS \u65F6\u5E94\u5C06 mvu_ejs \u6807\u8BB0\u4E3A skipped"));
   }
   if (status === "in_progress") return;
-  if (anyEnabled && sourceCount === 0) {
-    issues.push(modelIssue("/source_manifest/mvu", "required", "\u542F\u7528\u6216\u4FDD\u7559 MVU/EJS \u65F6\u5FC5\u987B\u767B\u8BB0\u5BF9\u5E94\u6E90\u7801"));
+  if (mvuEnabled && sourceCount === 0) {
+    issues.push(modelIssue("/source_manifest/mvu", "required", "\u542F\u7528\u6216\u4FDD\u7559 MVU \u65F6\u5FC5\u987B\u767B\u8BB0\u5BF9\u5E94\u6E90\u7801"));
   }
-  if (!anyEnabled && sourceCount > 0) {
-    issues.push(modelIssue("/source_manifest/mvu", "lifecycle", "MVU/EJS feature \u5747\u5173\u95ED\u65F6\u4E0D\u80FD\u4FDD\u7559\u542F\u7528\u6E90\u7801\uFF1B\u9700\u8FC1\u79FB\u5230 preserved_imports \u6216\u5B8C\u6210\u6E05\u7406"));
+  if (ejsEnabled && ejsSourceCount === 0) {
+    issues.push(modelIssue("/source_manifest/ejs", "required", "\u542F\u7528\u6216\u4FDD\u7559 EJS \u65F6\u5FC5\u987B\u767B\u8BB0\u72EC\u7ACB EJS \u6E90\u7801"));
+  }
+  if (!mvuEnabled && sourceCount > 0) {
+    issues.push(modelIssue("/source_manifest/mvu", "lifecycle", "MVU feature \u5173\u95ED\u65F6\u4E0D\u80FD\u4FDD\u7559\u542F\u7528\u6E90\u7801\uFF1B\u9700\u8FC1\u79FB\u5230 preserved_imports \u6216\u5B8C\u6210\u6E05\u7406"));
+  }
+  if (!ejsEnabled && ejsSourceCount > 0) {
+    issues.push(modelIssue("/source_manifest/ejs", "lifecycle", "EJS feature \u5173\u95ED\u65F6\u4E0D\u80FD\u4FDD\u7559\u542F\u7528\u6E90\u7801\uFF1B\u9700\u8FC1\u79FB\u5230 preserved_imports \u6216\u5B8C\u6210\u6E05\u7406"));
   }
 }
 function validateMvuSourceConsistency(project, source, sourcePath, issues) {
@@ -17494,6 +17505,11 @@ function validateMvuSourceConsistency(project, source, sourcePath, issues) {
   }
   if (source?.ejs?.enabled !== project?.features?.ejs) {
     issues.push(modelIssue(`/${sourcePath}/ejs/enabled`, "lifecycle", "project.features.ejs \u4E0E EJS \u6E90\u7801\u5F00\u5173\u4E0D\u4E00\u81F4"));
+  }
+}
+function validateEjsSourceConsistency(project, source, sourcePath, issues) {
+  if (source?.enabled !== project?.features?.ejs) {
+    issues.push(modelIssue(`/${sourcePath}/enabled`, "lifecycle", "project.features.ejs \u4E0E\u72EC\u7ACB EJS \u6E90\u7801\u5F00\u5173\u4E0D\u4E00\u81F4"));
   }
 }
 function rejectUnknownKeys(value, allowed, base, issues) {
@@ -17580,6 +17596,9 @@ async function validateRegisteredSources(loaded) {
         issues.push(...sourceIssues);
         if (group === "mvu" && loaded.state?.stages?.mvu_ejs?.status !== "in_progress") {
           validateMvuSourceConsistency(loaded.project, source, relativePath, issues);
+        }
+        if (group === "ejs" && loaded.state?.stages?.mvu_ejs?.status !== "in_progress") {
+          validateEjsSourceConsistency(loaded.project, source, relativePath, issues);
         }
         checks.push({ path: absolutePath, schema, valid: sourceIssues.length === 0 });
       } catch (error) {
@@ -17809,6 +17828,7 @@ function assembleWorldbook(sources) {
   if (!hasAssemblyManifest) {
     for (const [group, entries] of Object.entries(sources)) {
       for (const entry of entries) {
+        if (["mvu", "ejs", "ui", "assembly", "preserved_imports"].includes(group)) continue;
         if (group === "positioning" && !positioningIsMeaningful(entry.value)) continue;
         if (entry === primaryEntry && hasImportedEntries) continue;
         appendWorldbookEntry(payload.entries, standaloneWorldbookEntry2(group, entry.value, order, allocateStandaloneWorldbookUid(usedUids)));
@@ -17875,7 +17895,7 @@ function portableSourceValue(value, key = "") {
   return output;
 }
 function structuredSources(sources) {
-  const portableGroups = /* @__PURE__ */ new Set(["positioning", "world", "characters", "user_character", "systems", "scenes", "mvu", "prompts", "ui"]);
+  const portableGroups = /* @__PURE__ */ new Set(["positioning", "world", "characters", "user_character", "systems", "scenes", "mvu", "ejs", "prompts", "ui"]);
   return Object.fromEntries(Object.entries(sources).filter(([group]) => portableGroups.has(group)).map(([group, entries]) => [
     group,
     entries.map((entry) => ({ value: portableSourceValue(entry.value) }))
@@ -18236,9 +18256,11 @@ function migrateProject(project, state = null) {
     const activeStage = STAGES.includes(state?.active_stage) ? state.active_stage : STAGES.includes(project?.workflow?.current_stage) ? project.workflow.current_stage : "positioning";
     const hasAgent = project?.agent?.architecture === AGENT_ARCHITECTURE && project?.agent?.writable_stage === activeStage && project?.workflow?.current_stage === activeStage && Array.isArray(project?.handoffs) && isPlainObject(project?.capabilities);
     const inferredTarget = project?.project?.target ?? ((project?.deliverables ?? []).some((item) => item === "character_card_json" || item === "character_card_png") ? "character_card" : "worldbook");
-    const packageReady = project?.project?.target === inferredTarget && semanticEqual(project?.deliverables, ["rp_project_package"]) && project?.preflight?.deliverables_confirmed === true;
+    const packageReady = project?.project?.target === inferredTarget && semanticEqual(project?.deliverables, ["rp_project_package"]) && project?.preflight?.deliverables_confirmed === true && Array.isArray(project?.source_manifest?.ejs);
     if (project?.preflight?.workflow_confirmed === true && hasPlan && !legacyRoute && !hasLegacyDecision && hasAgent && packageReady) return { value: project, migrated: false };
     const migrated = structuredClone(project);
+    migrated.source_manifest ??= emptySourceManifest();
+    migrated.source_manifest.ejs ??= [];
     migrated.project ??= {};
     migrated.project.target = inferredTarget;
     migrated.deliverables = ["rp_project_package"];
@@ -18266,6 +18288,7 @@ function migrateProject(project, state = null) {
   if (isPlainObject(project?.preflight) && isPlainObject(project?.source_manifest)) {
     const migrated = structuredClone(project);
     migrated.schema_version = PROJECT_SCHEMA_VERSION;
+    migrated.source_manifest.ejs ??= [];
     migrated.project ??= {};
     migrated.project.target = migrated.project.target ?? ((migrated.deliverables ?? []).some((item) => item === "character_card_json" || item === "character_card_png") ? "character_card" : "worldbook");
     migrated.deliverables = ["rp_project_package"];

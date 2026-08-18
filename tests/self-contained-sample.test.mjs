@@ -70,7 +70,7 @@ test("user-facing agent docs do not direct to the former external sample names",
   }
 });
 
-test("the sample matrix stays self-contained and free of external URLs", async () => {
+test("the sample matrix stays self-contained and free of unapproved external URLs", async () => {
   assert.equal(sampleRoots.length, 8);
   for (const sampleRoot of sampleRoots) {
     const files = await readdir(sampleRoot, { recursive: true, withFileTypes: true });

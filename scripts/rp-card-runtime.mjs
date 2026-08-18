@@ -1980,6 +1980,55 @@ async function validateMvuRuntimeSources(project, sources, projectRoot, assembly
   }
 }
 
+async function validateEjsRuntimeSources(project, sources, projectRoot, assembly, issues, warnings) {
+  for (const [index, source] of values(sources, "ejs").entries()) {
+    const base = `/runtime/ejs/${index}`;
+    const target = stageTarget(source.status, issues, warnings);
+    if (source.enabled !== true) continue;
+    if (source.engine !== "st_prompt_template" && source.engine !== "existing") {
+      target.push(issue(`${base}/engine`, "ejs.engine", "独立 EJS 源必须选择 st_prompt_template 或 existing"));
+    }
+    if (!Array.isArray(source.templates) || source.templates.length === 0) {
+      target.push(issue(`${base}/templates`, "ejs.source", "启用 EJS 时至少需要一份真实 .ejs 模板"));
+      continue;
+    }
+    const worldbookEntries = assembly?.worldbook_manifest?.entries ?? [];
+    for (const [templateIndex, template] of source.templates.entries()) {
+      const templateBase = `${base}/templates/${templateIndex}`;
+      let templateText = "";
+      try {
+        templateText = await readFile(resolveWithin(projectRoot, template.file), "utf8");
+      } catch {
+        target.push(issue(`${templateBase}/file`, "ejs.source", `EJS 源文件不存在: ${template.file}`));
+        continue;
+      }
+      if (!/<%[\s\S]*%>|<%-[\s\S]*%>|<%=+[\s\S]*%>/.test(templateText)) {
+        warnings.push(issue(`${templateBase}/file`, "ejs.syntax", "模板文件没有检测到 EJS 标签；请确认这是有意的纯文本模板"));
+      }
+      if (template.side_effect === "raw_message_write" && source.side_effects?.allow_raw_message_write !== true) {
+        target.push(issue(`${templateBase}/side_effect`, "ejs.side_effect", "模板声明会写回原始消息，但独立 EJS 合同未允许 raw_message_write"));
+      }
+      if (["mvu_read", "mvu_write"].includes(template.side_effect) && !source.bridges?.some((bridge) => bridge.from === "ejs" && bridge.to === "mvu" && bridge.path)) {
+        target.push(issue(`${templateBase}/side_effect`, "ejs.mvu_bridge", "EJS 与 MVU 联动必须登记显式 ejs → mvu bridge 和路径"));
+      }
+      for (const reference of template.invokes_entries ?? []) {
+        const entry = worldbookEntries.find((candidate) => candidate?.id === reference || candidate?.display_name === reference);
+        if (!entry) {
+          target.push(issue(`${templateBase}/invokes_entries`, "ejs.entry_reference", `EJS 调用的世界书条目不存在: ${reference}`));
+        } else if (template.phase !== "preload" && !["manual", "ejs_only"].includes(entry?.activation?.mode)) {
+          warnings.push(issue(`${templateBase}/invokes_entries`, "ejs.entry_activation", `条目 ${reference} 会被 EJS 按名调用；若不希望它自然触发，建议使用 manual/ejs_only`));
+        }
+      }
+      if (["generate_before", "generate_after", "render_before", "render_after", "message_formatting"].includes(template.phase) && (!template.output || template.output === "none")) {
+        target.push(issue(`${templateBase}/output`, "ejs.output", "生成/渲染阶段模板必须声明输出通道"));
+      }
+    }
+    if (source.execution?.process_raw_message === true && source.side_effects?.allow_raw_message_write !== true) {
+      warnings.push(issue(`${base}/execution/process_raw_message`, "ejs.raw_message", "启用了原始消息处理但未允许 raw_message_write；请确认只是读取/显示路线"));
+    }
+  }
+}
+
 function validateRetrofitUiInterviews(project, state, sources, issues, warnings) {
   if (!['edit', 'audit'].includes(project?.project?.operation)) return;
   const candidates = [
@@ -2022,12 +2071,14 @@ export async function validateRuntimeSources({ project, state, sources, projectR
   if ((project?.features?.mvu || project?.features?.ejs || project?.features?.status_ui || openingUiEnabled) && !assembly?.runtime_manifest) {
     const lockedRuntime = assembly?.status === "locked"
       || values(sources, "mvu").some((source) => source.status === "locked" && (source?.mvu?.enabled || source?.ejs?.enabled))
+      || values(sources, "ejs").some((source) => source.status === "locked" && source?.enabled)
       || values(sources, "ui").some((source) => source.status === "locked" && source?.status_ui?.enabled)
       || values(sources, "prompts").some((source) => source.status === "locked" && source?.opening_ui?.enabled);
     stageTarget(lockedRuntime ? "locked" : "draft", issues, warnings).push(issue('/runtime_manifest', 'runtime.required', '启用的运行功能需要真实源码和 runtime_manifest；草稿阶段可继续补齐'));
   }
   await validateAuthoredRuntime(assembly?.runtime_manifest, projectRoot, issues, warnings);
   await validateMvuRuntimeSources(project, sources, projectRoot, assembly, issues, warnings);
+  await validateEjsRuntimeSources(project, sources, projectRoot, assembly, issues, warnings);
   validateRetrofitUiInterviews(project, state, sources, issues, warnings);
 
   const openingSources = values(sources, 'prompts');

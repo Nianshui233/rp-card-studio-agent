@@ -356,6 +356,7 @@
         "systems",
         "scenes",
         "mvu",
+        "ejs",
         "prompts",
         "ui",
         "preserved_imports"
@@ -380,6 +381,9 @@
           "$ref": "#/$defs/pathList"
         },
         "mvu": {
+          "$ref": "#/$defs/pathList"
+        },
+        "ejs": {
           "$ref": "#/$defs/pathList"
         },
         "prompts": {

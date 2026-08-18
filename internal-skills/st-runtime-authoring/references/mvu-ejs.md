@@ -11,6 +11,8 @@
 
 可选路线是：无变量、MVU 原生 Schema、MVU_ZOD、原生 + Zod 混合、沿用已有实现；EJS 与 MVU 分开决定。不要因为卡里有状态栏就机械启用 MVU，也不要把 MVU_ZOD 当成 MVU 的默认必备层。
 
+EJS 现在使用独立的 `source_manifest.ejs` 与 `assets/schemas/ejs.schema.json`。`mvu.yaml` 只登记 MVU；旧项目中嵌在 `mvu.yaml` 的 EJS 字段只作为迁移兼容，不作为新项目写法。只使用 EJS 时，不生成 MVU Loader、MVU Schema、`[initvar]` 或 MVU 更新块。
+
 用户只需决定额外模型调用、跨楼层/Swipe 状态体验、按钮效果、速度/稳定/调用成本等体验目标。技术细节由技能根据本机版本和真实源码决定。
 
 ## 框架与项目 Schema 是两件事
@@ -64,6 +66,8 @@ MVU 原生路线从 `[initvar]` 的 `$meta` 生成内部 Schema，支持可扩�
 ## EJS
 
 EJS 是 ST-Prompt-Template 或既有宿主执行的真实 `.ejs` 模板，不是存储层。每份模板记录：真实文件、执行宿主、读取变量、输出对象、失败回退。使用 Tavern Helper 的 `EjsTemplate.getSyntaxErrorInfo / prepareContext / evalTemplate / getFeatures` 可做目标环境诊断；离线构建不能冒充宿主执行成功。
+
+独立 EJS 合同还要记录生成前/渲染后阶段、变量作用域、装饰器、`getwi`/`activewi`/`injectPrompt` 调用、缓存、是否写变量、是否写回原始消息、是否读取 MVU，以及失败回退。EJS 读取或写入 MVU 时必须在 `bridges` 中登记方向和路径；这表示两套系统之间的显式桥，不表示 EJS 变成 MVU。
 
 ## 开场创角与 MVU 初值不是一回事
 

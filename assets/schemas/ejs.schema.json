@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rp-card-studio.local/schemas/ejs.schema.json",
+  "title": "ST-Prompt-Template EJS Source",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "enabled",
+    "engine",
+    "host",
+    "execution",
+    "variable_scopes",
+    "templates",
+    "decorators",
+    "injections",
+    "worldbook_calls",
+    "bridges",
+    "side_effects",
+    "diagnostics",
+    "dependencies",
+    "implementation_notes",
+    "source_refs"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "status": { "enum": ["draft", "locked"] },
+    "enabled": { "type": "boolean" },
+    "engine": { "enum": ["st_prompt_template", "existing", "none"] },
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["extension", "version", "features_evidence"],
+      "properties": {
+        "extension": { "enum": ["ST-Prompt-Template", "existing", "none"] },
+        "version": { "type": ["string", "null"] },
+        "features_evidence": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phases", "process_generation", "process_render", "process_raw_message", "process_code_blocks"],
+      "properties": {
+        "phases": {
+          "type": "array",
+          "items": { "enum": ["preload", "initial_variables", "generate_before", "generate_after", "render_before", "render_after", "message_formatting", "runtime", "existing"] },
+          "uniqueItems": true
+        },
+        "process_generation": { "type": "boolean" },
+        "process_render": { "type": "boolean" },
+        "process_raw_message": { "type": "boolean" },
+        "process_code_blocks": { "type": "boolean" }
+      }
+    },
+    "variable_scopes": {
+      "type": "array",
+      "items": { "enum": ["global", "local", "message", "cache", "initial", "mvu_stat_data_read", "existing"] },
+      "uniqueItems": true
+    },
+    "templates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "file", "phase", "input", "output", "reads", "writes", "side_effect", "cache", "decorators", "invokes_entries"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+          "file": { "type": "string", "minLength": 1 },
+          "display_name": { "type": "string" },
+          "phase": { "enum": ["preload", "initial_variables", "generate_before", "generate_after", "render_before", "render_after", "message_formatting", "runtime", "existing"] },
+          "input": { "enum": ["worldbook", "preset_prompt", "character_definition", "message", "html", "existing"] },
+          "output": { "enum": ["prompt", "model", "rendered_message", "html", "none", "existing"] },
+          "reads": { "type": "array", "items": { "type": "string" } },
+          "writes": { "type": "array", "items": { "type": "string" } },
+          "side_effect": { "enum": ["none", "ejs_variable_write", "mvu_read", "mvu_write", "worldbook_activation", "prompt_injection", "raw_message_write", "existing"] },
+          "cache": { "enum": ["none", "template", "worldbook", "all", "existing"] },
+          "decorators": { "type": "array", "items": { "type": "string" } },
+          "invokes_entries": { "type": "array", "items": { "type": "string" } },
+          "failure_fallback": { "type": ["string", "null"] },
+          "runtime_evidence": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "decorators": { "type": "array", "items": { "type": "string" } },
+    "injections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["marker", "phase", "position", "source"],
+        "properties": {
+          "marker": { "type": "string", "minLength": 1 },
+          "phase": { "enum": ["generate_before", "generate_after", "render_before", "render_after", "inject", "existing"] },
+          "position": { "type": "string", "minLength": 1 },
+          "source": { "type": "string", "minLength": 1 },
+          "role": { "enum": ["system", "user", "assistant", "existing"] }
+        }
+      }
+    },
+    "worldbook_calls": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["method", "entry", "activation_contract"],
+        "properties": {
+          "method": { "enum": ["getwi", "activewi", "getWorldInfoData", "getWorldInfoActivatedData", "existing"] },
+          "entry": { "type": "string", "minLength": 1 },
+          "activation_contract": { "enum": ["direct_content", "native_activation", "preprocessing", "existing"] }
+        }
+      }
+    },
+    "bridges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from", "to", "access", "path"],
+        "properties": {
+          "from": { "enum": ["ejs", "mvu", "existing"] },
+          "to": { "enum": ["ejs", "mvu", "existing"] },
+          "access": { "enum": ["read", "write", "read_write"] },
+          "path": { "type": "string", "minLength": 1 },
+          "source": { "type": "string" }
+        }
+      }
+    },
+    "side_effects": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allow_variable_write", "allow_raw_message_write", "allow_prompt_injection", "allow_worldbook_activation"],
+      "properties": {
+        "allow_variable_write": { "type": "boolean" },
+        "allow_raw_message_write": { "type": "boolean" },
+        "allow_prompt_injection": { "type": "boolean" },
+        "allow_worldbook_activation": { "type": "boolean" }
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["syntax_checked", "runtime", "failure_behavior"],
+      "properties": {
+        "syntax_checked": { "type": "boolean" },
+        "runtime": { "enum": ["not_run", "declared", "source_checked", "runtime", "existing"] },
+        "failure_behavior": { "type": "string", "minLength": 1 }
+      }
+    },
+    "dependencies": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+    "implementation_notes": { "type": "array", "items": { "type": "string" } },
+    "source_refs": { "type": "array", "items": { "type": "string" } }
+  }
+}

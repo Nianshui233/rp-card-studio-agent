@@ -12,6 +12,7 @@ var SCHEMA_NAMES = Object.freeze([
   "scene",
   "user-character",
   "mvu",
+  "ejs",
   "opening",
   "status-ui",
   "ui-app",
@@ -46,6 +47,7 @@ export var SOURCE_SCHEMA_BY_GROUP = Object.freeze({
   systems: "system",
   scenes: "scene",
   mvu: "mvu",
+  ejs: "ejs",
   prompts: "opening",
   ui: "status-ui",
   assembly: "assembly"

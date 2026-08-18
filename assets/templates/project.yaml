@@ -93,6 +93,7 @@ source_manifest:
   systems: []
   scenes: []
   mvu: []
+  ejs: []
   prompts: []
   ui: []
   assembly: []

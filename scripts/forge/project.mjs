@@ -108,6 +108,7 @@ var SOURCE_GROUPS = Object.freeze([
   "systems",
   "scenes",
   "mvu",
+  "ejs",
   "prompts",
   "ui",
   "assembly",
@@ -835,6 +836,7 @@ function validateFeatureSourceLifecycle(project, state, issues) {
     ["materials", "materials", () => Array.isArray(project?.materials) && project.materials.length > 0],
     ["systems", "systems", () => Array.isArray(sourceManifest.systems) && sourceManifest.systems.length > 0],
     ["scenes", "scenes", () => Array.isArray(sourceManifest.scenes) && sourceManifest.scenes.length > 0],
+    ["ejs", "ejs", () => Array.isArray(sourceManifest.ejs) && sourceManifest.ejs.length > 0],
     ["status_ui", "ui", () => Array.isArray(sourceManifest.ui) && sourceManifest.ui.length > 0],
   ];
   for (const [feature, group, hasSource] of contracts) {
@@ -910,6 +912,7 @@ function validateMvuLifecycle(project, state, issues) {
   const ejsEnabled = project?.features?.ejs === true;
   const anyEnabled = mvuEnabled || ejsEnabled;
   const sourceCount = Array.isArray(project?.source_manifest?.mvu) ? project.source_manifest.mvu.length : 0;
+  const ejsSourceCount = Array.isArray(project?.source_manifest?.ejs) ? project.source_manifest.ejs.length : 0;
   // operation describes the current work run. Existing workspaces must refresh
   // it through `state ... operation ...` before lifecycle validation.
   const isCreateRun = project?.project?.operation === "create";
@@ -918,18 +921,24 @@ function validateMvuLifecycle(project, state, issues) {
   }
   if (isCreateRun && status === "skipped") {
     if (anyEnabled) issues.push(modelIssue("/features", "lifecycle", "新建项目跳过 mvu_ejs 时不能启用 MVU 或 EJS"));
-    if (sourceCount > 0) issues.push(modelIssue("/source_manifest/mvu", "lifecycle", "新建项目跳过 mvu_ejs 时不能登记 MVU/EJS 源码"));
+    if (sourceCount > 0 || ejsSourceCount > 0) issues.push(modelIssue("/source_manifest", "lifecycle", "新建项目跳过 mvu_ejs 时不能登记 MVU/EJS 源码"));
     return;
   }
   if (isCreateRun && status === "complete" && !anyEnabled) {
     issues.push(modelIssue("/state/stages/mvu_ejs/status", "lifecycle", "新建项目未启用 MVU 或 EJS 时应将 mvu_ejs 标记为 skipped"));
   }
   if (status === "in_progress") return;
-  if (anyEnabled && sourceCount === 0) {
-    issues.push(modelIssue("/source_manifest/mvu", "required", "启用或保留 MVU/EJS 时必须登记对应源码"));
+  if (mvuEnabled && sourceCount === 0) {
+    issues.push(modelIssue("/source_manifest/mvu", "required", "启用或保留 MVU 时必须登记对应源码"));
   }
-  if (!anyEnabled && sourceCount > 0) {
-    issues.push(modelIssue("/source_manifest/mvu", "lifecycle", "MVU/EJS feature 均关闭时不能保留启用源码；需迁移到 preserved_imports 或完成清理"));
+  if (ejsEnabled && ejsSourceCount === 0) {
+    issues.push(modelIssue("/source_manifest/ejs", "required", "启用或保留 EJS 时必须登记独立 EJS 源码"));
+  }
+  if (!mvuEnabled && sourceCount > 0) {
+    issues.push(modelIssue("/source_manifest/mvu", "lifecycle", "MVU feature 关闭时不能保留启用源码；需迁移到 preserved_imports 或完成清理"));
+  }
+  if (!ejsEnabled && ejsSourceCount > 0) {
+    issues.push(modelIssue("/source_manifest/ejs", "lifecycle", "EJS feature 关闭时不能保留启用源码；需迁移到 preserved_imports 或完成清理"));
   }
 }
 function validateMvuSourceConsistency(project, source, sourcePath, issues) {
@@ -938,6 +947,11 @@ function validateMvuSourceConsistency(project, source, sourcePath, issues) {
   }
   if (source?.ejs?.enabled !== project?.features?.ejs) {
     issues.push(modelIssue(`/${sourcePath}/ejs/enabled`, "lifecycle", "project.features.ejs 与 EJS 源码开关不一致"));
+  }
+}
+function validateEjsSourceConsistency(project, source, sourcePath, issues) {
+  if (source?.enabled !== project?.features?.ejs) {
+    issues.push(modelIssue(`/${sourcePath}/enabled`, "lifecycle", "project.features.ejs 与独立 EJS 源码开关不一致"));
   }
 }
 function rejectUnknownKeys(value, allowed, base, issues) {
@@ -1032,6 +1046,9 @@ export async function validateRegisteredSources(loaded) {
         issues.push(...sourceIssues);
         if (group === "mvu" && loaded.state?.stages?.mvu_ejs?.status !== "in_progress") {
           validateMvuSourceConsistency(loaded.project, source, relativePath, issues);
+        }
+        if (group === "ejs" && loaded.state?.stages?.mvu_ejs?.status !== "in_progress") {
+          validateEjsSourceConsistency(loaded.project, source, relativePath, issues);
         }
         checks.push({ path: absolutePath, schema, valid: sourceIssues.length === 0 });
       } catch (error) {
@@ -1306,6 +1323,7 @@ function assembleWorldbook(sources) {
   if (!hasAssemblyManifest) {
     for (const [group, entries] of Object.entries(sources)) {
       for (const entry of entries) {
+        if (["mvu", "ejs", "ui", "assembly", "preserved_imports"].includes(group)) continue;
         if (group === "positioning" && !positioningIsMeaningful(entry.value)) continue;
         if (entry === primaryEntry && hasImportedEntries) continue;
         appendWorldbookEntry(payload.entries, standaloneWorldbookEntry(group, entry.value, order, allocateStandaloneWorldbookUid(usedUids)));
@@ -1384,7 +1402,7 @@ function portableSourceValue(value, key = "") {
   return output;
 }
 function structuredSources(sources) {
-  const portableGroups = new Set(["positioning", "world", "characters", "user_character", "systems", "scenes", "mvu", "prompts", "ui"]);
+  const portableGroups = new Set(["positioning", "world", "characters", "user_character", "systems", "scenes", "mvu", "ejs", "prompts", "ui"]);
   return Object.fromEntries(Object.entries(sources).filter(([group]) => portableGroups.has(group)).map(([group, entries]) => [
     group,
     entries.map((entry) => ({ value: portableSourceValue(entry.value) }))
@@ -1762,9 +1780,12 @@ export function migrateProject(project, state = null) {
       ?? ((project?.deliverables ?? []).some((item) => item === "character_card_json" || item === "character_card_png") ? "character_card" : "worldbook");
     const packageReady = project?.project?.target === inferredTarget
       && semanticEqual(project?.deliverables, ["rp_project_package"])
-      && project?.preflight?.deliverables_confirmed === true;
+      && project?.preflight?.deliverables_confirmed === true
+      && Array.isArray(project?.source_manifest?.ejs);
     if (project?.preflight?.workflow_confirmed === true && hasPlan && !legacyRoute && !hasLegacyDecision && hasAgent && packageReady) return { value: project, migrated: false };
     const migrated = structuredClone(project);
+    migrated.source_manifest ??= emptySourceManifest();
+    migrated.source_manifest.ejs ??= [];
     migrated.project ??= {};
     migrated.project.target = inferredTarget;
     migrated.deliverables = ["rp_project_package"];
@@ -1792,6 +1813,7 @@ export function migrateProject(project, state = null) {
   if (isPlainObject(project?.preflight) && isPlainObject(project?.source_manifest)) {
     const migrated = structuredClone(project);
     migrated.schema_version = PROJECT_SCHEMA_VERSION;
+    migrated.source_manifest.ejs ??= [];
     migrated.project ??= {};
     migrated.project.target = migrated.project.target
       ?? ((migrated.deliverables ?? []).some((item) => item === "character_card_json" || item === "character_card_png") ? "character_card" : "worldbook");

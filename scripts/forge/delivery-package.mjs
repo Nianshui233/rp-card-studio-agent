@@ -115,13 +115,13 @@ function helperScriptFiles(nodes, outputRoot, parent = []) {
   return files;
 }
 
-async function sourceFiles(projectRoot, relativePaths) {
+async function sourceFiles(projectRoot, relativePaths, section = '') {
   const files = [];
   for (const relativePath of relativePaths ?? []) {
     const absolutePath = resolveWithin(projectRoot, relativePath);
     const content = await readFile(absolutePath);
     files.push({
-      relativePath: `07_MVU与EJS/${safeName(path.basename(relativePath))}`,
+      relativePath: `07_MVU与EJS/${section ? `${safeName(section)}/` : ''}${safeName(path.basename(relativePath))}`,
       content,
       source: relativePath,
     });
@@ -171,8 +171,8 @@ export async function buildDeliveryPackage({ project, projectRoot, source, outpu
       .map((file) => ({ id: file.id, name: file.name, file: file.relativePath, role: 'mvu_schema', source_file: file.source_file ?? null })),
   };
 
-  const mvuPaths = (project.source_manifest?.mvu ?? []).filter(Boolean);
-  packageFiles.push(...await sourceFiles(projectRoot, mvuPaths));
+  packageFiles.push(...await sourceFiles(projectRoot, (project.source_manifest?.mvu ?? []).filter(Boolean), 'MVU'));
+  packageFiles.push(...await sourceFiles(projectRoot, (project.source_manifest?.ejs ?? []).filter(Boolean), 'EJS'));
 
   const manifest = {
     schema_version: '1.0.0',

@@ -18,7 +18,7 @@ samples:
   - id: mvu-zod-rp
     route: "MVU_ZOD + EJS"
     rp_shape: "系统化议事 RP"
-    runtime: [mvu_zod, schema, ejs, regex]
+    runtime: [mvu, mvu_loader, mvu_schema, mvu_zod, schema, ejs_independent, regex]
     ui: "无持续前端"
     delivery: [worldbook, mvu_sources, ejs, regex]
     fallback: [prefault_is_not_initial_value, host_dependency_missing]

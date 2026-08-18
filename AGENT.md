@@ -30,6 +30,8 @@ NSFW 只在首轮确认一次。启用后视为该维度完全放权，后续不
 
 采用 MVU 变量路线时，运行底座默认固定为两个酒馆助手脚本职责：`mvu_loader` 加载 MagVarUpdate bundle，`mvu_schema` 以 `registerMvuSchema` 注册当前项目变量结构。前者和后者的 import 形式固定，Schema 内容随项目变量结构创作；非 MVU/XML 路线不生成这两个脚本。`[initvar]`、更新规则、输出格式和隐藏正则仍是独立组件。
 
+EJS 是独立的 `ST-Prompt-Template` 模板/提示词/渲染路线，使用 `source_manifest.ejs` 和独立 EJS Schema；只启用 EJS 时不生成 MVU Loader、MVU Schema 或 `[initvar]`。EJS 与 MVU 联动必须通过显式 bridge 记录方向、作用域和路径。
+
 ## 启动流程
 
 每次开始或继续项目时：
