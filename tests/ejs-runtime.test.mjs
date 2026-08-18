@@ -30,6 +30,7 @@ function ejsSource(overrides = {}) {
     templates: [{
       id: 'context_projection',
       file: 'src/runtime/ejs/context.ejs',
+      source: { kind: 'file', file: 'src/runtime/ejs/context.ejs' },
       display_name: '生成前状态投影',
       phase: 'generate_before',
       input: 'worldbook',
@@ -88,6 +89,7 @@ test('EJS to MVU access requires an explicit bridge and does not create an MVU l
       variable_scopes: ['mvu_stat_data_read'],
       templates: [{
         ...ejsSource().templates[0],
+        source: { kind: 'file', file: 'src/runtime/ejs/context.ejs' },
         side_effect: 'mvu_read',
         reads: ['stat_data.关系.好感度'],
       }],
@@ -102,6 +104,42 @@ test('EJS to MVU access requires an explicit bridge and does not create an MVU l
     source.bridges = [{ from: 'ejs', to: 'mvu', access: 'read', path: 'stat_data.关系.好感度', source: 'current_message' }];
     const valid = await validateRuntimeSources({ project: { features: { mvu: false, ejs: true } }, sources: baseSources, projectRoot });
     assert.doesNotMatch(JSON.stringify(valid.issues), /mvu\.loader|mvu\.schema/);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('inline worldbook EJS can consume a real entry and pair its output with a hide regex', async () => {
+  const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'rp-ejs-inline-worldbook-'));
+  try {
+    const inlineSource = ejsSource({
+      templates: [{
+        ...ejsSource().templates[0],
+        source: { kind: 'worldbook_entry', entry_ref: 'relay_context' },
+        side_effect: 'mvu_read',
+        invokes_entries: ['relay_bulletin'],
+      }],
+      worldbook_calls: [{ method: 'getwi', entry: 'relay_bulletin', activation_contract: 'direct_content' }],
+      output_markers: [{ open: '<霜线上下文>', close: '</霜线上下文>', prompt_visible: true, player_visible: false, consumer_regex: 'EJS上下文隐藏', producer_template: 'context_projection' }],
+      bridges: [{ from: 'ejs', to: 'mvu', access: 'read', path: 'stat_data', source: 'current_message' }],
+    });
+    const validation = await validateRuntimeSources({
+      project: { features: { mvu: false, ejs: true } },
+      sources: {
+        assembly: [{ value: {
+          ...assembly(),
+          worldbook_manifest: { entries: [
+            { id: 'relay_context', display_name: '雨线动态上下文 EJS', enabled: true, activation: { mode: 'constant', primary_keys: [], secondary_keys: [], selective: false, logic: 'any', case_sensitive: false, match_whole_words: false }, insertion: { position: 'at_depth', order: 900, depth: 4, role: 'system' }, recursion: { prevent_incoming: true, prevent_outgoing: true, delay_until_recursion: false }, probability: 100, scan_depth: null, content: '<霜线上下文><%= getvar(\'stat_data.天气\') %></霜线上下文>', source: { kind: 'inline', content: '<霜线上下文><%= getvar(\'stat_data.天气\') %></霜线上下文>' } },
+            { id: 'relay_bulletin', display_name: '夜班简报', enabled: false, activation: { mode: 'manual', primary_keys: [], secondary_keys: [], selective: false, logic: 'any', case_sensitive: false, match_whole_words: false }, insertion: { position: 'at_depth', order: 910, depth: 4, role: 'system' }, recursion: { prevent_incoming: true, prevent_outgoing: true, delay_until_recursion: false }, probability: 100, scan_depth: null, content: '简报内容', source: { kind: 'inline', content: '简报内容' } },
+          ] },
+          runtime_manifest: { mode: 'authored', regex_scripts: [{ id: '55555555-5555-4555-8555-555555555555', script_name: 'EJS上下文隐藏', find_regex: '/<霜线上下文>[\\s\\S]*?<\\/霜线上下文>/g', replace_string: '', placement: [2], disabled: false, markdown_only: true, prompt_only: false, run_on_edit: true, substitute_regex: 0, min_depth: null, max_depth: null }], tavern_helper_scripts: [], extension_fields: {} },
+        } }],
+        ejs: [{ relativePath: 'src/runtime/ejs.yaml', value: inlineSource }],
+        mvu: [], prompts: [], world: [], characters: [], systems: [], scenes: [], ui: [], positioning: [],
+      },
+      projectRoot,
+    });
+    assert.deepEqual(validation.issues, []);
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }

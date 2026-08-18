@@ -1,0 +1,47 @@
+schema_version: 1.0.0
+status: locked
+enabled: true
+engine: st_prompt_template
+host:
+  extension: ST-Prompt-Template
+  version: null
+  features_evidence: ["世界书条目内联 EJS；真实宿主仍待验收"]
+execution:
+  phases: [generate_before]
+  process_generation: true
+  process_render: false
+  process_raw_message: false
+  process_code_blocks: false
+variable_scopes: [mvu_stat_data_read, cache]
+templates:
+  - id: relay_context
+    display_name: "雨线动态上下文"
+    source: { kind: worldbook_entry, entry_ref: relay_context }
+    phase: generate_before
+    input: worldbook
+    output: prompt
+    reads: ["stat_data.站点", "stat_data.天气", "stat_data.告警"]
+    writes: []
+    side_effect: mvu_read
+    cache: none
+    decorators: ["@@generate_before"]
+    invokes_entries: [relay_bulletin]
+    failure_fallback: "保留普通世界核心并显示中文空态"
+    runtime_evidence: []
+decorators: ["@@generate_before"]
+injections: []
+worldbook_calls:
+  - { method: getwi, entry: relay_bulletin, activation_contract: direct_content }
+output_markers:
+  - { open: "<霜线上下文>", close: "</霜线上下文>", prompt_visible: true, player_visible: false, consumer_regex: "雨线动态上下文隐藏", producer_template: relay_context }
+bridges:
+  - { from: ejs, to: mvu, access: read, path: stat_data, source: current_message }
+side_effects:
+  allow_variable_write: false
+  allow_raw_message_write: false
+  allow_prompt_injection: false
+  allow_worldbook_activation: false
+diagnostics: { syntax_checked: true, runtime: not_run, failure_behavior: "保留普通世界核心，显示中文空态" }
+dependencies: []
+implementation_notes: ["EJS 条目内容在 assembly 中维护；不新增第二套变量树"]
+source_refs: []

@@ -1,0 +1,118 @@
+schema_version: 1.0.0
+status: locked
+card_entry:
+  mode: core_world_contract
+  content: "雨线中继是一座沿河运转的夜间通信站。值班员、船队、商贩和来访者各自拥有工作与秘密，世界不会等待某个主控介入才开始行动。"
+  source_refs: [src/world/中继世界书.yaml]
+worldbook_manifest:
+  id: rainline_relay_worldbook
+  display_name: "雨线中继世界书"
+  preserve_imported_entries: true
+  duplicate_policy: error
+  entries:
+    - id: relay_world_core
+      display_name: "雨线中继世界核心"
+      enabled: true
+      activation: { mode: constant, primary_keys: [], secondary_keys: [], selective: false, logic: any, case_sensitive: false, match_whole_words: false }
+      insertion: { position: before_char, order: 100, depth: null, role: system }
+      probability: 100
+      recursion: { prevent_incoming: false, prevent_outgoing: false, delay_until_recursion: false }
+      source: { kind: file, path: src/world/中继世界书.yaml, selector: /entries/0/content }
+    - id: relay_initvar
+      display_name: "[initvar] 雨线中继初始状态"
+      enabled: false
+      activation: { mode: constant, primary_keys: [], secondary_keys: [], selective: false, logic: any, case_sensitive: false, match_whole_words: false }
+      insertion: { position: before_char, order: 20, depth: null, role: system }
+      probability: 100
+      recursion: { prevent_incoming: true, prevent_outgoing: true, delay_until_recursion: false }
+      source: { kind: file, path: src/runtime/mvu/初始变量.yaml }
+    - id: relay_context
+      display_name: "雨线动态上下文 EJS"
+      enabled: true
+      activation: { mode: constant, primary_keys: [], secondary_keys: [], selective: true, logic: any, case_sensitive: false, match_whole_words: false }
+      insertion: { position: after_char, order: 900, depth: 4, role: system }
+      probability: 100
+      recursion: { prevent_incoming: true, prevent_outgoing: true, delay_until_recursion: false }
+      content: |-
+        <%_
+        const station = getvar('stat_data.站点', { defaults: {}, noCache: true }) || {};
+        const weather = getvar('stat_data.天气', { defaults: '未知', noCache: true });
+        const alert = getvar('stat_data.告警', { defaults: '无', noCache: true });
+        const bulletin = await getwi('relay_bulletin');
+        _%>
+        <霜线上下文>
+        当前站点：<%= station.名称 || '未登记' %>
+        当前天气：<%= weather %>
+        当前告警：<%= alert %>
+        值班简报：<%- bulletin || '暂无简报' %>
+        </霜线上下文>
+      source: { kind: inline, content: "由 assembly 条目内联提供" }
+    - id: relay_bulletin
+      display_name: "夜班简报"
+      enabled: false
+      activation: { mode: manual, primary_keys: [], secondary_keys: [], selective: false, logic: any, case_sensitive: false, match_whole_words: false }
+      insertion: { position: after_char, order: 910, depth: 4, role: system }
+      probability: 100
+      recursion: { prevent_incoming: true, prevent_outgoing: true, delay_until_recursion: false }
+      content: "河面水位缓慢上涨，三号浮桥的灯标偶尔熄灭；值班员需要核对下一班货船的登记。"
+media_manifest: { enabled: false, assets: [] }
+runtime_manifest:
+  mode: authored
+  regex_scripts:
+    - id: 11111111-1111-4111-8111-111111111111
+      script_name: "雨线动态上下文隐藏"
+      find_regex: "/<霜线上下文>[\\s\\S]*?<\\/霜线上下文>/g"
+      replace_string: ""
+      placement: [2]
+      disabled: false
+      markdown_only: true
+      prompt_only: false
+      run_on_edit: true
+      substitute_regex: 0
+      min_depth: null
+      max_depth: null
+    - id: 22222222-2222-4222-8222-222222222222
+      script_name: "雨线状态栏"
+      find_regex: "/<雨线状态\\s*\\/>/g"
+      replace_file: src/runtime/ui/状态页.html
+      wrap_as_html_codeblock: true
+      placement: [2]
+      disabled: false
+      markdown_only: true
+      prompt_only: false
+      run_on_edit: true
+      substitute_regex: 0
+      min_depth: null
+      max_depth: null
+  tavern_helper_scripts:
+    - type: folder
+      id: rainline_runtime
+      name: "雨线运行组件"
+      enabled: true
+      scripts:
+        - type: script
+          id: rainline_mvu_loader
+          name: "MVU"
+          enabled: true
+          role: mvu_loader
+          phase: 10
+          provides: [Mvu]
+          content: "import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js';"
+        - type: script
+          id: rainline_mvu_schema
+          name: "变量结构"
+          enabled: true
+          role: mvu_schema
+          phase: 20
+          depends_on: [rainline_mvu_loader]
+          source_file: src/runtime/mvu/变量结构.js
+          content_file: src/runtime/mvu/变量结构.js
+        - type: script
+          id: rainline_host_actions
+          name: "宿主行动"
+          enabled: true
+          role: host_action
+          phase: 40
+          depends_on: [rainline_mvu_loader]
+          content_file: src/runtime/scripts/宿主行动.js
+  extension_fields: {}

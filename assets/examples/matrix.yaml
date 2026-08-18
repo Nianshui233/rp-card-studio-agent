@@ -57,3 +57,10 @@ samples:
     ui: "重型持续状态应用"
     delivery: [worldbook, complete_html, regex_html_pair]
     fallback: [unknown_value, not_established, no_fake_data]
+  - id: mvu-ejs-medium-rp
+    route: "MVU + EJS + 中型消息前端"
+    rp_shape: "河湾通信站与夜班事件"
+    runtime: [mvu, mvu_loader, mvu_schema, initvar, ejs_worldbook_inline, ejs_getvar, ejs_getwi, ejs_marker_cleanup, regex, medium_opening_ui, medium_status_ui]
+    ui: ["中型开场应用", "中型持续状态应用"]
+    delivery: [worldbook, helper_scripts, mvu_sources, ejs_sources, regex_html_pair]
+    fallback: [ejs_missing_value, ejs_host_not_run, mvu_not_ready, host_input_copy]

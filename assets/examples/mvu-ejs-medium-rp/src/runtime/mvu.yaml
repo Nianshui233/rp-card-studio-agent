@@ -1,0 +1,31 @@
+schema_version: 3.0.0
+status: locked
+mvu:
+  enabled: true
+  route: mvu_zod
+  state_root: stat_data
+  framework:
+    delivery: card_script
+    loader_script_id: rainline_mvu_loader
+    loader_url: https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js
+    expected_global: Mvu
+    notes: ["卡内脚本加载 MVU 框架"]
+  files:
+    initial_values: src/runtime/mvu/初始变量.yaml
+    schema_script: src/runtime/mvu/变量结构.js
+    update_rules: src/runtime/mvu/变量更新规则.yaml
+    output_format: src/runtime/mvu/回复输出格式.yaml
+    config_override: null
+    helper_scripts: [src/runtime/scripts/宿主行动.js]
+    supporting_files: []
+  update_strategy:
+    mode: same_turn
+    response_transport: chat_message
+    operation_dialect: lodash_commands
+    display_cleanup: { mode: card_regex, evidence: ["完整与流式技术块由项目正则覆盖"] }
+    notes: []
+  implementation_notes: ["MVU 维护状态；EJS 只读 stat_data"]
+ejs: { enabled: false, engine: none, templates: [], implementation_notes: [] }
+runtime_target: { sillytavern: unverified, tavern_helper: unverified, mvu: unverified, st_prompt_template: unverified }
+dependencies: []
+source_refs: []

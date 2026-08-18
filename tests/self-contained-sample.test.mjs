@@ -16,6 +16,7 @@ const sampleRoots = [
   "zero-layer-rp",
   "retrofit-rp",
   "sparse-heavy-ui-rp",
+  "mvu-ejs-medium-rp",
 ].map((name) => join(process.cwd(), "assets", "examples", name));
 
 test("bundled technical sample is self-contained and internally coherent", async () => {
@@ -71,7 +72,7 @@ test("user-facing agent docs do not direct to the former external sample names",
 });
 
 test("the sample matrix stays self-contained and free of unapproved external URLs", async () => {
-  assert.equal(sampleRoots.length, 8);
+  assert.equal(sampleRoots.length, 9);
   for (const sampleRoot of sampleRoots) {
     const files = await readdir(sampleRoot, { recursive: true, withFileTypes: true });
     assert.ok(files.some((entry) => entry.isFile() && entry.name === "README.md"), sampleRoot);
@@ -100,6 +101,7 @@ test("the sample coverage matrix names every bundled sample exactly once", async
   const ids = matrix.samples.map((sample) => sample.id);
   assert.deepEqual([...ids].sort(), [
     "multi-surface-rp",
+    "mvu-ejs-medium-rp",
     "mvu-native-rp",
     "mvu-zod-rp",
     "opening-ui-rp",
@@ -182,4 +184,25 @@ test("sparse-data sample keeps heavy experience independent from variable count"
   assert.match(html, /<style[\s>][\s\S]*<script[\s>]/i);
   assert.match(html, /尚未建立|暂无记录/);
   assert.doesNotMatch(html, /https?:\/\//i);
+});
+
+test("integrated MVU+EJS sample keeps the two runtimes and two UI surfaces explicit", async () => {
+  const sample = join(process.cwd(), "assets", "examples", "mvu-ejs-medium-rp");
+  const mvu = YAML.parse(await readFile(join(sample, "src", "runtime", "mvu.yaml"), "utf8"));
+  const ejs = YAML.parse(await readFile(join(sample, "src", "runtime", "ejs.yaml"), "utf8"));
+  assert.equal(mvu.mvu.enabled, true);
+  assert.equal(ejs.enabled, true);
+  assert.equal(ejs.templates[0].source.kind, "worldbook_entry");
+  assert.equal(ejs.templates[0].side_effect, "mvu_read");
+  assert.deepEqual(ejs.bridges[0], { from: "ejs", to: "mvu", access: "read", path: "stat_data", source: "current_message" });
+  assert.equal(ejs.output_markers[0].consumer_regex, "雨线动态上下文隐藏");
+  const assemblyText = await readFile(join(sample, "assembly.yaml"), "utf8");
+  assert.match(assemblyText, /role: mvu_loader/);
+  assert.match(assemblyText, /role: mvu_schema/);
+  for (const file of ["开场页.html", "状态页.html"]) {
+    const html = await readFile(join(sample, "src", "runtime", "ui", file), "utf8");
+    assert.match(html, /<!doctype html>/i);
+    assert.match(html, /<body[\s>]/i);
+    assert.match(html, /<script[\s>]/i);
+  }
 });

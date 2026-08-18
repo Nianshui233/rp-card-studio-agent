@@ -18,6 +18,7 @@ templates: []
 decorators: []
 injections: []
 worldbook_calls: []
+output_markers: []
 bridges: []
 side_effects:
   allow_variable_write: false

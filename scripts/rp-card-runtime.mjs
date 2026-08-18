@@ -1996,10 +1996,25 @@ async function validateEjsRuntimeSources(project, sources, projectRoot, assembly
     for (const [templateIndex, template] of source.templates.entries()) {
       const templateBase = `${base}/templates/${templateIndex}`;
       let templateText = "";
+      const templateSource = template.source ?? { kind: "file", file: template.file };
       try {
-        templateText = await readFile(resolveWithin(projectRoot, template.file), "utf8");
-      } catch {
-        target.push(issue(`${templateBase}/file`, "ejs.source", `EJS 源文件不存在: ${template.file}`));
+        if (templateSource.kind === "file") {
+          const file = templateSource.file ?? template.file;
+          templateText = await readFile(resolveWithin(projectRoot, file), "utf8");
+        } else if (templateSource.kind === "inline") {
+          templateText = String(templateSource.content ?? "");
+        } else if (templateSource.kind === "worldbook_entry") {
+          const ref = templateSource.entry_ref;
+          const entry = worldbookEntries.find((candidate) => candidate?.id === ref || candidate?.display_name === ref);
+          if (!entry) throw new Error(`EJS 世界书模板条目不存在: ${ref}`);
+          if (typeof entry.content === "string") templateText = entry.content;
+          else if (entry.source) templateText = await resolveWorldbookContent(entry.source, sources, projectRoot, entry.display_name);
+          else throw new Error(`EJS 世界书模板条目没有 content 或 source: ${ref}`);
+        } else if (templateSource.kind === "existing") {
+          templateText = String(templateSource.content ?? "");
+        }
+      } catch (error) {
+        target.push(issue(`${templateBase}/source`, "ejs.source", error.message));
         continue;
       }
       if (!/<%[\s\S]*%>|<%-[\s\S]*%>|<%=+[\s\S]*%>/.test(templateText)) {
@@ -2025,6 +2040,20 @@ async function validateEjsRuntimeSources(project, sources, projectRoot, assembly
     }
     if (source.execution?.process_raw_message === true && source.side_effects?.allow_raw_message_write !== true) {
       warnings.push(issue(`${base}/execution/process_raw_message`, "ejs.raw_message", "启用了原始消息处理但未允许 raw_message_write；请确认只是读取/显示路线"));
+    }
+    for (const [markerIndex, marker] of (source.output_markers ?? []).entries()) {
+      const markerBase = `${base}/output_markers/${markerIndex}`;
+      const consumer = (assembly?.runtime_manifest?.regex_scripts ?? []).find((regex) => regex?.script_name === marker.consumer_regex || regex?.id === marker.consumer_regex);
+      if (!consumer) {
+        target.push(issue(`${markerBase}/consumer_regex`, "ejs.output_consumer", `EJS 输出标记没有对应正则消费者: ${marker.consumer_regex}`));
+        continue;
+      }
+      if (!String(consumer.find_regex ?? "").includes(marker.open)) {
+        warnings.push(issue(`${markerBase}/consumer_regex`, "ejs.output_consumer_pattern", `消费者正则未直接包含 EJS 开始标记 ${marker.open}；请人工确认正则是否覆盖完整块`));
+      }
+      if (marker.player_visible === false && String(consumer.replace_string ?? consumer.replace_file ?? "").trim() !== "") {
+        warnings.push(issue(`${markerBase}/consumer_regex`, "ejs.output_consumer_visibility", "EJS 标记声明玩家不可见，但消费者存在非空替换内容；请确认这是隐藏/替换设计而非误显示"));
+      }
     }
   }
 }

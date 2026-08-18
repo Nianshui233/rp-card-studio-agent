@@ -64,10 +64,21 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "file", "phase", "input", "output", "reads", "writes", "side_effect", "cache", "decorators", "invokes_entries"],
+        "required": ["id", "phase", "input", "output", "reads", "writes", "side_effect", "cache", "decorators", "invokes_entries", "source"],
         "properties": {
           "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
           "file": { "type": "string", "minLength": 1 },
+          "source": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind"],
+            "properties": {
+              "kind": { "enum": ["file", "inline", "worldbook_entry", "existing"] },
+              "file": { "type": "string", "minLength": 1 },
+              "entry_ref": { "type": "string", "minLength": 1 },
+              "content": { "type": "string" }
+            }
+          },
           "display_name": { "type": "string" },
           "phase": { "enum": ["preload", "initial_variables", "generate_before", "generate_after", "render_before", "render_after", "message_formatting", "runtime", "existing"] },
           "input": { "enum": ["worldbook", "preset_prompt", "character_definition", "message", "html", "existing"] },
@@ -109,6 +120,22 @@
           "method": { "enum": ["getwi", "activewi", "getWorldInfoData", "getWorldInfoActivatedData", "existing"] },
           "entry": { "type": "string", "minLength": 1 },
           "activation_contract": { "enum": ["direct_content", "native_activation", "preprocessing", "existing"] }
+        }
+      }
+    },
+    "output_markers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["open", "close", "prompt_visible", "player_visible", "consumer_regex"],
+        "properties": {
+          "open": { "type": "string", "minLength": 1 },
+          "close": { "type": "string", "minLength": 1 },
+          "prompt_visible": { "type": "boolean" },
+          "player_visible": { "type": "boolean" },
+          "consumer_regex": { "type": "string", "minLength": 1 },
+          "producer_template": { "type": "string" }
         }
       }
     },
