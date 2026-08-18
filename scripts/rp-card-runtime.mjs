@@ -1862,8 +1862,40 @@ function helperRuntimeIds(nodes) {
     : [node?.id]).filter(Boolean));
 }
 
+function flattenHelperNodes(nodes, output = []) {
+  for (const node of nodes ?? []) {
+    if (!node) continue;
+    if (node.type === "folder") flattenHelperNodes(node.scripts, output);
+    else output.push(node);
+  }
+  return output;
+}
+
+async function authoredHelperComponents(runtime, projectRoot) {
+  const components = [];
+  for (const node of flattenHelperNodes(runtime?.tavern_helper_scripts)) {
+    let content = "";
+    try {
+      content = await authoredText(projectRoot, node.content, node.content_file, `/runtime_manifest/tavern_helper_scripts/${node.id}`);
+    } catch {
+      // The general authored-runtime validator reports the precise source error.
+    }
+    components.push({ node, content });
+  }
+  return components;
+}
+
+function componentLooksLikeMvuLoader(component) {
+  return /import\s+['"]https:\/\/[^'"\n]*MagicalAstrogy\/MagVarUpdate(?:@[^/'"\n]+)?\/artifact\/bundle\.js['"]/.test(component?.content ?? "");
+}
+
+function componentLooksLikeMvuSchema(component) {
+  return /import\s*\{\s*registerMvuSchema\s*\}\s*from\s*['"]https:\/\/[^'"\n]*StageDog\/tavern_resource\/dist\/util\/mvu_zod\.js['"]/.test(component?.content ?? "");
+}
+
 async function validateMvuRuntimeSources(project, sources, projectRoot, assembly, issues, warnings) {
   const helperIds = helperRuntimeIds(assembly?.runtime_manifest?.tavern_helper_scripts);
+  const helperComponents = await authoredHelperComponents(assembly?.runtime_manifest, projectRoot);
   for (const [index, source] of values(sources, "mvu").entries()) {
     const base = `/runtime/mvu/${index}`;
     const target = stageTarget(source.status, issues, warnings);
@@ -1882,8 +1914,8 @@ async function validateMvuRuntimeSources(project, sources, projectRoot, assembly
           target.push(issue(`${base}/mvu/files/initial_values`, "mvu.initial_values_projection", "最终 CharacterBook 需要名称含 [initvar] 的有效初始化条目；其维护源可以是文件、内联、登记源或既有导入"));
         }
       }
-      if (["mvu_zod", "hybrid"].includes(mvu.route) && !mvu.files?.schema_script) {
-        target.push(issue(`${base}/mvu/files/schema_script`, "mvu.schema", "MVU_ZOD 路线需要实际变量结构脚本"));
+      if (["native_schema", "mvu_zod", "hybrid"].includes(mvu.route) && !mvu.files?.schema_script) {
+        target.push(issue(`${base}/mvu/files/schema_script`, "mvu.schema", "MVU 变量路线需要实际变量结构/ZOD 注册脚本"));
       }
       const delivery = mvu.framework?.delivery;
       if (mvu.route !== "existing" && !["card_script", "host_required"].includes(delivery)) {
@@ -1893,10 +1925,29 @@ async function validateMvuRuntimeSources(project, sources, projectRoot, assembly
         const loaderId = mvu.framework?.loader_script_id;
         if (!loaderId || !helperIds.has(loaderId)) {
           target.push(issue(`${base}/mvu/framework/loader_script_id`, "mvu.loader", "卡内 MVU 路线缺少与 loader_script_id 对应的 Tavern Helper 加载脚本"));
+        } else {
+          const loader = helperComponents.find((component) => component.node.id === loaderId);
+          if (!loader || !componentLooksLikeMvuLoader(loader)) {
+            target.push(issue(`${base}/mvu/framework/loader_script_id`, "mvu.loader_component", "loader_script_id 对应的脚本没有声明 mvu_loader 角色，也没有检测到 MagVarUpdate/MVU 框架加载内容"));
+          }
         }
       }
       if (delivery === "host_required") {
         warnings.push(issue(`${base}/mvu/framework`, "mvu.host_dependency", "MVU 框架依赖宿主预装；角色卡自身不携带加载器"));
+      }
+      if (["native_schema", "mvu_zod", "hybrid"].includes(mvu.route)) {
+        const schemaFile = mvu.files?.schema_script;
+        const schema = helperComponents.find((component) => (
+          (schemaFile && component.node.source_file === schemaFile)
+          || component.node.role === "mvu_schema"
+          || component.node.role === "mvu-schema"
+          || component.node.role === "schema_registration"
+        ));
+        if (!schema) {
+          target.push(issue(`${base}/mvu/files/schema_script`, "mvu.schema_component", "MVU 变量路线的 schema_script 必须同时对应一个真实 Tavern Helper 变量结构/ZOD 注册脚本"));
+        } else if (!componentLooksLikeMvuSchema(schema)) {
+          target.push(issue(`${base}/mvu/files/schema_script`, "mvu.schema_component", "变量结构脚本没有检测到 registerMvuSchema 或 mvu_schema 角色声明"));
+        }
       }
       for (const [name, relativePath] of Object.entries(mvu.files ?? {})) {
         const fileList = Array.isArray(relativePath) ? relativePath : [relativePath];

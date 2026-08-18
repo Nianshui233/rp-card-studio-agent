@@ -29,6 +29,28 @@ MVU 原生路线从 `[initvar]` 的 `$meta` 生成内部 Schema，支持可扩�
 
 ## 更新路线
 
+## MVU 变量卡的固定酒馆助手底座
+
+只要项目选择 MVU 变量路线，酒馆助手脚本树默认先建立两个基础脚本位；它们不是每张卡都无条件存在，非 MVU/XML 卡不生成：
+
+1. `role: mvu_loader`：固定加载字段
+
+   ```js
+   import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js';
+   ```
+
+   beta 路线可以明确使用同一路径的 `@beta` 版本，但必须记录版本选择。
+
+2. `role: mvu_schema`：固定注册字段
+
+   ```js
+   import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';
+   ```
+
+   这个 import 是固定底座；其后的 `Schema`、默认结构、枚举、范围和 `registerMvuSchema(Schema)` 内容必须根据当前卡的变量结构创作，不能把别的卡的变量定义照搬过来。
+
+`[initvar]`、更新规则、回复输出格式、完整/流式隐藏正则仍然是另外的承重组件。只有 `existing` 路线可以沿用旧卡已经验证的等价脚本；如果项目选择卡内脚本路线，两个基础脚本都必须在 `runtime_manifest.tavern_helper_scripts` 中有真实节点，并在节点上记录 `source_file`、`phase`、`depends_on` 与 `provides`。
+
 更新可以随正文同轮发生，也可以由额外模型解析；额外模型还可能使用普通聊天、Tool Calling、JSON Schema、JSON Object 等响应方式。操作方言可以是 lodash 命令、MVU JSON Patch 或既有实现。技能根据目标 API、可靠性、成本和现成卡结构选路，不把这些问题抛给用户。
 
 额外模型模式下，条目名中的 `[mvu_plot]` 与 `[mvu_update]` 用于剧情模型/更新模型分流；没有标记或同时有两种标记时会进入两边。只有目标 MVU 版本实证支持时才依赖此行为。

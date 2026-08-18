@@ -62,7 +62,11 @@ test("user-facing agent docs do not direct to the former external sample names",
   for (const file of files) {
     const text = await readFile(join(process.cwd(), file), "utf8");
     assert.doesNotMatch(text, /我，非我|尸变纪元|呕吐内心的少女|二十一人会/);
-    assert.doesNotMatch(text, /https?:\/\//i);
+    const nonBaselineUrls = text
+      .replaceAll('https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js', '')
+      .replaceAll('https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate@beta/artifact/bundle.js', '')
+      .replaceAll('https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js', '');
+    assert.doesNotMatch(nonBaselineUrls, /https?:\/\//i);
   }
 });
 
@@ -79,7 +83,11 @@ test("the sample matrix stays self-contained and free of external URLs", async (
       if (!entry.isFile()) continue;
       const file = entry.parentPath ? join(entry.parentPath, entry.name) : join(sampleRoot, entry.name);
       const text = await readFile(file, "utf8");
-      assert.doesNotMatch(text, /https?:\/\//i, file);
+      const nonBaselineUrls = text
+        .replaceAll('https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js', '')
+        .replaceAll('https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate@beta/artifact/bundle.js', '')
+        .replaceAll('https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js', '');
+      assert.doesNotMatch(nonBaselineUrls, /https?:\/\//i, file);
       assert.doesNotMatch(text, /我，非我|尸变纪元|呕吐内心的少女|二十一人会/, file);
       if (file.endsWith(".html") && !file.includes(`${join("fragments", "")}`)) assert.match(text, /<!doctype html>/i, file);
       if (file.endsWith(".html") && file.includes(`${join("fragments", "")}`)) assert.match(text, /<(?:main|section|article|div)\b/i, file);

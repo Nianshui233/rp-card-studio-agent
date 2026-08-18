@@ -11,6 +11,8 @@ mvu:
     loader_url: null
     expected_global: null
     notes: []
+    # 卡内路线通常对应 runtime_manifest.tavern_helper_scripts 中
+    # role: mvu_loader 的真实脚本节点；不要只写 loader_url。
   files:
     initial_values: null
     schema_script: null

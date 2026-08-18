@@ -370,6 +370,8 @@ Forge 不负责替作者生成 RP 内容或通用运行时。
 
 没有实机测试时照样可以交付项目包，但报告必须明确写 `runtime: not_run`，并列出需要用户在 SillyTavern 中逐项导入和确认的组件。
 
+采用 MVU 变量路线的项目包默认包含两个基础酒馆助手脚本：固定加载 MagVarUpdate 的 `mvu_loader`，以及固定导入 `registerMvuSchema`、再按本项目变量结构编写 Schema 的 `mvu_schema`。非 MVU/XML 项目不生成它们。
+
 ## NSFW
 
 预检只问一次“启用/不启用”。启用后视为该维度完全放权，不再询问强度、许可或边界，也不向游玩模型塞入 NSFW 开关、拒绝规则或安全卡。

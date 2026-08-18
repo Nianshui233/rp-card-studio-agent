@@ -105,6 +105,11 @@ function helperScriptFiles(nodes, outputRoot, parent = []) {
       content: prettyJson(clone(node)),
       id: node.id,
       name: node.name,
+      role: node.role,
+      phase: node.phase,
+      depends_on: clone(node.depends_on ?? []),
+      provides: clone(node.provides ?? []),
+      source_file: node.source_file,
     });
   }
   return files;
@@ -157,6 +162,14 @@ export async function buildDeliveryPackage({ project, projectRoot, source, outpu
 
   const helperFiles = helperScriptFiles(data.extensions?.tavern_helper?.scripts, outputRoot);
   packageFiles.push(...helperFiles);
+  const runtimeBaseline = {
+    mvu_loader: helperFiles
+      .filter((file) => file.role === 'mvu_loader' || /MagicalAstrogy\/MagVarUpdate(?:@[^/]+)?\/artifact\/bundle\.js/.test(String(file.content)))
+      .map((file) => ({ id: file.id, name: file.name, file: file.relativePath, role: 'mvu_loader' })),
+    mvu_schema: helperFiles
+      .filter((file) => file.role === 'mvu_schema' || /registerMvuSchema/.test(String(file.content)))
+      .map((file) => ({ id: file.id, name: file.name, file: file.relativePath, role: 'mvu_schema', source_file: file.source_file ?? null })),
+  };
 
   const mvuPaths = (project.source_manifest?.mvu ?? []).filter(Boolean);
   packageFiles.push(...await sourceFiles(projectRoot, mvuPaths));
@@ -170,7 +183,7 @@ export async function buildDeliveryPackage({ project, projectRoot, source, outpu
       '角色卡',
       '世界书并绑定到角色',
       '正则配置；将配套 05_前端/*.html 的完整内容粘贴到正则“替换内容”',
-      '酒馆助手脚本',
+      '酒馆助手脚本（先 mvu_loader，再 mvu_schema，再项目专属脚本）',
       'MVU/EJS 宿主依赖与设置',
     ],
     components: {
@@ -178,9 +191,19 @@ export async function buildDeliveryPackage({ project, projectRoot, source, outpu
       worldbook: worldbookFile,
       regex: regexFiles,
       frontend: frontendFiles,
-      tavern_helper: helperFiles.map((file) => ({ id: file.id, name: file.name, file: file.relativePath })),
+      tavern_helper: helperFiles.map((file) => ({
+        id: file.id,
+        name: file.name,
+        file: file.relativePath,
+        role: file.role ?? null,
+        phase: file.phase ?? null,
+        depends_on: clone(file.depends_on ?? []),
+        provides: clone(file.provides ?? []),
+        source_file: file.source_file ?? null,
+      })),
       mvu_ejs: packageFiles.filter((file) => file.relativePath.startsWith(`${outputRoot}/07_MVU与EJS/`)).map((file) => file.relativePath),
     },
+    runtime_baseline: runtimeBaseline,
     notes: [
       '前端与正则分开交付；每个前端是完整、自包含 HTML。',
       '本项目不提供单文件角色卡作为最终交付方式。',
@@ -189,7 +212,7 @@ export async function buildDeliveryPackage({ project, projectRoot, source, outpu
   };
   packageFiles.push({ relativePath: `${outputRoot}/01_项目清单.json`, content: prettyJson(manifest) });
 
-  const instructions = `# ${project.project.display_name} 导入说明\n\n本项目固定以多文件 RP 项目包交付。\n\n## 导入顺序\n\n1. 导入角色卡：打开 \`02_角色卡\`。\n2. 导入世界书：打开 \`03_世界书\`，然后绑定到角色。\n3. 导入 \`04_正则\` 中的配置；对有配套 HTML 的正则，将 \`05_前端\` 中同名 HTML 的全部内容复制到正则的“替换内容”。\n4. 导入 \`06_酒馆助手\` 中的脚本。\n5. 按 \`07_MVU与EJS\` 和最终报告检查宿主依赖。\n\nHTML 不依赖同目录的 CSS 或 JS 文件；每个页面已经是完整自包含文档。\n`;
+  const instructions = `# ${project.project.display_name} 导入说明\n\n本项目固定以多文件 RP 项目包交付。\n\n## 导入顺序\n\n1. 导入角色卡：打开 \`02_角色卡\`。\n2. 导入世界书：打开 \`03_世界书\`，然后绑定到角色。\n3. 导入 \`04_正则\` 中的配置；对有配套 HTML 的正则，将 \`05_前端\` 中同名 HTML 的全部内容复制到正则的“替换内容”。\n4. 导入 \`06_酒馆助手\` 中的脚本。若项目启用 MVU，先导入/启用 \`role: mvu_loader\` 的 MagVarUpdate 加载脚本，再导入/启用 \`role: mvu_schema\` 的变量结构脚本，最后再启用项目专属同步、事件或生命周期脚本。\n5. 按 \`07_MVU与EJS\` 和最终报告检查宿主依赖。\n\nHTML 不依赖同目录的 CSS 或 JS 文件；每个页面已经是完整自包含文档。\n`;
   packageFiles.push({ relativePath: `${outputRoot}/00_导入说明.md`, content: instructions });
 
   const report = `# ${project.project.display_name} 项目包构建报告\n\n- 交付模式：多文件 RP 项目包\n- 项目清单：01_项目清单.json\n- 角色卡：${cardFile}\n- 世界书：${worldbookFile}\n- 正则数量：${regexFiles.length}\n- 完整前端数量：${frontendFiles.length}\n- 酒馆助手脚本数量：${helperFiles.length}\n- 真实 SillyTavern 验收：not_run（除非另有记录）\n`;

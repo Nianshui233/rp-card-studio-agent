@@ -5,7 +5,7 @@ mvu:
   route: native_schema
   state_root: stat_data
   framework: { delivery: host_required, loader_script_id: null, loader_url: null, expected_global: Mvu, notes: ["宿主已安装 MVU 后运行"] }
-  files: { initial_values: src/world/变量初始化.yaml, schema_script: null, update_rules: src/runtime/mvu/变量更新规则.yaml, output_format: src/runtime/mvu/回复输出格式.yaml, config_override: null, helper_scripts: [src/runtime/scripts/零层生命周期.js], supporting_files: [] }
+  files: { initial_values: src/world/变量初始化.yaml, schema_script: src/runtime/mvu/变量结构.js, update_rules: src/runtime/mvu/变量更新规则.yaml, output_format: src/runtime/mvu/回复输出格式.yaml, config_override: null, helper_scripts: [src/runtime/scripts/零层生命周期.js], supporting_files: [] }
   update_strategy: { mode: same_turn, response_transport: chat_message, operation_dialect: lodash_commands, display_cleanup: { mode: card_regex, evidence: ["完整与流式技术块隐藏"] }, notes: [] }
   implementation_notes: ["UI 读取当前消息 stat_data，不读取示例常量"]
 ejs: { enabled: false, engine: none, templates: [], implementation_notes: [] }

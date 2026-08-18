@@ -34,7 +34,11 @@ test('delivery package splits card, worldbook, regex, helper script, and complet
             },
           ],
           tavern_helper: {
-            scripts: [{ type: 'script', id: 'helper-1', name: '变量更新', content: 'console.log("ok")' }],
+            scripts: [
+              { type: 'script', id: 'helper-loader', name: 'MVU', role: 'mvu_loader', phase: 10, provides: ['Mvu'], content: "import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js';" },
+              { type: 'script', id: 'helper-schema', name: '变量结构', role: 'mvu_schema', phase: 20, depends_on: ['helper-loader'], source_file: 'src/runtime/schema.js', content: "import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';" },
+              { type: 'script', id: 'helper-1', name: '变量更新', content: 'console.log("ok")' },
+            ],
           },
         },
       },
@@ -62,4 +66,9 @@ test('delivery package splits card, worldbook, regex, helper script, and complet
   assert.match(html, /<style[\s>]/i);
   assert.match(html, /<script[\s>]/i);
   assert.equal(result.manifest.delivery_mode, 'rp_project_package');
+  const helperManifest = result.manifest.components.tavern_helper;
+  assert.equal(helperManifest.find((entry) => entry.id === 'helper-loader').role, 'mvu_loader');
+  assert.equal(helperManifest.find((entry) => entry.id === 'helper-schema').source_file, 'src/runtime/schema.js');
+  assert.equal(result.manifest.runtime_baseline.mvu_loader[0].id, 'helper-loader');
+  assert.equal(result.manifest.runtime_baseline.mvu_schema[0].id, 'helper-schema');
 });

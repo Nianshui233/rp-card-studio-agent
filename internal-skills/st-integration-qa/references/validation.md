@@ -82,6 +82,7 @@
 - 更新规则和回复输出格式与变量路径一致；
 - EJS 文件语法、依赖、读取路径和目标条目明确；
 - Tavern Helper 脚本内容原样进入卡内扩展；
+- MVU 变量路线的 Tavern Helper ScriptFolder 至少有真实 `mvu_loader` 与 `mvu_schema` 两个基础节点：前者包含 MagVarUpdate 固定 import，后者包含 `registerMvuSchema` 固定 import，且顺序、依赖和来源文件可追溯；
 - 变量更新块的完整与流式正则符合本卡实际标签；
 - 技术测试卡可以缩小内容与 UI 规模，但不能省略所选技术路线的承重组件；聊天消息中的变量更新块必须同时验证“完整块”和“流式未闭合块”在玩家显示层不可见；
 - 默认由卡内正则承担变量块显示清理；若改由 MVU 框架、宿主全局正则或既有实现承担，必须在 `mvu.update_strategy.display_cleanup` 记录模式与实际证据，不能只凭“框架应该会处理”跳过；

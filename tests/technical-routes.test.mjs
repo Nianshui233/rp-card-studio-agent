@@ -71,7 +71,7 @@ function nativeMvu(overrides = {}) {
       },
       files: {
         initial_values: "src/runtime/mvu/初始变量.yaml",
-        schema_script: null,
+        schema_script: "src/runtime/mvu/变量结构.js",
         update_rules: "src/runtime/mvu/变量更新规则.yaml",
         output_format: "src/runtime/mvu/变量输出格式.yaml",
         config_override: null,
@@ -142,16 +142,22 @@ test("card-contained native MVU requires a real loader script and real source fi
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(path.join(root, "src/runtime/mvu"), { recursive: true });
   await writeFile(path.join(root, "src/runtime/mvu/初始变量.yaml"), "状态:\n  天气: 雨", "utf8");
+  await writeFile(path.join(root, "src/runtime/mvu/变量结构.js"), "import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';", "utf8");
   await writeFile(path.join(root, "src/runtime/mvu/变量更新规则.yaml"), "规则: 按事件更新", "utf8");
   await writeFile(path.join(root, "src/runtime/mvu/变量输出格式.yaml"), "格式: UpdateVariable", "utf8");
   const loader = { id: "mvu-loader", name: "加载 MVU 框架", enabled: true, content: "import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js';" };
-  const sources = sourceSet(assembly([loader], [initVarEntry()]), nativeMvu());
+  const schema = { id: "mvu-schema", name: "注册变量结构", enabled: true, content_file: "src/runtime/mvu/变量结构.js", source_file: "src/runtime/mvu/变量结构.js" };
+  const sources = sourceSet(assembly([loader, schema], [initVarEntry()]), nativeMvu());
   const valid = await validateRuntimeSources({ project: { features: { mvu: true, ejs: false, status_ui: false } }, sources, projectRoot: root });
   assert.deepEqual(valid.issues, []);
 
-  const missingLoader = sourceSet(assembly([], [initVarEntry()]), nativeMvu());
+  const missingLoader = sourceSet(assembly([schema], [initVarEntry()]), nativeMvu());
   const invalid = await validateRuntimeSources({ project: { features: { mvu: true, ejs: false, status_ui: false } }, sources: missingLoader, projectRoot: root });
   assert.ok(invalid.issues.some((entry) => entry.rule === "mvu.loader"));
+
+  const wrongImport = sourceSet(assembly([{ ...loader, content: "import 'some-other-mvu.js';" }], [initVarEntry()]), nativeMvu());
+  const wrongImportReport = await validateRuntimeSources({ project: { features: { mvu: true, ejs: false, status_ui: false } }, sources: wrongImport, projectRoot: root });
+  assert.ok(wrongImportReport.issues.some((entry) => entry.rule === "mvu.loader_component"));
 });
 
 test("MVU initial values must be projected into a real [initvar] CharacterBook entry", async (t) => {
@@ -159,10 +165,12 @@ test("MVU initial values must be projected into a real [initvar] CharacterBook e
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(path.join(root, "src/runtime/mvu"), { recursive: true });
   await writeFile(path.join(root, "src/runtime/mvu/初始变量.yaml"), "技术验收:\n  状态: 已初始化", "utf8");
+  await writeFile(path.join(root, "src/runtime/mvu/变量结构.js"), "import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';", "utf8");
   await writeFile(path.join(root, "src/runtime/mvu/变量更新规则.yaml"), "规则: 按事件更新", "utf8");
   await writeFile(path.join(root, "src/runtime/mvu/变量输出格式.yaml"), "格式: UpdateVariable", "utf8");
-  const loader = { id: "mvu-loader", name: "加载 MVU 框架", enabled: true, content: "import 'bundle.js';" };
-  const sources = sourceSet(assembly([loader]), nativeMvu());
+  const loader = { id: "mvu-loader", name: "加载 MVU 框架", enabled: true, content: "import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js';" };
+  const schema = { id: "mvu-schema", name: "注册变量结构", enabled: true, content_file: "src/runtime/mvu/变量结构.js", source_file: "src/runtime/mvu/变量结构.js" };
+  const sources = sourceSet(assembly([loader, schema]), nativeMvu());
 
   const validation = await validateRuntimeSources({
     project: { features: { mvu: true, ejs: false, status_ui: false } },
@@ -178,11 +186,13 @@ test("MVU [initvar] projection accepts inline maintained content", async (t) => 
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(path.join(root, "src/runtime/mvu"), { recursive: true });
   await writeFile(path.join(root, "src/runtime/mvu/初始变量.yaml"), "状态:\n  天气: 雨", "utf8");
+  await writeFile(path.join(root, "src/runtime/mvu/变量结构.js"), "import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';", "utf8");
   await writeFile(path.join(root, "src/runtime/mvu/变量更新规则.yaml"), "规则: 按事件更新", "utf8");
   await writeFile(path.join(root, "src/runtime/mvu/变量输出格式.yaml"), "格式: UpdateVariable", "utf8");
-  const loader = { id: "mvu-loader", name: "加载 MVU 框架", enabled: true, content: "import 'bundle.js';" };
+  const loader = { id: "mvu-loader", name: "加载 MVU 框架", enabled: true, content: "import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js';" };
+  const schema = { id: "mvu-schema", name: "注册变量结构", enabled: true, content_file: "src/runtime/mvu/变量结构.js", source_file: "src/runtime/mvu/变量结构.js" };
   const inlineEntry = { ...initVarEntry(), source: { kind: "inline", content: "状态:\n  天气: 雨" } };
-  const sources = sourceSet(assembly([loader], [inlineEntry]), nativeMvu());
+  const sources = sourceSet(assembly([loader, schema], [inlineEntry]), nativeMvu());
   const validation = await validateRuntimeSources({ project: { features: { mvu: true } }, sources, projectRoot: root });
   assert.ok(!validation.issues.some((entry) => entry.rule === "mvu.initial_values_projection"));
 });
@@ -192,6 +202,7 @@ test("draft MVU closure gaps warn while locked sources block", async (t) => {
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(path.join(root, "src/runtime/mvu"), { recursive: true });
   await writeFile(path.join(root, "src/runtime/mvu/初始变量.yaml"), "状态: 草稿", "utf8");
+  await writeFile(path.join(root, "src/runtime/mvu/变量结构.js"), "import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';", "utf8");
   await writeFile(path.join(root, "src/runtime/mvu/变量更新规则.yaml"), "规则: 草稿", "utf8");
   await writeFile(path.join(root, "src/runtime/mvu/变量输出格式.yaml"), "格式: 草稿", "utf8");
   const source = nativeMvu();
@@ -206,7 +217,7 @@ test("MVU_ZOD and EJS are independent optional layers", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "rp-mvu-zod-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(path.join(root, "src/runtime/mvu"), { recursive: true });
-  await writeFile(path.join(root, "src/runtime/schema.js"), "registerMvuSchema({});", "utf8");
+  await writeFile(path.join(root, "src/runtime/schema.js"), "import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';\nregisterMvuSchema({});", "utf8");
   await writeFile(path.join(root, "src/runtime/context.ejs"), "<%= JSON.stringify(stat_data) %>", "utf8");
   await writeFile(path.join(root, "src/runtime/mvu/初始变量.yaml"), "状态:\n  天气: 雨", "utf8");
   const source = nativeMvu({
@@ -226,7 +237,15 @@ test("MVU_ZOD and EJS are independent optional layers", async (t) => {
     templates: [{ file: "src/runtime/context.ejs", host: "character_book", purpose: "向剧情模型投影当前状态", fallback: "" }],
     implementation_notes: [],
   };
-  const loader = { id: "mvu-loader", name: "加载 MVU 框架", enabled: true, content: "import 'bundle.js';" };
-  const validation = await validateRuntimeSources({ project: { features: { mvu: true, ejs: true, status_ui: false } }, sources: sourceSet(assembly([loader], [initVarEntry()]), source), projectRoot: root });
+  const loader = { id: "mvu-loader", name: "加载 MVU 框架", enabled: true, role: "mvu_loader", content: "import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js';" };
+  const schema = { id: "mvu-schema", name: "注册变量结构", enabled: true, role: "mvu_schema", source_file: "src/runtime/schema.js", content_file: "src/runtime/schema.js" };
+  const validation = await validateRuntimeSources({ project: { features: { mvu: true, ejs: true, status_ui: false } }, sources: sourceSet(assembly([loader, schema], [initVarEntry()]), source), projectRoot: root });
   assert.deepEqual(validation.issues, []);
+
+  const missingSchemaNode = await validateRuntimeSources({
+    project: { features: { mvu: true, ejs: true, status_ui: false } },
+    sources: sourceSet(assembly([loader], [initVarEntry()]), source),
+    projectRoot: root,
+  });
+  assert.ok(missingSchemaNode.issues.some((entry) => entry.rule === "mvu.schema_component"));
 });

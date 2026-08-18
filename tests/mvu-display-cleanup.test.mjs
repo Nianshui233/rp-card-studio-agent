@@ -65,10 +65,10 @@ function mvuSource(displayCleanup) {
       enabled: true,
       route: "native_schema",
       state_root: "stat_data",
-      framework: { delivery: "card_script", loader_script_id: "mvu-loader", loader_url: "https://example.invalid/mvu.js", expected_global: "Mvu", notes: [] },
+      framework: { delivery: "card_script", loader_script_id: "mvu-loader", loader_url: "https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js", expected_global: "Mvu", notes: [] },
       files: {
         initial_values: "src/runtime/mvu/初始变量.yaml",
-        schema_script: null,
+        schema_script: "src/runtime/mvu/变量结构.js",
         update_rules: "src/runtime/mvu/变量更新规则.md",
         output_format: "src/runtime/mvu/变量输出.yaml",
         config_override: null,
@@ -98,7 +98,10 @@ function projectSources(regexScripts, displayCleanup) {
     runtime_manifest: {
       mode: "authored",
       regex_scripts: regexScripts,
-      tavern_helper_scripts: [{ id: "mvu-loader", name: "加载MVU", enabled: true, content: "import 'https://example.invalid/mvu.js';" }],
+      tavern_helper_scripts: [
+        { id: "mvu-loader", name: "加载MVU", enabled: true, role: "mvu_loader", content: "import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js';" },
+        { id: "mvu-schema", name: "变量结构", enabled: true, role: "mvu_schema", source_file: "src/runtime/mvu/变量结构.js", content_file: "src/runtime/mvu/变量结构.js" },
+      ],
       extension_fields: {},
     },
   };
@@ -120,6 +123,7 @@ async function fixtureRoot(t) {
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(path.join(root, "src/runtime/mvu"), { recursive: true });
   await writeFile(path.join(root, "src/runtime/mvu/初始变量.yaml"), "测试:\n  数值: [0, 描述]\n", "utf8");
+  await writeFile(path.join(root, "src/runtime/mvu/变量结构.js"), "import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';", "utf8");
   await writeFile(path.join(root, "src/runtime/mvu/变量输出.yaml"), "输出当前变量。\n", "utf8");
   await writeFile(path.join(root, "src/runtime/mvu/变量更新规则.md"), [
     "回复末尾输出：",

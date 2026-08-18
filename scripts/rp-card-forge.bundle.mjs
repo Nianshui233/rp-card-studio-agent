@@ -15260,7 +15260,12 @@ function helperScriptFiles(nodes, outputRoot, parent = []) {
       relativePath: [outputRoot, "06_\u9152\u9986\u52A9\u624B", ...parent, `${nodeName}.json`].join("/"),
       content: prettyJson(clone(node)),
       id: node.id,
-      name: node.name
+      name: node.name,
+      role: node.role,
+      phase: node.phase,
+      depends_on: clone(node.depends_on ?? []),
+      provides: clone(node.provides ?? []),
+      source_file: node.source_file
     });
   }
   return files;
@@ -15308,6 +15313,10 @@ async function buildDeliveryPackage({ project, projectRoot, source, outputRoot }
   }
   const helperFiles = helperScriptFiles(data.extensions?.tavern_helper?.scripts, outputRoot);
   packageFiles.push(...helperFiles);
+  const runtimeBaseline = {
+    mvu_loader: helperFiles.filter((file) => file.role === "mvu_loader" || /MagicalAstrogy\/MagVarUpdate(?:@[^/]+)?\/artifact\/bundle\.js/.test(String(file.content))).map((file) => ({ id: file.id, name: file.name, file: file.relativePath, role: "mvu_loader" })),
+    mvu_schema: helperFiles.filter((file) => file.role === "mvu_schema" || /registerMvuSchema/.test(String(file.content))).map((file) => ({ id: file.id, name: file.name, file: file.relativePath, role: "mvu_schema", source_file: file.source_file ?? null }))
+  };
   const mvuPaths = (project.source_manifest?.mvu ?? []).filter(Boolean);
   packageFiles.push(...await sourceFiles(projectRoot, mvuPaths));
   const manifest = {
@@ -15319,7 +15328,7 @@ async function buildDeliveryPackage({ project, projectRoot, source, outputRoot }
       "\u89D2\u8272\u5361",
       "\u4E16\u754C\u4E66\u5E76\u7ED1\u5B9A\u5230\u89D2\u8272",
       "\u6B63\u5219\u914D\u7F6E\uFF1B\u5C06\u914D\u5957 05_\u524D\u7AEF/*.html \u7684\u5B8C\u6574\u5185\u5BB9\u7C98\u8D34\u5230\u6B63\u5219\u201C\u66FF\u6362\u5185\u5BB9\u201D",
-      "\u9152\u9986\u52A9\u624B\u811A\u672C",
+      "\u9152\u9986\u52A9\u624B\u811A\u672C\uFF08\u5148 mvu_loader\uFF0C\u518D mvu_schema\uFF0C\u518D\u9879\u76EE\u4E13\u5C5E\u811A\u672C\uFF09",
       "MVU/EJS \u5BBF\u4E3B\u4F9D\u8D56\u4E0E\u8BBE\u7F6E"
     ],
     components: {
@@ -15327,9 +15336,19 @@ async function buildDeliveryPackage({ project, projectRoot, source, outputRoot }
       worldbook: worldbookFile,
       regex: regexFiles,
       frontend: frontendFiles,
-      tavern_helper: helperFiles.map((file) => ({ id: file.id, name: file.name, file: file.relativePath })),
+      tavern_helper: helperFiles.map((file) => ({
+        id: file.id,
+        name: file.name,
+        file: file.relativePath,
+        role: file.role ?? null,
+        phase: file.phase ?? null,
+        depends_on: clone(file.depends_on ?? []),
+        provides: clone(file.provides ?? []),
+        source_file: file.source_file ?? null
+      })),
       mvu_ejs: packageFiles.filter((file) => file.relativePath.startsWith(`${outputRoot}/07_MVU\u4E0EEJS/`)).map((file) => file.relativePath)
     },
+    runtime_baseline: runtimeBaseline,
     notes: [
       "\u524D\u7AEF\u4E0E\u6B63\u5219\u5206\u5F00\u4EA4\u4ED8\uFF1B\u6BCF\u4E2A\u524D\u7AEF\u662F\u5B8C\u6574\u3001\u81EA\u5305\u542B HTML\u3002",
       "\u672C\u9879\u76EE\u4E0D\u63D0\u4F9B\u5355\u6587\u4EF6\u89D2\u8272\u5361\u4F5C\u4E3A\u6700\u7EC8\u4EA4\u4ED8\u65B9\u5F0F\u3002",
@@ -15346,7 +15365,7 @@ async function buildDeliveryPackage({ project, projectRoot, source, outputRoot }
 1. \u5BFC\u5165\u89D2\u8272\u5361\uFF1A\u6253\u5F00 \`02_\u89D2\u8272\u5361\`\u3002
 2. \u5BFC\u5165\u4E16\u754C\u4E66\uFF1A\u6253\u5F00 \`03_\u4E16\u754C\u4E66\`\uFF0C\u7136\u540E\u7ED1\u5B9A\u5230\u89D2\u8272\u3002
 3. \u5BFC\u5165 \`04_\u6B63\u5219\` \u4E2D\u7684\u914D\u7F6E\uFF1B\u5BF9\u6709\u914D\u5957 HTML \u7684\u6B63\u5219\uFF0C\u5C06 \`05_\u524D\u7AEF\` \u4E2D\u540C\u540D HTML \u7684\u5168\u90E8\u5185\u5BB9\u590D\u5236\u5230\u6B63\u5219\u7684\u201C\u66FF\u6362\u5185\u5BB9\u201D\u3002
-4. \u5BFC\u5165 \`06_\u9152\u9986\u52A9\u624B\` \u4E2D\u7684\u811A\u672C\u3002
+4. \u5BFC\u5165 \`06_\u9152\u9986\u52A9\u624B\` \u4E2D\u7684\u811A\u672C\u3002\u82E5\u9879\u76EE\u542F\u7528 MVU\uFF0C\u5148\u5BFC\u5165/\u542F\u7528 \`role: mvu_loader\` \u7684 MagVarUpdate \u52A0\u8F7D\u811A\u672C\uFF0C\u518D\u5BFC\u5165/\u542F\u7528 \`role: mvu_schema\` \u7684\u53D8\u91CF\u7ED3\u6784\u811A\u672C\uFF0C\u6700\u540E\u518D\u542F\u7528\u9879\u76EE\u4E13\u5C5E\u540C\u6B65\u3001\u4E8B\u4EF6\u6216\u751F\u547D\u5468\u671F\u811A\u672C\u3002
 5. \u6309 \`07_MVU\u4E0EEJS\` \u548C\u6700\u7EC8\u62A5\u544A\u68C0\u67E5\u5BBF\u4E3B\u4F9D\u8D56\u3002
 
 HTML \u4E0D\u4F9D\u8D56\u540C\u76EE\u5F55\u7684 CSS \u6216 JS \u6587\u4EF6\uFF1B\u6BCF\u4E2A\u9875\u9762\u5DF2\u7ECF\u662F\u5B8C\u6574\u81EA\u5305\u542B\u6587\u6863\u3002

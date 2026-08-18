@@ -32,7 +32,9 @@ media_manifest:
 runtime_manifest:
   mode: authored
   regex_scripts: []
-  # 开发源可为脚本记录 role/phase/required/depends_on/provides/expected_global；
-  # 用于表达 Loader → Schema → 同步器 → 生命周期脚本的真实依赖顺序。
+  # MVU 项目应在这里登记真实 Tavern Helper 脚本：
+  # role=mvu_loader 的框架加载器先于 role=mvu_schema 的变量结构脚本；
+  # source_file 可与 mvu.files.schema_script / supporting_files 对应，
+  # 交付时这些节点会原样进入 06_酒馆助手，而不是只留在维护源路径里。
   tavern_helper_scripts: []
   extension_fields: {}

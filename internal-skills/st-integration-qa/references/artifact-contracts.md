@@ -66,6 +66,13 @@ runtime_manifest:
 
 `content_file` 读取完整 JavaScript 形成可独立导入的 Tavern Helper 脚本 JSON；`content` 保留内联脚本。Forge 不改写脚本语义。
 
+采用 MVU 变量路线时，ScriptFolder 内至少登记两个基础节点：
+
+- `role: mvu_loader`：脚本内容必须包含 MagVarUpdate bundle 的固定 import；
+- `role: mvu_schema`：脚本内容必须包含 `registerMvuSchema` 的固定 import，后续 Schema 内容按项目变量结构编写。
+
+节点可用 `source_file` 指向维护源；交付清单会保留角色、阶段、依赖、能力和来源文件，确保它们不是只存在于 `mvu.yaml` 的路径声明。
+
 ### EJS
 
 EJS 作为真实文件，由世界书条目的 `source.kind: file` 装入指定正文。Forge 不生成 EJS 分支，不把 EJS 变成通用条件表。
