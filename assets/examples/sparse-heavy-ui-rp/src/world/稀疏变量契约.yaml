@@ -1,0 +1,31 @@
+schema_version: 1.0.0
+entries:
+  - id: world_core
+    display_name: "星港世界与港口生活"
+    keys: ["星港", "观测台", "航线"]
+    enabled: true
+    constant: true
+    insertion_order: 100
+    content: |-
+      星港是一座靠航线、值班和观测记录维持秩序的深空港口。船员、调度员、商贩和观测员各自有生活节奏；港口不会因为没有主控发言就停止运转。
+  - id: state_contract
+    display_name: "观测台状态输出契约"
+    keys: ["星港观测台", "观测台"]
+    enabled: true
+    constant: true
+    insertion_order: 900
+    content: |-
+      当有真实状态可显示时，在回复末尾输出 <星港观测台/>。状态栏只读取权威变量与静态资料，不把空字段写成 0，不把示例数据当成运行数据。
+  - id: sparse_user_template
+    display_name: "主控设定模板（空白入口）"
+    keys: ["<user>"]
+    enabled: false
+    constant: false
+    insertion_order: 50
+    content: |-
+      <user>
+      姓名：
+      身份：
+      与星港的关系：
+      当前计划：
+      </user>

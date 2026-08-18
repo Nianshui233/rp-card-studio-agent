@@ -9,7 +9,7 @@ description: "Private supporting module for real SillyTavern runtime reproductio
 
 ## 验收顺序
 
-1. 导入最终 JSON；
+1. 按项目包中的 `00_导入说明.md` 依次导入角色卡、世界书、正则和 Tavern Helper 脚本；
 2. 确认 CharacterBook、主世界书、角色正则和 Tavern Helper 脚本；
 3. 打开新聊天并记录首条消息；
 4. 检查 Console、DOM/iframe、Blob URL、父页面桥和真实状态路径；

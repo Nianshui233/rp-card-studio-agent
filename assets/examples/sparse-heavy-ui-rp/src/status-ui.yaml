@@ -1,0 +1,37 @@
+schema_version: 2.0.0
+status: locked
+status_ui:
+  enabled: true
+  authoring_mode: modular_html
+  experience_level: heavy
+  data_density: sparse
+  theme_direction: "深空港口观测台"
+  device_priority: equal
+  ui_requirements:
+    interview_status: locked
+    purpose: "把少量实时事实、静态港口资料和行动入口组织成完整的持续游玩前端"
+    primary_journey: "看当前位置 → 查资料/记录 → 评估风险 → 发起行动 → 等待下一条真实状态"
+    information:
+      must_show: ["当前位置", "燃料", "最近观测"]
+      useful: ["港口资料", "航线图例", "值班规则", "行动入口"]
+      may_be_empty: ["最近观测", "当前位置"]
+      data_scale: sparse
+    interactions:
+      desired: ["页签切换", "搜索", "筛选", "详情弹窗", "发送行动"]
+      host_actions: ["优先写入输入框，失败时复制文本"]
+      feedback: ["加载", "空态", "成功", "失败", "复制回退"]
+    visual:
+      direction: "深蓝金属、航标灯、纸质观测记录"
+      palette: "深蓝、青白、信号橙"
+      density: comfortable
+      theme_mode: single
+      motion: "克制的扫描线与航标呼吸"
+  presentation_model:
+    authoritative_paths: ["航线.当前位置", "航线.燃料", "观测.最近记录"]
+    static_modules: ["港口资料", "航线图例", "值班规则"]
+    derived_views: ["燃料百分比", "风险摘要", "最近记录排序"]
+    local_interaction_state: ["当前页签", "搜索词", "筛选条件", "详情弹窗"]
+    empty_state_policy: "未知字段显示中文空态，不伪造数值"
+    unknown_state_policy: "尚未建立 / 暂无记录 / 宿主不可用"
+  lifecycle_checks: ["消息编辑", "Swipe", "聊天切换", "重复挂载"]
+  runtime: not_run

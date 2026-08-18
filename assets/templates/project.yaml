@@ -15,7 +15,7 @@ preflight:
     enabled: false
     decision_source: pending
   input_materials_confirmed: false
-  deliverables_confirmed: false
+  deliverables_confirmed: true
 
 workflow:
   stage_order:
@@ -78,7 +78,7 @@ features:
   status_ui: false
 
 deliverables:
-  - character_card_json
+  - rp_project_package
 
 materials: []
 decisions: []

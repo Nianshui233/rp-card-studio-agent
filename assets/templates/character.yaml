@@ -120,6 +120,19 @@ background:
   current_situation: ""
   unresolved_past: []
 
+# ═══ NSFW层（仅当项目预检启用 NSFW 时展开并填写）═══
+# 这是角色内容层，不是运行时开关、年龄门禁或拒绝规则。
+nsfw:
+  sexual_orientation: "性取向"
+  standing: "角色定位（如：攻/受/S/M等）"
+  fetish:
+    - "具体性癖"
+  preference: "风格偏好（如：偏好主导/服从/温柔/粗暴等）"
+  sex_organs: "具体描述"
+  sensitive_areas:
+    - "敏感部位 + 反应描述"
+  contrast: "性格反差描述（如：平时高冷 → 亲密时粘人且失控等）"
+
 relationships: []
 
 knowledge:

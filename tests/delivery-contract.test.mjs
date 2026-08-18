@@ -3,9 +3,10 @@ import test from "node:test";
 
 import { makeProject } from "../scripts/forge/project.mjs";
 
-test("new projects default to one character-card JSON deliverable", () => {
+test("new projects use the single fixed multi-file RP package deliverable", () => {
   const project = makeProject({ name: "雾港夜班", nsfw: false });
-  assert.deepEqual(project.deliverables, ["character_card_json"]);
+  assert.deepEqual(project.deliverables, ["rp_project_package"]);
+  assert.equal(project.project.target, "character_card");
   assert.deepEqual(project.release.outputs, []);
 });
 

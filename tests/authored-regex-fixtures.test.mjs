@@ -72,7 +72,7 @@ test("authored regex fixtures preserve display, prompt, complete-block, and stre
   };
 
   const validation = await validateRuntimeSources({
-    project: { features: { mvu: true, ejs: false, status_ui: true }, deliverables: ["character_card_json"] },
+    project: { features: { mvu: true, ejs: false, status_ui: true }, deliverables: ["rp_project_package"] },
     sources,
     projectRoot: root,
   });

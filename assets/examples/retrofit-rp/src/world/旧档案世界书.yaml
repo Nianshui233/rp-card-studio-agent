@@ -1,0 +1,31 @@
+schema_version: 1.0.0
+entries:
+  - id: world_core
+    display_name: "回声车站世界核心"
+    keys: ["车站", "回声车站"]
+    enabled: true
+    constant: true
+    insertion_order: 100
+    depth: null
+    probability: 100
+    content: |-
+      回声车站是一座会记住乘客脚步的旧交通枢纽。车站的时刻表、值班人员、失物招领和夜间广播都有自己的节奏；没有主控介入时，车站也会照常运作。
+  - id: user_template
+    display_name: "主控设定模板（空白）"
+    keys: ["<user>"]
+    enabled: false
+    constant: false
+    insertion_order: 50
+    depth: 4
+    probability: 100
+    content_file: src/user-character.yaml
+  - id: status_contract
+    display_name: "改造后状态输出契约"
+    keys: ["回声状态", "状态栏"]
+    enabled: true
+    constant: true
+    insertion_order: 900
+    depth: 0
+    probability: 100
+    content: |-
+      每次回复末尾，在可用信息足够时输出 <回声状态/>。它只是显示标记，不凭空创造未知数值；没有数据时使用“尚未建立”“暂无记录”等中文空态。

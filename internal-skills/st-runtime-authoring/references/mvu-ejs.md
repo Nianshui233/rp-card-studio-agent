@@ -35,6 +35,10 @@ MVU 原生路线从 `[initvar]` 的 `$meta` 生成内部 Schema，支持可扩�
 
 `[config_override]` 是可选的角色级配置覆盖条目，可控制更新方式、自动额外请求、世界书过滤和部分兼容行为。它不是每张卡都必须注入的固定组件。
 
+### 制作期清理不等于运行时年龄门禁
+
+若旧材料含有涉及未成年人的成人性内容，迁移时删除相关内容，不把它转成状态字段、更新规则或提示词合同。尤其不要新增 `age_gate`、`adult_only`、成年证明、年龄确认、`adult_intimacy_without_adult_gate`、年龄关系禁路、EJS 拒绝分支或 Tavern Helper 拦截。Runtime 只承载项目实际需要的变量与功能；交付后的玩法不由 MVU/EJS 继续监管。
+
 ## EJS
 
 EJS 是 ST-Prompt-Template 或既有宿主执行的真实 `.ejs` 模板，不是存储层。每份模板记录：真实文件、执行宿主、读取变量、输出对象、失败回退。使用 Tavern Helper 的 `EjsTemplate.getSyntaxErrorInfo / prepareContext / evalTemplate / getFeatures` 可做目标环境诊断；离线构建不能冒充宿主执行成功。

@@ -57,7 +57,7 @@ test("declared medium/heavy UI cannot be backed by micro HTML", async () => {
   await writeFile(join(root, "src", "status.html"), "<!doctype html><html><body><p>状态</p></body></html>");
   await writeFile(join(root, "src", "opening.html"), "<!doctype html><html><body><button>开始</button></body></html>");
   const result = await validateRuntimeSources({
-    project: { features: { status_ui: true }, deliverables: ["character_card_json"] },
+    project: { features: { status_ui: true }, deliverables: ["rp_project_package"] },
     sources: baseSources(root, { statusFile: "src/status.html", openingFile: "src/opening.html" }),
     projectRoot: root,
   });
@@ -70,7 +70,7 @@ test("MVU-backed message HTML must bridge iframe and parent host scopes", async 
   const common = `<!doctype html><html><head><meta name="viewport" content="width=device-width"><style>@media(max-width:600px){body{font-size:14px}}</style></head><body><nav data-tab="a">甲</nav><nav data-tab="b">乙</nav><nav data-tab="c">丙</nav><main><section id="panel-a"><input placeholder="搜索详情"><button onclick="act()">行动</button><button onclick="retry()">重试</button><div class="loading empty error success">状态</div></section><section id="panel-b">数据</section><section id="panel-c">事件</section><section id="panel-d">日志</section></main><script>function act(){window.parent.document;} function retry(){} const state=window.Mvu.getMvuData({type:'message',message_id:0}).stat_data; addEventListener('click',()=>{});</script></body></html>`;
   await writeFile(join(root, "src", "status.html"), common);
   const result = await validateRuntimeSources({
-    project: { features: { status_ui: true }, deliverables: ["character_card_json"] },
+    project: { features: { status_ui: true }, deliverables: ["rp_project_package"] },
     sources: baseSources(root, { statusFile: "src/status.html" }),
     projectRoot: root,
   });
@@ -78,7 +78,7 @@ test("MVU-backed message HTML must bridge iframe and parent host scopes", async 
 
   await writeFile(join(root, "src", "status.html"), common.replace("const state=window.Mvu", "const mvu=window.Mvu||window.parent?.Mvu; const state=mvu"));
   const repaired = await validateRuntimeSources({
-    project: { features: { status_ui: true }, deliverables: ["character_card_json"] },
+    project: { features: { status_ui: true }, deliverables: ["rp_project_package"] },
     sources: baseSources(root, { statusFile: "src/status.html" }),
     projectRoot: root,
   });

@@ -35,6 +35,7 @@
         "locale",
         "workspace",
         "operation",
+        "target",
         "status"
       ],
       "properties": {
@@ -62,6 +63,12 @@
             "edit",
             "audit",
             "ui"
+          ]
+        },
+        "target": {
+          "enum": [
+            "character_card",
+            "worldbook"
           ]
         },
         "status": {
@@ -276,15 +283,10 @@
     "deliverables": {
       "type": "array",
       "minItems": 1,
+      "maxItems": 1,
       "uniqueItems": true,
       "items": {
-        "enum": [
-          "project_source",
-          "character_card_json",
-          "character_card_png",
-          "worldbook_json",
-          "validation_report"
-        ]
+        "const": "rp_project_package"
       }
     },
     "materials": {

@@ -70,6 +70,13 @@ function validateManagedUiExperience(statusUi, base, status, issues, warnings) {
   if (level === "super_heavy" && evidence.primary_play_surface !== true) {
     artifactStageTarget(status, issues, warnings).push(issue(`${base}/experience_evidence/primary_play_surface`, "ui.experience_primary_surface", "Super-heavy / zero-layer UI should declare the message application as the primary play surface"));
   }
+  if (statusUi?.data_density === "sparse" && level !== "light") {
+    const model = statusUi.presentation_model;
+    const target = artifactStageTarget(status, issues, warnings);
+    const hasPresentation = isPlainObject(model) && ["authoritative_paths", "static_modules", "derived_views", "local_interaction_state"]
+      .some((key) => Array.isArray(model[key]) && model[key].length > 0);
+    if (!hasPresentation) target.push(issue(`${base}/presentation_model`, "ui.sparse_data_model", "中型以上 UI + 稀疏变量必须声明静态模块、派生视图或本地交互层；变量少不能自动降级 UI"));
+  }
 }
 export function isCharacterFormat(format) {
   return CHARACTER_FORMATS.has(format);
@@ -235,21 +242,21 @@ function validatePortableDelivery(value, issues) {
     }
     if (!isPlainObject(node)) {
       if (typeof node === "string" && /(?:^|\n)\s*source_ref:\s*["']?(?:src[\\/]|[A-Za-z]:|\.\.?[\\/])/i.test(node)) {
-        issues.push(issue(basePath, "delivery.portability", "最终角色卡正文不能携带维护源码的 source_ref 文件路径"));
+        issues.push(issue(basePath, "delivery.portability", "可导入角色卡组件不能携带维护源码的 source_ref 文件路径"));
       }
       if (typeof node === "string" && /(?:import\s+[^;]*?from\s*|(?:src|href)\s*=\s*|url\(\s*)["']?(?:\.\.?[\\/]|src[\\/])/i.test(node)) {
-        issues.push(issue(basePath, "delivery.portability", "最终角色卡中的 HTML/CSS/JS 不能继续引用本地相对文件；请把资源内嵌或改为明确的远程依赖"));
+        issues.push(issue(basePath, "delivery.portability", "可交付 HTML 不能继续引用本地相对文件；请把资源内嵌或改为明确的远程依赖"));
       }
       return;
     }
     for (const [key, child] of Object.entries(node)) {
       const childPath = `${basePath}/${key}`;
       if (forbiddenKeys.has(key)) {
-        issues.push(issue(childPath, "delivery.portability", `最终角色卡不能携带维护字段 ${key}；运行时必须使用已内嵌内容`));
+        issues.push(issue(childPath, "delivery.portability", `可导入组件不能携带维护字段 ${key}；运行时必须使用项目包中的真实交付内容`));
         continue;
       }
       if (pathKeys.has(key) && looksLikeExternalMaintenancePath(child)) {
-        issues.push(issue(childPath, "delivery.portability", `最终角色卡不能依赖外部维护文件路径: ${child}`));
+        issues.push(issue(childPath, "delivery.portability", `可导入组件不能依赖外部维护文件路径: ${child}`));
         continue;
       }
       walk(child, childPath);
@@ -337,11 +344,11 @@ function validateManagedMvuRuntimeClosure(value, issues) {
     const base = `/data/extensions/rp_card_studio/sources/mvu/${index}/value/mvu`;
     const loaderId = mvu.framework?.loader_script_id;
     if (!Array.isArray(value?.data?.extensions?.tavern_helper?.scripts) || nodes.length === 0) {
-      issues.push(issue(base, "mvu.runtime_script", "启用 MVU 的最终角色卡缺少已内嵌的 Tavern Helper 脚本；不能只在维护源里声明变量"));
+      issues.push(issue(base, "mvu.runtime_script", "启用 MVU 的项目包缺少实际 Tavern Helper 脚本；不能只在维护源里声明变量"));
       continue;
     }
     if (mvu.framework?.delivery === "card_script" && (!loaderId || !ids.has(loaderId))) {
-      issues.push(issue(`${base}/framework/loader_script_id`, "mvu.runtime_script", `最终角色卡缺少 loader_script_id=${JSON.stringify(loaderId ?? null)} 对应的 Tavern Helper 脚本`));
+      issues.push(issue(`${base}/framework/loader_script_id`, "mvu.runtime_script", `项目包缺少 loader_script_id=${JSON.stringify(loaderId ?? null)} 对应的 Tavern Helper 脚本`));
     }
     if (nodes.every((node) => typeof node.content !== "string" || !node.content.trim())) {
       issues.push(issue(base, "mvu.runtime_script", "Tavern Helper 脚本节点存在但没有实际内嵌代码"));

@@ -11,14 +11,14 @@
 
 ## 最重要的几条原则
 
-1. 只响应宿主中的明确 Agent 选择或适配器提供的显式入口，不使用“创建”“角色卡”“世界观”等自然语言触发。
-2. 首轮只确认工作区、NSFW、任务类型、材料、可选阶段计划和附加交付物，不提前询问创作内容。
+1. 只响应运行环境中的明确 Agent 选择入口，不使用“创建”“角色卡”“世界观”等自然语言触发。
+2. 首轮只确认工作区、NSFW、任务类型、材料和可选阶段计划，不提前询问创作内容；交付方式固定，不再询问。
 3. 每个阶段都按“多项当前阶段问题 + 信息采集 + 方向和推荐 → 用户选择或放权 → 实际片段”反复推进。
 4. 世界、NPC、系统、场景和叙事优先写成可读 YAML/文本；最终再按运行职责切入 CharacterBook。
 5. `data.description` 是项目入口。大世界卡使用项目标题，真正的单人物卡才默认使用唯一人物名。
 6. MVU、EJS、HTML、JavaScript 和正则必须是项目实际创作的真实源文件。Forge 只装配、保真和验证，不替作者发明一套通用运行时。
 7. UI 位于聊天消息或用户明确选择的卡内载体。唯一长期禁止的是在 SillyTavern 页面外层挂一个与消息脱离的常驻状态面板。
-8. 默认最终只交付一个可导入角色卡 `.json`；PNG、独立世界书、源码归档等必须由用户明确需要。
+8. 默认且唯一交付一个多文件 RP 项目包；角色卡、世界书、正则、酒馆助手脚本和完整单文件 HTML 前端按实际宿主边界分件提供。
 9. Agent 只适配 SillyTavern 和插件，不修改 SillyTavern、Tavern Helper 或其他插件本体。
 10. 这是个人自用工作流：创作自由、视觉效果和实际可玩性优先。父页面 DOM、私有 API、远程资源和复杂 JS 可以按项目需要使用，只需如实记录依赖和实测结果。用户明确提供或授权的开源卡片、仓库、网页和接口资料可以直接吸收；最终 Agent 规则和项目源码保持自包含，不依赖原参考目录。
 11. Forge 只设运行与交付下限，不设置世界书、角色、场景、变量、组件、正则、HTML/JS 或角色卡体量上限；真实宿主字段范围除外。大项目可以很大，性能成本只报告和建议优化，不会要求删除已经创作的内容。
@@ -42,7 +42,7 @@ AGENT.md：唯一主协调 Agent
 
 UI 需求不会被压成一张技术问卷：前端 Skill 使用 `references/ui-requirements-interview.md` 分轮收集用途、玩家旅程、信息优先级、交互、视觉、设备和数据规模，再把已锁定结果交给 HTML/CSS/JS、运行时和整合模块实现。字体与图标通过 `references/ui-assets.md` 作为可选资产能力处理：可用 ZeoSeven 进行中文字体选型、用 Font Awesome Free 选择功能 SVG，但不把整站资源或远程 CDN 变成默认依赖。
 
-Forge 的正式 Hooks 包含 `before_stage_write`、`before_source_write`、`before_build`、`after_build` 和 `after_delivery`。它们把阶段边界、写入路径、构建摘要和交付落盘检查集中成可追踪记录；只拦真实运行/交付错误，不限制创作规模，也不按 HTML 行数、变量数量或世界书条目数设上限。宿主适配层以后可以在内存中注册额外验收钩子，核心 Agent 不从项目目录加载任意外部脚本。
+Forge 的正式 Hooks 包含 `before_stage_write`、`before_source_write`、`before_build`、`after_build` 和 `after_delivery`。它们把阶段边界、写入路径、构建摘要和交付落盘检查集中成可追踪记录；只拦真实运行/交付错误，不限制创作规模，也不按 HTML 行数、变量数量或世界书条目数设上限。
 
 私有 Skill 的分工：
 
@@ -55,7 +55,7 @@ Forge 的正式 Hooks 包含 `before_stage_write`、`before_source_write`、`bef
 | `st-frontend-authoring` | 开场/创角前端、持续状态前端、轻到超重型 UI、0 层玩法 |
 | `st-worldbook-regex` | 世界书调度、输出合同、XML/标记生产和正则 |
 | `st-host-capabilities` | 宿主能力探测、世界书绑定、事件生命周期、生成、流式前端和回退 |
-| `st-integration-qa` | 装配、Forge、角色卡 JSON、SillyTavern 实机验收和故障归因 |
+| `st-integration-qa` | 装配、Forge、多文件项目包、SillyTavern 实机验收和故障归因 |
 | `rp-project-blueprint` | 大型项目总设计、First Playable、Growth Tracks、Parking Lot 和 NEXT |
 | `st-api-reference` | 精确函数签名、事件 payload、版本差异和宿主 API 核对 |
 | `st-runtime-debug` | 真实 SillyTavern 导入、浏览器、Console、DOM、交互和生命周期验收 |
@@ -87,14 +87,14 @@ assembly.yaml 只登记装配位置、CharacterBook 调度和扩展字段
 Forge 原样读取、装配、校验、往返
         │
         ▼
-默认交付 dist/character-card.json
+默认交付 dist/<项目名>/ 多文件 RP 项目包
 ```
 
 Forge 不再包含通用 UI 编译器、自动 MVU/EJS 生成器、额外合成运行层、固定状态标记合同或“所有卡通用”的正则套件。
 
 ## 首轮怎么开始
 
-在所使用的 Agent 宿主里明确选择“SillyTavern制卡工坊”。宿主适配器只负责装载本仓库的 `AGENT.md`、私有 Skill 和 Forge，不应复制另一套制卡规则。
+在所使用的运行环境里明确选择“SillyTavern制卡工坊”，并装载本仓库的 `AGENT.md`、私有 Skill 和 Forge；运行环境不应复制另一套制卡规则。
 
 如果没有现成预检记录，Agent 第一轮只会集中确认：
 
@@ -103,7 +103,6 @@ Forge 不再包含通用 UI 编译器、自动 MVU/EJS 生成器、额外合成�
 3. 本次是新建、继续、转换、修改、审查还是只处理 UI；
 4. 是否存在旧卡、设定、HTML、脚本或其他材料；
 5. 材料整理、系统、场景、MVU/EJS、状态栏/UI 这些可选阶段是否计划进入；
-6. 除默认单个 JSON 外，是否明确需要其他制品。
 
 信息齐全后立即创建或恢复项目记录，不等定位阶段结束才落盘。首轮阶段计划只是导航，后续可随项目变化调整；实际完成或跳过状态单独记录。
 
@@ -149,7 +148,7 @@ Forge 不再包含通用 UI 编译器、自动 MVU/EJS 生成器、额外合成�
 
 每个条目明确记录：中文名称、启用、主/次关键词、选择逻辑、插入位置、深度、顺序、概率、扫描深度、递归和预算行为。Forge 会验证这些宿主字段，但不会替作者猜一套固定策略。锁定整合时不允许留下空 CharacterBook；有内容源码却没有任何装配条目会直接阻断构建。
 
-需要区分四件事：卡内确实有非空 `data.character_book`、`data.extensions.world` 写了目标书名、SillyTavern 已把内嵌书导入世界书列表、角色当前主世界书已经指向它。前两项可由 JSON 保证，后两项必须在真实 SillyTavern 中完成“Import Card Lore/导入卡片世界书”并检查。标准 JSON 不会绕过宿主的导入确认；项目明确要求零手工时，才编写并实测项目专属的 Tavern Helper 自动挂载脚本。
+需要区分三件事：项目包已经生成独立世界书、SillyTavern 已把该书导入世界书列表、角色当前主世界书已经指向它。第一项可由 Forge 保证，后两项必须在真实 SillyTavern 中完成导入和绑定检查；项目明确要求零手工时，才编写并实测项目专属的 Tavern Helper 自动挂载脚本。
 
 ## MVU 与 EJS 的正确做法
 
@@ -224,11 +223,11 @@ runtime_manifest:
   extension_fields: {}
 ```
 
-Forge 会把完整 HTML 写入 `replaceString`，把完整 JS 写入脚本 `content`，不会再次拆分或重写。
+Forge 会把完整 HTML 作为项目包中的独立 `.html` 交付，并把对应正则配置单独写入 `04_正则/`；用户按项目清单把 HTML 全文粘贴到正则的“替换内容”。完整 JavaScript 则按酒馆助手真实导入格式写入 `05_酒馆助手/`，不会再次拆分或重写。
 
 ## UI 轻、中、重体现在哪里
 
-UI 阶段第一批必须确认配套 UI 的规模。等级衡量的是玩家端体验和实现深度，不是页面数、正则数或代码行数配额。
+UI 阶段第一批必须确认配套 UI 的规模。等级衡量的是玩家端体验和实现深度，不是页面数、正则数、动态变量数量或代码行数配额。另行记录事实数据密度：稀疏变量不等于轻型 UI，允许“重型 UI + 稀疏变量”。
 
 - 轻型：以 Agent 内置的 `assets/examples/self-contained-rp/src/runtime/ui/潮痕状态栏.html` 所代表的完整度为下限。它应是一份成熟的多视图状态应用，有清晰导航、多类真实数据、搜索/筛选/折叠/详情等信息操作、至少一种宿主行动、反馈与回退、响应式和项目专属主题；不能只是几项数值与进度条。
 - 轻中型：完整保留轻型基线，并明显增加多个便利、反馈、联动、动效或趣味交互。
@@ -236,13 +235,15 @@ UI 阶段第一批必须确认配套 UI 的规模。等级衡量的是玩家端�
 - 重型：进一步加入强主题演出、复杂功能联动、大量游戏行为入口、深度宿主协作和可靠生命周期。
 - 超重型 / 独立前端 / 0层游玩：完整继承前述能力，消息 HTML 成为主要游玩界面，并具有应用级路由、状态管理、持久化和复杂宿主协作。
 
+变量是事实来源，不是 UI 复杂度上限。前端要区分权威动态数据、静态项目资料、派生视图和本地交互状态：变量少时，页面仍可用静态档案、主题化导航、搜索/筛选/折叠、派生摘要和完整空态保持重型体验，但不能编造动态事实。若重型体验确实需要新增会影响后续剧情裁决的变量，应向 MVU/EJS 阶段交接，而不是偷偷造第二套状态或自动把重型降级成轻型。
+
 Agent 内置样本只是体验与成熟规模的参照，不是代码配额。`experience_evidence` 用于复盘导航、数据、交互、反馈、响应式、主题与数据绑定，不按填写数量定级或阻断。正则替换是默认示例，但酒馆助手脚本、EJS、inline HTML、框架和既有路线同样允许，只校验项目实际选择的运行链。用户明确采用某个外部开源资料时，可以在 `materials` 或 `source_refs` 中记录来源与版本；不需要为了“自包含”反复阻止用户使用已授权参考。
 
 用户选定的等级是交付下限，不是只写进 YAML 的标签。Forge 会读取实际 HTML 做功能面质量探针，检查导航、数据视图、信息工具、操作入口、反馈、响应式、宿主联动、数据读取和生命周期信号；不按文件字节或代码行数评分。锁定的中型/重型 UI 如果只是小面板、静态展示或无数据空壳，会阻断交付。
 
 MVU/Tavern Helper 消息前端还必须同时考虑当前 iframe 与父窗口的宿主全局。只读取 `window.Mvu`、但加载器实际把对象挂在 `window.parent.Mvu`，会让完整前端退化为加载/空态外壳；质量探针会单独报告这个作用域断链。
 
-不同技术路线的原创自包含夹具见 `assets/examples/README.md`，包括非 MVU XML、原生 MVU、MVU_ZOD、开场/持续 UI 分离、多功能消息表面和超重型独立前端。
+不同技术路线的原创自包含夹具见 `assets/examples/README.md`，完整覆盖矩阵见 `assets/examples/matrix.yaml`；除非 MVU XML、原生 MVU、MVU_ZOD、开场/持续 UI 分离、多功能消息表面和超重型独立前端外，还包含旧卡改造保真链，以及“稀疏变量不降级重型体验”的专门回归样本。
 
 同一个功能面应尽量保持在一份完整 HTML 中，通过页签、抽屉、弹窗等组织。不要为了“组件化”拆成几十条互不连贯的小正则。
 
@@ -288,10 +289,20 @@ src/runtime/ui/
 │  │  └─ ui/
 │  └─ integration/assembly.yaml
 ├─ dist/
+│  └─ <项目名>/       # 唯一最终交付的多文件 RP 项目包
+│     ├─ 00_导入说明.md
+│     ├─ 01_项目清单.json
+│     ├─ 02_角色卡/
+│     ├─ 03_世界书/
+│     ├─ 04_正则/
+│     ├─ 05_前端/     # 每个页面一个完整 HTML
+│     ├─ 06_酒馆助手/
+│     ├─ 07_MVU与EJS/
+│     └─ 08_验证报告.md
 └─ reports/
 ```
 
-`src/` 是维护源，`dist/` 只是构建结果。不要手工把最终 JSON 当作主要编辑文件。
+`src/` 是维护源，`dist/<项目名>/` 是固定的多文件交付包。不要手工修改交付包中的组件来代替维护源；前端交付文件必须是完整自包含 HTML，正则配置与 HTML 分开配对。
 
 ## Forge 常用命令
 
@@ -313,6 +324,8 @@ node scripts/rp-card-forge.bundle.mjs state <项目目录> capability enable hos
 node scripts/rp-card-forge.bundle.mjs state <项目目录> capability evidence host.worldbook_binding --status pass --level runtime --notes "已在目标宿主读回绑定结果"
 ```
 
+`build`/`pack` 的唯一输出是 `dist/<项目名>/` 多文件项目包；不能用 `--output` 指定单个 JSON 或 PNG 文件。
+
 Forge 的职责：
 
 - 事务式写入，避免半成品；
@@ -321,7 +334,7 @@ Forge 的职责：
 - 原样装配完整 HTML/JS/EJS；
 - 把模块化 HTML/CSS/JS/片段构建为自包含 HTML，并检查源码与制品是否一致；
 - 稳定分配 CharacterBook ID；
-- 验证 JSON/PNG 往返。
+- 验证项目包中角色卡、世界书、正则和脚本 JSON 的往返。
 
 Forge 不负责替作者生成 RP 内容或通用运行时。
 
@@ -342,20 +355,20 @@ Forge 不负责替作者生成 RP 内容或通用运行时。
 离线验证能确认：
 
 - YAML/JSON 与正则由已执行的解析器检查；JS/EJS/HTML 只报告实际执行过的静态或宿主检查，未运行就保持 `not_run`；
-- CharacterBook 非空、调度字段完整，内嵌书名与 `data.extensions.world` 一致；
+- 独立世界书非空、调度字段完整，项目清单中的绑定目标一致；
 - 引用、ID、媒体和扩展结构闭合；
 - HTML/JS/EJS 未在装配中截断或改写；
-- JSON/PNG 可重新读取并保持语义。
+- 项目包各 JSON 可重新读取并保持语义。
 
 只有真实 SillyTavern 能确认：
 
-- 执行内嵌世界书导入，确认世界书列表实际存在该书且角色主世界书已挂载；
+- 导入独立世界书，确认世界书列表实际存在该书且角色主世界书已挂载；
 - 角色正则实际授权与执行；
 - Tavern Helper、MVU、EJS 的版本兼容；
 - iframe/Blob URL 模式；
 - UI 数据、按钮、编辑、Swipe、重载和聊天切换。
 
-没有实机测试时照样可以交付候选 JSON，但报告必须明确写 `runtime: not_run`。
+没有实机测试时照样可以交付项目包，但报告必须明确写 `runtime: not_run`，并列出需要用户在 SillyTavern 中逐项导入和确认的组件。
 
 ## NSFW
 
@@ -363,15 +376,11 @@ Forge 不负责替作者生成 RP 内容或通用运行时。
 
 不启用只代表不主动加载专项模板，不会净化已有材料，也不会因为 RP 自然出现成熟内容而阻断构建。
 
-## 宿主适配
+若新建或旧卡材料涉及未成年人的成人性内容，Agent 只在制作期删除/不迁移；旧卡的 `original.json` / `preserved.json` 可用于保真，但不作为可导入组件。最终项目不包含这部分内容，也不夹带年龄确认、18+ 提示、拒绝指令、MVU/EJS 年龄判断或其他运行时门禁。交付后的修改与玩法由用户自行负责。
 
-本仓库是宿主无关的核心 Agent，不再把任何一个工具的全局技能目录当作权威安装位置。现有 DSH 或其他 Harness 的适配层只应：
+## 作用范围
 
-1. 提供一个明确的 Agent 选择入口；
-2. 装载 `AGENT.md`；
-3. 允许主 Agent按 `orchestrator/routing.yaml` 读取 `internal-skills/`；
-4. 把 `scripts/rp-card-forge.bundle.mjs` 暴露为结构化工具；
-5. 不复制、改写或追加第二套制卡规则。
+本仓库只维护 `SillyTavern制卡工坊` Agent、私有 Skill、Forge 和项目模板。入口规则以 `AGENT.md` 为唯一来源，不复制或追加第二套专用入口。
 
 ## 维护者自检
 

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -11,6 +11,14 @@ import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const forge = process.env.RP_CARD_FORGE ?? path.join(skillRoot, 'scripts', 'rp-card-forge.bundle.mjs');
 const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
+function packageComponent(project, folder, predicate) {
+  const packageRoot = path.join(project, 'dist', readdirSync(path.join(project, 'dist'))[0]);
+  const directory = path.join(packageRoot, folder);
+  const filename = readdirSync(directory).find(predicate);
+  assert.ok(filename, `package component not found in ${directory}`);
+  return path.join(directory, filename);
+}
 
 function runForge(args, { expectSuccess = false } = {}) {
   const result = spawnSync(process.execPath, [forge, ...args, '--json'], { encoding: 'utf8' });
@@ -201,7 +209,7 @@ test('PNG unpack prefers ccv3 over a conflicting chara payload', t => {
   assert.equal(selected.spec, 'chara_card_v3');
   assert.equal(selected.data.name, 'Preferred ccv3 payload');
   const project = parseYaml(readFileSync(path.join(unpacked, 'project.yaml'), 'utf8'));
-  assert.deepEqual(project.deliverables, ['character_card_json']);
+  assert.deepEqual(project.deliverables, ['rp_project_package']);
   assert.ok(project.materials.some(material => (
     material.kind === 'character_card_png'
     && material.path === 'src/import/original.png'
@@ -209,7 +217,7 @@ test('PNG unpack prefers ccv3 over a conflicting chara payload', t => {
   )));
 });
 
-test('V3 JSON can be unpacked and packed without semantic loss', t => {
+test('V3 JSON can be unpacked and delivered as a multi-file package', t => {
   const root = tempRoot(t, 'v3-json');
   const input = path.join(root, 'input.json');
   const expected = characterCard(3, 'V3 JSON card', {
@@ -220,16 +228,22 @@ test('V3 JSON can be unpacked and packed without semantic loss', t => {
   });
   writeJson(input, expected);
   const unpacked = path.join(root, 'unpacked');
-  const repackedPath = path.join(root, 'repacked.json');
 
   runForge(['unpack', input, '--output', unpacked, '--nsfw', 'disabled'], { expectSuccess: true });
-  runForge(['pack', unpacked, '--output', repackedPath], { expectSuccess: true });
+  runForge(['pack', unpacked], { expectSuccess: true });
 
-  const repacked = JSON.parse(readFileSync(repackedPath, 'utf8'));
-  assert.deepEqual(repacked, expected);
+  const cardPath = packageComponent(unpacked, '02_角色卡', name => name.endsWith('.json'));
+  const worldbookPath = packageComponent(unpacked, '03_世界书', name => name.endsWith('.json'));
+  const manifestPath = path.join(unpacked, 'dist', readdirSync(path.join(unpacked, 'dist'))[0], '01_项目清单.json');
+  assert.ok(existsSync(cardPath));
+  assert.ok(existsSync(worldbookPath));
+  assert.ok(existsSync(manifestPath));
+  const delivered = JSON.parse(readFileSync(cardPath, 'utf8'));
+  assert.equal(delivered.data.name, expected.data.name);
+  assert.equal(delivered.data.character_book, undefined);
 });
 
-test('V3 PNG pack rewrites synchronized chara and ccv3 payloads', t => {
+test('V3 PNG input is unpacked and delivered as components rather than repacked as one file', t => {
   const root = tempRoot(t, 'v3-png');
   const input = path.join(root, 'input.png');
   const legacy = characterCard(2, 'Legacy PNG payload');
@@ -242,7 +256,6 @@ test('V3 PNG pack rewrites synchronized chara and ccv3 payloads', t => {
     cardChunk('ccv3', current),
   ]));
   const unpacked = path.join(root, 'unpacked');
-  const repackedPath = path.join(root, 'repacked.png');
 
   runForge(['unpack', input, '--output', unpacked, '--nsfw', 'disabled'], { expectSuccess: true });
   const sourcePath = path.join(unpacked, 'src', 'characters', 'card.yaml');
@@ -271,18 +284,13 @@ test('V3 PNG pack rewrites synchronized chara and ccv3 payloads', t => {
     'state', unpacked, 'stage', 'positioning', 'complete',
     '--summary', 'PNG 格式兼容测试已完成项目定位。',
   ], { expectSuccess: true });
-  runForge(['pack', unpacked, '--output', repackedPath], { expectSuccess: true });
+  runForge(['pack', unpacked], { expectSuccess: true });
 
-  const textEntries = readTextChunks(readFileSync(repackedPath));
-  const characterEntries = textEntries.filter(entry => ['chara', 'ccv3'].includes(entry.keyword.toLowerCase()));
-  assert.deepEqual(characterEntries.map(entry => entry.keyword).sort(), ['ccv3', 'chara']);
-  const chara = decodeCardChunk(characterEntries.find(entry => entry.keyword === 'chara'));
-  const ccv3 = decodeCardChunk(characterEntries.find(entry => entry.keyword === 'ccv3'));
-  assert.deepEqual(chara, ccv3, 'chara and ccv3 retained conflicting payloads after pack');
-  assert.equal(chara.spec, 'chara_card_v3');
-  assert.equal(chara.spec_version, '3.0');
-  assert.equal(chara.data.name, 'Edited V3 PNG card');
-  assert.equal(textEntries.find(entry => entry.keyword === 'fixture-note')?.text, 'preserve me');
+  const cardPath = packageComponent(unpacked, '02_角色卡', name => name.endsWith('.json'));
+  assert.ok(existsSync(cardPath));
+  const delivered = JSON.parse(readFileSync(cardPath, 'utf8'));
+  assert.equal(delivered.data.name, 'Edited V3 PNG card');
+  assert.equal(existsSync(path.join(unpacked, 'dist', 'unpacked.png')), false);
 });
 
 test('PNG character keywords use SillyTavern case-insensitive matching', t => {
@@ -425,9 +433,10 @@ test('unpack repairs a missing managed binding with SillyTavern fallback naming'
   assert.ok(unpacked.report?.warnings?.some(message => /primary lorebook binding/i.test(message)), unpacked.output);
   runForge(['build', project], { expectSuccess: true });
 
-  const repaired = JSON.parse(readFileSync(path.join(project, 'dist', 'character-card.json'), 'utf8'));
-  assert.equal(repaired.data.character_book.name, "Fallback Character's Lorebook");
-  assert.equal(repaired.data.extensions.world, repaired.data.character_book.name);
+  const repairedCard = JSON.parse(readFileSync(packageComponent(project, '02_角色卡', name => name.endsWith('.json')), 'utf8'));
+  const repairedWorldbook = JSON.parse(readFileSync(packageComponent(project, '03_世界书', name => name.endsWith('.json')), 'utf8'));
+  assert.equal(repairedCard.data.character_book, undefined);
+  assert.equal(repairedWorldbook.originalData.name, "Fallback Character's Lorebook");
 });
 
 test('project build blocks rather than overwrites a conflicting imported primary lorebook', t => {

@@ -32,6 +32,7 @@ test("Forge schemas contain no arbitrary creative scale ceilings", async () => {
     { file: "assembly.schema.json", path: "/$defs/worldbookEntry/properties/probability/maximum", value: 100 },
     { file: "assembly.schema.json", path: "/$defs/worldbookEntry/properties/scan_depth/maximum", value: 1000 },
     { file: "assembly.schema.json", path: "/$defs/worldbookEntry/properties/recursion/properties/delay_until_recursion/oneOf/1/maximum", value: 10000 },
+    { file: "project.schema.json", path: "/properties/deliverables/maxItems", value: 1 },
     { file: "project.schema.json", path: "/properties/source_manifest/properties/assembly/maxItems", value: 1 },
     { file: "project.schema.json", path: "/$defs/singlePathList/maxItems", value: 1 },
     { file: "user-character.schema.json", path: "/properties/worldbook/properties/probability/maximum", value: 100 },

@@ -73,7 +73,7 @@ function experienceEvidence({ advancements = {}, primaryPlaySurface = false } = 
   };
 }
 
-function uiSource(surfaces, { experienceLevel = "light", evidence = experienceEvidence(), status = "locked", openingRelationship = "separate" } = {}) {
+function uiSource(surfaces, { experienceLevel = "light", dataDensity = "unknown", presentationModel = null, evidence = experienceEvidence(), status = "locked", openingRelationship = "separate" } = {}) {
   return {
     schema_version: "2.0.0",
     status,
@@ -81,6 +81,8 @@ function uiSource(surfaces, { experienceLevel = "light", evidence = experienceEv
       enabled: true,
       authoring_mode: "direct_html",
       experience_level: experienceLevel,
+      data_density: dataDensity,
+      ...(presentationModel ? { presentation_model: presentationModel } : {}),
       theme_direction: "测试",
       device_priority: "equal",
       surfaces,
@@ -138,7 +140,7 @@ test("opening introduction and creation frontends belong to narrative opening, n
     openings: [opening],
     openingUi,
   });
-  const accepted = await validateRuntimeSources({ project: { features: { status_ui: false }, deliverables: ["character_card_json"] }, sources: correct, projectRoot: process.cwd() });
+  const accepted = await validateRuntimeSources({ project: { features: { status_ui: false }, deliverables: ["rp_project_package"] }, sources: correct, projectRoot: process.cwd() });
   assert.deepEqual(accepted.issues, []);
 
   const misplaced = projectSources({
@@ -147,7 +149,7 @@ test("opening introduction and creation frontends belong to narrative opening, n
     entries: [entry("wb_core", "世界基础")],
     openings: [opening],
   });
-  const rejected = await validateRuntimeSources({ project: { features: { status_ui: true }, deliverables: ["character_card_json"] }, sources: misplaced, projectRoot: process.cwd() });
+  const rejected = await validateRuntimeSources({ project: { features: { status_ui: true }, deliverables: ["rp_project_package"] }, sources: misplaced, projectRoot: process.cwd() });
   assert.ok(rejected.issues.some((candidate) => candidate.rule === "ui.stage_ownership"));
 });
 
@@ -161,7 +163,7 @@ test("a constant model-visible CharacterBook output contract closes a recurring 
     regexes: [statusRegex],
     entries: [entry("wb_status_output", "每次回复末尾必须输出 `<测试状态/>` 标记，不得省略。")],
   });
-  const validation = await validateRuntimeSources({ project: { features: { status_ui: true }, deliverables: ["character_card_json"] }, sources, projectRoot: process.cwd() });
+  const validation = await validateRuntimeSources({ project: { features: { status_ui: true }, deliverables: ["rp_project_package"] }, sources, projectRoot: process.cwd() });
   assert.deepEqual(validation.issues, []);
 });
 
@@ -182,7 +184,7 @@ test("non-MVU cards can close the same chain with a dedicated XML output contrac
       marker,
     ].join("\n"))],
   });
-  const validation = await validateRuntimeSources({ project: { features: { mvu: false, status_ui: true }, deliverables: ["character_card_json"] }, sources, projectRoot: process.cwd() });
+  const validation = await validateRuntimeSources({ project: { features: { mvu: false, status_ui: true }, deliverables: ["rp_project_package"] }, sources, projectRoot: process.cwd() });
   assert.deepEqual(validation.issues, []);
 });
 
@@ -192,7 +194,7 @@ test("verified framework producers remain available without forcing a worldbook 
     emission: { producer: "framework", cadence: "every_assistant_message", source_ref: "StatusPlaceHolderImpl", evidence: ["目标MVU版本会在每条助手消息追加同一捕获标记"] },
   };
   const sources = projectSources({ surfaces: [surface], regexes: [statusRegex], entries: [entry("wb_core", "世界基础")] });
-  const validation = await validateRuntimeSources({ project: { features: { status_ui: true }, deliverables: ["character_card_json"] }, sources, projectRoot: process.cwd() });
+  const validation = await validateRuntimeSources({ project: { features: { status_ui: true }, deliverables: ["rp_project_package"] }, sources, projectRoot: process.cwd() });
   assert.deepEqual(validation.issues, []);
 });
 
@@ -390,4 +392,33 @@ test("assembled Forge artifacts preserve the declared UI experience evidence", (
 
   const complete = validatePayload(artifact(produced, "每次回复末尾必须输出 `<测试状态/>` 标记，不得省略。"));
   assert.ok(!complete.issues.some((candidate) => candidate.rule.startsWith("ui.experience_")));
+});
+
+test("heavy UI with sparse variables stays valid when static and local presentation layers are declared", async () => {
+  const sparseModel = {
+    authoritative_paths: ["stat_data.time", "stat_data.location"],
+    static_modules: ["五名固定角色档案", "洪武制度说明"],
+    derived_views: ["当前风险摘要"],
+    local_interaction_state: ["页签、搜索、折叠、筛选"],
+    empty_state_policy: "没有动态记录时显示尚未建立，不填假数值",
+    unknown_state_policy: "宿主不可用时显示未知并提供重试",
+  };
+  const validSources = projectSources({
+    surfaces: [statusSurface],
+    regexes: [hostRegex(statusRegex)],
+    entries: [entry("status", "每次回复末尾输出 <测试状态/>。")],
+    uiOptions: { experienceLevel: "heavy", dataDensity: "sparse", presentationModel: sparseModel },
+  });
+  const valid = await validateRuntimeSources({ project: { features: { status_ui: true }, deliverables: ["rp_project_package"] }, sources: validSources, projectRoot: process.cwd() });
+  assert.ok(!valid.issues.some((candidate) => candidate.rule === "ui.sparse_data_model"));
+  assert.ok(valid.warnings.some((candidate) => candidate.rule === "ui.data_density"));
+
+  const invalidSources = projectSources({
+    surfaces: [statusSurface],
+    regexes: [hostRegex(statusRegex)],
+    entries: [entry("status", "每次回复末尾输出 <测试状态/>。")],
+    uiOptions: { experienceLevel: "heavy", dataDensity: "sparse" },
+  });
+  const invalid = await validateRuntimeSources({ project: { features: { status_ui: true }, deliverables: ["rp_project_package"] }, sources: invalidSources, projectRoot: process.cwd() });
+  assert.ok(invalid.issues.some((candidate) => candidate.rule === "ui.sparse_data_model"));
 });

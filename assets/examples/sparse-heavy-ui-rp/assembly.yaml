@@ -1,0 +1,22 @@
+schema_version: 1.0.0
+status: locked
+card_entry:
+  mode: project_entry
+  content: "星港观测台是一份围绕远航、观测和港口生活运转的 RP 包。"
+worldbook:
+  file: src/world/稀疏变量契约.yaml
+runtime:
+  status_ui: src/status-ui.yaml
+  regex: src/runtime/regex/观测台.json
+  html: src/runtime/ui/星港观测台.html
+  opening_bridge: src/runtime/opening/创角变量桥.yaml
+data_policy:
+  authoritative: ["航线.当前位置", "航线.燃料", "观测.最近记录"]
+  static_modules: ["港口资料", "航线图例", "值班规则"]
+  derived_views: ["燃料百分比", "风险摘要", "最近记录排序"]
+  local_interaction_state: ["当前页签", "搜索词", "筛选条件", "详情弹窗"]
+  empty_states: ["尚未建立", "暂无记录", "宿主不可用"]
+delivery:
+  mode: rp_project_package
+  runtime: not_run
+

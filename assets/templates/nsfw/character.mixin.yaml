@@ -1,4 +1,4 @@
-# ═══ NSFW层 ═══
+# ═══ NSFW层（角色内容字段，不是运行时门禁）═══
 nsfw:
   sexual_orientation: "性取向"
   standing: "角色定位（如：攻/受/S/M等）"

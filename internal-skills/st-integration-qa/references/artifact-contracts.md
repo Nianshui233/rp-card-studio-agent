@@ -6,18 +6,20 @@
 - `.rp-card-state.json`：实际阶段状态、摘要、构建和验证证据。
 - `src/`：唯一维护源。
 - `dist/`：生成制品，不作为主要编辑入口。
-- `reports/`：验证和构建证据，不属于默认用户交付物。
+- `reports/`：内部验证和构建证据；项目包中的 `07_验证报告.md` 是固定交付组成部分。
 
 初始化只创建当前已有信息能支持的轻量文件。角色卡是项目容器，不代表必须立刻创建一个人物源码。
 
 ## 2. 默认交付
 
-默认最终交付一个角色卡 `.json`。只有用户在预检或后续明确要求时，才增加：
+最终交付固定为多文件 RP 项目包，不再询问交付形式。项目包至少包含：
 
-- PNG 角色卡；
+- 角色卡 JSON；
 - 独立世界书 JSON；
-- 源码归档；
-- 其他格式。
+- 正则配置 JSON；
+- 每个前端页面一个完整、自包含 HTML；
+- 酒馆助手脚本及 MVU/EJS 配套文件；
+- 项目清单、导入说明和验证报告。
 
 ## 3. 卡面契约
 
@@ -40,9 +42,9 @@
 - EJS 和运行提示词进入明确目标条目；
 - 正则、HTML 和 Tavern Helper 脚本不塞进世界书正文。
 
-CharacterBook ID 使用稳定分配；已有受管条目尽量复用原 ID。Standalone 世界书使用规范数值 uid，并保留导入键。锁定整合后的 CharacterBook 必须非空；`data.extensions.world` 必须与内嵌书名一致。
+CharacterBook ID 使用稳定分配；已有受管条目尽量复用原 ID。交付时转换为独立 SillyTavern 世界书 JSON，使用规范数值 uid 并保留导入键。锁定整合后的世界书必须非空，项目清单必须记录它要绑定的角色卡。
 
-内嵌不等于已安装：SillyTavern 仍需把卡内 CharacterBook 导入世界书列表并设置为角色主世界书。真实宿主验收必须检查这两个现场状态；标准 JSON 只能携带书和声明目标名称。
+文件存在不等于已安装：SillyTavern 仍需导入独立世界书并设置为角色主世界书。真实宿主验收必须检查这两个现场状态。
 
 ## 5. 真实运行组件契约
 
@@ -58,11 +60,11 @@ runtime_manifest:
 
 ### Regex
 
-每条记录映射到 SillyTavern 角色正则字段。`replace_file` 读取完整文件进入 `replaceString`；`replace_string` 保留内联内容。两者必须实际提供其一。
+每条记录映射到 SillyTavern 正则导入字段。开发期 `replace_file` 可以指向完整 HTML；交付时正则 JSON 与 HTML 分开，HTML 正则的 `replaceString` 留空，由用户按导入说明把同名完整 HTML 粘贴进“替换内容”。非 HTML 正则继续保留真实替换文本。
 
 ### Tavern Helper
 
-`content_file` 读取完整 JavaScript 进入脚本 `content`；`content` 保留内联脚本。Forge 不改写脚本语义。
+`content_file` 读取完整 JavaScript 形成可独立导入的 Tavern Helper 脚本 JSON；`content` 保留内联脚本。Forge 不改写脚本语义。
 
 ### EJS
 
@@ -83,6 +85,8 @@ EJS 作为真实文件，由世界书条目的 `source.kind: file` 装入指定�
 - 未被项目明确接管的卡面字段保持原值；
 - 不因 `data.name` 自动创造人物；
 - 不因兼容旧卡而恢复本技能曾经的错误生成器。
+
+保真副本与可运行交付必须分开理解：`src/import/original.json` 和 `preserved.json` 可以保留旧输入中不进入新项目的内容，但它们不能被当成 CharacterBook、世界书、脚本或其他导入组件重新装配。遇到涉及未成年人的成人性旧内容时，只保留输入保真并在迁移清单中标记删除；不要为它新增运行时成年门禁、年龄校验或模型拒绝合同。
 
 重复构建不得累计重复条目、正则或脚本。
 
@@ -109,15 +113,14 @@ EJS 作为真实文件，由世界书条目的 `source.kind: file` 装入指定�
 
 1. 先把模块化 UI 源码构建为项目专属、自包含 HTML；
 2. 读取并校验项目与源文件，阻断过期 UI 制品；
-3. 生成基础角色卡/世界书表面；
-4. 装配 CharacterBook；
-5. 原样装配 Regex、Tavern Helper 脚本和扩展字段；
-6. 恢复保真导入字段；
-7. 绑定内嵌 CharacterBook；
-8. 校验最终制品；
-9. 写入 JSON；
-10. 用户明确需要 PNG 时再嵌入图像；
-11. 执行 roundtrip 和真实宿主验收。
+3. 生成轻量角色卡组件和独立世界书组件；
+4. 将世界、NPC、系统、场景、叙事、MVU/EJS 条目装配进独立世界书；
+5. 分别生成 Regex JSON、Tavern Helper 脚本 JSON 和完整自包含 HTML；
+6. 恢复各组件自身需要的保真字段，不把维护路径带入交付包；
+7. 生成项目清单、导入说明和验证报告；
+8. 逐文件校验并检查组件配对关系；
+9. 写入唯一的多文件 RP 项目包；
+10. 执行组件往返和真实宿主验收。
 
 ## 10. 禁止的 Forge 职责
 

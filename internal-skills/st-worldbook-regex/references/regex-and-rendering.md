@@ -26,8 +26,9 @@
 ```text
 模型或 first_mes 输出短标记
 → display 正则命中
-→ replaceString 为 ```html 包裹的完整 HTML 文档
-→ Tavern Helper 将其渲染为消息 iframe
+→ 项目包中的正则配置与同名完整 HTML 配对
+→ 用户把完整 HTML 粘贴到正则“替换内容”
+→ Tavern Helper/SillyTavern 按目标载体渲染
 ```
 
 HTML 可以很长。不要因为代码量大就拆碎；只要一个功能面应共同加载、共享状态和导航，就保持一份完整源码。

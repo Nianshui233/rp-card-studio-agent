@@ -31,7 +31,7 @@ test("the materials intake gate can open before the replacement <user> file is c
   const state = makeState(project);
   project.source_manifest.user_character = [];
   project.source_manifest.preserved_imports = ["src/import/original.json", "src/import/preserved.json"];
-  project.materials = [{ id: "input", path: "src/import/original.json", kind: "character_card_json", read_only: true }];
+  project.materials = [{ id: "input", path: "src/import/original.json", kind: "rp_project_package", read_only: true }];
   const report = validateProjectModel(project, state, path.resolve("."));
   assert.equal(report.issues.some((entry) => entry.rule === "legacy.user_character_template"), false);
   assert.equal(report.issues.some((entry) => entry.rule === "user_character.required"), false);
@@ -137,7 +137,7 @@ test("locked integration cannot leave registered world content uncovered by Char
       runtime_manifest: { mode: "authored", regex_scripts: [], tavern_helper_scripts: [], extension_fields: {} },
     } }],
   };
-  const report = await validateRuntimeSources({ project: { features: {}, deliverables: ["character_card_json"] }, sources, projectRoot: process.cwd() });
+  const report = await validateRuntimeSources({ project: { features: {}, deliverables: ["rp_project_package"] }, sources, projectRoot: process.cwd() });
   assert.ok(report.issues.some((entry) => entry.rule === "assembly.coverage"));
 });
 

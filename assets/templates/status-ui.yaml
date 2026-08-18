@@ -7,11 +7,33 @@ status_ui:
   authoring_mode: multi_file_html
   # 用户选定的等级是交付下限；锁定前实际 HTML 必须通过功能面质量探针。
   experience_level: light
+  # 事实数据密度与玩家端体验规模分开记录；sparse 不得自动把 heavy 降成 light。
+  data_density: unknown
+  presentation_model:
+    authoritative_paths: []
+    static_modules: []
+    derived_views: []
+    local_interaction_state: []
+    empty_state_policy: ""
+    unknown_state_policy: ""
   theme_direction: ""
   device_priority: equal
   # UI需求访谈账本：只记录已知与已锁定事实；未确认项保持 unknown/空值，不虚构用户偏好。
   ui_requirements:
     interview_status: draft
+    experience_axis: player_experience
+    interview_mode: create
+    retrofit_audit:
+      complete: false
+      review_rounds: 0
+      existing_surfaces: []
+      current_player_path: ""
+      strengths: []
+      pain_points: []
+      preserve: []
+      revise: []
+      remove: []
+      acceptance_focus: []
     purpose: ""
     primary_journey: ""
     player_tasks: []

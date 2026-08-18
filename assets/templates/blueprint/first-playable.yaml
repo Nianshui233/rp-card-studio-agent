@@ -9,5 +9,5 @@ state_sources: []
 runtime_dependencies: []
 failure_paths: []
 deliverables:
-  - character_card_json
+  - rp_project_package
 acceptance: []

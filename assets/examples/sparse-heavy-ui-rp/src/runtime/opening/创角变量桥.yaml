@@ -1,0 +1,10 @@
+schema_version: 1.0.0
+mode: non_mvu
+marker: "<星港创角>"
+bindings:
+  - { input: name, target: "profile.name" }
+  - { input: role, target: "profile.role" }
+  - { input: plan, target: "profile.current_plan" }
+commit:
+  route: user_message
+  failure_fallback: "提供可复制的完整主控设定块"

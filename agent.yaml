@@ -18,4 +18,4 @@ forge:
   entry: scripts/rp-card-forge.bundle.mjs
   source: scripts/rp-card-forge.mjs
 default_delivery:
-  - character_card_json
+  - rp_project_package

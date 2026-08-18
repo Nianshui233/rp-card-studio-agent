@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>回声车站状态页</title>
+  <style>
+    :root{color-scheme:dark;--bg:#101217;--panel:#191d26;--line:#3d4655;--text:#edf1f7;--muted:#9aa5b5;--accent:#d5a95a;}
+    *{box-sizing:border-box}body{margin:0;padding:18px;background:linear-gradient(160deg,#0b0d11,#1b202a);color:var(--text);font:14px/1.6 system-ui,"Microsoft YaHei",sans-serif}
+    main{max-width:980px;margin:auto}.eyebrow{color:var(--accent);letter-spacing:.15em;font-size:11px}.header{display:flex;justify-content:space-between;gap:16px;align-items:end;border-bottom:1px solid var(--line);padding-bottom:14px}.header h1{margin:4px 0 0;font-size:clamp(24px,5vw,42px)}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}.panel{background:color-mix(in srgb,var(--panel) 92%,transparent);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:0 12px 32px #0004}.panel h2{margin:0 0 10px;font-size:15px}.value{font-size:27px;font-weight:700}.muted{color:var(--muted)}.list{display:grid;gap:8px;padding:0;margin:0;list-style:none}.list li{padding:8px 10px;border-left:3px solid var(--accent);background:#ffffff08;border-radius:7px}.wide{grid-column:1/-1}.empty{color:var(--muted);font-style:italic}.actions{display:flex;flex-wrap:wrap;gap:8px}.actions button{border:1px solid var(--accent);background:#d5a95a18;color:var(--text);border-radius:999px;padding:8px 12px;cursor:pointer}.actions button:hover{background:#d5a95a30}@media(max-width:720px){body{padding:10px}.grid{grid-template-columns:1fr}.header{align-items:start;flex-direction:column}}
+  </style>
+</head>
+<body>
+  <main id="app" aria-live="polite">
+    <header class="header"><div><div class="eyebrow">ECHO STATION / RETROFIT</div><h1>回声车站</h1></div><div id="clock" class="muted">读取时间中…</div></header>
+    <section class="grid">
+      <article class="panel"><h2>当前站台</h2><div id="platform" class="value">尚未建立</div><div id="weather" class="muted">暂无记录</div></article>
+      <article class="panel"><h2>车站状态</h2><div id="station" class="value">运行中</div><div class="muted">此处只显示真实可读状态</div></article>
+      <article class="panel"><h2>主控资料</h2><div id="user" class="value">未填写</div><div class="muted">可从开场设定块读回</div></article>
+      <article class="panel wide"><h2>近期事件</h2><ul id="events" class="list"></ul></article>
+      <article class="panel wide"><h2>操作</h2><div class="actions"><button data-action="report">发送“查看车站报告”</button><button data-action="copy">复制状态摘要</button></div><p id="feedback" class="muted">按钮会优先调用宿主输入框，失败时给出可复制文本。</p></article>
+    </section>
+  </main>
+  <script>
+    (()=>{
+      const host=window.parent&&window.parent!==window?window.parent:null;
+      const state=window.__ECHO_STATE__||{};
+      const text=(v,empty='尚未建立')=>v===undefined||v===null||v===''?empty:String(v);
+      const $=id=>document.getElementById(id);
+      $('platform').textContent=text(state.platform);$('weather').textContent=text(state.weather,'暂无记录');$('station').textContent=text(state.station,'暂无记录');$('user').textContent=text(state.user?.name,'未填写');
+      $('clock').textContent=text(state.time,'时间未知');
+      const events=Array.isArray(state.events)?state.events:[]; $('events').innerHTML=events.length?events.map(e=>`<li>${text(e)}</li>`).join(''):'<li class="empty">暂无已记录事件</li>';
+      const feedback=t=>{$('feedback').textContent=t};
+      const send=t=>{if(typeof host?.do_sillytavern_input==='function'){host.do_sillytavern_input(t);feedback('已尝试写入酒馆输入框。')}else{navigator.clipboard?.writeText(t);feedback('宿主接口不可用，文本已准备复制：'+t)}};
+      document.querySelectorAll('[data-action]').forEach(btn=>btn.addEventListener('click',()=>{const action=btn.dataset.action;if(action==='report')send('查看车站报告');else send('回声车站状态：'+$('platform').textContent+'；车站：'+$('station').textContent)}));
+    })();
+  </script>
+</body>
+</html>

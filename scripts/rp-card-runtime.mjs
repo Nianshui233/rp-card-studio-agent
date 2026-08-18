@@ -66,6 +66,25 @@ function validateUiExperienceEvidence(statusUi, base, status, issues, warnings) 
   }
 }
 
+function validateUiDataDensity(statusUi, base, status, issues, warnings) {
+  const density = statusUi?.data_density;
+  const level = statusUi?.experience_level;
+  if (!density || density === 'unknown' || level === 'light') return;
+  const target = stageTarget(status, issues, warnings);
+  if (density !== 'sparse') return;
+  const model = statusUi?.presentation_model;
+  if (!isObject(model)) {
+    target.push(issue(`${base}/presentation_model`, 'ui.sparse_data_model', '稀疏动态数据的中型以上 UI 必须说明静态模块、派生视图、本地交互状态和空态/未知态策略；不能因为变量少自动降级，也不能用假数据填充'));
+    return;
+  }
+  const hasPresentation = ['authoritative_paths', 'static_modules', 'derived_views', 'local_interaction_state']
+    .some((key) => Array.isArray(model[key]) && model[key].length > 0);
+  if (!hasPresentation) target.push(issue(`${base}/presentation_model`, 'ui.sparse_data_model', '重型 UI + 稀疏变量至少要有静态模块、派生视图或本地交互层之一'));
+  if (typeof model.empty_state_policy !== 'string' || !model.empty_state_policy.trim()) target.push(issue(`${base}/presentation_model/empty_state_policy`, 'ui.sparse_data_state', '稀疏变量 UI 必须说明空数据如何呈现'));
+  if (typeof model.unknown_state_policy !== 'string' || !model.unknown_state_policy.trim()) target.push(issue(`${base}/presentation_model/unknown_state_policy`, 'ui.sparse_data_state', '稀疏变量 UI 必须说明未知数据如何呈现'));
+  warnings.push(issue(`${base}/data_density`, 'ui.data_density', `UI 体验等级 ${level} 与动态数据密度 sparse 并不冲突；静态、派生和本地交互层不得被变量数量压缩`));
+}
+
 function countUiSignals(text, pattern) {
   return (String(text ?? '').match(pattern) ?? []).length;
 }
@@ -853,6 +872,7 @@ function runtimeAssemblyTarget(project) {
   if (project?.project?.target === "worldbook" || project?.target === "worldbook") return "worldbook";
   if (project?.project?.target === "character_card" || project?.target === "character_card") return "character";
   const deliverables = Array.isArray(project?.deliverables) ? project.deliverables : [];
+  if (deliverables.includes("rp_project_package")) return "character";
   return deliverables.some((item) => item === "character_card_json" || item === "character_card_png") ? "character" : "worldbook";
 }
 
@@ -1649,6 +1669,7 @@ async function validateUiSurfaceProducers(sources, projectRoot, assembly, openin
     const uiBase = `/runtime/ui/${uiIndex}/status_ui`;
     const target = stageTarget(uiSource.status, issues, warnings);
     validateUiExperienceEvidence(statusUi, uiBase, uiSource.status, issues, warnings);
+    validateUiDataDensity(statusUi, uiBase, uiSource.status, issues, warnings);
     await validateStatusStateContract(statusUi, uiSource, projectRoot, sources, uiBase, issues, warnings);
     validateZeroLayerContract(statusUi, runtime, uiBase, uiSource.status, issues, warnings);
     const relationship = statusUi.opening_relationship ?? "separate";
@@ -1908,7 +1929,37 @@ async function validateMvuRuntimeSources(project, sources, projectRoot, assembly
   }
 }
 
-export async function validateRuntimeSources({ project, sources, projectRoot }) {
+function validateRetrofitUiInterviews(project, state, sources, issues, warnings) {
+  if (!['edit', 'audit'].includes(project?.project?.operation)) return;
+  const candidates = [
+    ...entries(sources, 'ui').map((entry) => ({ source: entry.value, path: entry.relativePath ?? 'ui', surface: entry.value?.status_ui })),
+    ...entries(sources, 'prompts').map((entry) => ({ source: entry.value, path: entry.relativePath ?? 'opening', surface: entry.value?.opening_ui })),
+  ].filter((entry) => entry.surface?.enabled === true || entry.surface?.ui_requirements);
+  for (const candidate of candidates) {
+    const requirements = candidate.surface?.ui_requirements;
+    const audit = requirements?.retrofit_audit;
+    const base = `/source_manifest/${candidate.path}`;
+    const complete = requirements?.interview_mode === 'retrofit'
+      && audit?.complete === true
+      && Number(audit?.review_rounds) >= 2
+      && Array.isArray(audit?.preserve)
+      && Array.isArray(audit?.revise)
+      && Array.isArray(audit?.remove)
+      && [...audit.preserve, ...audit.revise, ...audit.remove].length > 0;
+    if (!complete) {
+      // In an edit/audit lane this is a required pre-write decision, not a
+      // cosmetic draft warning. A stale UI must not be rebuilt before the
+      // player-facing review is recorded.
+      issues.push(issue(
+        `${base}/ui_requirements/retrofit_audit`,
+        'ui.retrofit_interview',
+        '旧卡改造的 UI 必须先完成现状审查轮和目标体验轮，并记录 preserve/revise/remove 决定；不能只凭规模、主题、路径和设备四项就开始实现',
+      ));
+    }
+  }
+}
+
+export async function validateRuntimeSources({ project, state, sources, projectRoot }) {
   const issues = [];
   const warnings = [];
   const assemblies = assemblySources(sources);
@@ -1926,6 +1977,7 @@ export async function validateRuntimeSources({ project, sources, projectRoot }) 
   }
   await validateAuthoredRuntime(assembly?.runtime_manifest, projectRoot, issues, warnings);
   await validateMvuRuntimeSources(project, sources, projectRoot, assembly, issues, warnings);
+  validateRetrofitUiInterviews(project, state, sources, issues, warnings);
 
   const openingSources = values(sources, 'prompts');
   const openings = allOpenings(openingSources);

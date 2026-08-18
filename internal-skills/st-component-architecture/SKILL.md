@@ -9,7 +9,7 @@ description: "Private supporting module for reusable rolecard components, regist
 
 ## 组件边界
 
-组件可以是世界模块、角色模块、变量核心、正则模块、Tavern Helper 脚本、开场前端、状态 UI 或宿主适配器。每个组件声明：输入、输出、能力、依赖、维护源、测试夹具和交付类别。
+组件可以是世界模块、角色模块、变量核心、正则模块、Tavern Helper 脚本、开场前端、状态 UI 或 SillyTavern 运行桥。每个组件声明：输入、输出、能力、依赖、维护源、测试夹具和交付类别。
 
 ## Recipe
 

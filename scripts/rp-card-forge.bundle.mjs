@@ -116,17 +116,17 @@ var require_visit = __commonJS({
     visit.BREAK = BREAK;
     visit.SKIP = SKIP;
     visit.REMOVE = REMOVE;
-    function visit_(key, node, visitor, path7) {
-      const ctrl = callVisitor(key, node, visitor, path7);
+    function visit_(key, node, visitor, path8) {
+      const ctrl = callVisitor(key, node, visitor, path8);
       if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
-        replaceNode(key, path7, ctrl);
-        return visit_(key, ctrl, visitor, path7);
+        replaceNode(key, path8, ctrl);
+        return visit_(key, ctrl, visitor, path8);
       }
       if (typeof ctrl !== "symbol") {
         if (identity.isCollection(node)) {
-          path7 = Object.freeze(path7.concat(node));
+          path8 = Object.freeze(path8.concat(node));
           for (let i = 0; i < node.items.length; ++i) {
-            const ci = visit_(i, node.items[i], visitor, path7);
+            const ci = visit_(i, node.items[i], visitor, path8);
             if (typeof ci === "number")
               i = ci - 1;
             else if (ci === BREAK)
@@ -137,13 +137,13 @@ var require_visit = __commonJS({
             }
           }
         } else if (identity.isPair(node)) {
-          path7 = Object.freeze(path7.concat(node));
-          const ck = visit_("key", node.key, visitor, path7);
+          path8 = Object.freeze(path8.concat(node));
+          const ck = visit_("key", node.key, visitor, path8);
           if (ck === BREAK)
             return BREAK;
           else if (ck === REMOVE)
             node.key = null;
-          const cv = visit_("value", node.value, visitor, path7);
+          const cv = visit_("value", node.value, visitor, path8);
           if (cv === BREAK)
             return BREAK;
           else if (cv === REMOVE)
@@ -164,17 +164,17 @@ var require_visit = __commonJS({
     visitAsync.BREAK = BREAK;
     visitAsync.SKIP = SKIP;
     visitAsync.REMOVE = REMOVE;
-    async function visitAsync_(key, node, visitor, path7) {
-      const ctrl = await callVisitor(key, node, visitor, path7);
+    async function visitAsync_(key, node, visitor, path8) {
+      const ctrl = await callVisitor(key, node, visitor, path8);
       if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
-        replaceNode(key, path7, ctrl);
-        return visitAsync_(key, ctrl, visitor, path7);
+        replaceNode(key, path8, ctrl);
+        return visitAsync_(key, ctrl, visitor, path8);
       }
       if (typeof ctrl !== "symbol") {
         if (identity.isCollection(node)) {
-          path7 = Object.freeze(path7.concat(node));
+          path8 = Object.freeze(path8.concat(node));
           for (let i = 0; i < node.items.length; ++i) {
-            const ci = await visitAsync_(i, node.items[i], visitor, path7);
+            const ci = await visitAsync_(i, node.items[i], visitor, path8);
             if (typeof ci === "number")
               i = ci - 1;
             else if (ci === BREAK)
@@ -185,13 +185,13 @@ var require_visit = __commonJS({
             }
           }
         } else if (identity.isPair(node)) {
-          path7 = Object.freeze(path7.concat(node));
-          const ck = await visitAsync_("key", node.key, visitor, path7);
+          path8 = Object.freeze(path8.concat(node));
+          const ck = await visitAsync_("key", node.key, visitor, path8);
           if (ck === BREAK)
             return BREAK;
           else if (ck === REMOVE)
             node.key = null;
-          const cv = await visitAsync_("value", node.value, visitor, path7);
+          const cv = await visitAsync_("value", node.value, visitor, path8);
           if (cv === BREAK)
             return BREAK;
           else if (cv === REMOVE)
@@ -218,23 +218,23 @@ var require_visit = __commonJS({
       }
       return visitor;
     }
-    function callVisitor(key, node, visitor, path7) {
+    function callVisitor(key, node, visitor, path8) {
       if (typeof visitor === "function")
-        return visitor(key, node, path7);
+        return visitor(key, node, path8);
       if (identity.isMap(node))
-        return visitor.Map?.(key, node, path7);
+        return visitor.Map?.(key, node, path8);
       if (identity.isSeq(node))
-        return visitor.Seq?.(key, node, path7);
+        return visitor.Seq?.(key, node, path8);
       if (identity.isPair(node))
-        return visitor.Pair?.(key, node, path7);
+        return visitor.Pair?.(key, node, path8);
       if (identity.isScalar(node))
-        return visitor.Scalar?.(key, node, path7);
+        return visitor.Scalar?.(key, node, path8);
       if (identity.isAlias(node))
-        return visitor.Alias?.(key, node, path7);
+        return visitor.Alias?.(key, node, path8);
       return void 0;
     }
-    function replaceNode(key, path7, node) {
-      const parent = path7[path7.length - 1];
+    function replaceNode(key, path8, node) {
+      const parent = path8[path8.length - 1];
       if (identity.isCollection(parent)) {
         parent.items[key] = node;
       } else if (identity.isPair(parent)) {
@@ -844,10 +844,10 @@ var require_Collection = __commonJS({
     var createNode = require_createNode();
     var identity = require_identity();
     var Node = require_Node();
-    function collectionFromPath(schema, path7, value) {
+    function collectionFromPath(schema, path8, value) {
       let v = value;
-      for (let i = path7.length - 1; i >= 0; --i) {
-        const k = path7[i];
+      for (let i = path8.length - 1; i >= 0; --i) {
+        const k = path8[i];
         if (typeof k === "number" && Number.isInteger(k) && k >= 0) {
           const a = [];
           a[k] = v;
@@ -866,7 +866,7 @@ var require_Collection = __commonJS({
         sourceObjects: /* @__PURE__ */ new Map()
       });
     }
-    var isEmptyPath = (path7) => path7 == null || typeof path7 === "object" && !!path7[Symbol.iterator]().next().done;
+    var isEmptyPath = (path8) => path8 == null || typeof path8 === "object" && !!path8[Symbol.iterator]().next().done;
     var Collection = class extends Node.NodeBase {
       constructor(type, schema) {
         super(type);
@@ -896,11 +896,11 @@ var require_Collection = __commonJS({
        * be a Pair instance or a `{ key, value }` object, which may not have a key
        * that already exists in the map.
        */
-      addIn(path7, value) {
-        if (isEmptyPath(path7))
+      addIn(path8, value) {
+        if (isEmptyPath(path8))
           this.add(value);
         else {
-          const [key, ...rest] = path7;
+          const [key, ...rest] = path8;
           const node = this.get(key, true);
           if (identity.isCollection(node))
             node.addIn(rest, value);
@@ -914,8 +914,8 @@ var require_Collection = __commonJS({
        * Removes a value from the collection.
        * @returns `true` if the item was found and removed.
        */
-      deleteIn(path7) {
-        const [key, ...rest] = path7;
+      deleteIn(path8) {
+        const [key, ...rest] = path8;
         if (rest.length === 0)
           return this.delete(key);
         const node = this.get(key, true);
@@ -929,8 +929,8 @@ var require_Collection = __commonJS({
        * scalar values from their surrounding node; to disable set `keepScalar` to
        * `true` (collections are always returned intact).
        */
-      getIn(path7, keepScalar) {
-        const [key, ...rest] = path7;
+      getIn(path8, keepScalar) {
+        const [key, ...rest] = path8;
         const node = this.get(key, true);
         if (rest.length === 0)
           return !keepScalar && identity.isScalar(node) ? node.value : node;
@@ -948,8 +948,8 @@ var require_Collection = __commonJS({
       /**
        * Checks if the collection includes a value with the key `key`.
        */
-      hasIn(path7) {
-        const [key, ...rest] = path7;
+      hasIn(path8) {
+        const [key, ...rest] = path8;
         if (rest.length === 0)
           return this.has(key);
         const node = this.get(key, true);
@@ -959,8 +959,8 @@ var require_Collection = __commonJS({
        * Sets a value in this collection. For `!!set`, `value` needs to be a
        * boolean to add/remove the item from the set.
        */
-      setIn(path7, value) {
-        const [key, ...rest] = path7;
+      setIn(path8, value) {
+        const [key, ...rest] = path8;
         if (rest.length === 0) {
           this.set(key, value);
         } else {
@@ -3475,9 +3475,9 @@ var require_Document = __commonJS({
           this.contents.add(value);
       }
       /** Adds a value to the document. */
-      addIn(path7, value) {
+      addIn(path8, value) {
         if (assertCollection(this.contents))
-          this.contents.addIn(path7, value);
+          this.contents.addIn(path8, value);
       }
       /**
        * Create a new `Alias` node, ensuring that the target `node` has the required anchor.
@@ -3552,14 +3552,14 @@ var require_Document = __commonJS({
        * Removes a value from the document.
        * @returns `true` if the item was found and removed.
        */
-      deleteIn(path7) {
-        if (Collection.isEmptyPath(path7)) {
+      deleteIn(path8) {
+        if (Collection.isEmptyPath(path8)) {
           if (this.contents == null)
             return false;
           this.contents = null;
           return true;
         }
-        return assertCollection(this.contents) ? this.contents.deleteIn(path7) : false;
+        return assertCollection(this.contents) ? this.contents.deleteIn(path8) : false;
       }
       /**
        * Returns item at `key`, or `undefined` if not found. By default unwraps
@@ -3574,10 +3574,10 @@ var require_Document = __commonJS({
        * scalar values from their surrounding node; to disable set `keepScalar` to
        * `true` (collections are always returned intact).
        */
-      getIn(path7, keepScalar) {
-        if (Collection.isEmptyPath(path7))
+      getIn(path8, keepScalar) {
+        if (Collection.isEmptyPath(path8))
           return !keepScalar && identity.isScalar(this.contents) ? this.contents.value : this.contents;
-        return identity.isCollection(this.contents) ? this.contents.getIn(path7, keepScalar) : void 0;
+        return identity.isCollection(this.contents) ? this.contents.getIn(path8, keepScalar) : void 0;
       }
       /**
        * Checks if the document includes a value with the key `key`.
@@ -3588,10 +3588,10 @@ var require_Document = __commonJS({
       /**
        * Checks if the document includes a value at `path`.
        */
-      hasIn(path7) {
-        if (Collection.isEmptyPath(path7))
+      hasIn(path8) {
+        if (Collection.isEmptyPath(path8))
           return this.contents !== void 0;
-        return identity.isCollection(this.contents) ? this.contents.hasIn(path7) : false;
+        return identity.isCollection(this.contents) ? this.contents.hasIn(path8) : false;
       }
       /**
        * Sets a value in this document. For `!!set`, `value` needs to be a
@@ -3608,13 +3608,13 @@ var require_Document = __commonJS({
        * Sets a value in this document. For `!!set`, `value` needs to be a
        * boolean to add/remove the item from the set.
        */
-      setIn(path7, value) {
-        if (Collection.isEmptyPath(path7)) {
+      setIn(path8, value) {
+        if (Collection.isEmptyPath(path8)) {
           this.contents = value;
         } else if (this.contents == null) {
-          this.contents = Collection.collectionFromPath(this.schema, Array.from(path7), value);
+          this.contents = Collection.collectionFromPath(this.schema, Array.from(path8), value);
         } else if (assertCollection(this.contents)) {
-          this.contents.setIn(path7, value);
+          this.contents.setIn(path8, value);
         }
       }
       /**
@@ -5574,9 +5574,9 @@ var require_cst_visit = __commonJS({
     visit.BREAK = BREAK;
     visit.SKIP = SKIP;
     visit.REMOVE = REMOVE;
-    visit.itemAtPath = (cst, path7) => {
+    visit.itemAtPath = (cst, path8) => {
       let item = cst;
-      for (const [field, index] of path7) {
+      for (const [field, index] of path8) {
         const tok = item?.[field];
         if (tok && "items" in tok) {
           item = tok.items[index];
@@ -5585,23 +5585,23 @@ var require_cst_visit = __commonJS({
       }
       return item;
     };
-    visit.parentCollection = (cst, path7) => {
-      const parent = visit.itemAtPath(cst, path7.slice(0, -1));
-      const field = path7[path7.length - 1][0];
+    visit.parentCollection = (cst, path8) => {
+      const parent = visit.itemAtPath(cst, path8.slice(0, -1));
+      const field = path8[path8.length - 1][0];
       const coll = parent?.[field];
       if (coll && "items" in coll)
         return coll;
       throw new Error("Parent collection not found");
     };
-    function _visit(path7, item, visitor) {
-      let ctrl = visitor(item, path7);
+    function _visit(path8, item, visitor) {
+      let ctrl = visitor(item, path8);
       if (typeof ctrl === "symbol")
         return ctrl;
       for (const field of ["key", "value"]) {
         const token = item[field];
         if (token && "items" in token) {
           for (let i = 0; i < token.items.length; ++i) {
-            const ci = _visit(Object.freeze(path7.concat([[field, i]])), token.items[i], visitor);
+            const ci = _visit(Object.freeze(path8.concat([[field, i]])), token.items[i], visitor);
             if (typeof ci === "number")
               i = ci - 1;
             else if (ci === BREAK)
@@ -5612,10 +5612,10 @@ var require_cst_visit = __commonJS({
             }
           }
           if (typeof ctrl === "function" && field === "key")
-            ctrl = ctrl(item, path7);
+            ctrl = ctrl(item, path8);
         }
       }
-      return typeof ctrl === "function" ? ctrl(item, path7) : ctrl;
+      return typeof ctrl === "function" ? ctrl(item, path8) : ctrl;
     }
     exports.visit = visit;
   }
@@ -10562,8 +10562,8 @@ var require_utils = __commonJS({
       }
       return ind;
     }
-    function removeDotSegments(path7) {
-      let input = path7;
+    function removeDotSegments(path8) {
+      let input = path8;
       const output = [];
       let nextSlash = -1;
       let len = 0;
@@ -10815,8 +10815,8 @@ var require_schemes = __commonJS({
         wsComponent.secure = void 0;
       }
       if (wsComponent.resourceName) {
-        const [path7, query] = wsComponent.resourceName.split("?");
-        wsComponent.path = path7 && path7 !== "/" ? path7 : void 0;
+        const [path8, query] = wsComponent.resourceName.split("?");
+        wsComponent.path = path8 && path8 !== "/" ? path8 : void 0;
         wsComponent.query = query;
         wsComponent.resourceName = void 0;
       }
@@ -14884,13 +14884,66 @@ window.__RP_UI_MOCK__ = ${JSON.stringify(mockValue).replaceAll("<", "\\u003c")};
   };
 }
 
+// scripts/forge/delivery-package.mjs
+import { readFile as readFile4 } from "node:fs/promises";
+import path3 from "node:path";
+
+// scripts/forge/json.mjs
+import { createHash as createHash2 } from "node:crypto";
+import { readFile as readFile2 } from "node:fs/promises";
+import { TextDecoder } from "node:util";
+var fatalUtf8Decoder = new TextDecoder("utf-8", { fatal: true });
+function decodeUtf8(buffer, label = "\u8F93\u5165") {
+  try {
+    return fatalUtf8Decoder.decode(buffer);
+  } catch (error) {
+    throw inputError(`${label} \u4E0D\u662F\u6709\u6548 UTF-8`, { cause: error.message });
+  }
+}
+async function readUtf8(path52) {
+  return decodeUtf8(await readFile2(path52), path52);
+}
+function parseJsonText(text, label = "JSON") {
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    throw inputError(`${label} \u4E0D\u662F\u6709\u6548 JSON: ${error.message}`);
+  }
+}
+async function readJson(path52) {
+  return parseJsonText(await readUtf8(path52), path52);
+}
+function prettyJson(value) {
+  return `${JSON.stringify(value, null, 2)}
+`;
+}
+function stableJson(value) {
+  if (Array.isArray(value)) return value.map(stableJson);
+  if (value && typeof value === "object" && value.constructor === Object) {
+    return Object.fromEntries(
+      Object.keys(value).sort().map((key) => [key, stableJson(value[key])])
+    );
+  }
+  return value;
+}
+function semanticEqual(left, right) {
+  return JSON.stringify(stableJson(left)) === JSON.stringify(stableJson(right));
+}
+function sha2562(value) {
+  const buffer = Buffer.isBuffer(value) ? value : Buffer.from(String(value), "utf8");
+  return createHash2("sha256").update(buffer).digest("hex");
+}
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
 // scripts/forge/fs-transaction.mjs
 import { randomUUID } from "node:crypto";
 import {
   access,
   mkdir as mkdir2,
   open,
-  readFile as readFile2,
+  readFile as readFile3,
   rename,
   rm,
   stat,
@@ -14965,7 +15018,7 @@ async function planWrites(entries, { force = false } = {}) {
       planned.push({ ...entry, content, action: "create" });
       continue;
     }
-    const current = await readFile2(entry.path);
+    const current = await readFile3(entry.path);
     if (current.equals(content)) {
       planned.push({ ...entry, content, action: "unchanged" });
       continue;
@@ -15118,53 +15171,207 @@ async function withProjectLock(projectRoot, callback, { force = false, dryRun = 
   }
 }
 
-// scripts/forge/json.mjs
-import { createHash as createHash2 } from "node:crypto";
-import { readFile as readFile3 } from "node:fs/promises";
-import { TextDecoder } from "node:util";
-var fatalUtf8Decoder = new TextDecoder("utf-8", { fatal: true });
-function decodeUtf8(buffer, label = "\u8F93\u5165") {
-  try {
-    return fatalUtf8Decoder.decode(buffer);
-  } catch (error) {
-    throw inputError(`${label} \u4E0D\u662F\u6709\u6548 UTF-8`, { cause: error.message });
+// scripts/forge/delivery-package.mjs
+function clone(value) {
+  return value === void 0 ? value : structuredClone(value);
+}
+function safeName(value, fallback = "\u7EC4\u4EF6") {
+  const name = String(value ?? "").replace(/[<>:"/\\|?*\x00-\x1F]/g, "_").replace(/\s+/g, " ").trim();
+  return name || fallback;
+}
+function htmlFromReplacement(value) {
+  const text = String(value ?? "").trim();
+  if (!/<(?:!doctype\s+html|html\b|body\b|style\b|script\b)/i.test(text)) return null;
+  return text.replace(/^```(?:html)?\s*/i, "").replace(/\s*```$/, "").trim() + "\n";
+}
+function standaloneWorldbookEntry(entry, uid) {
+  const extensions = entry?.extensions ?? {};
+  return {
+    uid,
+    key: Array.isArray(entry?.keys) ? clone(entry.keys) : [],
+    keysecondary: Array.isArray(entry?.secondary_keys) ? clone(entry.secondary_keys) : [],
+    comment: entry?.comment ?? "",
+    content: String(entry?.content ?? ""),
+    constant: entry?.constant === true,
+    selective: entry?.selective === true,
+    selectiveLogic: entry?.selectiveLogic ?? extensions.selectiveLogic ?? 0,
+    addMemo: true,
+    order: Number.isInteger(entry?.insertion_order) ? entry.insertion_order : 100,
+    position: entry?.position === "after_char" ? 1 : 0,
+    disable: entry?.enabled === false,
+    useProbability: entry?.useProbability ?? extensions.useProbability ?? true,
+    probability: Number.isFinite(entry?.probability) ? entry.probability : 100,
+    depth: Number.isInteger(entry?.depth) ? entry.depth : 4,
+    scanDepth: Number.isInteger(extensions.scan_depth) ? extensions.scan_depth : 4,
+    caseSensitive: entry?.caseSensitive ?? extensions.case_sensitive ?? false,
+    matchWholeWords: entry?.matchWholeWords ?? extensions.match_whole_words ?? false,
+    excludeRecursion: entry?.excludeRecursion ?? extensions.exclude_recursion ?? false,
+    preventRecursion: entry?.preventRecursion ?? extensions.prevent_recursion ?? false,
+    delayUntilRecursion: entry?.delayUntilRecursion ?? extensions.delay_until_recursion ?? false,
+    group: entry?.group ?? "",
+    groupOverride: entry?.groupOverride ?? false,
+    useGroupScoring: entry?.useGroupScoring ?? false,
+    automationId: entry?.automationId ?? "",
+    sticky: entry?.sticky ?? null,
+    cooldown: entry?.cooldown ?? null,
+    delay: entry?.delay ?? 0
+  };
+}
+function worldbookFromCharacterBook(book) {
+  const entries = {};
+  const sourceEntries = Array.isArray(book?.entries) ? book.entries : Object.values(book?.entries ?? {});
+  sourceEntries.forEach((entry, index) => {
+    entries[String(index)] = standaloneWorldbookEntry(entry, index);
+  });
+  return {
+    entries,
+    originalData: {
+      name: book?.name ?? "",
+      entries
+    }
+  };
+}
+function bareCharacterCard(payload) {
+  const card = clone(payload);
+  const data = card.data ?? {};
+  delete data.character_book;
+  delete data.extensions?.world;
+  delete data.extensions?.regex_scripts;
+  delete data.extensions?.tavern_helper;
+  delete data.extensions?.rp_card_studio;
+  delete data.extensions?.runtime_manifest_ref;
+  card.data = data;
+  for (const field of ["name", "description", "personality", "scenario", "first_mes", "mes_example"]) {
+    if (Object.hasOwn(data, field)) card[field] = data[field];
   }
+  card.creatorcomment = data.creator_notes ?? card.creatorcomment ?? "";
+  return card;
 }
-async function readUtf8(path52) {
-  return decodeUtf8(await readFile3(path52), path52);
-}
-function parseJsonText(text, label = "JSON") {
-  try {
-    return JSON.parse(text);
-  } catch (error) {
-    throw inputError(`${label} \u4E0D\u662F\u6709\u6548 JSON: ${error.message}`);
+function helperScriptFiles(nodes, outputRoot, parent = []) {
+  const files = [];
+  for (const node of nodes ?? []) {
+    const nodeName = safeName(node?.name, node?.id ?? "\u811A\u672C");
+    if (node?.type === "folder") {
+      files.push(...helperScriptFiles(node.scripts, outputRoot, [...parent, nodeName]));
+      continue;
+    }
+    if (node?.type !== "script") continue;
+    files.push({
+      relativePath: [outputRoot, "06_\u9152\u9986\u52A9\u624B", ...parent, `${nodeName}.json`].join("/"),
+      content: prettyJson(clone(node)),
+      id: node.id,
+      name: node.name
+    });
   }
+  return files;
 }
-async function readJson(path52) {
-  return parseJsonText(await readUtf8(path52), path52);
+async function sourceFiles(projectRoot, relativePaths) {
+  const files = [];
+  for (const relativePath of relativePaths ?? []) {
+    const absolutePath = resolveWithin(projectRoot, relativePath);
+    const content = await readFile4(absolutePath);
+    files.push({
+      relativePath: `07_MVU\u4E0EEJS/${safeName(path3.basename(relativePath))}`,
+      content,
+      source: relativePath
+    });
+  }
+  return files;
 }
-function prettyJson(value) {
-  return `${JSON.stringify(value, null, 2)}
+async function buildDeliveryPackage({ project, projectRoot, source, outputRoot }) {
+  const payload = source.payload;
+  const data = payload.data ?? {};
+  const packageFiles = [];
+  const isWorldbook = project.project.target === "worldbook";
+  const cardFile = isWorldbook ? null : `${outputRoot}/02_\u89D2\u8272\u5361/${safeName(data.name ?? project.project.display_name, "\u89D2\u8272\u5361")}.json`;
+  if (cardFile) packageFiles.push({ relativePath: cardFile, content: prettyJson(bareCharacterCard(payload)) });
+  const worldbook = isWorldbook ? clone(payload) : worldbookFromCharacterBook(data.character_book);
+  const worldbookName = worldbook.originalData?.name ?? worldbook.name ?? data.name ?? project.project.display_name;
+  const worldbookLabel = safeName(worldbookName, "\u4E16\u754C\u4E66");
+  const worldbookFile = `${outputRoot}/03_\u4E16\u754C\u4E66/${worldbookLabel.endsWith("\u4E16\u754C\u4E66") ? worldbookLabel : `${worldbookLabel} \u4E16\u754C\u4E66`}.json`;
+  packageFiles.push({ relativePath: worldbookFile, content: prettyJson(worldbook) });
+  const regexFiles = [];
+  const frontendFiles = [];
+  for (const regex of data.extensions?.regex_scripts ?? []) {
+    const html = htmlFromReplacement(regex.replaceString);
+    const baseName = safeName(regex.scriptName ?? regex.id, "\u6B63\u5219");
+    const regexExport = clone(regex);
+    if (html) {
+      regexExport.replaceString = "";
+      const htmlPath = `${outputRoot}/05_\u524D\u7AEF/${baseName}.html`;
+      packageFiles.push({ relativePath: htmlPath, content: html });
+      frontendFiles.push({ id: regex.id, regex: regex.scriptName, file: htmlPath });
+    }
+    const regexPath = `${outputRoot}/04_\u6B63\u5219/${baseName}.json`;
+    packageFiles.push({ relativePath: regexPath, content: prettyJson(regexExport) });
+    regexFiles.push({ id: regex.id, name: regex.scriptName, file: regexPath, html: html ? frontendFiles.at(-1).file : null });
+  }
+  const helperFiles = helperScriptFiles(data.extensions?.tavern_helper?.scripts, outputRoot);
+  packageFiles.push(...helperFiles);
+  const mvuPaths = (project.source_manifest?.mvu ?? []).filter(Boolean);
+  packageFiles.push(...await sourceFiles(projectRoot, mvuPaths));
+  const manifest = {
+    schema_version: "1.0.0",
+    delivery_mode: "rp_project_package",
+    project_id: project.project.id,
+    project_name: project.project.display_name,
+    import_order: [
+      "\u89D2\u8272\u5361",
+      "\u4E16\u754C\u4E66\u5E76\u7ED1\u5B9A\u5230\u89D2\u8272",
+      "\u6B63\u5219\u914D\u7F6E\uFF1B\u5C06\u914D\u5957 05_\u524D\u7AEF/*.html \u7684\u5B8C\u6574\u5185\u5BB9\u7C98\u8D34\u5230\u6B63\u5219\u201C\u66FF\u6362\u5185\u5BB9\u201D",
+      "\u9152\u9986\u52A9\u624B\u811A\u672C",
+      "MVU/EJS \u5BBF\u4E3B\u4F9D\u8D56\u4E0E\u8BBE\u7F6E"
+    ],
+    components: {
+      character_card: cardFile,
+      worldbook: worldbookFile,
+      regex: regexFiles,
+      frontend: frontendFiles,
+      tavern_helper: helperFiles.map((file) => ({ id: file.id, name: file.name, file: file.relativePath })),
+      mvu_ejs: packageFiles.filter((file) => file.relativePath.startsWith(`${outputRoot}/07_MVU\u4E0EEJS/`)).map((file) => file.relativePath)
+    },
+    notes: [
+      "\u524D\u7AEF\u4E0E\u6B63\u5219\u5206\u5F00\u4EA4\u4ED8\uFF1B\u6BCF\u4E2A\u524D\u7AEF\u662F\u5B8C\u6574\u3001\u81EA\u5305\u542B HTML\u3002",
+      "\u672C\u9879\u76EE\u4E0D\u63D0\u4F9B\u5355\u6587\u4EF6\u89D2\u8272\u5361\u4F5C\u4E3A\u6700\u7EC8\u4EA4\u4ED8\u65B9\u5F0F\u3002",
+      "\u662F\u5426\u6210\u529F\u6302\u8F7D\u4E16\u754C\u4E66\u3001\u6B63\u5219\u3001\u9152\u9986\u52A9\u624B\u548C MVU\uFF0C\u4ECD\u9700\u6309\u8BF4\u660E\u5728\u76EE\u6807 SillyTavern \u4E2D\u9010\u9879\u786E\u8BA4\u3002"
+    ]
+  };
+  packageFiles.push({ relativePath: `${outputRoot}/01_\u9879\u76EE\u6E05\u5355.json`, content: prettyJson(manifest) });
+  const instructions = `# ${project.project.display_name} \u5BFC\u5165\u8BF4\u660E
+
+\u672C\u9879\u76EE\u56FA\u5B9A\u4EE5\u591A\u6587\u4EF6 RP \u9879\u76EE\u5305\u4EA4\u4ED8\u3002
+
+## \u5BFC\u5165\u987A\u5E8F
+
+1. \u5BFC\u5165\u89D2\u8272\u5361\uFF1A\u6253\u5F00 \`02_\u89D2\u8272\u5361\`\u3002
+2. \u5BFC\u5165\u4E16\u754C\u4E66\uFF1A\u6253\u5F00 \`03_\u4E16\u754C\u4E66\`\uFF0C\u7136\u540E\u7ED1\u5B9A\u5230\u89D2\u8272\u3002
+3. \u5BFC\u5165 \`04_\u6B63\u5219\` \u4E2D\u7684\u914D\u7F6E\uFF1B\u5BF9\u6709\u914D\u5957 HTML \u7684\u6B63\u5219\uFF0C\u5C06 \`05_\u524D\u7AEF\` \u4E2D\u540C\u540D HTML \u7684\u5168\u90E8\u5185\u5BB9\u590D\u5236\u5230\u6B63\u5219\u7684\u201C\u66FF\u6362\u5185\u5BB9\u201D\u3002
+4. \u5BFC\u5165 \`06_\u9152\u9986\u52A9\u624B\` \u4E2D\u7684\u811A\u672C\u3002
+5. \u6309 \`07_MVU\u4E0EEJS\` \u548C\u6700\u7EC8\u62A5\u544A\u68C0\u67E5\u5BBF\u4E3B\u4F9D\u8D56\u3002
+
+HTML \u4E0D\u4F9D\u8D56\u540C\u76EE\u5F55\u7684 CSS \u6216 JS \u6587\u4EF6\uFF1B\u6BCF\u4E2A\u9875\u9762\u5DF2\u7ECF\u662F\u5B8C\u6574\u81EA\u5305\u542B\u6587\u6863\u3002
 `;
-}
-function stableJson(value) {
-  if (Array.isArray(value)) return value.map(stableJson);
-  if (value && typeof value === "object" && value.constructor === Object) {
-    return Object.fromEntries(
-      Object.keys(value).sort().map((key) => [key, stableJson(value[key])])
-    );
-  }
-  return value;
-}
-function semanticEqual(left, right) {
-  return JSON.stringify(stableJson(left)) === JSON.stringify(stableJson(right));
-}
-function sha2562(value) {
-  const buffer = Buffer.isBuffer(value) ? value : Buffer.from(String(value), "utf8");
-  return createHash2("sha256").update(buffer).digest("hex");
-}
-function isPlainObject(value) {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+  packageFiles.push({ relativePath: `${outputRoot}/00_\u5BFC\u5165\u8BF4\u660E.md`, content: instructions });
+  const report = `# ${project.project.display_name} \u9879\u76EE\u5305\u6784\u5EFA\u62A5\u544A
+
+- \u4EA4\u4ED8\u6A21\u5F0F\uFF1A\u591A\u6587\u4EF6 RP \u9879\u76EE\u5305
+- \u9879\u76EE\u6E05\u5355\uFF1A01_\u9879\u76EE\u6E05\u5355.json
+- \u89D2\u8272\u5361\uFF1A${cardFile}
+- \u4E16\u754C\u4E66\uFF1A${worldbookFile}
+- \u6B63\u5219\u6570\u91CF\uFF1A${regexFiles.length}
+- \u5B8C\u6574\u524D\u7AEF\u6570\u91CF\uFF1A${frontendFiles.length}
+- \u9152\u9986\u52A9\u624B\u811A\u672C\u6570\u91CF\uFF1A${helperFiles.length}
+- \u771F\u5B9E SillyTavern \u9A8C\u6536\uFF1Anot_run\uFF08\u9664\u975E\u53E6\u6709\u8BB0\u5F55\uFF09
+`;
+  packageFiles.push({ relativePath: `${outputRoot}/08_\u9A8C\u8BC1\u62A5\u544A.md`, content: report });
+  const manifestBytes = Buffer.from(prettyJson(manifest), "utf8");
+  return {
+    files: packageFiles,
+    manifest,
+    manifestBytes,
+    artifactDigest: sha2562(manifestBytes),
+    outputRoot
+  };
 }
 
 // scripts/forge/png.mjs
@@ -15392,8 +15599,8 @@ function schemaNameForSource(group, value) {
 }
 
 // scripts/forge/formats.mjs
-import { readFile as readFile4, stat as stat2 } from "node:fs/promises";
-import path3 from "node:path";
+import { readFile as readFile5, stat as stat2 } from "node:fs/promises";
+import path4 from "node:path";
 var Format = Object.freeze({
   CHARACTER_V2: "sillytavern-character-card-v2",
   CHARACTER_V3: "sillytavern-character-card-v3",
@@ -15454,6 +15661,12 @@ function validateManagedUiExperience(statusUi, base, status, issues, warnings) {
   if (level !== "light" && count === 0) warnings.push(issue(`${base}/experience_evidence/level_advancements`, "ui.experience_advancement", `${level} has not described its overall additions beyond light; no numeric quota is enforced`));
   if (level === "super_heavy" && evidence.primary_play_surface !== true) {
     artifactStageTarget(status, issues, warnings).push(issue(`${base}/experience_evidence/primary_play_surface`, "ui.experience_primary_surface", "Super-heavy / zero-layer UI should declare the message application as the primary play surface"));
+  }
+  if (statusUi?.data_density === "sparse" && level !== "light") {
+    const model = statusUi.presentation_model;
+    const target = artifactStageTarget(status, issues, warnings);
+    const hasPresentation = isPlainObject(model) && ["authoritative_paths", "static_modules", "derived_views", "local_interaction_state"].some((key) => Array.isArray(model[key]) && model[key].length > 0);
+    if (!hasPresentation) target.push(issue(`${base}/presentation_model`, "ui.sparse_data_model", "\u4E2D\u578B\u4EE5\u4E0A UI + \u7A00\u758F\u53D8\u91CF\u5FC5\u987B\u58F0\u660E\u9759\u6001\u6A21\u5757\u3001\u6D3E\u751F\u89C6\u56FE\u6216\u672C\u5730\u4EA4\u4E92\u5C42\uFF1B\u53D8\u91CF\u5C11\u4E0D\u80FD\u81EA\u52A8\u964D\u7EA7 UI"));
   }
 }
 function isCharacterFormat(format) {
@@ -15604,21 +15817,21 @@ function validatePortableDelivery(value, issues) {
     }
     if (!isPlainObject(node)) {
       if (typeof node === "string" && /(?:^|\n)\s*source_ref:\s*["']?(?:src[\\/]|[A-Za-z]:|\.\.?[\\/])/i.test(node)) {
-        issues.push(issue(basePath, "delivery.portability", "\u6700\u7EC8\u89D2\u8272\u5361\u6B63\u6587\u4E0D\u80FD\u643A\u5E26\u7EF4\u62A4\u6E90\u7801\u7684 source_ref \u6587\u4EF6\u8DEF\u5F84"));
+        issues.push(issue(basePath, "delivery.portability", "\u53EF\u5BFC\u5165\u89D2\u8272\u5361\u7EC4\u4EF6\u4E0D\u80FD\u643A\u5E26\u7EF4\u62A4\u6E90\u7801\u7684 source_ref \u6587\u4EF6\u8DEF\u5F84"));
       }
       if (typeof node === "string" && /(?:import\s+[^;]*?from\s*|(?:src|href)\s*=\s*|url\(\s*)["']?(?:\.\.?[\\/]|src[\\/])/i.test(node)) {
-        issues.push(issue(basePath, "delivery.portability", "\u6700\u7EC8\u89D2\u8272\u5361\u4E2D\u7684 HTML/CSS/JS \u4E0D\u80FD\u7EE7\u7EED\u5F15\u7528\u672C\u5730\u76F8\u5BF9\u6587\u4EF6\uFF1B\u8BF7\u628A\u8D44\u6E90\u5185\u5D4C\u6216\u6539\u4E3A\u660E\u786E\u7684\u8FDC\u7A0B\u4F9D\u8D56"));
+        issues.push(issue(basePath, "delivery.portability", "\u53EF\u4EA4\u4ED8 HTML \u4E0D\u80FD\u7EE7\u7EED\u5F15\u7528\u672C\u5730\u76F8\u5BF9\u6587\u4EF6\uFF1B\u8BF7\u628A\u8D44\u6E90\u5185\u5D4C\u6216\u6539\u4E3A\u660E\u786E\u7684\u8FDC\u7A0B\u4F9D\u8D56"));
       }
       return;
     }
     for (const [key, child] of Object.entries(node)) {
       const childPath = `${basePath}/${key}`;
       if (forbiddenKeys.has(key)) {
-        issues.push(issue(childPath, "delivery.portability", `\u6700\u7EC8\u89D2\u8272\u5361\u4E0D\u80FD\u643A\u5E26\u7EF4\u62A4\u5B57\u6BB5 ${key}\uFF1B\u8FD0\u884C\u65F6\u5FC5\u987B\u4F7F\u7528\u5DF2\u5185\u5D4C\u5185\u5BB9`));
+        issues.push(issue(childPath, "delivery.portability", `\u53EF\u5BFC\u5165\u7EC4\u4EF6\u4E0D\u80FD\u643A\u5E26\u7EF4\u62A4\u5B57\u6BB5 ${key}\uFF1B\u8FD0\u884C\u65F6\u5FC5\u987B\u4F7F\u7528\u9879\u76EE\u5305\u4E2D\u7684\u771F\u5B9E\u4EA4\u4ED8\u5185\u5BB9`));
         continue;
       }
       if (pathKeys.has(key) && looksLikeExternalMaintenancePath(child)) {
-        issues.push(issue(childPath, "delivery.portability", `\u6700\u7EC8\u89D2\u8272\u5361\u4E0D\u80FD\u4F9D\u8D56\u5916\u90E8\u7EF4\u62A4\u6587\u4EF6\u8DEF\u5F84: ${child}`));
+        issues.push(issue(childPath, "delivery.portability", `\u53EF\u5BFC\u5165\u7EC4\u4EF6\u4E0D\u80FD\u4F9D\u8D56\u5916\u90E8\u7EF4\u62A4\u6587\u4EF6\u8DEF\u5F84: ${child}`));
         continue;
       }
       walk(child, childPath);
@@ -15701,11 +15914,11 @@ function validateManagedMvuRuntimeClosure(value, issues) {
     const base = `/data/extensions/rp_card_studio/sources/mvu/${index}/value/mvu`;
     const loaderId = mvu.framework?.loader_script_id;
     if (!Array.isArray(value?.data?.extensions?.tavern_helper?.scripts) || nodes.length === 0) {
-      issues.push(issue(base, "mvu.runtime_script", "\u542F\u7528 MVU \u7684\u6700\u7EC8\u89D2\u8272\u5361\u7F3A\u5C11\u5DF2\u5185\u5D4C\u7684 Tavern Helper \u811A\u672C\uFF1B\u4E0D\u80FD\u53EA\u5728\u7EF4\u62A4\u6E90\u91CC\u58F0\u660E\u53D8\u91CF"));
+      issues.push(issue(base, "mvu.runtime_script", "\u542F\u7528 MVU \u7684\u9879\u76EE\u5305\u7F3A\u5C11\u5B9E\u9645 Tavern Helper \u811A\u672C\uFF1B\u4E0D\u80FD\u53EA\u5728\u7EF4\u62A4\u6E90\u91CC\u58F0\u660E\u53D8\u91CF"));
       continue;
     }
     if (mvu.framework?.delivery === "card_script" && (!loaderId || !ids.has(loaderId))) {
-      issues.push(issue(`${base}/framework/loader_script_id`, "mvu.runtime_script", `\u6700\u7EC8\u89D2\u8272\u5361\u7F3A\u5C11 loader_script_id=${JSON.stringify(loaderId ?? null)} \u5BF9\u5E94\u7684 Tavern Helper \u811A\u672C`));
+      issues.push(issue(`${base}/framework/loader_script_id`, "mvu.runtime_script", `\u9879\u76EE\u5305\u7F3A\u5C11 loader_script_id=${JSON.stringify(loaderId ?? null)} \u5BF9\u5E94\u7684 Tavern Helper \u811A\u672C`));
     }
     if (nodes.every((node) => typeof node.content !== "string" || !node.content.trim())) {
       issues.push(issue(base, "mvu.runtime_script", "Tavern Helper \u811A\u672C\u8282\u70B9\u5B58\u5728\u4F46\u6CA1\u6709\u5B9E\u9645\u5185\u5D4C\u4EE3\u7801"));
@@ -15987,7 +16200,7 @@ function issue(pathValue, rule, message) {
   return { path: pathValue || "/", rule, message };
 }
 async function loadArtifact(inputPath) {
-  const absolute = path3.resolve(inputPath);
+  const absolute = path4.resolve(inputPath);
   const stats = await stat2(absolute).catch((error) => {
     if (error?.code === "ENOENT") throw inputError(`\u8F93\u5165\u4E0D\u5B58\u5728: ${absolute}`);
     throw error;
@@ -15996,7 +16209,7 @@ async function loadArtifact(inputPath) {
     return { format: Format.PROJECT, path: absolute, projectRoot: absolute };
   }
   if (!stats.isFile()) throw unsupportedError(`\u4E0D\u652F\u6301\u7684\u8F93\u5165\u7C7B\u578B: ${absolute}`);
-  const buffer = await readFile4(absolute);
+  const buffer = await readFile5(absolute);
   if (buffer.subarray(0, 8).equals(PNG_SIGNATURE)) {
     const extracted = extractCardFromPng(buffer, absolute);
     const format2 = pngFormatForPayload(extracted.payload);
@@ -16031,8 +16244,8 @@ async function loadArtifact(inputPath) {
 }
 
 // scripts/forge/hooks.mjs
-import { access as access2 } from "node:fs/promises";
-import path4 from "node:path";
+import { access as access2, stat as stat3 } from "node:fs/promises";
+import path5 from "node:path";
 var FORGE_HOOK_EVENTS = Object.freeze([
   "before_stage_write",
   "before_source_write",
@@ -16050,8 +16263,8 @@ function result(status, id, message, evidence = []) {
   };
 }
 function inside(root, target) {
-  const relative = path4.relative(path4.resolve(root), path4.resolve(target));
-  return relative === "" || !relative.startsWith("..") && !path4.isAbsolute(relative);
+  const relative = path5.relative(path5.resolve(root), path5.resolve(target));
+  return relative === "" || !relative.startsWith("..") && !path5.isAbsolute(relative);
 }
 async function pathExists2(target) {
   try {
@@ -16062,6 +16275,19 @@ async function pathExists2(target) {
     throw error;
   }
 }
+async function isDirectory2(target) {
+  try {
+    return (await stat3(target)).isDirectory();
+  } catch (error) {
+    if (error?.code === "ENOENT") return false;
+    throw error;
+  }
+}
+var REQUIRED_PACKAGE_FILES = Object.freeze([
+  "00_\u5BFC\u5165\u8BF4\u660E.md",
+  "01_\u9879\u76EE\u6E05\u5355.json",
+  "08_\u9A8C\u8BC1\u62A5\u544A.md"
+]);
 function builtInHandlers() {
   return {
     before_stage_write: [
@@ -16076,6 +16302,19 @@ function builtInHandlers() {
             return result("block", "forge.stage.lifecycle", `\u9636\u6BB5 ${stage} \u5B8C\u6210\u6216\u8DF3\u8FC7\u65F6\u5FC5\u987B\u6709\u9636\u6BB5\u603B\u6C47`, [stage, status]);
           }
           return result("pass", "forge.stage.lifecycle", "\u9636\u6BB5\u5199\u5165\u6EE1\u8DB3\u6700\u5C0F\u751F\u547D\u5468\u671F\u6761\u4EF6", [stage, status]);
+        }
+      },
+      {
+        id: "forge.stage.handoff",
+        run: ({ stage, status, project }) => {
+          if (!["complete", "skipped"].includes(status)) {
+            return result("pass", "forge.stage.handoff", "\u5F53\u524D\u9636\u6BB5\u5C1A\u672A\u5C01\u5B58\uFF0C\u4E0D\u68C0\u67E5\u672A\u51B3\u4EA4\u63A5");
+          }
+          const pending = (project?.handoffs ?? []).filter((handoff) => handoff?.source_stage === stage).filter((handoff) => ["open", "proposed", "blocked"].includes(handoff?.status));
+          if (pending.length > 0) {
+            return result("warn", "forge.stage.handoff", "\u9636\u6BB5\u5DF2\u51C6\u5907\u5C01\u5B58\uFF0C\u4F46\u4ECD\u6709\u672A\u5904\u7406\u7684\u8DE8\u9636\u6BB5\u4EA4\u63A5\uFF1B\u4E0D\u4F1A\u963B\u6B62\u521B\u4F5C\uFF0C\u53EF\u5728\u540E\u7EED\u9636\u6BB5\u7EE7\u7EED\u5904\u7406", pending.map((handoff) => handoff.id ?? handoff.reason ?? "\u672A\u547D\u540D\u4EA4\u63A5"));
+          }
+          return result("pass", "forge.stage.handoff", "\u9636\u6BB5\u6CA1\u6709\u9057\u7559\u7684\u672A\u5904\u7406\u4EA4\u63A5");
         }
       }
     ],
@@ -16117,6 +16356,20 @@ function builtInHandlers() {
           }
           return result("pass", "forge.build.artifact", "\u6784\u5EFA\u4EA7\u7269\u4E0E\u6E05\u5355\u6458\u8981\u4E00\u81F4", [artifactDigest]);
         }
+      },
+      {
+        id: "forge.build.delivery_contract",
+        run: ({ manifest }) => {
+          if (!manifest || manifest.delivery_mode !== "rp_project_package") {
+            return result("block", "forge.build.delivery_contract", "\u6784\u5EFA\u6E05\u5355\u6CA1\u6709\u58F0\u660E\u56FA\u5B9A\u7684\u591A\u6587\u4EF6 RP \u9879\u76EE\u5305\u4EA4\u4ED8\u6A21\u5F0F", [manifest?.delivery_mode ?? null]);
+          }
+          const outputs = Array.isArray(manifest.outputs) ? manifest.outputs : [];
+          const missing = REQUIRED_PACKAGE_FILES.filter((name) => !outputs.some((output) => output.endsWith(`/${name}`) || output === name));
+          if (missing.length > 0) {
+            return result("block", "forge.build.delivery_contract", "\u9879\u76EE\u5305\u7F3A\u5C11\u56FA\u5B9A\u4EA4\u4ED8\u6240\u9700\u7684\u8BF4\u660E\u3001\u6E05\u5355\u6216\u9A8C\u8BC1\u62A5\u544A", missing);
+          }
+          return result("pass", "forge.build.delivery_contract", "\u56FA\u5B9A\u591A\u6587\u4EF6\u9879\u76EE\u5305\u7684\u6838\u5FC3\u4EA4\u4ED8\u6587\u4EF6\u5DF2\u767B\u8BB0", REQUIRED_PACKAGE_FILES);
+        }
       }
     ],
     after_delivery: [
@@ -16128,6 +16381,22 @@ function builtInHandlers() {
             return result("warn", "forge.delivery.exists", "\u4EA4\u4ED8\u547D\u4EE4\u5DF2\u5B8C\u6210\uFF0C\u4F46\u79BB\u7EBF\u94A9\u5B50\u672A\u627E\u5230\u8F93\u51FA\u6587\u4EF6", [outputPath ?? null]);
           }
           return result("pass", "forge.delivery.exists", "\u4EA4\u4ED8\u8F93\u51FA\u5DF2\u843D\u76D8", [outputPath]);
+        }
+      },
+      {
+        id: "forge.delivery.package_contract",
+        run: async ({ outputPath, dryRun }) => {
+          if (dryRun || !outputPath || !await isDirectory2(outputPath)) {
+            return result("pass", "forge.delivery.package_contract", "\u672A\u6267\u884C\u76EE\u5F55\u5305\u5DE1\u68C0\uFF08dry-run \u6216\u8F93\u51FA\u5C1A\u672A\u5F62\u6210\u76EE\u5F55\uFF09");
+          }
+          const missing = [];
+          for (const file of REQUIRED_PACKAGE_FILES) {
+            if (!await pathExists2(path5.join(outputPath, file))) missing.push(file);
+          }
+          if (missing.length > 0) {
+            return result("warn", "forge.delivery.package_contract", "\u4EA4\u4ED8\u76EE\u5F55\u5DF2\u751F\u6210\uFF0C\u4F46\u56FA\u5B9A\u9879\u76EE\u5305\u7684\u90E8\u5206\u8BF4\u660E\u6587\u4EF6\u672A\u627E\u5230\uFF1B\u8BF7\u67E5\u770B\u6784\u5EFA\u6E05\u5355", missing);
+          }
+          return result("pass", "forge.delivery.package_contract", "\u4EA4\u4ED8\u76EE\u5F55\u5305\u542B\u56FA\u5B9A\u9879\u76EE\u5305\u7684\u6838\u5FC3\u8BF4\u660E\u6587\u4EF6", REQUIRED_PACKAGE_FILES);
         }
       }
     ]
@@ -16347,8 +16616,8 @@ function projectModelSource(group, source) {
 }
 
 // scripts/forge/project.mjs
-import path5 from "node:path";
-import { readFile as readFile5 } from "node:fs/promises";
+import path6 from "node:path";
+import { readFile as readFile6 } from "node:fs/promises";
 var PROJECT_FILE = "project.yaml";
 var STATE_FILE = ".rp-card-state.json";
 var PROJECT_SCHEMA_VERSION = "1.0.0";
@@ -16425,13 +16694,6 @@ var SOURCE_GROUPS = Object.freeze([
   "ui",
   "assembly",
   "preserved_imports"
-]);
-var DELIVERABLES = /* @__PURE__ */ new Set([
-  "project_source",
-  "character_card_json",
-  "character_card_png",
-  "worldbook_json",
-  "validation_report"
 ]);
 var ID_PATTERN = /^[a-z][a-z0-9_]*$/;
 var DECISION_ID_PATTERN = /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*$/;
@@ -16564,6 +16826,7 @@ function makeProject({ name, target = "character_card", nsfw, operation = "creat
       locale: "zh-CN",
       workspace: ".",
       operation,
+      target: isWorldbook ? "worldbook" : "character_card",
       status: "active"
     },
     preflight: {
@@ -16597,7 +16860,7 @@ function makeProject({ name, target = "character_card", nsfw, operation = "creat
       ejs: false,
       status_ui: false
     },
-    deliverables: [isWorldbook ? "worldbook_json" : "character_card_json"],
+    deliverables: ["rp_project_package"],
     materials: [],
     decisions: [{
       id: "preflight_nsfw",
@@ -16653,7 +16916,7 @@ function syncAgentLedger(project, state) {
   return project.agent;
 }
 async function projectFilesForInit(root, { type = "character", nsfw, stageRoute = DEFAULT_STAGE_ROUTE } = {}) {
-  const name = path5.basename(path5.resolve(root));
+  const name = path6.basename(path6.resolve(root));
   if (!["character", "worldbook"].includes(type)) {
     throw inputError(`init --type \u4EC5\u652F\u6301 character \u6216 worldbook\uFF0C\u6536\u5230: ${type}`);
   }
@@ -16689,7 +16952,7 @@ async function projectFilesForInit(root, { type = "character", nsfw, stageRoute 
 }
 async function initializeProject(root, options = {}) {
   const prepared = await projectFilesForInit(root, options);
-  const model = validateProjectModel(prepared.project, prepared.state, path5.resolve(root));
+  const model = validateProjectModel(prepared.project, prepared.state, path6.resolve(root));
   model.issues.push(...validateNamedSchema("positioning", prepared.positioning, "/src/positioning.yaml"));
   if (prepared.source) {
     model.issues.push(...validateNamedSchema("world", prepared.source, `/${projectSourcePath(prepared.project)}`));
@@ -16707,13 +16970,28 @@ async function applyNsfwTemplates(project, characterSource) {
   const statusUi = await readYaml(await templateAssetUrl("status-ui.yaml"));
   const statusMixin = await readYaml(await templateAssetUrl("nsfw/status-ui.mixin.yaml"));
   if (characterSource) {
-    const characterMixin = await readYaml(await templateAssetUrl("nsfw/character.mixin.yaml"));
-    characterSource.nsfw = structuredClone(characterMixin.nsfw);
+    await applyNsfwCharacterMixins(project, [characterSource]);
   }
   if (!project.workflow.planned_stages.includes("status_ui")) return { uiSource: null };
   statusUi.status_ui.mature_content_topics = structuredClone(statusMixin.mature_content_topics ?? []);
   project.source_manifest.ui.push("src/ui/status-ui.yaml");
   return { uiSource: statusUi };
+}
+async function applyNsfwCharacterMixins(project, characterSources = []) {
+  if (project?.preflight?.nsfw?.enabled !== true || projectTarget(project) !== "character_card") return [];
+  const characterMixin = await readYaml(await templateAssetUrl("nsfw/character.mixin.yaml"));
+  const defaults = characterMixin.nsfw ?? {};
+  for (const source of characterSources) {
+    if (!source || typeof source !== "object") continue;
+    const existing = source.nsfw && typeof source.nsfw === "object" ? source.nsfw : {};
+    source.nsfw = {
+      ...structuredClone(defaults),
+      ...structuredClone(existing),
+      fetish: existing.fetish ?? structuredClone(defaults.fetish ?? []),
+      sensitive_areas: existing.sensitive_areas ?? structuredClone(defaults.sensitive_areas ?? [])
+    };
+  }
+  return characterSources;
 }
 async function templateAssetUrl(relativePath) {
   const sourceUrl = new URL(`../../assets/templates/${relativePath}`, import.meta.url);
@@ -16723,9 +17001,9 @@ async function templateAssetUrl(relativePath) {
   throw inputError(`\u627E\u4E0D\u5230\u5185\u7F6E\u6A21\u677F: ${relativePath}`);
 }
 async function loadProject(root, { allowLegacy = false } = {}) {
-  const projectRoot = path5.resolve(root);
-  const projectPath = path5.join(projectRoot, PROJECT_FILE);
-  const statePath = path5.join(projectRoot, STATE_FILE);
+  const projectRoot = path6.resolve(root);
+  const projectPath = path6.join(projectRoot, PROJECT_FILE);
+  const statePath = path6.join(projectRoot, STATE_FILE);
   const project = await readYaml(projectPath);
   const state = await readJson(statePath);
   if (!allowLegacy) {
@@ -16745,6 +17023,8 @@ async function loadProject(root, { allowLegacy = false } = {}) {
   return { projectRoot, projectPath, statePath, project, state };
 }
 function projectTarget(project) {
+  if (project?.project?.target === "worldbook") return "worldbook";
+  if (project?.project?.target === "character_card") return "character_card";
   return project?.deliverables?.some((item) => item === "character_card_json" || item === "character_card_png") ? "character_card" : "worldbook";
 }
 function projectSourcePath(project) {
@@ -16764,10 +17044,13 @@ function projectPngBasePath(project) {
   return project?.source_manifest?.preserved_imports?.find((entry) => /\.png$/i.test(entry)) ?? null;
 }
 function projectOutputPaths(project) {
-  const isWorldbook = projectTarget(project) === "worldbook";
+  const displayName = String(project?.project?.display_name ?? "rp-project").replace(/[<>:"/\\|?*\x00-\x1F]/g, "_").replace(/\s+/g, " ").trim() || "rp-project";
+  const packageRoot = `dist/${displayName}`;
   return {
-    json: isWorldbook ? "dist/worldbook.json" : "dist/character-card.json",
-    png: isWorldbook ? null : "dist/character-card.png"
+    package: packageRoot,
+    manifest: `${packageRoot}/01_\u9879\u76EE\u6E05\u5355.json`,
+    instructions: `${packageRoot}/00_\u5BFC\u5165\u8BF4\u660E.md`,
+    report: `${packageRoot}/07_\u9A8C\u8BC1\u62A5\u544A.md`
   };
 }
 function validateProjectModel(project, state, root) {
@@ -16780,14 +17063,17 @@ function validateProjectModel(project, state, root) {
   rejectUnknownKeys(project, PROJECT_ROOT_KEYS, "", issues);
   if (project.schema_version !== PROJECT_SCHEMA_VERSION) issues.push(modelIssue("/schema_version", "const", `\u5FC5\u987B\u4E3A ${PROJECT_SCHEMA_VERSION}`));
   if (!ID_PATTERN.test(project?.project?.id ?? "")) issues.push(modelIssue("/project/id", "pattern", "\u9879\u76EE ID \u5FC5\u987B\u662F snake_case"));
-  for (const field of ["display_name", "workspace", "operation", "status"]) {
+  for (const field of ["display_name", "workspace", "operation", "target", "status"]) {
     if (typeof project?.project?.[field] !== "string" || project.project[field] === "") {
       issues.push(modelIssue(`/project/${field}`, "required", `${field} \u5FC5\u987B\u662F\u975E\u7A7A\u5B57\u7B26\u4E32`));
     }
   }
+  if (!["character_card", "worldbook"].includes(project?.project?.target)) {
+    issues.push(modelIssue("/project/target", "enum", "\u9879\u76EE target \u5FC5\u987B\u662F character_card \u6216 worldbook"));
+  }
   if (typeof project?.project?.locale !== "string" || project.project.locale.trim() === "") issues.push(modelIssue("/project/locale", "type", "locale \u5FC5\u987B\u662F\u975E\u7A7A\u5B57\u7B26\u4E32"));
   if (!project?.preflight?.workspace_confirmed || !project?.preflight?.input_materials_confirmed || !project?.preflight?.deliverables_confirmed || !project?.preflight?.workflow_confirmed) {
-    issues.push(modelIssue("/preflight", "confirmed", "\u5DE5\u4F5C\u533A\u3001\u8F93\u5165\u6750\u6599\u3001\u4EA4\u4ED8\u7269\u548C\u9636\u6BB5\u8DEF\u7EBF\u5FC5\u987B\u5B8C\u6210\u9884\u68C0\u786E\u8BA4"));
+    issues.push(modelIssue("/preflight", "confirmed", "\u5DE5\u4F5C\u533A\u3001\u8F93\u5165\u6750\u6599\u548C\u9636\u6BB5\u8DEF\u7EBF\u5FC5\u987B\u5B8C\u6210\u9884\u68C0\u786E\u8BA4\uFF1B\u4EA4\u4ED8\u5305\u7531 Agent \u56FA\u5B9A\u63D0\u4F9B"));
   }
   if (project?.preflight?.nsfw?.confirmed !== true || !["user"].includes(project?.preflight?.nsfw?.decision_source)) {
     issues.push(modelIssue("/preflight/nsfw", "confirmed", "NSFW \u5FC5\u987B\u7531\u7528\u6237\u660E\u786E\u9501\u5B9A"));
@@ -16811,10 +17097,8 @@ function validateProjectModel(project, state, root) {
   for (const feature of ["materials", "systems", "scenes", "mvu", "ejs", "status_ui"]) {
     if (typeof project?.features?.[feature] !== "boolean") issues.push(modelIssue(`/features/${feature}`, "type", "\u529F\u80FD\u5F00\u5173\u5FC5\u987B\u662F\u5E03\u5C14\u503C"));
   }
-  if (!Array.isArray(project.deliverables) || project.deliverables.length === 0) {
-    issues.push(modelIssue("/deliverables", "minItems", "\u81F3\u5C11\u9700\u8981\u4E00\u4E2A\u4EA4\u4ED8\u7269"));
-  } else {
-    for (const item of project.deliverables) if (!DELIVERABLES.has(item)) issues.push(modelIssue("/deliverables", "enum", `\u672A\u77E5\u4EA4\u4ED8\u7269: ${item}`));
+  if (!Array.isArray(project.deliverables) || project.deliverables.length !== 1 || project.deliverables[0] !== "rp_project_package") {
+    issues.push(modelIssue("/deliverables", "const", "\u9879\u76EE\u5FC5\u987B\u4E14\u53EA\u80FD\u4F7F\u7528\u56FA\u5B9A\u7684 rp_project_package \u4EA4\u4ED8\u65B9\u5F0F"));
   }
   if (!isPlainObject(project.source_manifest)) issues.push(modelIssue("/source_manifest", "required", "\u7F3A\u5C11 source_manifest"));
   const isCharacterProject = projectTarget(project) === "character_card";
@@ -17203,6 +17487,7 @@ function modelIssue(pathValue, rule, message) {
 }
 async function loadProjectSource(loaded) {
   const sources = await readRegisteredSources(loaded);
+  await applyNsfwCharacterMixins(loaded.project, sources.characters.map((entry) => entry.value));
   const relativeSource = projectSourcePath(loaded.project);
   const sourcePath = resolveWithin(loaded.projectRoot, relativeSource);
   const target = projectTarget(loaded.project) === "worldbook" ? "worldbook" : "character";
@@ -17289,6 +17574,7 @@ async function validateRegisteredSources(loaded) {
     if (!await pathExists(absolutePath)) issues.push(modelIssue(`/${relativePath}`, "required", "\u767B\u8BB0\u7684\u4FDD\u7559\u8F93\u5165\u4E0D\u5B58\u5728"));
   }
   validateCardModelComposition(sources, issues);
+  validateNsfwCharacterLayers(loaded.project, sources, issues);
   validatePositioningProjectIdentity(loaded, sources, issues);
   return { issues, checks };
 }
@@ -17347,6 +17633,29 @@ function validateCardModelComposition(sources, issues) {
   }
   if (singleCharacterCard && characters.length !== 1) {
     issues.push(modelIssue("/source_manifest/characters", "composition.single_character", "\u771F\u6B63\u7684\u5355\u4EBA\u5361\u5FC5\u987B\u4E14\u53EA\u80FD\u767B\u8BB0\u4E00\u4E2A\u89D2\u8272\u6E90\u7801"));
+  }
+}
+var NSFW_CHARACTER_FIELDS = Object.freeze([
+  "sexual_orientation",
+  "standing",
+  "fetish",
+  "preference",
+  "sex_organs",
+  "sensitive_areas",
+  "contrast"
+]);
+function validateNsfwCharacterLayers(project, sources, issues) {
+  if (project?.preflight?.nsfw?.enabled !== true || sources.characters.length === 0) return;
+  for (const entry of sources.characters) {
+    const layer = entry.value?.nsfw;
+    const missing = !layer || typeof layer !== "object" ? [...NSFW_CHARACTER_FIELDS] : NSFW_CHARACTER_FIELDS.filter((field) => !Object.hasOwn(layer, field));
+    if (missing.length > 0) {
+      issues.push(modelIssue(
+        `/${entry.relativePath}/nsfw`,
+        "character.nsfw_required",
+        `NSFW \u5DF2\u542F\u7528\uFF0C\u4F46\u89D2\u8272\u6CA1\u6709\u5B8C\u6574 NSFW \u5C42\uFF1B\u7F3A\u5C11\uFF1A${missing.join("\u3001")}`
+      ));
+    }
   }
 }
 function projectOwnsCardSurface(project, state, positioning) {
@@ -17483,7 +17792,7 @@ function assembleWorldbook(sources) {
       for (const entry of entries) {
         if (group === "positioning" && !positioningIsMeaningful(entry.value)) continue;
         if (entry === primaryEntry && hasImportedEntries) continue;
-        appendWorldbookEntry(payload.entries, standaloneWorldbookEntry(group, entry.value, order, allocateStandaloneWorldbookUid(usedUids)));
+        appendWorldbookEntry(payload.entries, standaloneWorldbookEntry2(group, entry.value, order, allocateStandaloneWorldbookUid(usedUids)));
         order += 1;
       }
     }
@@ -17696,7 +18005,7 @@ function automaticCharacterBookConfig(group, source, index, cardMode = "pending"
 function renderCharacterBookSource(group, source) {
   return renderStructured(projectModelSource(group, source));
 }
-function standaloneWorldbookEntry(group, source, index, uid = index) {
+function standaloneWorldbookEntry2(group, source, index, uid = index) {
   const id = source.id ?? `${group}_${index + 1}`;
   const displayName = source.display_name ?? id;
   return {
@@ -17805,13 +18114,13 @@ function unescapePointer(value) {
   return value.replaceAll("~1", "/").replaceAll("~0", "~");
 }
 function applyPreserved(payload, preserved) {
-  const clone = structuredClone(payload);
+  const clone2 = structuredClone(payload);
   const restoredPaths = [];
-  if (!isPlainObject(preserved) || !Array.isArray(preserved.entries)) return { payload: clone, restoredPaths };
+  if (!isPlainObject(preserved) || !Array.isArray(preserved.entries)) return { payload: clone2, restoredPaths };
   for (const entry of preserved.entries) {
     if (!isPlainObject(entry) || typeof entry.path !== "string" || !entry.path.startsWith("/")) continue;
     const segments = entry.path.slice(1).split("/").map(unescapePointer);
-    let current = clone;
+    let current = clone2;
     let valid = true;
     for (let index = 0; index < segments.length - 1; index += 1) {
       const segment = segments[index];
@@ -17829,17 +18138,17 @@ function applyPreserved(payload, preserved) {
       restoredPaths.push(entry.path);
     }
   }
-  return { payload: clone, restoredPaths };
+  return { payload: clone2, restoredPaths };
 }
 function bindEmbeddedCharacterBook(payload, { target }) {
-  const clone = structuredClone(payload);
+  const clone2 = structuredClone(payload);
   const issues = [];
   const warnings = [];
-  if (target !== "character") return { payload: clone, issues, warnings };
-  const characterBook = clone.data?.character_book;
-  if (!hasWorldbookEntries(characterBook)) return { payload: clone, issues, warnings };
+  if (target !== "character") return { payload: clone2, issues, warnings };
+  const characterBook = clone2.data?.character_book;
+  if (!hasWorldbookEntries(characterBook)) return { payload: clone2, issues, warnings };
   const explicitName = characterBook.name;
-  const characterName = clone.data?.name;
+  const characterName = clone2.data?.name;
   const bookName = typeof explicitName === "string" && explicitName.trim().length > 0 ? explicitName : typeof characterName === "string" && characterName.trim().length > 0 ? `${characterName}'s Lorebook` : null;
   if (!bookName) {
     issues.push(issue(
@@ -17847,21 +18156,21 @@ function bindEmbeddedCharacterBook(payload, { target }) {
       "character_book.binding",
       "An embedded CharacterBook requires either a usable book name or a character name for SillyTavern's fallback"
     ));
-    return { payload: clone, issues, warnings };
+    return { payload: clone2, issues, warnings };
   }
   characterBook.name = bookName;
-  clone.data.extensions = isPlainObject(clone.data.extensions) ? clone.data.extensions : {};
-  const existingWorld = clone.data.extensions.world;
+  clone2.data.extensions = isPlainObject(clone2.data.extensions) ? clone2.data.extensions : {};
+  const existingWorld = clone2.data.extensions.world;
   if (typeof existingWorld === "string" && existingWorld.length > 0 && existingWorld !== bookName) {
     issues.push(issue(
       "/data/extensions/world",
       "character_book.binding_conflict",
       `Refusing to replace existing primary lorebook ${JSON.stringify(existingWorld)} with embedded CharacterBook ${JSON.stringify(bookName)}; resolve the imported-card binding explicitly`
     ));
-    return { payload: clone, issues, warnings };
+    return { payload: clone2, issues, warnings };
   }
-  clone.data.extensions.world = bookName;
-  return { payload: clone, issues, warnings };
+  clone2.data.extensions.world = bookName;
+  return { payload: clone2, issues, warnings };
 }
 function lockHash(value) {
   return sha2562(JSON.stringify(stableJson(value)));
@@ -17897,7 +18206,7 @@ async function updateProjectAndState(loaded, nextProject, nextState, options = {
   return result2;
 }
 async function runProjectMutation(root, callback, options = {}) {
-  const absolute = path5.resolve(root);
+  const absolute = path6.resolve(root);
   return withProjectLock(absolute, () => callback(absolute), options);
 }
 function migrateProject(project, state = null) {
@@ -17907,9 +18216,15 @@ function migrateProject(project, state = null) {
     const hasLegacyDecision = (project?.decisions ?? []).some((decision) => decision.id === "preflight.stage_route");
     const activeStage = STAGES.includes(state?.active_stage) ? state.active_stage : STAGES.includes(project?.workflow?.current_stage) ? project.workflow.current_stage : "positioning";
     const hasAgent = project?.agent?.architecture === AGENT_ARCHITECTURE && project?.agent?.writable_stage === activeStage && project?.workflow?.current_stage === activeStage && Array.isArray(project?.handoffs) && isPlainObject(project?.capabilities);
-    if (project?.preflight?.workflow_confirmed === true && hasPlan && !legacyRoute && !hasLegacyDecision && hasAgent) return { value: project, migrated: false };
+    const inferredTarget = project?.project?.target ?? ((project?.deliverables ?? []).some((item) => item === "character_card_json" || item === "character_card_png") ? "character_card" : "worldbook");
+    const packageReady = project?.project?.target === inferredTarget && semanticEqual(project?.deliverables, ["rp_project_package"]) && project?.preflight?.deliverables_confirmed === true;
+    if (project?.preflight?.workflow_confirmed === true && hasPlan && !legacyRoute && !hasLegacyDecision && hasAgent && packageReady) return { value: project, migrated: false };
     const migrated = structuredClone(project);
+    migrated.project ??= {};
+    migrated.project.target = inferredTarget;
+    migrated.deliverables = ["rp_project_package"];
     migrated.preflight ??= {};
+    migrated.preflight.deliverables_confirmed = true;
     migrated.preflight.workflow_confirmed = true;
     migrated.workflow ??= { stage_order: [...WORKFLOW_STAGES], optional_stages: [...OPTIONAL_STAGES] };
     migrated.workflow.stage_order = [...WORKFLOW_STAGES];
@@ -17932,6 +18247,10 @@ function migrateProject(project, state = null) {
   if (isPlainObject(project?.preflight) && isPlainObject(project?.source_manifest)) {
     const migrated = structuredClone(project);
     migrated.schema_version = PROJECT_SCHEMA_VERSION;
+    migrated.project ??= {};
+    migrated.project.target = migrated.project.target ?? ((migrated.deliverables ?? []).some((item) => item === "character_card_json" || item === "character_card_png") ? "character_card" : "worldbook");
+    migrated.deliverables = ["rp_project_package"];
+    migrated.preflight.deliverables_confirmed = true;
     migrated.handoffs ??= [];
     migrated.capabilities ??= { enabled: [], planned: [], evidence: [] };
     migrated.blueprint ??= { mode: "direct", total_design: null, first_playable: null, growth_tracks: [], parking_lot: [], next: null };
@@ -18001,7 +18320,7 @@ async function readOriginalPng(loaded) {
   const relative = projectPngBasePath(loaded.project);
   if (!relative) throw inputError("\u9879\u76EE\u6CA1\u6709\u767B\u8BB0 PNG \u57FA\u5E95\uFF0C\u65E0\u6CD5\u8F93\u51FA PNG");
   const pngPath = resolveWithin(loaded.projectRoot, relative);
-  return { pngPath, buffer: await readFile5(pngPath) };
+  return { pngPath, buffer: await readFile6(pngPath) };
 }
 function compareLockValue(existing, value) {
   return semanticEqual(existing, value);
@@ -18070,9 +18389,9 @@ function printReport(report, jsonMode = false) {
 }
 
 // scripts/forge/commands.mjs
-import { readFile as readFile6 } from "node:fs/promises";
+import { readFile as readFile7 } from "node:fs/promises";
 import os from "node:os";
-import path6 from "node:path";
+import path7 from "node:path";
 import process2 from "node:process";
 var HELP_TEXT = `rp-card-forge - \u79BB\u7EBF\u3001\u4E8B\u52A1\u5F0F SillyTavern \u5236\u5361\u5DE5\u5177
 
@@ -18084,9 +18403,9 @@ var HELP_TEXT = `rp-card-forge - \u79BB\u7EBF\u3001\u4E8B\u52A1\u5F0F SillyTaver
   inspect <input>                    \u8BC6\u522B\u9879\u76EE\u3001\u89D2\u8272\u5361 JSON/PNG \u6216\u4E16\u754C\u4E66 JSON
   unpack <input> --nsfw <mode>       \u89E3\u5305\u4E3A\u53EF\u7EF4\u62A4\u9879\u76EE\uFF0C\u4FDD\u7559\u539F\u59CB\u8F93\u5165\u4E0E\u672A\u77E5\u5B57\u6BB5
   validate <input>                   \u6821\u9A8C\u9879\u76EE\u6216\u5236\u54C1
-  build <project-dir>                \u4ECE\u6E90\u7801\u6784\u5EFA JSON \u5236\u54C1
+  build <project-dir>                \u4ECE\u6E90\u7801\u6784\u5EFA\u591A\u6587\u4EF6 RP \u9879\u76EE\u5305
   ui-build <ui-app.yaml>             \u628A\u6A21\u5757\u5316 HTML/CSS/JS \u524D\u7AEF\u6784\u5EFA\u4E3A\u81EA\u5305\u542B HTML
-  pack <project-dir>                 \u6784\u5EFA JSON\uFF0C\u6216\u5199\u5165 PNG chara/ccv3 \u53CC\u5757
+  pack <project-dir>                 \u6784\u5EFA\u591A\u6587\u4EF6 RP \u9879\u76EE\u5305\uFF08build \u7684\u517C\u5BB9\u522B\u540D\uFF09
   diff <left> <right>                \u6BD4\u8F83\u8BED\u4E49 JSON
   roundtrip <input>                  \u9A8C\u8BC1 JSON/PNG \u8BED\u4E49\u5F80\u8FD4\u4E0E PNG \u56FE\u50CF\u6570\u636E
   state <project-dir> [action]       show/migrate/operation/plan/blueprint/lock/unlock/stage/handoff/handoff-status/capability
@@ -18095,7 +18414,7 @@ var HELP_TEXT = `rp-card-forge - \u79BB\u7EBF\u3001\u4E8B\u52A1\u5F0F SillyTaver
 \u901A\u7528\u9009\u9879:
   --json                             \u8F93\u51FA\u7A33\u5B9A JSON \u62A5\u544A
   --dry-run                          \u53EA\u89C4\u5212\u5199\u5165\uFF0C\u4E0D\u4FEE\u6539\u6587\u4EF6
-  --output <path>                    \u6307\u5B9A\u8F93\u51FA\u6587\u4EF6\u6216\u76EE\u5F55
+  --output <directory>               \u6307\u5B9A\u9879\u76EE\u5305\u8F93\u51FA\u76EE\u5F55
   --force                            \u660E\u786E\u5141\u8BB8\u8986\u76D6\u4E0D\u540C\u5185\u5BB9\u6216\u63A5\u7BA1\u9648\u65E7\u4E8B\u52A1\u9501
   --type character|worldbook        init \u7684\u9879\u76EE\u7C7B\u578B
   --nsfw enabled|disabled           \u521B\u5EFA\u9879\u76EE\u65F6\u660E\u786E\u9501\u5B9A NSFW \u5F00\u5173
@@ -18140,7 +18459,7 @@ async function runCommand(command, args, options) {
 }
 async function commandInit(args, options) {
   exactArgs("init", args, 1);
-  const root = path6.resolve(args[0]);
+  const root = path7.resolve(args[0]);
   const result2 = await initializeProject(root, {
     type: options.type ?? "character",
     nsfw: parseNsfwOption(options, "init"),
@@ -18200,9 +18519,9 @@ async function commandUnpack(args, options) {
   if (artifact.validation.issues.length > 0) {
     throw validationError("\u8F93\u5165\u5236\u54C1\u672A\u901A\u8FC7\u7ED3\u6784\u6821\u9A8C", artifact.validation);
   }
-  const defaultName = path6.basename(artifact.path, path6.extname(artifact.path));
+  const defaultName = path7.basename(artifact.path, path7.extname(artifact.path));
   const displayName = artifact.payload?.data?.name || artifact.payload?.name || defaultName;
-  const outputRoot = path6.resolve(options.output ?? path6.join(path6.dirname(artifact.path), `${defaultName}.rp-card`));
+  const outputRoot = path7.resolve(options.output ?? path7.join(path7.dirname(artifact.path), `${defaultName}.rp-card`));
   const target = artifact.format === Format.WORLDBOOK ? "worldbook" : "character_card";
   const project = makeProject({
     name: displayName,
@@ -18275,7 +18594,7 @@ async function commandValidate(args, options) {
       const loaded = await loadProject(artifact.projectRoot, { allowLegacy: true });
       const result22 = await validateLoadedProject(loaded);
       const reportData2 = validationReportData(result22);
-      const output = path6.resolve(options.output ?? path6.join(loaded.projectRoot, "reports", "validation.json"));
+      const output = path7.resolve(options.output ?? path7.join(loaded.projectRoot, "reports", "validation.json"));
       assertOutputDoesNotOverwriteSource(output, projectProtectedPaths(loaded));
       await planWrites([{ path: output, content: prettyJson(reportData2) }], { force: Boolean(options.force) });
       const nextState = structuredClone(loaded.state);
@@ -18316,7 +18635,7 @@ async function commandValidate(args, options) {
   const reportData = validationReportData(result2);
   const changes = [];
   if (options.output) {
-    const output = path6.resolve(options.output);
+    const output = path7.resolve(options.output);
     assertOutputDoesNotOverwriteSource(output, [artifact.path]);
     const commit = await commitWrites([{ path: output, content: prettyJson(reportData) }], {
       force: Boolean(options.force),
@@ -18383,7 +18702,7 @@ async function validateLoadedProject(loaded) {
   if (pngBase) {
     try {
       const pngPath = resolveWithin(loaded.projectRoot, pngBase);
-      parsePng(await readFile6(pngPath), pngPath);
+      parsePng(await readFile7(pngPath), pngPath);
       checks.push(check("png.base.integrity", "pass", "blocker", "artifact", [pngPath]));
     } catch (error) {
       model.issues.push({ path: "/source_manifest/preserved_imports", rule: "integrity", message: error.message });
@@ -18413,11 +18732,11 @@ async function validateLoadedProject(loaded) {
 }
 async function commandBuild(args, options) {
   exactArgs("build", args, 1);
-  return buildOrPack("build", args[0], options, false);
+  return buildOrPack("build", args[0], options);
 }
 async function commandUiBuild(args, options) {
   exactArgs("ui-build", args, 1);
-  const manifestPath = path6.resolve(args[0]);
+  const manifestPath = path7.resolve(args[0]);
   const result2 = await buildUiApp(manifestPath, {
     output: options.output,
     dryRun: Boolean(options["dry-run"])
@@ -18440,9 +18759,9 @@ async function commandUiBuild(args, options) {
 }
 async function commandPack(args, options) {
   exactArgs("pack", args, 1);
-  return buildOrPack("pack", args[0], options, true);
+  return buildOrPack("pack", args[0], options);
 }
-async function buildOrPack(command, root, options, allowPng) {
+async function buildOrPack(command, root, options) {
   return runProjectMutation(root, async () => {
     const loaded = await loadProject(root);
     const hooks = createForgeHookRunner({ projectRoot: loaded.projectRoot });
@@ -18470,72 +18789,54 @@ async function buildOrPack(command, root, options, allowPng) {
     const source = await loadProjectSource(loaded);
     assertValidSource(source);
     const configured = projectOutputPaths(loaded.project);
-    const pngBase = projectPngBasePath(loaded.project);
-    let outputPath;
-    let outputFormat;
-    let outputBuffer;
-    let pngEvidence = null;
-    if (allowPng && (options.output?.toLowerCase().endsWith(".png") || !options.output && pngBase)) {
-      if (projectTarget(loaded.project) === "worldbook") throw unsupportedError("\u72EC\u7ACB\u4E16\u754C\u4E66\u4E0D\u80FD\u6253\u5305\u4E3A\u89D2\u8272\u5361 PNG");
-      const base = await readOriginalPng(loaded);
-      outputPath = path6.resolve(options.output ?? resolveWithin(loaded.projectRoot, configured.png));
-      assertOutputDoesNotOverwriteSource(outputPath, projectProtectedPaths(loaded));
-      const before = parsePng(base.buffer, base.pngPath);
-      outputBuffer = embedCardInPng(base.buffer, source.payload, base.pngPath);
-      const after = parsePng(outputBuffer, `${outputPath} \u5019\u9009`);
-      const embedded = extractCardFromPng(outputBuffer, `${outputPath} \u5019\u9009`);
-      pngEvidence = {
-        selectedKeyword: embedded.selectedKeyword,
-        charaChunks: embedded.charaChunks,
-        ccv3Chunks: embedded.ccv3Chunks,
-        encoding: { chunk: "tEXt", payload: "base64", decoded: "utf8-json" },
-        nonCardDigestBefore: nonCardChunkDigest(before.chunks),
-        nonCardDigestAfter: nonCardChunkDigest(after.chunks)
-      };
-      outputFormat = Format.PNG_CHARACTER_V3;
-    } else {
-      outputPath = path6.resolve(options.output ?? resolveWithin(loaded.projectRoot, configured.json));
-      assertOutputDoesNotOverwriteSource(outputPath, projectProtectedPaths(loaded));
-      outputBuffer = Buffer.from(prettyJson(source.payload), "utf8");
-      outputFormat = source.format;
+    if (options.output && path7.extname(options.output)) {
+      throw unsupportedError("\u9879\u76EE\u5305\u4EA4\u4ED8\u5FC5\u987B\u5199\u5165\u76EE\u5F55\uFF0C--output \u4E0D\u80FD\u6307\u5B9A\u5355\u4E2A JSON/PNG \u6587\u4EF6");
     }
-    const manifestPath = path6.join(loaded.projectRoot, "reports", "build-manifest.json");
+    const outputRoot = path7.resolve(options.output ?? resolveWithin(loaded.projectRoot, configured.package));
+    assertOutputDoesNotOverwriteSource(outputRoot, projectProtectedPaths(loaded));
+    const delivery = await buildDeliveryPackage({
+      project: loaded.project,
+      projectRoot: loaded.projectRoot,
+      source,
+      outputRoot: path7.relative(loaded.projectRoot, outputRoot).replaceAll(path7.sep, "/")
+    });
+    const manifestPath = path7.join(loaded.projectRoot, "reports", "build-manifest.json");
     const protectedPaths = projectProtectedPaths(loaded);
     assertOutputDoesNotOverwriteSource(manifestPath, protectedPaths);
-    assertDistinctWriteTargets([outputPath, manifestPath]);
-    await planWrites([{ path: outputPath, content: outputBuffer }], { force: Boolean(options.force) });
-    const artifactDigest = sha2562(outputBuffer);
+    const outputWrites = delivery.files.map((file) => ({
+      path: resolveWithin(loaded.projectRoot, file.relativePath),
+      content: file.content,
+      role: "delivery"
+    }));
+    assertDistinctWriteTargets([...outputWrites.map((entry) => entry.path), manifestPath]);
     const sourceDigest = sha2562(prettyJson(source.payload));
-    const relativeOutput = relativeOrAbsolute(loaded.projectRoot, outputPath);
-    const effectiveCardPayload = isCharacterFormat(source.format) ? isPngCharacterFormat(outputFormat) ? ccv3Payload(source.payload) : source.payload : null;
     const manifest = {
       schema_version: "1.0.0",
+      delivery_mode: "rp_project_package",
       project_id: loaded.project.project.id,
       source_revision: loaded.state.revision,
       source: projectSourcePath(loaded.project),
       consumed_sources: source.consumedSources,
       source_digest: sourceDigest,
-      output: relativeOutput,
-      output_format: outputFormat,
-      ...effectiveCardPayload ? {
-        card_spec: effectiveCardPayload.spec,
-        card_spec_version: effectiveCardPayload.spec_version
-      } : {},
-      artifact_digest: artifactDigest,
+      output_root: path7.relative(loaded.projectRoot, outputRoot).replaceAll(path7.sep, "/"),
+      outputs: delivery.files.map((file) => file.relativePath),
+      artifact_digest: delivery.artifactDigest,
       preserved_unknown_fields: source.restoredPaths,
-      ...pngEvidence ? { png: pngEvidence } : {}
+      component_manifest: delivery.manifest
     };
+    const outputBuffer = delivery.manifestBytes;
     await hooks.run("after_build", {
       project: loaded.project,
       state: loaded.state,
-      outputPath,
+      outputPath: outputRoot,
       outputBuffer,
-      artifactDigest,
+      artifactDigest: delivery.artifactDigest,
       manifest,
       command
     });
     const nextState = structuredClone(loaded.state);
     const nextProject = structuredClone(loaded.project);
+    const relativeOutput = path7.relative(loaded.projectRoot, outputRoot).replaceAll(path7.sep, "/");
     nextProject.release.outputs = [.../* @__PURE__ */ new Set([...nextProject.release.outputs ?? [], relativeOutput])];
     const finishedAt = (/* @__PURE__ */ new Date()).toISOString();
     const sourceRevision = nextState.revision;
@@ -18553,7 +18854,7 @@ async function buildOrPack(command, root, options, allowPng) {
     const nextModel = validateProjectModel(nextProject, nextState, loaded.projectRoot);
     if (nextModel.issues.length > 0) throw validationError("\u6784\u5EFA\u540E\u7684\u9879\u76EE\u4E0E\u6280\u672F\u72B6\u6001\u672A\u901A\u8FC7 Schema", nextModel);
     const writes = [
-      { path: outputPath, content: outputBuffer, role: "delivery" },
+      ...outputWrites,
       { path: manifestPath, content: prettyJson(manifest), role: "delivery" },
       { path: loaded.projectPath, content: stringifyYaml(nextProject), role: "ledger" },
       { path: loaded.statePath, content: prettyJson(nextState), role: "ledger" }
@@ -18573,19 +18874,19 @@ async function buildOrPack(command, root, options, allowPng) {
     await hooks.run("after_delivery", {
       project: nextProject,
       state: nextState,
-      outputPath,
+      outputPath: outputRoot,
       manifestPath,
       dryRun: Boolean(options["dry-run"]),
       command
     }, { enforce: false });
     return successReport(command, {
       projectRoot: loaded.projectRoot,
-      output: outputPath,
-      format: outputFormat,
+      output: outputRoot,
+      deliveryMode: "rp_project_package",
+      outputs: delivery.files.map((file) => file.relativePath),
       sourceDigest,
-      artifactDigest,
+      artifactDigest: delivery.artifactDigest,
       preservedUnknownFieldsRestored: source.restoredPaths,
-      png: pngEvidence,
       hooks: hooks.snapshot(),
       dryRun: Boolean(options["dry-run"])
     }, projectValidation.warnings.map((warning) => warning.message), commit.changes);
@@ -18647,7 +18948,7 @@ async function commandRoundtrip(args, options) {
   }
   const changes = [];
   if (options.output) {
-    const outputPath = path6.resolve(options.output);
+    const outputPath = path7.resolve(options.output);
     const protectedPaths = comparable.project ? projectProtectedPaths(comparable.project) : [comparable.path];
     assertOutputDoesNotOverwriteSource(outputPath, protectedPaths);
     const commit = await commitWrites([{ path: outputPath, content: candidate }], {
@@ -19134,15 +19435,15 @@ function summarizeValidation(validation) {
   };
 }
 function relativeOrAbsolute(root, target) {
-  const relative = path6.relative(root, target);
-  if (!relative.startsWith("..") && !path6.isAbsolute(relative)) return relative.replaceAll(path6.sep, "/");
+  const relative = path7.relative(root, target);
+  if (!relative.startsWith("..") && !path7.isAbsolute(relative)) return relative.replaceAll(path7.sep, "/");
   return target;
 }
 function assertOutputDoesNotOverwriteSource(output, sources) {
   const resolvedOutput = comparablePath(output);
   for (const source of sources.filter(Boolean)) {
     if (resolvedOutput === comparablePath(source)) {
-      throw conflictError(`\u8F93\u51FA\u4E0D\u80FD\u8986\u76D6\u7EF4\u62A4\u6E90\u7801\u3001\u6280\u672F\u72B6\u6001\u6216\u539F\u59CB\u8F93\u5165: ${path6.resolve(output)}`);
+      throw conflictError(`\u8F93\u51FA\u4E0D\u80FD\u8986\u76D6\u7EF4\u62A4\u6E90\u7801\u3001\u6280\u672F\u72B6\u6001\u6216\u539F\u59CB\u8F93\u5165: ${path7.resolve(output)}`);
     }
   }
 }
@@ -19151,7 +19452,7 @@ function assertDistinctWriteTargets(targets) {
   for (const target of targets.filter(Boolean)) {
     const comparable = comparablePath(target);
     if (seen.has(comparable)) {
-      throw conflictError(`\u6784\u5EFA\u5199\u5165\u76EE\u6807\u4E0D\u80FD\u91CD\u590D: ${path6.resolve(target)}`);
+      throw conflictError(`\u6784\u5EFA\u5199\u5165\u76EE\u6807\u4E0D\u80FD\u91CD\u590D: ${path7.resolve(target)}`);
     }
     seen.set(comparable, target);
   }
@@ -19167,7 +19468,7 @@ function projectProtectedPaths(loaded) {
   return [loaded.projectPath, loaded.statePath, ...manifestPaths];
 }
 function comparablePath(target) {
-  const resolved = path6.resolve(target);
+  const resolved = path7.resolve(target);
   return process2.platform === "win32" ? resolved.toLowerCase() : resolved;
 }
 function parseCliValue(raw) {

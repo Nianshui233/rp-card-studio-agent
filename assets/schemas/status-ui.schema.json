@@ -56,6 +56,27 @@
             "super_heavy"
           ]
         },
+        "data_density": {
+          "enum": [
+            "sparse",
+            "medium",
+            "rich",
+            "large_cross_domain",
+            "unknown"
+          ]
+        },
+        "presentation_model": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "authoritative_paths": { "type": "array", "items": { "type": "string" } },
+            "static_modules": { "type": "array", "items": { "type": "string" } },
+            "derived_views": { "type": "array", "items": { "type": "string" } },
+            "local_interaction_state": { "type": "array", "items": { "type": "string" } },
+            "empty_state_policy": { "type": "string" },
+            "unknown_state_policy": { "type": "string" }
+          }
+        },
         "theme_direction": {
           "type": "string"
         },

@@ -1,0 +1,16 @@
+schema_version: 1.0.0
+display_name: "主控设定模板"
+enabled: false
+activation:
+  marker: "<user>"
+  keywords: ["<user>"]
+content: |-
+  <user>
+  姓名：
+  身份：
+  当前状态：
+  与车站的关系：
+  近期目标：
+  其他补充：
+  </user>
+notes: "这是清空旧主控档案后的空白填写入口，不代表已经存在任何主控事实。"

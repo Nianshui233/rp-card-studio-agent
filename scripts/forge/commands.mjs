@@ -1,5 +1,6 @@
 import { validateRuntimeSources } from '../rp-card-runtime.mjs';
 import { buildUiApp } from '../ui-app-builder.mjs';
+import { buildDeliveryPackage } from './delivery-package.mjs';
 
 import { conflictError, inputError, integrityError, unsupportedError, validationError } from './errors.mjs';
 import { commitNewDirectory, commitWrites, planWrites, resolveWithin } from './fs-transaction.mjs';
@@ -64,9 +65,9 @@ export var HELP_TEXT = `rp-card-forge - 离线、事务式 SillyTavern 制卡工
   inspect <input>                    识别项目、角色卡 JSON/PNG 或世界书 JSON
   unpack <input> --nsfw <mode>       解包为可维护项目，保留原始输入与未知字段
   validate <input>                   校验项目或制品
-  build <project-dir>                从源码构建 JSON 制品
+  build <project-dir>                从源码构建多文件 RP 项目包
   ui-build <ui-app.yaml>             把模块化 HTML/CSS/JS 前端构建为自包含 HTML
-  pack <project-dir>                 构建 JSON，或写入 PNG chara/ccv3 双块
+  pack <project-dir>                 构建多文件 RP 项目包（build 的兼容别名）
   diff <left> <right>                比较语义 JSON
   roundtrip <input>                  验证 JSON/PNG 语义往返与 PNG 图像数据
   state <project-dir> [action]       show/migrate/operation/plan/blueprint/lock/unlock/stage/handoff/handoff-status/capability
@@ -75,7 +76,7 @@ export var HELP_TEXT = `rp-card-forge - 离线、事务式 SillyTavern 制卡工
 通用选项:
   --json                             输出稳定 JSON 报告
   --dry-run                          只规划写入，不修改文件
-  --output <path>                    指定输出文件或目录
+  --output <directory>               指定项目包输出目录
   --force                            明确允许覆盖不同内容或接管陈旧事务锁
   --type character|worldbook        init 的项目类型
   --nsfw enabled|disabled           创建项目时明确锁定 NSFW 开关
@@ -395,7 +396,7 @@ async function validateLoadedProject(loaded) {
 }
 async function commandBuild(args, options) {
   exactArgs("build", args, 1);
-  return buildOrPack("build", args[0], options, false);
+  return buildOrPack("build", args[0], options);
 }
 async function commandUiBuild(args, options) {
   exactArgs("ui-build", args, 1);
@@ -422,9 +423,9 @@ async function commandUiBuild(args, options) {
 }
 async function commandPack(args, options) {
   exactArgs("pack", args, 1);
-  return buildOrPack("pack", args[0], options, true);
+  return buildOrPack("pack", args[0], options);
 }
-async function buildOrPack(command, root, options, allowPng) {
+async function buildOrPack(command, root, options) {
   return runProjectMutation(root, async () => {
     const loaded = await loadProject(root);
     const hooks = createForgeHookRunner({ projectRoot: loaded.projectRoot });
@@ -452,72 +453,54 @@ async function buildOrPack(command, root, options, allowPng) {
     const source = await loadProjectSource(loaded);
     assertValidSource(source);
     const configured = projectOutputPaths(loaded.project);
-    const pngBase = projectPngBasePath(loaded.project);
-    let outputPath;
-    let outputFormat;
-    let outputBuffer;
-    let pngEvidence = null;
-    if (allowPng && (options.output?.toLowerCase().endsWith(".png") || !options.output && pngBase)) {
-      if (projectTarget(loaded.project) === "worldbook") throw unsupportedError("独立世界书不能打包为角色卡 PNG");
-      const base = await readOriginalPng(loaded);
-      outputPath = path.resolve(options.output ?? resolveWithin(loaded.projectRoot, configured.png));
-      assertOutputDoesNotOverwriteSource(outputPath, projectProtectedPaths(loaded));
-      const before = parsePng(base.buffer, base.pngPath);
-      outputBuffer = embedCardInPng(base.buffer, source.payload, base.pngPath);
-      const after = parsePng(outputBuffer, `${outputPath} 候选`);
-      const embedded = extractCardFromPng(outputBuffer, `${outputPath} 候选`);
-      pngEvidence = {
-        selectedKeyword: embedded.selectedKeyword,
-        charaChunks: embedded.charaChunks,
-        ccv3Chunks: embedded.ccv3Chunks,
-        encoding: { chunk: "tEXt", payload: "base64", decoded: "utf8-json" },
-        nonCardDigestBefore: nonCardChunkDigest(before.chunks),
-        nonCardDigestAfter: nonCardChunkDigest(after.chunks)
-      };
-      outputFormat = Format.PNG_CHARACTER_V3;
-    } else {
-      outputPath = path.resolve(options.output ?? resolveWithin(loaded.projectRoot, configured.json));
-      assertOutputDoesNotOverwriteSource(outputPath, projectProtectedPaths(loaded));
-      outputBuffer = Buffer.from(prettyJson(source.payload), "utf8");
-      outputFormat = source.format;
+    if (options.output && path.extname(options.output)) {
+      throw unsupportedError("项目包交付必须写入目录，--output 不能指定单个 JSON/PNG 文件");
     }
+    const outputRoot = path.resolve(options.output ?? resolveWithin(loaded.projectRoot, configured.package));
+    assertOutputDoesNotOverwriteSource(outputRoot, projectProtectedPaths(loaded));
+    const delivery = await buildDeliveryPackage({
+      project: loaded.project,
+      projectRoot: loaded.projectRoot,
+      source,
+      outputRoot: path.relative(loaded.projectRoot, outputRoot).replaceAll(path.sep, "/"),
+    });
     const manifestPath = path.join(loaded.projectRoot, "reports", "build-manifest.json");
     const protectedPaths = projectProtectedPaths(loaded);
     assertOutputDoesNotOverwriteSource(manifestPath, protectedPaths);
-    assertDistinctWriteTargets([outputPath, manifestPath]);
-    await planWrites([{ path: outputPath, content: outputBuffer }], { force: Boolean(options.force) });
-    const artifactDigest = sha256(outputBuffer);
+    const outputWrites = delivery.files.map((file) => ({
+      path: resolveWithin(loaded.projectRoot, file.relativePath),
+      content: file.content,
+      role: "delivery",
+    }));
+    assertDistinctWriteTargets([...outputWrites.map((entry) => entry.path), manifestPath]);
     const sourceDigest = sha256(prettyJson(source.payload));
-    const relativeOutput = relativeOrAbsolute(loaded.projectRoot, outputPath);
-    const effectiveCardPayload = isCharacterFormat(source.format) ? isPngCharacterFormat(outputFormat) ? ccv3Payload(source.payload) : source.payload : null;
     const manifest = {
       schema_version: "1.0.0",
+      delivery_mode: "rp_project_package",
       project_id: loaded.project.project.id,
       source_revision: loaded.state.revision,
       source: projectSourcePath(loaded.project),
       consumed_sources: source.consumedSources,
       source_digest: sourceDigest,
-      output: relativeOutput,
-      output_format: outputFormat,
-      ...effectiveCardPayload ? {
-        card_spec: effectiveCardPayload.spec,
-        card_spec_version: effectiveCardPayload.spec_version
-      } : {},
-      artifact_digest: artifactDigest,
+      output_root: path.relative(loaded.projectRoot, outputRoot).replaceAll(path.sep, "/"),
+      outputs: delivery.files.map((file) => file.relativePath),
+      artifact_digest: delivery.artifactDigest,
       preserved_unknown_fields: source.restoredPaths,
-      ...pngEvidence ? { png: pngEvidence } : {}
+      component_manifest: delivery.manifest,
     };
+    const outputBuffer = delivery.manifestBytes;
     await hooks.run("after_build", {
       project: loaded.project,
       state: loaded.state,
-      outputPath,
+      outputPath: outputRoot,
       outputBuffer,
-      artifactDigest,
+      artifactDigest: delivery.artifactDigest,
       manifest,
       command,
     });
     const nextState = structuredClone(loaded.state);
     const nextProject = structuredClone(loaded.project);
+    const relativeOutput = path.relative(loaded.projectRoot, outputRoot).replaceAll(path.sep, "/");
     nextProject.release.outputs = [.../* @__PURE__ */ new Set([...nextProject.release.outputs ?? [], relativeOutput])];
     const finishedAt = (/* @__PURE__ */ new Date()).toISOString();
     const sourceRevision = nextState.revision;
@@ -535,7 +518,7 @@ async function buildOrPack(command, root, options, allowPng) {
     const nextModel = validateProjectModel(nextProject, nextState, loaded.projectRoot);
     if (nextModel.issues.length > 0) throw validationError("构建后的项目与技术状态未通过 Schema", nextModel);
     const writes = [
-      { path: outputPath, content: outputBuffer, role: "delivery" },
+      ...outputWrites,
       { path: manifestPath, content: prettyJson(manifest), role: "delivery" },
       { path: loaded.projectPath, content: stringifyYaml(nextProject), role: "ledger" },
       { path: loaded.statePath, content: prettyJson(nextState), role: "ledger" }
@@ -555,19 +538,19 @@ async function buildOrPack(command, root, options, allowPng) {
     await hooks.run("after_delivery", {
       project: nextProject,
       state: nextState,
-      outputPath,
+      outputPath: outputRoot,
       manifestPath,
       dryRun: Boolean(options["dry-run"]),
       command,
     }, { enforce: false });
     return successReport(command, {
       projectRoot: loaded.projectRoot,
-      output: outputPath,
-      format: outputFormat,
+      output: outputRoot,
+      deliveryMode: "rp_project_package",
+      outputs: delivery.files.map((file) => file.relativePath),
       sourceDigest,
-      artifactDigest,
+      artifactDigest: delivery.artifactDigest,
       preservedUnknownFieldsRestored: source.restoredPaths,
-      png: pngEvidence,
       hooks: hooks.snapshot(),
       dryRun: Boolean(options["dry-run"])
     }, projectValidation.warnings.map((warning) => warning.message), commit.changes);

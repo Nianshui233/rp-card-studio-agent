@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -13,6 +13,14 @@ import {
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const forge = process.env.RP_CARD_FORGE ?? path.join(skillRoot, 'scripts', 'rp-card-forge.bundle.mjs');
+
+function packageFile(project, folder, predicate) {
+  const packageRoot = path.join(project, 'dist', readdirSync(path.join(project, 'dist'))[0]);
+  const directory = path.join(packageRoot, folder);
+  const filename = readdirSync(directory).find(predicate);
+  assert.ok(filename, `package component not found in ${directory}`);
+  return path.join(directory, filename);
+}
 
 function emptySources(overrides = {}) {
   return {
@@ -172,7 +180,7 @@ test('standalone worldbook fallback emits SillyTavern host fields without an ass
   runForge(['init', root, '--nsfw', 'disabled', '--type', 'worldbook'], { expectSuccess: true });
   runForge(['build', root], { expectSuccess: true });
 
-  const artifactPath = path.join(root, 'dist', 'worldbook.json');
+  const artifactPath = packageFile(root, '03_世界书', name => name.endsWith('.json'));
   runForge(['validate', artifactPath], { expectSuccess: true });
   const worldbook = JSON.parse(readFileSync(artifactPath, 'utf8'));
   const entry = Object.values(worldbook.entries)[0];
@@ -311,14 +319,14 @@ test('standalone assembly never overwrites an imported object key that lacks uid
   assert.equal(generated.uid, 1);
 });
 
-test('runtime validation infers embedded character-card target from deliverables', async () => {
+test('runtime validation treats the fixed package as the default character-project target', async () => {
   const sources = sourcesWithManifest([worldbookEntry({
     id: 'embedded_filter',
     character_filter: { avatar_stems: ['Seraphina'], tag_ids: [], is_exclude: false },
   })]);
 
   const validation = await validateRuntimeSources({
-    project: { features: {}, deliverables: ['character_card_json'] },
+    project: { features: {}, deliverables: ['rp_project_package'] },
     sources,
     projectRoot: process.cwd(),
   });
@@ -486,7 +494,7 @@ test('no-assembly Forge fallback reserves imported numeric worldbook keys', t =>
   writeFileSync(projectPath, updatedProject, 'utf8');
 
   runForge(['build', project], { expectSuccess: true });
-  const output = JSON.parse(readFileSync(path.join(project, 'dist', 'worldbook.json'), 'utf8'));
+  const output = JSON.parse(readFileSync(packageFile(project, '03_世界书', name => name.endsWith('.json')), 'utf8'));
   assert.equal(output.entries['0'].content, 'Imported without uid.');
   const generated = Object.values(output.entries).find(entry => entry.extensions?.rp_card_studio?.source_id === 'additional');
   assert.ok(generated, `additional entry was overwritten or lost: ${JSON.stringify(output.entries)}`);

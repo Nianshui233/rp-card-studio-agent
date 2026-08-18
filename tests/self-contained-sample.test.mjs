@@ -14,6 +14,8 @@ const sampleRoots = [
   "opening-ui-rp",
   "multi-surface-rp",
   "zero-layer-rp",
+  "retrofit-rp",
+  "sparse-heavy-ui-rp",
 ].map((name) => join(process.cwd(), "assets", "examples", name));
 
 test("bundled technical sample is self-contained and internally coherent", async () => {
@@ -65,7 +67,7 @@ test("user-facing agent docs do not direct to the former external sample names",
 });
 
 test("the sample matrix stays self-contained and free of external URLs", async () => {
-  assert.equal(sampleRoots.length, 6);
+  assert.equal(sampleRoots.length, 8);
   for (const sampleRoot of sampleRoots) {
     const files = await readdir(sampleRoot, { recursive: true, withFileTypes: true });
     assert.ok(files.some((entry) => entry.isFile() && entry.name === "README.md"), sampleRoot);
@@ -82,6 +84,29 @@ test("the sample matrix stays self-contained and free of external URLs", async (
       if (file.endsWith(".html") && !file.includes(`${join("fragments", "")}`)) assert.match(text, /<!doctype html>/i, file);
       if (file.endsWith(".html") && file.includes(`${join("fragments", "")}`)) assert.match(text, /<(?:main|section|article|div)\b/i, file);
     }
+  }
+});
+
+test("the sample coverage matrix names every bundled sample exactly once", async () => {
+  const matrix = YAML.parse(await readFile(join(process.cwd(), "assets", "examples", "matrix.yaml"), "utf8"));
+  const ids = matrix.samples.map((sample) => sample.id);
+  assert.deepEqual([...ids].sort(), [
+    "multi-surface-rp",
+    "mvu-native-rp",
+    "mvu-zod-rp",
+    "opening-ui-rp",
+    "retrofit-rp",
+    "self-contained-rp",
+    "sparse-heavy-ui-rp",
+    "zero-layer-rp",
+  ]);
+  assert.equal(new Set(ids).size, ids.length);
+  for (const sample of matrix.samples) {
+    assert.ok(sample.route, `${sample.id} should declare a route`);
+    assert.ok(sample.rp_shape, `${sample.id} should declare an RP shape`);
+    assert.ok(Array.isArray(sample.runtime), `${sample.id} should declare runtime coverage`);
+    assert.ok(Array.isArray(sample.delivery), `${sample.id} should declare delivery coverage`);
+    assert.ok(Array.isArray(sample.fallback), `${sample.id} should declare fallback coverage`);
   }
 });
 
@@ -117,4 +142,36 @@ test("opening/status separation sample is a reproducible modular double applicat
   assert.ok(assembly.runtime_manifest.regex_scripts.some(item => item.replace_file === "src/runtime/ui/开场页.html"));
   assert.ok(assembly.runtime_manifest.regex_scripts.some(item => item.replace_file === "src/runtime/ui/状态页.html"));
   assert.ok(assembly.worldbook_manifest.entries.some(item => item.id === "wb_rain_status_contract"));
+});
+
+test("retrofit sample preserves the old input and replaces the user profile with a real blank template", async () => {
+  const sample = join(process.cwd(), "assets", "examples", "retrofit-rp");
+  const assembly = YAML.parse(await readFile(join(sample, "assembly.yaml"), "utf8"));
+  assert.equal(assembly.operation, "edit");
+  assert.equal(assembly.original.input, "src/original/original.json");
+  assert.equal(assembly.original.preserved, "src/original/preserved.json");
+  const original = JSON.parse(await readFile(join(sample, "src", "original", "original.json"), "utf8"));
+  const preserved = JSON.parse(await readFile(join(sample, "src", "original", "preserved.json"), "utf8"));
+  assert.equal(original.data.extensions.unknown_runtime.kept, true);
+  assert.equal(preserved.unknown_fields[0].decision, "preserve");
+  const user = YAML.parse(await readFile(join(sample, "src", "user-character.yaml"), "utf8"));
+  assert.equal(user.enabled, false);
+  assert.deepEqual(user.activation.keywords, ["<user>"]);
+  assert.match(user.content, /<user>[\s\S]*<\/user>/);
+  const html = await readFile(join(sample, "src", "runtime", "ui", "改造状态页.html"), "utf8");
+  assert.match(html, /<body[\s>][\s\S]*<script[\s>][\s\S]*<\/body>/i);
+});
+
+test("sparse-data sample keeps heavy experience independent from variable count", async () => {
+  const sample = join(process.cwd(), "assets", "examples", "sparse-heavy-ui-rp");
+  const ui = YAML.parse(await readFile(join(sample, "src", "status-ui.yaml"), "utf8"));
+  assert.equal(ui.status_ui.experience_level, "heavy");
+  assert.equal(ui.status_ui.data_density, "sparse");
+  assert.ok(ui.status_ui.presentation_model.static_modules.length > 0);
+  assert.ok(ui.status_ui.presentation_model.local_interaction_state.length > 0);
+  const html = await readFile(join(sample, "src", "runtime", "ui", "星港观测台.html"), "utf8");
+  assert.match(html, /<nav[\s>]/i);
+  assert.match(html, /<style[\s>][\s\S]*<script[\s>]/i);
+  assert.match(html, /尚未建立|暂无记录/);
+  assert.doesNotMatch(html, /https?:\/\//i);
 });

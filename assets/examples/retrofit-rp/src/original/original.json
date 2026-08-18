@@ -1,0 +1,20 @@
+{
+  "spec": "chara_card_v2",
+  "data": {
+    "name": "回声车站旧档案",
+    "description": "旧卡入口",
+    "first_mes": "<回声状态/>",
+    "character_book": {
+      "name": "回声车站旧世界书",
+      "entries": [
+        { "keys": ["车站"], "content": "旧世界核心仍然有效。", "enabled": true }
+      ]
+    },
+    "extensions": {
+      "unknown_runtime": { "kept": true, "note": "不能在不了解来源时删除" },
+      "regex_scripts": [
+        { "scriptName": "旧状态", "findRegex": "/<回声状态\\/>/g", "replaceString": "旧界面" }
+      ]
+    }
+  }
+}

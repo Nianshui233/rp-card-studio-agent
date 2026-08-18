@@ -114,11 +114,7 @@ var SOURCE_GROUPS = Object.freeze([
   "preserved_imports"
 ]);
 var DELIVERABLES = /* @__PURE__ */ new Set([
-  "project_source",
-  "character_card_json",
-  "character_card_png",
-  "worldbook_json",
-  "validation_report"
+  "rp_project_package"
 ]);
 var ID_PATTERN = /^[a-z][a-z0-9_]*$/;
 var DECISION_ID_PATTERN = /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*$/;
@@ -262,6 +258,7 @@ export function makeProject({ name, target = "character_card", nsfw, operation =
       locale: "zh-CN",
       workspace: ".",
       operation,
+      target: isWorldbook ? "worldbook" : "character_card",
       status: "active"
     },
     preflight: {
@@ -295,7 +292,7 @@ export function makeProject({ name, target = "character_card", nsfw, operation =
       ejs: false,
       status_ui: false
     },
-    deliverables: [isWorldbook ? "worldbook_json" : "character_card_json"],
+    deliverables: ["rp_project_package"],
     materials: [],
     decisions: [{
       id: "preflight_nsfw",
@@ -409,13 +406,28 @@ export async function applyNsfwTemplates(project, characterSource) {
   const statusUi = await readYaml(await templateAssetUrl("status-ui.yaml"));
   const statusMixin = await readYaml(await templateAssetUrl("nsfw/status-ui.mixin.yaml"));
   if (characterSource) {
-    const characterMixin = await readYaml(await templateAssetUrl("nsfw/character.mixin.yaml"));
-    characterSource.nsfw = structuredClone(characterMixin.nsfw);
+    await applyNsfwCharacterMixins(project, [characterSource]);
   }
   if (!project.workflow.planned_stages.includes("status_ui")) return { uiSource: null };
   statusUi.status_ui.mature_content_topics = structuredClone(statusMixin.mature_content_topics ?? []);
   project.source_manifest.ui.push("src/ui/status-ui.yaml");
   return { uiSource: statusUi };
+}
+export async function applyNsfwCharacterMixins(project, characterSources = []) {
+  if (project?.preflight?.nsfw?.enabled !== true || projectTarget(project) !== "character_card") return [];
+  const characterMixin = await readYaml(await templateAssetUrl("nsfw/character.mixin.yaml"));
+  const defaults = characterMixin.nsfw ?? {};
+  for (const source of characterSources) {
+    if (!source || typeof source !== "object") continue;
+    const existing = source.nsfw && typeof source.nsfw === "object" ? source.nsfw : {};
+    source.nsfw = {
+      ...structuredClone(defaults),
+      ...structuredClone(existing),
+      fetish: existing.fetish ?? structuredClone(defaults.fetish ?? []),
+      sensitive_areas: existing.sensitive_areas ?? structuredClone(defaults.sensitive_areas ?? []),
+    };
+  }
+  return characterSources;
 }
 async function templateAssetUrl(relativePath) {
   const sourceUrl = new URL(`../../assets/templates/${relativePath}`, import.meta.url);
@@ -447,6 +459,10 @@ export async function loadProject(root, { allowLegacy = false } = {}) {
   return { projectRoot, projectPath, statePath, project, state };
 }
 export function projectTarget(project) {
+  if (project?.project?.target === "worldbook") return "worldbook";
+  if (project?.project?.target === "character_card") return "character_card";
+  // Legacy projects used deliverables to infer the target. Keep this fallback
+  // only long enough to migrate them into the package contract.
   return project?.deliverables?.some((item) => item === "character_card_json" || item === "character_card_png") ? "character_card" : "worldbook";
 }
 export function projectSourcePath(project) {
@@ -468,10 +484,16 @@ export function projectPngBasePath(project) {
   return project?.source_manifest?.preserved_imports?.find((entry) => /\.png$/i.test(entry)) ?? null;
 }
 export function projectOutputPaths(project) {
-  const isWorldbook = projectTarget(project) === "worldbook";
+  const displayName = String(project?.project?.display_name ?? "rp-project")
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_")
+    .replace(/\s+/g, " ")
+    .trim() || "rp-project";
+  const packageRoot = `dist/${displayName}`;
   return {
-    json: isWorldbook ? "dist/worldbook.json" : "dist/character-card.json",
-    png: isWorldbook ? null : "dist/character-card.png"
+    package: packageRoot,
+    manifest: `${packageRoot}/01_项目清单.json`,
+    instructions: `${packageRoot}/00_导入说明.md`,
+    report: `${packageRoot}/07_验证报告.md`
   };
 }
 export function validateProjectModel(project, state, root) {
@@ -484,14 +506,17 @@ export function validateProjectModel(project, state, root) {
   rejectUnknownKeys(project, PROJECT_ROOT_KEYS, "", issues);
   if (project.schema_version !== PROJECT_SCHEMA_VERSION) issues.push(modelIssue("/schema_version", "const", `必须为 ${PROJECT_SCHEMA_VERSION}`));
   if (!ID_PATTERN.test(project?.project?.id ?? "")) issues.push(modelIssue("/project/id", "pattern", "项目 ID 必须是 snake_case"));
-  for (const field of ["display_name", "workspace", "operation", "status"]) {
+  for (const field of ["display_name", "workspace", "operation", "target", "status"]) {
     if (typeof project?.project?.[field] !== "string" || project.project[field] === "") {
       issues.push(modelIssue(`/project/${field}`, "required", `${field} 必须是非空字符串`));
     }
   }
+  if (!["character_card", "worldbook"].includes(project?.project?.target)) {
+    issues.push(modelIssue("/project/target", "enum", "项目 target 必须是 character_card 或 worldbook"));
+  }
   if (typeof project?.project?.locale !== "string" || project.project.locale.trim() === "") issues.push(modelIssue("/project/locale", "type", "locale 必须是非空字符串"));
   if (!project?.preflight?.workspace_confirmed || !project?.preflight?.input_materials_confirmed || !project?.preflight?.deliverables_confirmed || !project?.preflight?.workflow_confirmed) {
-    issues.push(modelIssue("/preflight", "confirmed", "工作区、输入材料、交付物和阶段路线必须完成预检确认"));
+    issues.push(modelIssue("/preflight", "confirmed", "工作区、输入材料和阶段路线必须完成预检确认；交付包由 Agent 固定提供"));
   }
   if (project?.preflight?.nsfw?.confirmed !== true || !["user"].includes(project?.preflight?.nsfw?.decision_source)) {
     issues.push(modelIssue("/preflight/nsfw", "confirmed", "NSFW 必须由用户明确锁定"));
@@ -513,10 +538,8 @@ export function validateProjectModel(project, state, root) {
   for (const feature of ["materials", "systems", "scenes", "mvu", "ejs", "status_ui"]) {
     if (typeof project?.features?.[feature] !== "boolean") issues.push(modelIssue(`/features/${feature}`, "type", "功能开关必须是布尔值"));
   }
-  if (!Array.isArray(project.deliverables) || project.deliverables.length === 0) {
-    issues.push(modelIssue("/deliverables", "minItems", "至少需要一个交付物"));
-  } else {
-    for (const item of project.deliverables) if (!DELIVERABLES.has(item)) issues.push(modelIssue("/deliverables", "enum", `未知交付物: ${item}`));
+  if (!Array.isArray(project.deliverables) || project.deliverables.length !== 1 || project.deliverables[0] !== "rp_project_package") {
+    issues.push(modelIssue("/deliverables", "const", "项目必须且只能使用固定的 rp_project_package 交付方式"));
   }
   if (!isPlainObject(project.source_manifest)) issues.push(modelIssue("/source_manifest", "required", "缺少 source_manifest"));
   const isCharacterProject = projectTarget(project) === "character_card";
@@ -927,6 +950,10 @@ function modelIssue(pathValue, rule, message) {
 }
 export async function loadProjectSource(loaded) {
   const sources = await readRegisteredSources(loaded);
+  // The project-level NSFW decision must reach every authored character
+  // source before CharacterBook assembly. This injects content fields only;
+  // it never creates a runtime age gate or refusal rule.
+  await applyNsfwCharacterMixins(loaded.project, sources.characters.map((entry) => entry.value));
   const relativeSource = projectSourcePath(loaded.project);
   const sourcePath = resolveWithin(loaded.projectRoot, relativeSource);
   const target = projectTarget(loaded.project) === "worldbook" ? "worldbook" : "character";
@@ -1018,6 +1045,7 @@ export async function validateRegisteredSources(loaded) {
     if (!await pathExists(absolutePath)) issues.push(modelIssue(`/${relativePath}`, "required", "登记的保留输入不存在"));
   }
   validateCardModelComposition(sources, issues);
+  validateNsfwCharacterLayers(loaded.project, sources, issues);
   validatePositioningProjectIdentity(loaded, sources, issues);
   return { issues, checks };
 }
@@ -1089,6 +1117,31 @@ function validateCardModelComposition(sources, issues) {
   }
   if (singleCharacterCard && characters.length !== 1) {
     issues.push(modelIssue("/source_manifest/characters", "composition.single_character", "真正的单人卡必须且只能登记一个角色源码"));
+  }
+}
+const NSFW_CHARACTER_FIELDS = Object.freeze([
+  "sexual_orientation",
+  "standing",
+  "fetish",
+  "preference",
+  "sex_organs",
+  "sensitive_areas",
+  "contrast",
+]);
+function validateNsfwCharacterLayers(project, sources, issues) {
+  if (project?.preflight?.nsfw?.enabled !== true || sources.characters.length === 0) return;
+  for (const entry of sources.characters) {
+    const layer = entry.value?.nsfw;
+    const missing = !layer || typeof layer !== "object"
+      ? [...NSFW_CHARACTER_FIELDS]
+      : NSFW_CHARACTER_FIELDS.filter((field) => !Object.hasOwn(layer, field));
+    if (missing.length > 0) {
+      issues.push(modelIssue(
+        `/${entry.relativePath}/nsfw`,
+        "character.nsfw_required",
+        `NSFW 已启用，但角色没有完整 NSFW 层；缺少：${missing.join("、")}`,
+      ));
+    }
   }
 }
 function projectOwnsCardSurface(project, state, positioning) {
@@ -1705,9 +1758,18 @@ export function migrateProject(project, state = null) {
       && project?.workflow?.current_stage === activeStage
       && Array.isArray(project?.handoffs)
       && isPlainObject(project?.capabilities);
-    if (project?.preflight?.workflow_confirmed === true && hasPlan && !legacyRoute && !hasLegacyDecision && hasAgent) return { value: project, migrated: false };
+    const inferredTarget = project?.project?.target
+      ?? ((project?.deliverables ?? []).some((item) => item === "character_card_json" || item === "character_card_png") ? "character_card" : "worldbook");
+    const packageReady = project?.project?.target === inferredTarget
+      && semanticEqual(project?.deliverables, ["rp_project_package"])
+      && project?.preflight?.deliverables_confirmed === true;
+    if (project?.preflight?.workflow_confirmed === true && hasPlan && !legacyRoute && !hasLegacyDecision && hasAgent && packageReady) return { value: project, migrated: false };
     const migrated = structuredClone(project);
+    migrated.project ??= {};
+    migrated.project.target = inferredTarget;
+    migrated.deliverables = ["rp_project_package"];
     migrated.preflight ??= {};
+    migrated.preflight.deliverables_confirmed = true;
     migrated.preflight.workflow_confirmed = true;
     migrated.workflow ??= { stage_order: [...WORKFLOW_STAGES], optional_stages: [...OPTIONAL_STAGES] };
     migrated.workflow.stage_order = [...WORKFLOW_STAGES];
@@ -1730,6 +1792,11 @@ export function migrateProject(project, state = null) {
   if (isPlainObject(project?.preflight) && isPlainObject(project?.source_manifest)) {
     const migrated = structuredClone(project);
     migrated.schema_version = PROJECT_SCHEMA_VERSION;
+    migrated.project ??= {};
+    migrated.project.target = migrated.project.target
+      ?? ((migrated.deliverables ?? []).some((item) => item === "character_card_json" || item === "character_card_png") ? "character_card" : "worldbook");
+    migrated.deliverables = ["rp_project_package"];
+    migrated.preflight.deliverables_confirmed = true;
     migrated.handoffs ??= [];
     migrated.capabilities ??= { enabled: [], planned: [], evidence: [] };
     migrated.blueprint ??= { mode: "direct", total_design: null, first_playable: null, growth_tracks: [], parking_lot: [], next: null };

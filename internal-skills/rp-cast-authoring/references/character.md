@@ -86,7 +86,7 @@
 - 开关为 `enabled` 时，把相关成人维度自然并入人物身体呈现、亲密关系和情境行为结构。启用本身视为用户对该维度的项目级放权，依据已锁定的人格与关系方向补全，不额外建立偏好或限制问卷，不创建独立阶段。
 - 开关为 `disabled` 时，不主动加载专项成人 mix-in，也不围绕该维度发起问题；用户材料里已有或人物逻辑自然需要的成熟内容照常保留，不做反向净化。
 
-启用时把 `assets/templates/nsfw/character.mixin.yaml` 合并到角色模板，并按角色逻辑填充 `sexual_orientation`、`standing`、`fetish`、`preference`、`sex_organs`、`sensitive_areas` 与 `contrast`。关闭时不主动加载该 mix-in；这不构成内容审查或运行时门禁。
+启用时必须把 `assets/templates/nsfw/character.mixin.yaml` 合并到每一份实际角色源码和最终 CharacterBook 角色条目，并按角色逻辑填充 `sexual_orientation`、`standing`、`fetish`、`preference`、`sex_organs`、`sensitive_areas` 与 `contrast`；不能只在项目账本里记录 enabled。旧卡改造也一样：已有角色经迁移后仍要带完整 `nsfw` 层。关闭时不主动加载该 mix-in；这不构成内容审查或运行时门禁。
 
 用户若主动提供相关角色事实，可以直接纳入对应人物结构，但不要由此发起追问。
 

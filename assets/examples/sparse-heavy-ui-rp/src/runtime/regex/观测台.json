@@ -1,0 +1,11 @@
+{
+  "id": "starport-observatory-ui",
+  "scriptName": "星港观测台",
+  "findRegex": "/<星港观测台\\s*\\/>/g",
+  "replaceString": "",
+  "placement": [2],
+  "disabled": false,
+  "markdownOnly": true,
+  "promptOnly": false,
+  "runOnEdit": true
+}

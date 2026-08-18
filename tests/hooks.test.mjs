@@ -32,6 +32,15 @@ test('stage and source hooks block only broken lifecycle or path boundaries', as
     });
     assert.equal(trace[0].status, 'pass');
 
+    const handoffTrace = await runner.run('before_stage_write', {
+      stage: 'worldbuilding',
+      status: 'complete',
+      summary: '世界观阶段总汇',
+      plannedStages: ['positioning', 'worldbuilding'],
+      project: { handoffs: [{ id: 'ui-state-gap', source_stage: 'worldbuilding', status: 'open' }] },
+    });
+    assert.equal(handoffTrace.find((entry) => entry.id === 'forge.stage.handoff').status, 'warn');
+
     await assert.rejects(
       runner.run('before_source_write', { writes: [{ path: path.join(root, '..', 'outside.yaml') }] }),
       /阻断了当前操作/,
@@ -55,11 +64,32 @@ test('build hooks detect digest mismatches while delivery hooks remain advisory'
       }),
       /阻断了当前操作/,
     );
+
+    await assert.rejects(
+      runner.run('after_build', {
+        outputBuffer: Buffer.from('{}'),
+        artifactDigest: 'actual',
+        manifest: { artifact_digest: 'actual', delivery_mode: 'legacy_single_file', outputs: [] },
+      }),
+      /固定的多文件 RP 项目包交付模式/,
+    );
+
+    const valid = await runner.run('after_build', {
+      outputBuffer: Buffer.from('{}'),
+      artifactDigest: 'actual',
+      manifest: {
+        artifact_digest: 'actual',
+        delivery_mode: 'rp_project_package',
+        outputs: ['dist/00_导入说明.md', 'dist/01_项目清单.json', 'dist/08_验证报告.md'],
+      },
+    });
+    assert.equal(valid.find((entry) => entry.id === 'forge.build.delivery_contract').status, 'pass');
+
     await runner.run('after_delivery', { outputPath: output, dryRun: false }, { enforce: false });
-    assert.equal(runner.snapshot().at(-1).status, 'warn');
+    assert.equal(runner.snapshot().findLast((entry) => entry.id === 'forge.delivery.exists').status, 'warn');
     await writeFile(output, '{}');
     await runner.run('after_delivery', { outputPath: output, dryRun: false }, { enforce: false });
-    assert.equal(runner.snapshot().at(-1).status, 'pass');
+    assert.equal(runner.snapshot().findLast((entry) => entry.id === 'forge.delivery.exists').status, 'pass');
   } finally {
     await rm(root, { recursive: true, force: true });
   }

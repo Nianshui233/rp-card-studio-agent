@@ -1,10 +1,21 @@
-schema_version: 1.0.0
+schema_version: 2.0.0
 id: rp-card-studio-forge-hooks
 description: >-
   Forge 生命周期钩子。它们把已有的阶段、源码、构建和交付校验整理成
-  可追踪的扩展面，不给创作内容设置规模上限。
+  可追踪的扩展面，不给创作内容设置规模上限。2.0 版补充阶段交接提示、
+  固定项目包契约和交付目录巡检，但不新增用户阶段，也不把创作偏好变成门禁。
 policy:
   creative_scope: unrestricted
+  user_stages: unchanged
+  hard_block_only_for:
+    - syntax_or_schema_error
+    - path_escape
+    - broken_source_or_artifact_link
+    - digest_or_transaction_mismatch
+    - missing_required_delivery_output
+  warnings_are_allowed_for:
+    - unresolved_cross_stage_handoff
+    - delivery_files_not_visible_after_dry_run_or_filesystem_delay
   blocking_scope:
     - syntax_or_schema_error
     - path_escape
@@ -17,8 +28,10 @@ policy:
     - optional_host_capability_not_run
 events:
   before_stage_write:
-    purpose: 阶段状态写入前，确认阶段属于当前路线且完成/跳过有总汇
-    default: forge.stage.lifecycle
+    purpose: 阶段状态写入前，确认阶段属于当前路线且完成/跳过有总汇；如有未处理交接只提示
+    default:
+      - forge.stage.lifecycle
+      - forge.stage.handoff
   before_source_write:
     purpose: 源码、账本和构建元数据写入前，确认目标仍在项目工作区
     default: forge.source.boundary
@@ -26,15 +39,12 @@ events:
     purpose: 构建前复用项目与已登记源码校验结果
     default: forge.build.preflight
   after_build:
-    purpose: 构建候选产物与 build manifest 摘要一致
-    default: forge.build.artifact
+    purpose: 构建候选产物与 build manifest 摘要及固定多文件交付契约一致
+    default:
+      - forge.build.artifact
+      - forge.build.delivery_contract
   after_delivery:
-    purpose: 交付完成后记录输出是否实际落盘
-    default: forge.delivery.exists
-extension:
-  custom_handlers: 由 Agent 或宿主适配层在内存中注册；核心 Agent 不从项目目录加载任意脚本
-  future_adapters:
-    - SillyTavern 实机验收
-    - Chrome/Playwright 交互回归
-    - GitHub 交付记录
-
+    purpose: 交付完成后记录输出是否实际落盘，并巡检项目包核心说明文件
+    default:
+      - forge.delivery.exists
+      - forge.delivery.package_contract

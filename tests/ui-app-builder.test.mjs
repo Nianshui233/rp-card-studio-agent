@@ -96,11 +96,11 @@ test("runtime validation reports stale modular UI artifacts", async () => {
     } }],
     prompts: [], mvu: [], world: [], characters: [], systems: [], scenes: [], positioning: [],
   };
-  const current = await validateRuntimeSources({ project: { features: { status_ui: true }, deliverables: ["character_card_json"] }, sources, projectRoot: fixture.root });
+  const current = await validateRuntimeSources({ project: { features: { status_ui: true }, deliverables: ["rp_project_package"] }, sources, projectRoot: fixture.root });
   assert.ok(!current.issues.some(candidate => candidate.rule === "ui.app_stale"));
 
   await writeFile(path.join(fixture.app, "styles", "app.css"), `body{color:#fff}@media(max-width:600px){body{font-size:13px}}`);
-  const stale = await validateRuntimeSources({ project: { features: { status_ui: true }, deliverables: ["character_card_json"] }, sources, projectRoot: fixture.root });
+  const stale = await validateRuntimeSources({ project: { features: { status_ui: true }, deliverables: ["rp_project_package"] }, sources, projectRoot: fixture.root });
   assert.ok(stale.issues.some(candidate => candidate.rule === "ui.app_stale"));
 });
 

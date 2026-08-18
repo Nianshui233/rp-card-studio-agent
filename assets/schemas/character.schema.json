@@ -923,6 +923,34 @@
         }
       }
     },
+    "nsfw": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sexual_orientation",
+        "standing",
+        "fetish",
+        "preference",
+        "sex_organs",
+        "sensitive_areas",
+        "contrast"
+      ],
+      "properties": {
+        "sexual_orientation": { "type": "string" },
+        "standing": { "type": "string" },
+        "fetish": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "preference": { "type": "string" },
+        "sex_organs": { "type": "string" },
+        "sensitive_areas": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "contrast": { "type": "string" }
+      }
+    },
     "growth_arc": {
       "type": "object",
       "additionalProperties": false,
