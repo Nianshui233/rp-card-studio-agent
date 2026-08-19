@@ -97,7 +97,7 @@ function inspectUiHtml(text) {
     views: countUiSignals(source, /<(?:section|article|main|nav|dialog)\b|id=["'][^"']*(?:panel|view|page|tab)[^"']*["']/gi),
     actions: countUiSignals(source, /<button\b|data-action\s*=|onclick\s*=|addEventListener\s*\(/gi),
     fields: countUiSignals(source, /<(?:input|select|textarea|form)\b/gi),
-    data_binding: countUiSignals(source, /Mvu\.getMvuData|Mvu\.replaceMvuData|stat_data|display_data|window\.__RP_STATE__|window\.__ST_STATE__|getVariables\s*\(|replaceVariables\s*\(/gi),
+    data_binding: countUiSignals(source, /Mvu\.getMvuData|Mvu\.replaceMvuData|stat_data|display_data|window\.__RP_STATE__|window\.__ST_STATE__|getVariables\s*\(|replaceVariables\s*\(|getChatMessages\s*\(|currentMessageId\s*\(|<textarea\b[^>]*(?:hidden|display\s*:\s*none)[^>]*>\s*\$[1-9]/gi),
     host_actions: countUiSignals(source, /TavernHelper|window\.parent|sendTextareaMessage|createChatMessages|setChatMessages|generate\s*\(/gi),
     information_tools: countUiSignals(source, /search|filter|detail|dialog|modal|accordion|折叠|详情|搜索|筛选|弹窗/gi),
     feedback: countUiSignals(source, /loading|spinner|empty|error|success|fallback|retry|失败|成功|回退|重试|空态/gi),
@@ -1821,6 +1821,50 @@ async function validateStatusStateContract(statusUi, uiSource, projectRoot, sour
   }
 }
 
+function regexCaptureGroupCount(source) {
+  let count = 0; let escaped = false; let inClass = false;
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+    if (escaped) { escaped = false; continue; }
+    if (char === '\\') { escaped = true; continue; }
+    if (char === '[') { inClass = true; continue; }
+    if (char === ']' && inClass) { inClass = false; continue; }
+    if (char !== '(' || inClass) continue;
+    if (source[index + 1] !== '?') count += 1;
+    else if (source[index + 2] === '<' && !['=', '!'].includes(source[index + 3])) count += 1;
+  }
+  return count;
+}
+
+function messageOuterTag(marker) { return String(marker ?? '').match(/^<([A-Za-z_][\w:.-]*)(?:\s|\/?>)/)?.[1] ?? ''; }
+
+async function validateMessageCaptureContract(surface, runtime, projectRoot, base, status, issues, warnings) {
+  if (!['message_capture', 'helper_message'].includes(surface?.data_route)) return;
+  const target = stageTarget(status, issues, warnings); const contract = surface?.message_contract;
+  if (!isObject(contract)) { target.push(issue(`${base}/message_contract`, 'ui.message_contract', '消息快照路线必须声明 message_contract；不能只留下标记和 HTML')); return; }
+  const marker = String(surface.marker ?? '').trim(); const tag = messageOuterTag(marker);
+  if (!contract.outer_tag || (tag && contract.outer_tag !== tag)) target.push(issue(`${base}/message_contract/outer_tag`, 'ui.message_tag', 'message_contract.outer_tag 与 surface.marker 的外层标签不一致'));
+  if (surface.data_route === 'message_capture' && surface.render_route !== 'regex_replace') target.push(issue(`${base}/render_route`, 'ui.message_route', 'message_capture 必须使用 regex_replace；消息 API 路线请声明 helper_message'));
+  if (contract.transport === 'regex_capture') {
+    if (contract.payload_mount !== 'hidden_textarea') target.push(issue(`${base}/message_contract/payload_mount`, 'ui.message_mount', '纯正则捕获路线应把载荷挂到隐藏 textarea，再由 HTML 读取'));
+    if (!Number.isInteger(contract.capture_group) || contract.capture_group < 1) target.push(issue(`${base}/message_contract/capture_group`, 'ui.message_capture_group', 'regex_capture 必须声明正整数捕获组'));
+    const regex = (runtime?.regex_scripts ?? []).find((candidate) => { if (candidate?.disabled === true || candidate?.prompt_only === true || candidate?.markdown_only !== true || !marker) return false; try { return regexMatchesMarker(parseRegexLiteral(candidate.find_regex), marker); } catch { return false; } });
+    if (!regex) { target.push(issue(`${base}/message_contract`, 'ui.message_display_consumer', '非变量消息合同没有找到能命中同一 marker 的玩家显示正则')); return; }
+    let pattern = null; try { pattern = parseRegexLiteral(regex.find_regex); } catch { }
+    if (pattern && regexCaptureGroupCount(pattern.source) < contract.capture_group) target.push(issue(`${base}/message_contract/capture_group`, 'ui.message_capture_group', `显示正则没有第 ${contract.capture_group} 个捕获组`));
+    const html = await readOptionalProjectFile(projectRoot, surface.file); const token = new RegExp(`\\$${contract.capture_group}(?![0-9])`, 'g'); const tokenCount = (html.match(token) ?? []).length;
+    if (tokenCount !== 1) target.push(issue(`${base}/file`, 'ui.message_injection', `纯正则捕获载荷在 HTML 中应恰好有一个安全挂载点，当前为 ${tokenCount}`));
+    const safeTextarea = new RegExp(`<textarea\\b[^>]*>\\s*\\$${contract.capture_group}(?![0-9])`, 'i').test(html);
+    if (!safeTextarea) target.push(issue(`${base}/file`, 'ui.message_injection', '捕获载荷必须注入 textarea 内文，不能重复出现在 JS/CSS/属性/注释中'));
+    if (contract.fixture_file) { const fixture = await readOptionalProjectFile(projectRoot, contract.fixture_file); if (!fixture.trim()) target.push(issue(`${base}/message_contract/fixture_file`, 'ui.message_fixture', `消息快照夹具不存在或为空: ${contract.fixture_file}`)); else if (pattern) { pattern.lastIndex = 0; const match = pattern.exec(fixture); if (!match?.[contract.capture_group]) target.push(issue(`${base}/message_contract/fixture_file`, 'ui.message_fixture', '消息快照夹具没有被显示正则捕获到有效载荷')); } }
+    else warnings.push(issue(`${base}/message_contract/fixture_file`, 'ui.message_fixture', '建议提供消息快照夹具，覆盖空值、长中文、分隔符和流式半截块'));
+  } else if (contract.transport === 'message_api') {
+    if (contract.payload_mount !== 'message_api') target.push(issue(`${base}/message_contract/payload_mount`, 'ui.message_mount', 'message_api 路线应声明 payload_mount: message_api'));
+    if (contract.capture_group !== null) target.push(issue(`${base}/message_contract/capture_group`, 'ui.message_capture_group', 'message_api 路线不应伪造正则捕获组'));
+    const html = await readOptionalProjectFile(projectRoot, surface.file); if (!/getChatMessages\s*\(|getCurrentMessageId\s*\(|currentMessageId\s*\(/i.test(html)) warnings.push(issue(`${base}/file`, 'ui.message_api_reader', 'message_api 路线的 HTML 未明显出现当前消息读取 API；请人工确认宿主适配器'));
+  }
+  if (contract.partial_stream === 'tolerant') { const html = await readOptionalProjectFile(projectRoot, surface.file); if (!/try\s*\{|catch\s*\(|fallback|空态|半截|partial/i.test(html)) warnings.push(issue(`${base}/file`, 'ui.message_streaming', '已声明流式容错，但 HTML 中未明显找到错误/空态/回退处理，请人工验收')); }
+}
 function validatePromptChannel(surface, runtime, marker, base, status, issues, warnings) { const target = stageTarget(status, issues, warnings); const channel = surface?.prompt_channel; if (!isObject(channel)) { warnings.push(issue(`${base}/prompt_channel`, "ui.prompt_channel", "建议声明模型提示词侧如何处理同一标记：remove、replace、preserve 或 existing；新制卡时应补齐，既有卡可保留迁移证据")); return; }
   if (["remove", "replace"].includes(channel.mode)) { const regex = (runtime?.regex_scripts ?? []).find((item) => item?.id === channel.regex_ref || item?.script_name === channel.regex_ref); if (!regex || regex.prompt_only !== true) { target.push(issue(`${base}/prompt_channel/regex_ref`, "ui.prompt_consumer", "prompt_channel 必须指向实际启用的 prompt-only 正则")); return; } try { if (marker && !regexMatchesMarker(parseRegexLiteral(regex.find_regex), marker)) target.push(issue(`${base}/prompt_channel/regex_ref`, "ui.prompt_consumer", "prompt-only 正则没有消费与玩家显示层相同的标记")); } catch { } if (channel.mode === "replace" && !channel.fallback_text) target.push(issue(`${base}/prompt_channel/fallback_text`, "ui.prompt_fallback", "replace 模式需要模型可见的文本回退")); }
   else if (["preserve", "existing"].includes(channel.mode) && !(channel.evidence ?? []).some((item) => typeof item === "string" && item.trim())) target.push(issue(`${base}/prompt_channel/evidence`, "ui.prompt_consumer", `${channel.mode} 模式需要记录为何保留标记或由何处处理`));
@@ -1861,6 +1905,7 @@ async function validateUiSurfaceProducers(sources, projectRoot, assembly, openin
         warnings,
       });
       await validateUiHtmlExperience({ source: statusUi, file: surface?.file, projectRoot, base, status: uiSource.status, kind: "status", issues, warnings });
+      await validateMessageCaptureContract(surface, runtime, projectRoot, base, uiSource.status, issues, warnings);
       if (route === "regex_replace") {
         validatePromptChannel(surface, runtime, marker, base, uiSource.status, issues, warnings);
         if (!marker) { target.push(issue(`${base}/marker`, "ui.marker", "正则替换路线必须声明真实捕获标记或 XML 样例")); continue; }

@@ -134,6 +134,89 @@
               "render_evidence": {
                 "$ref": "#/$defs/stringArray"
               },
+              "data_route": {
+                "enum": [
+                  "state_contract",
+                  "message_capture",
+                  "helper_message",
+                  "static_content",
+                  "existing"
+                ]
+              },
+              "message_contract": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "transport",
+                  "outer_tag",
+                  "record_syntax",
+                  "capture_group",
+                  "payload_mount",
+                  "partial_stream",
+                  "fixture_file",
+                  "empty_policy"
+                ],
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "structured_xml",
+                      "plaintext"
+                    ]
+                  },
+                  "transport": {
+                    "enum": [
+                      "regex_capture",
+                      "message_api"
+                    ]
+                  },
+                  "outer_tag": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "record_syntax": {
+                    "enum": [
+                      "bracket_pipe",
+                      "yaml_text",
+                      "plaintext",
+                      "custom"
+                    ]
+                  },
+                  "capture_group": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1
+                  },
+                  "payload_mount": {
+                    "enum": [
+                      "hidden_textarea",
+                      "message_api"
+                    ]
+                  },
+                  "partial_stream": {
+                    "enum": [
+                      "tolerant",
+                      "hide_until_closed",
+                      "wait_until_closed"
+                    ]
+                  },
+                  "fixture_file": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "empty_policy": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
               "emission": {
                 "type": "object",
                 "additionalProperties": false,

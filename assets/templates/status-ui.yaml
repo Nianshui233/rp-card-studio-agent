@@ -73,6 +73,8 @@ status_ui:
     open_questions: []
     locked_decisions: []
   # 每个 surface 在 multi_file_html 模式下同时记录 app_manifest（开发清单）与 file（构建结果）。
+  # 非变量消息前端在 surface 上声明 data_route: message_capture，并补 message_contract；
+  # 变量前端继续使用 state_contract。不要为非变量卡伪造 MVU 状态树。
   surfaces: []
   # 每个持续表面应同时声明玩家显示消费者与模型提示词消费者，避免技术标记回流。
   # surfaces[].prompt_channel: { mode, regex_ref, fallback_text, evidence }

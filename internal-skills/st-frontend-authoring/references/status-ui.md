@@ -106,7 +106,9 @@ status_ui:
 → 失败、空值、加载与降级怎样显示
 ```
 
-MVU 状态栏通常等待 `Mvu` 就绪，再用 `Mvu.getMvuData({ type: 'message', message_id: getCurrentMessageId() })` 读取当前楼层 `stat_data`，并监听目标版本的实际更新事件。`display_data` / `delta_data` 在当前 MVU 源码中已标为 deprecated，不作为新 UI 的唯一数据源。非 MVU 状态栏可捕获模型输出的稳定状态块。不要让正则凭空“把变量变成 HTML”，也不要把示例初值硬编码成运行数据。
+MVU 状态栏通常等待 `Mvu` 就绪，再用 `Mvu.getMvuData({ type: 'message', message_id: getCurrentMessageId() })` 读取当前楼层 `stat_data`，并监听目标版本的实际更新事件。`display_data` / `delta_data` 在当前 MVU 源码中已标为 deprecated，不作为新 UI 的唯一数据源。
+
+非 MVU 状态栏走独立的“消息快照”路线：模型在当条回复末尾输出稳定 XML/文本块，正则捕获该块并把捕获内容注入完整 HTML，或由已确认可用的 Tavern Helper 消息 API 读取原消息。它不是简化版 MVU，也不得假装存在持久变量。具体按 [非变量 / 仅正则替换 HTML](non-variable-regex-ui.md) 建立 `message_contract`、输出契约、完整/流式显示规则、提示词通道、解析器和测试夹具。不要让正则凭空“把变量变成 HTML”，也不要把示例初值硬编码成运行数据。
 
 消息 iframe 中的全局对象可能位于当前 `window`，也可能只位于 `window.parent`。MVU/Tavern Helper UI 必须建立能力桥：安全探测当前窗口和父窗口，选择实际存在的 `Mvu`、`TavernHelper`、`eventOn` 与楼层 API。只写 `window.Mvu`、只写 `window.getCurrentMessageId`，而项目运行契约又声明对象挂在父窗口，会使完整 UI 退化为加载框、空态或无数据外壳。
 推荐所有新 UI 复用项目模板中的 `Host` 适配器：
@@ -136,6 +138,7 @@ emission:
 - MVU 只负责变量并不等于它会输出项目自定义标记。只有目标框架确实追加与正则相同的标记时，才能选择 `framework` 并记录证据。
 - Tavern Helper 脚本、按钮或成熟既有实现也可以作为生产者，但必须记录实际脚本/行为与证据，不能只写“应该会输出”。
 - 非 MVU 卡通常让模型输出完整、稳定的 XML 状态块，例如 `<我非我状态>...</我非我状态>`；专门的世界书输出契约应说明字段、顺序、缺省值、禁止正文外泄和每轮输出位置，正则再捕获整个块并渲染 HTML。
+- 非变量结构化 UI 不能只写一个自闭合占位标记；`message_contract` 必须说明外层标签、载荷格式、捕获方式、解析方式、流式策略、空值策略和测试夹具。纯 ST 路线使用捕获组把载荷注入 HTML；只有确实采用消息 API 时才省略捕获组。
 
 Forge 会检查生产者、标记和正则消费者是否闭合。只有 HTML 和捕获正则、却没有任何消息生产者的状态栏属于确定断链。
 
@@ -177,6 +180,6 @@ Forge 会检查生产者、标记和正则消费者是否闭合。只有 HTML �
 
 1. `emission`：谁在何时生产 XML/占位标记；
 2. `prompt_channel`：模型提示词侧删除、替换、保留或沿用何种既有处理；
-3. `state_contract`：UI 从哪一楼、哪一个状态根、哪些路径读取，谁能写，如何刷新和回退。
+3. `state_contract` 或 `message_contract`：变量 UI 说明状态根和读写权属；非变量 UI 说明当条消息载荷、捕获注入、解析、流式与回退。二者按实际路线择一，不为非变量卡伪造 MVU 状态树。
 
 超重型/0层还要完成 `zero_layer`：整体消息替换、旧楼层策略、聊天切换恢复、历史访问、全屏、持久化与生命周期脚本。功能多并不自动等于0层；只有当前消息应用确实承担主要游玩流程时才选择它。

@@ -5,7 +5,7 @@ description: "Private module for opening/creation frontends, ongoing message UIs
 
 # SillyTavern Frontend Authoring
 
-只接受主 Agent 调度。完整读取 `shared/contracts/module-io.md`、`references/ui-requirements-interview.md`、`references/ui-assets.md`、`references/status-ui.md` 与 `references/ui-app-authoring.md`。
+只接受主 Agent 调度。完整读取 `shared/contracts/module-io.md`、`references/ui-requirements-interview.md`、`references/ui-assets.md`、`references/status-ui.md`、`references/non-variable-regex-ui.md` 与 `references/ui-app-authoring.md`。
 
 ## 两种不同前端
 
@@ -40,7 +40,7 @@ UI 不是先写代码再补内容。进入对应前端阶段后，先按 `refere
 
 ## 数据合同
 
-模拟数据只用于预览。正式渲染必须读取 `st-runtime-authoring` 提供的真实路径，或明确的非 MVU XML/消息合同。缺少数据时显示加载、空态、损坏、陈旧或不可用状态，不能用看似合理的假数值伪装成功。前端必须区分权威动态数据、静态项目内容、派生视图和前端本地交互状态；静态模块和本地交互可以支撑重型体验，但不能伪装成 MVU 事实。
+模拟数据只用于预览。正式渲染必须读取 `st-runtime-authoring` 提供的真实路径，或明确的非 MVU XML/消息合同。非变量不等于无数据合同：模型输出的当条 XML/文本块就是该楼层的权威快照，必须有常驻世界书生产条目、显示正则、提示词通道、捕获注入或消息读取、解析器和测试夹具。缺少数据时显示加载、空态、损坏、陈旧或不可用状态，不能用看似合理的假数值伪装成功。前端必须区分权威动态数据、静态项目内容、派生视图和前端本地交互状态；静态模块和本地交互可以支撑重型体验，但不能伪装成 MVU 事实。
 
 如果已锁定的 UI 体验需要更多动态事实，返回 `mvu_ejs` 结构化交接，说明缺少哪些事实、为什么会影响玩家体验、建议增加哪些变量；不要在 UI 内偷偷创建第二套状态，也不要因为暂时没有这些变量就自动降级 UI。
 
