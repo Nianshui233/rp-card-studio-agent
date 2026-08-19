@@ -102,13 +102,12 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--li
   </section>
   <section class="view" id="view-register">
     <div class="form-grid">
-      <label>姓名<input id="name" autocomplete="off"></label>
-      <label>入住房间<select id="room"><option>二楼临街房</option><option>二楼背院房</option><option>一楼灶间旁小室</option></select></label>
-      <label class="wide">今夜来意<textarea id="reason" rows="3"></textarea></label>
-      <label>与雨的关系<select id="rainMood"><option>只是躲雨</option><option>被雨困住</option><option>故意等雨</option><option>正在逃离什么</option></select></label>
-      <label>开场节奏<select id="pace"><option>安静观察</option><option>自然交谈</option><option>麻烦很快上门</option></select></label>
+      <label>姓名<input id="name" autocomplete="off" required></label>
+      <label>公开身份<input id="publicIdentity" autocomplete="off"></label>
+      <label>入住房间<select id="startingLocation" required><option value="">请选择</option><option>二楼临街房</option><option>二楼背院房</option><option>一楼灶间旁小室</option></select></label>
+      <label class="wide">今夜目标<textarea id="startingGoal" rows="3"></textarea></label>
     </div>
-    <div class="preset-row"><button data-preset="traveler">赶路人</button><button data-preset="messenger">寻信人</button><button data-preset="runaway">避事者</button></div>
+    <div class="preset-row" aria-label="可选快速示例"><span>快速示例（可编辑）：</span><button type="button" data-preset="traveler">赶路人</button><button type="button" data-preset="messenger">寻信人</button><button type="button" data-preset="runaway">避事者</button></div>
     <button class="primary" data-next="preview">查看登记结果</button>
   </section>
   <section class="view" id="view-preview">
@@ -121,7 +120,7 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--li
 
 <!-- /fragment:APP_SHELL -->
   <script>
-window.__RP_UI_MOCK__ = {"name":"林砚","room":"二楼临街房","reason":"躲雨并寻找一名失踪的信使","rainMood":"被雨困住","pace":"自然交谈"};
+window.__RP_UI_MOCK__ = {"name":"林砚","publicIdentity":"暂住旅客","startingLocation":"二楼临街房","startingGoal":"躲雨并寻找一名失踪的信使"};
 </script>
 <script>
 (() => {
@@ -129,7 +128,7 @@ window.__RP_UI_MOCK__ = {"name":"林砚","room":"二楼临街房","reason":"躲�
 /* ===== script bundle ===== */
 const AppState = {
   currentView: "guide",
-  form: { name: "林砚", room: "二楼临街房", reason: "躲雨并寻找一名失踪的信使", rainMood: "被雨困住", pace: "自然交谈" },
+  form: { name: "", publicIdentity: "", startingLocation: "", startingGoal: "" },
 };
 
 function escapeXml(value) {
@@ -138,18 +137,19 @@ function escapeXml(value) {
 
 function collectForm() {
   AppState.form = {
-    name: document.querySelector("#name").value.trim() || "无名旅客",
-    room: document.querySelector("#room").value,
-    reason: document.querySelector("#reason").value.trim() || "只为躲雨",
-    rainMood: document.querySelector("#rainMood").value,
-    pace: document.querySelector("#pace").value,
+    name: document.querySelector("#name").value.trim(),
+    publicIdentity: document.querySelector("#publicIdentity").value.trim(),
+    startingLocation: document.querySelector("#startingLocation").value,
+    startingGoal: document.querySelector("#startingGoal").value.trim(),
   };
   return AppState.form;
 }
 
 function buildUserBlock() {
   const form = collectForm();
-  return `<雨幕创角>\nname: ${escapeXml(form.name)}\nroom: ${escapeXml(form.room)}\nreason: ${escapeXml(form.reason)}\nrain_mood: ${escapeXml(form.rainMood)}\nopening_pace: ${escapeXml(form.pace)}\n</雨幕创角>`;
+  const staticProfile = `<user>\nprofile:\n  name: ${escapeXml(form.name)}\n  identity:\n    public: ${escapeXml(form.publicIdentity)}\n</user>`;
+  const runtimePatch = `<雨幕动态开局>\n主控:\n  当前位置: ${escapeXml(form.startingLocation)}\n  当前目标: ${escapeXml(form.startingGoal)}\n</雨幕动态开局>`;
+  return `${staticProfile}\n\n${runtimePatch}`;
 }
 
 /* ===== script bundle ===== */
@@ -190,23 +190,23 @@ function showView(name) {
 
 function renderPreview() {
   const form = collectForm();
-  document.querySelector("#monogram").textContent = form.name.charAt(0) || "客";
-  document.querySelector("#previewName").textContent = form.name;
-  document.querySelector("#previewSummary").textContent = `${form.room} · ${form.rainMood} · ${form.pace}。今夜来意：${form.reason}`;
+  document.querySelector("#monogram").textContent = form.name.charAt(0) || "—";
+  document.querySelector("#previewName").textContent = form.name || "尚未填写名称";
+  document.querySelector("#previewSummary").textContent = [form.startingLocation, form.publicIdentity, form.startingGoal].filter(Boolean).join(" · ") || "请完成必填项后确认。";
   document.querySelector("#xmlPreview").textContent = buildUserBlock();
 }
 
 function applyPreset(name) {
   const presets = {
-    traveler: { reason: "赶了一整日山路，只想找个地方躲雨歇脚", rainMood: "只是躲雨", pace: "安静观察" },
-    messenger: { reason: "寻找一名失踪的信使和他最后送出的信", rainMood: "故意等雨", pace: "自然交谈" },
-    runaway: { reason: "不愿说明来处，只想在天亮前避开追索", rainMood: "正在逃离什么", pace: "麻烦很快上门" },
+    traveler: { publicIdentity: "赶路人", startingGoal: "赶了一整日山路，只想找个地方躲雨歇脚" },
+    messenger: { publicIdentity: "寻信人", startingGoal: "寻找一名失踪的信使和他最后送出的信" },
+    runaway: { publicIdentity: "避事者", startingGoal: "不愿说明来处，只想在天亮前避开追索" },
   };
   const preset = presets[name];
   if (!preset) return;
-  document.querySelector("#reason").value = preset.reason;
-  document.querySelector("#rainMood").value = preset.rainMood;
-  document.querySelector("#pace").value = preset.pace;
+  document.querySelector("#publicIdentity").value = preset.publicIdentity;
+  document.querySelector("#startingGoal").value = preset.startingGoal;
+  document.querySelector("#feedback").textContent = "已载入可编辑示例，请按自己的角色修改后再确认。";
 }
 
 /* ===== script bundle ===== */
@@ -223,6 +223,13 @@ document.addEventListener("click", event => {
 
 document.querySelector("#confirm").addEventListener("click", async () => {
   const feedback = document.querySelector("#feedback");
+  const form = collectForm();
+  if (!form.name || !form.startingLocation) {
+    feedback.className = "feedback";
+    feedback.textContent = "请先填写名称并选择入住房间。";
+    showView("register");
+    return;
+  }
   const text = buildUserBlock();
   const result = await Host.writeInput(text);
   feedback.className = `feedback ${result.ok ? "success" : ""}`;
@@ -234,10 +241,9 @@ function bootstrap() {
   const mock = window.__RP_UI_MOCK__;
   if (mock && typeof mock === "object") Object.assign(AppState.form, mock);
   document.querySelector("#name").value = AppState.form.name;
-  document.querySelector("#room").value = AppState.form.room;
-  document.querySelector("#reason").value = AppState.form.reason;
-  document.querySelector("#rainMood").value = AppState.form.rainMood;
-  document.querySelector("#pace").value = AppState.form.pace;
+  document.querySelector("#publicIdentity").value = AppState.form.publicIdentity;
+  document.querySelector("#startingLocation").value = AppState.form.startingLocation;
+  document.querySelector("#startingGoal").value = AppState.form.startingGoal;
   showView("guide");
 }
 bootstrap();

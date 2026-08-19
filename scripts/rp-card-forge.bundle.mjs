@@ -17143,6 +17143,13 @@ function validateProjectModel(project, state, root) {
       "\u89D2\u8272\u5361\u9879\u76EE\u5FC5\u987B\u767B\u8BB0\u4E00\u4E2A\u72EC\u7ACB\u7684\u7A7A\u767D <user> \u6A21\u677F\u6E90\uFF1B\u5982\u9700\u6E05\u7406\u65E7\u7528\u6237\u6863\u6848\uFF0C\u5E94\u66FF\u6362\u800C\u4E0D\u662F\u5220\u9664"
     ));
   }
+  if (isCharacterProject && Array.isArray(project?.source_manifest?.user_character) && project.source_manifest.user_character.length > 1) {
+    issues.push(modelIssue(
+      "/source_manifest/user_character",
+      "user_character.cardinality",
+      "\u89D2\u8272\u5361\u9879\u76EE\u53EA\u80FD\u767B\u8BB0\u4E00\u4E2A canonical <user> \u7528\u6237\u89D2\u8272\u6863\u6848\u6E90\uFF1B\u5F00\u573A\u524D\u7AEF\u4E0E\u53D8\u91CF\u5FC5\u987B\u5171\u540C\u5F15\u7528\u5B83\uFF0C\u4E0D\u80FD\u518D\u5EFA\u7ACB\u7B2C\u4E8C\u4EFD\u7528\u6237\u89D2\u8272\u5B9A\u4E49"
+    ));
+  }
   const positioningEntries = project?.source_manifest?.positioning;
   if (Array.isArray(positioningEntries) && positioningEntries.length !== 1) {
     issues.push(modelIssue(

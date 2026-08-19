@@ -21,6 +21,7 @@ description: "Private module for gameplay systems, scenes, events, narrative voi
 - 确定叙事视角、语气、节奏、信息披露和输出体验。
 - 写出真实开场白和有实质差异的备用开场。
 - 设计介绍页、游玩指南与创角流程要传达的内容和玩家旅程。
+- 从项目事实推导空白 `<user>` 合同与创角字段，但不询问、不创作、不预填最终游玩者的人物身份、背景、能力或目标。
 
 ## 开场与前端分工
 

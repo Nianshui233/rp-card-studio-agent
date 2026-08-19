@@ -46,6 +46,16 @@
         "enabled": {
           "type": "boolean"
         },
+        "profile_contract": {
+          "type": "string",
+          "minLength": 1
+        },
+        "profile_output": {
+          "enum": ["user_entry_yaml_block", "user_entry_form", "none"]
+        },
+        "runtime_output": {
+          "enum": ["initial_state_patch", "none"]
+        },
         "authoring_mode": {
           "enum": [
             "direct_html",
@@ -219,6 +229,7 @@
       "additionalProperties": true,
       "required": [
         "enabled",
+        "content_policy",
         "input_fields",
         "bindings",
         "commit"
@@ -226,6 +237,9 @@
       "properties": {
         "enabled": {
           "type": "boolean"
+        },
+        "content_policy": {
+          "const": "blank_user_defined"
         },
         "input_fields": {
           "type": "array",
@@ -314,6 +328,16 @@
                 "string",
                 "null"
               ]
+            },
+            "user_entry_write": {
+              "enum": ["none", "copy_only", "update_and_enable"]
+            },
+            "runtime_write": {
+              "enum": ["none", "mvu", "message_update", "helper_script"]
+            },
+            "order": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
             }
           }
         }

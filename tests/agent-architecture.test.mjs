@@ -23,7 +23,8 @@ test("repository is a single Agent with private skills and no legacy monolithic 
   assert.equal(manifest.invocation.mode, "explicit_only");
   assert.equal(manifest.invocation.natural_language_trigger, false);
   const agentText = readFileSync(path.join(root, "AGENT.md"), "utf8");
-  assert.match(agentText, /系统层可以按项目本体需要定义主控身份/);
+  assert.match(agentText, /不得把任何位置指定给 `<user>`/);
+  assert.match(agentText, /制作过程中不向用户收集或确认其准备扮演的人物/);
   assert.match(agentText, /世界、NPC 和场景应拥有自己的因果运动/);
 
   const routing = YAML.parse(readFileSync(path.join(root, "orchestrator", "routing.yaml"), "utf8"));

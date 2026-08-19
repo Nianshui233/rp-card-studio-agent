@@ -30,6 +30,6 @@ node scripts/rp-card-forge.bundle.mjs ui-build assets/examples/opening-ui-rp/src
 node scripts/rp-card-forge.bundle.mjs ui-build assets/examples/opening-ui-rp/src/runtime/apps/status/ui-app.yaml
 ```
 
-开场页收集姓名、房间、来意、雨夜关系和开场节奏，由 `src/runtime/opening/创角变量桥.yaml` 维护字段绑定。确认后生成 `<雨幕创角>...</雨幕创角>` 主控设定块并尝试交给宿主输入框；这是非 MVU 路线，所以不会伪称已经改写了运行时变量。
+开场页从 `src/user-character.yaml` 的唯一用户合同收集姓名、公开身份、入住房间和今夜目标。姓名与公开身份生成可直接粘贴进 `<user>` 世界书条目的静态 YAML；房间与目标生成单独的动态开局块并尝试交给宿主输入框。这是非 MVU 路线，所以不会伪称存在 MVU 状态，也不会把动态地点永久写进静态档案。
 
 持续状态页演示房态、住客搜索、事件进度和宿主行动。真实运行读取项目解析层提供的 `window.__RAIN_STATE__`，预览页才读取隔离的 `window.__RP_UI_MOCK__`。

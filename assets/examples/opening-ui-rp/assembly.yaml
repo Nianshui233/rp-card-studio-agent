@@ -16,6 +16,18 @@ worldbook_manifest:
   preserve_imported_entries: true
   duplicate_policy: error
   entries:
+    - id: user_character_template
+      display_name: 雨幕旅店主控设定（<user>）
+      source: { kind: file, path: src/user-character.yaml }
+      enabled: false
+      activation: { mode: constant, primary_keys: ["<user>", user], secondary_keys: [], selective: false, logic: any, case_sensitive: false, match_whole_words: false }
+      insertion: { position: after_char, order: 9995, depth: 4, role: system }
+      probability: 100
+      scan_depth: null
+      recursion: { prevent_incoming: true, prevent_outgoing: true, delay_until_recursion: false }
+      recipient: shared
+      visibility: model
+      fallback: block
     - id: world_core
       display_name: 旅店核心
       source: { kind: file, path: src/world/旅店世界书.yaml, selector: /entries/0/content }

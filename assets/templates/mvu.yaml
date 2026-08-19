@@ -70,6 +70,24 @@ mvu:
       runtime_evidence: []
   implementation_notes: []
 
+# 用户角色静态档案由 src/user-character.yaml / 世界书 <user> 条目负责。
+# 这里只登记会随游玩变化的运行状态，以及少量只读显示镜像；不要复制整份用户档案。
+user_character_state:
+  enabled: false
+  profile_source: src/user-character.yaml
+  state_root: stat_data.主控
+  dynamic_bindings: []
+  read_only_mirrors: []
+  # 按当前项目列出不应复制进 MVU 的静态档案根；不预设现代人物字段。
+  forbidden_profile_paths: []
+
+# 迁移兼容字段；新项目的 EJS 正式维护源使用 assets/templates/ejs.yaml。
+ejs:
+  enabled: false
+  engine: none
+  templates: []
+  implementation_notes: []
+
 runtime_target:
   sillytavern: unverified
   tavern_helper: unverified

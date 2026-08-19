@@ -1,15 +1,60 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://rp-card-studio.local/schemas/user-character.schema.json",
-  "title": "Optional User Character Worldbook Template",
+  "title": "Adaptive User Character Static Profile Contract",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "id", "display_name", "status", "worldbook", "usage", "profile", "source_refs"],
   "properties": {
-    "schema_version": { "const": "1.0.0" },
+    "schema_version": { "enum": ["1.0.0", "1.1.0", "1.2.0"] },
     "id": { "$ref": "#/$defs/id" },
     "display_name": { "type": "string", "minLength": 1 },
     "status": { "enum": ["draft", "locked"] },
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "profile_scope", "creation_fields", "static_paths", "runtime_state"],
+      "properties": {
+        "id": { "const": "user_character_v1" },
+        "mode": { "enum": ["fixed", "adaptive"] },
+        "profile_scope": { "const": "static_profile" },
+        "starter_field_library": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "static_profile": { "type": "array", "items": { "$ref": "#/$defs/starterField" } },
+            "initial_runtime": { "type": "array", "items": { "$ref": "#/$defs/starterField" } }
+          }
+        },
+        "creation_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/creationField" }
+        },
+        "static_paths": { "$ref": "#/$defs/pathList" },
+        "runtime_state": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["root", "dynamic_paths", "read_only_mirrors"],
+          "properties": {
+            "root": { "type": "string", "minLength": 1 },
+            "dynamic_paths": { "$ref": "#/$defs/pathList" },
+            "read_only_mirrors": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["from", "to", "reason"],
+                "properties": {
+                  "from": { "$ref": "#/$defs/profilePath" },
+                  "to": { "$ref": "#/$defs/runtimePath" },
+                  "reason": { "type": "string", "minLength": 1 }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "worldbook": {
       "type": "object",
       "additionalProperties": false,
@@ -40,69 +85,67 @@
       "properties": {
         "optional": { "const": true },
         "activation_instruction": { "type": "string", "minLength": 1 },
-        "ui_sync_policy": { "enum": ["worldbook_only", "ui_only", "either", "merge"] }
+        "ui_sync_policy": { "enum": ["worldbook_only", "ui_only", "either", "merge", "contract_driven"] },
+        "runtime_state_policy": { "const": "separate" }
       }
     },
     "profile": {
       "type": "object",
-      "additionalProperties": false,
-      "required": ["name", "aliases", "age", "gender", "identity", "biography", "current_state", "personality", "habits", "appearance", "relationships", "abilities", "inventory", "entry_point", "notes"],
-      "properties": {
-        "name": { "type": "string" },
-        "aliases": { "$ref": "#/$defs/stringList" },
-        "age": { "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "string" }, { "type": "null" }] },
-        "gender": { "type": "string" },
-        "identity": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["public", "hidden"],
-          "properties": { "public": { "type": "string" }, "hidden": { "type": "string" } }
-        },
-        "biography": { "$ref": "#/$defs/stringList" },
-        "current_state": { "type": "string" },
-        "personality": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["summary", "core_traits", "conditional_traits", "hidden_traits"],
-          "properties": {
-            "summary": { "type": "string" },
-            "core_traits": { "$ref": "#/$defs/stringList" },
-            "conditional_traits": { "$ref": "#/$defs/stringList" },
-            "hidden_traits": { "$ref": "#/$defs/stringList" }
-          }
-        },
-        "habits": { "$ref": "#/$defs/stringList" },
-        "appearance": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["height", "weight", "build", "hair", "face", "skin", "eyes", "distinctive_features", "clothing"],
-          "properties": {
-            "height": { "type": "string" }, "weight": { "type": "string" }, "build": { "type": "string" },
-            "hair": { "type": "string" }, "face": { "type": "string" }, "skin": { "type": "string" },
-            "eyes": { "type": "string" }, "distinctive_features": { "$ref": "#/$defs/stringList" }, "clothing": { "type": "string" }
-          }
-        },
-        "relationships": { "$ref": "#/$defs/stringList" },
-        "abilities": { "$ref": "#/$defs/stringList" },
-        "inventory": { "$ref": "#/$defs/stringList" },
-        "entry_point": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["location", "current_activity", "awareness_of_anomaly"],
-          "properties": {
-            "location": { "type": "string" },
-            "current_activity": { "type": "string" },
-            "awareness_of_anomaly": { "type": "string" }
-          }
-        },
-        "notes": { "$ref": "#/$defs/stringList" }
-      }
+      "minProperties": 1,
+      "additionalProperties": true
     },
     "source_refs": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
     "extensions": { "type": "object" }
   },
   "$defs": {
     "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
-    "stringList": { "type": "array", "items": { "type": "string", "minLength": 1 } }
-  }
+    "profilePath": { "type": "string", "pattern": "^profile\\.[^.\\s]+(?:\\.[^.\\s]+)*$" },
+    "runtimePath": { "type": "string", "pattern": "^runtime\\.[^.\\s]+(?:\\.[^.\\s]+)*$" },
+    "contractPath": { "type": "string", "pattern": "^(profile|runtime)\\.[^.\\s]+(?:\\.[^.\\s]+)*$" },
+    "pathList": { "type": "array", "items": { "$ref": "#/$defs/contractPath" }, "uniqueItems": true },
+    "starterField": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["id", "label", "target", "type"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "label": { "type": "string", "minLength": 1 },
+        "target": { "$ref": "#/$defs/contractPath" },
+        "type": { "type": "string", "minLength": 1 }
+      }
+    },
+    "creationField": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["id", "label", "scope", "target", "type", "required"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "label": { "type": "string", "minLength": 1 },
+        "scope": { "enum": ["static_profile", "initial_runtime"] },
+        "target": { "$ref": "#/$defs/contractPath" },
+        "type": { "type": "string", "minLength": 1 },
+        "required": { "type": "boolean" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "schema_version": { "const": "1.2.0" } }, "required": ["schema_version"] },
+      "then": {
+        "required": ["contract"],
+        "properties": {
+          "contract": {
+            "type": "object",
+            "required": ["mode"],
+            "properties": { "mode": { "const": "adaptive" } }
+          },
+          "usage": {
+            "type": "object",
+            "required": ["runtime_state_policy"],
+            "properties": { "runtime_state_policy": { "const": "separate" } }
+          }
+        }
+      }
+    }
+  ]
 }

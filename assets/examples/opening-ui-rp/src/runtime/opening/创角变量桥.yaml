@@ -1,32 +1,45 @@
 schema_version: 1.0.0
 display_name: 雨幕旅店创角变量桥
 runtime_kind: non_mvu
+profile_contract: src/user-character.yaml
 
 input_fields:
   - id: name
     label: 姓名
     type: text
     required: true
-  - id: room
-    label: 入住房间
+  - id: public_identity
+    label: 公开身份
     type: text
+    required: false
+  - id: starting_location
+    label: 入住房间
+    type: select
     required: true
-  - id: reason
+  - id: starting_goal
     label: 今夜来意
     type: text
     required: false
 
 bindings:
   - input: name
+    contract_path: profile.name
     target: user_entry.profile.name
-  - input: room
-    target: user_entry.profile.entry_point.location
-  - input: reason
-    target: user_entry.profile.entry_point.current_activity
+  - input: public_identity
+    contract_path: profile.identity.public
+    target: user_entry.profile.identity.public
+  - input: starting_location
+    contract_path: runtime.location.current
+    target: runtime_message.主控.当前位置
+  - input: starting_goal
+    contract_path: runtime.progress.current_goal
+    target: runtime_message.主控.当前目标
 
 commit:
   route: user_message
   marker: "<雨幕创角>"
   close_marker: "</雨幕创角>"
-  readback: 开局消息中的主控设定块与后续旅店状态保持一致；本样本不声称存在 MVU 状态
-  failure_fallback: 复制主控设定块后手动发送
+  user_entry_write: copy_only
+  runtime_write: message_update
+  readback: 静态 <user> YAML 用于粘贴世界书；动态开局块随本次消息提交，本样本不声称存在 MVU 状态
+  failure_fallback: 分别复制静态 <user> YAML 和动态开局块

@@ -1,9 +1,46 @@
-schema_version: 1.0.0
+schema_version: 1.2.0
 id: user_character_template
 display_name: 用户主控设定（<user>）
 status: draft
 
-# 该条目独立于世界观、NPC 与普通场景；默认关闭，填写完成后再启用。
+# 固定的是“唯一合同 + 静态/动态分层”，不是姓名、年龄、现代职业等具体字段。
+# 初始化项目后，根据题材与玩法改写 creation_fields、static_paths、dynamic_paths 和 profile。
+# 可以删除不适用字段，也可以无限扩展；Forge 只检查路径与写入闭环，不设置字段数量上限。
+contract:
+  id: user_character_v1
+  mode: adaptive
+  profile_scope: static_profile
+
+  # 这是可选字段库，只帮助 Agent 起步，不会自动进入世界书或前端。
+  # 奇幻项目可选魔力/血脉，修仙项目可改成灵根/道途，系统型项目可改成权限/职能。
+  starter_field_library:
+    static_profile:
+      - { id: display_name, label: 名称或称谓, target: profile.identity.display_name, type: text }
+      - { id: public_identity, label: 对外身份, target: profile.identity.public, type: text }
+      - { id: background_summary, label: 背景概述, target: profile.background.summary, type: textarea }
+      - { id: appearance_summary, label: 外在呈现, target: profile.appearance.summary, type: textarea }
+      - { id: personality_summary, label: 性格概述, target: profile.personality.summary, type: textarea }
+      - { id: stable_capabilities, label: 稳定能力, target: profile.capabilities.stable, type: list }
+    initial_runtime:
+      - { id: starting_location, label: 起始地点, target: runtime.location.current, type: text }
+      - { id: starting_goal, label: 开局目标, target: runtime.progress.current_goal, type: textarea }
+      - { id: initial_resources, label: 初始资源, target: runtime.resources, type: object }
+
+  # 当前项目真正采用的字段。至少保留一个 static_profile 身份锚点；其余按项目增删。
+  creation_fields:
+    - { id: display_name, label: 名称或称谓, scope: static_profile, target: profile.identity.display_name, type: text, required: true }
+
+  # 只列当前项目实际存在、需要进入 <user> 世界书的静态路径。
+  static_paths:
+    - profile.identity.display_name
+
+  runtime_state:
+    root: stat_data.主控
+    # 只有项目实际需要变量时才填；无变量项目可以保持空数组。
+    dynamic_paths: []
+    # 静态字段为 UI 显示镜像时在这里登记；镜像不获得档案写入权。
+    read_only_mirrors: []
+
 worldbook:
   enabled_by_default: false
   keys: ["<user>", user]
@@ -18,42 +55,13 @@ worldbook:
 
 usage:
   optional: true
-  activation_instruction: 填写需要固定的角色信息后启用本条目；未填写时保持关闭，不影响世界与 NPC 自主运转。
-  ui_sync_policy: either
+  activation_instruction: 按当前项目合同填写静态档案后启用本条目；会随 RP 变化的状态另由 MVU 或消息状态维护。
+  ui_sync_policy: contract_driven
+  runtime_state_policy: separate
 
+# 这是最小兜底骨架，不是固定人物模板。项目可以改名、重组或增加任意层级。
 profile:
-  name: ""
-  aliases: []
-  age: null
-  gender: ""
   identity:
-    public: ""
-    hidden: ""
-  biography: []
-  current_state: ""
-  personality:
-    summary: ""
-    core_traits: []
-    conditional_traits: []
-    hidden_traits: []
-  habits: []
-  appearance:
-    height: ""
-    weight: ""
-    build: ""
-    hair: ""
-    face: ""
-    skin: ""
-    eyes: ""
-    distinctive_features: []
-    clothing: ""
-  relationships: []
-  abilities: []
-  inventory: []
-  entry_point:
-    location: ""
-    current_activity: ""
-    awareness_of_anomaly: ""
-  notes: []
+    display_name: ""
 
 source_refs: []

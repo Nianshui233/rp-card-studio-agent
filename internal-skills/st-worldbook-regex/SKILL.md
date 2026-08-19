@@ -10,6 +10,8 @@ description: "Private supporting specialist for CharacterBook scheduling, model-
 ## CharacterBook
 
 - 世界按主题切片；NPC 通常保持完整；系统、场景、叙事规则、运行提示词、EJS、输出合同和默认禁用的 `<user>` 模板进入职责清晰的条目。
+- 一个项目只能有一个 canonical `<user>` 条目。它只保存稳定人物档案；当前位置、物品、任务、伤势和关系变化不得长期写回该静态条目。
+- 一个项目只能有一个 canonical `<user>` 条目。它只保存稳定人物档案；当前位置、物品、任务、伤势和关系变化不得长期写回该静态条目。
 - 条目正文使用可读 YAML 或自然文本。
 - 根据真实运行需要设置激活方式、关键词、插入位置、深度、顺序、概率、递归和选择逻辑。
 - 世界书名、条目名和正则名尽量使用中文。

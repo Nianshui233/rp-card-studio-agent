@@ -555,6 +555,13 @@ export function validateProjectModel(project, state, root) {
       "角色卡项目必须登记一个独立的空白 <user> 模板源；如需清理旧用户档案，应替换而不是删除",
     ));
   }
+  if (isCharacterProject && Array.isArray(project?.source_manifest?.user_character) && project.source_manifest.user_character.length > 1) {
+    issues.push(modelIssue(
+      "/source_manifest/user_character",
+      "user_character.cardinality",
+      "角色卡项目只能登记一个 canonical <user> 用户角色档案源；开场前端与变量必须共同引用它，不能再建立第二份用户角色定义",
+    ));
+  }
   const positioningEntries = project?.source_manifest?.positioning;
   if (Array.isArray(positioningEntries) && positioningEntries.length !== 1) {
     issues.push(modelIssue(

@@ -11,6 +11,13 @@ document.addEventListener("click", event => {
 
 document.querySelector("#confirm").addEventListener("click", async () => {
   const feedback = document.querySelector("#feedback");
+  const form = collectForm();
+  if (!form.name || !form.startingLocation) {
+    feedback.className = "feedback";
+    feedback.textContent = "请先填写名称并选择入住房间。";
+    showView("register");
+    return;
+  }
   const text = buildUserBlock();
   const result = await Host.writeInput(text);
   feedback.className = `feedback ${result.ok ? "success" : ""}`;

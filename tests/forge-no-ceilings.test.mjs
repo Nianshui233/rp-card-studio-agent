@@ -49,3 +49,16 @@ test("Forge policy explicitly sets floors without content-size ceilings", async 
   assert.match(agent, /设下限，不设创作上限/);
   assert.doesNotMatch(`${runtime}\n${project}`, /\b(?:MAX|LIMIT)_(?:HTML|CARD|WORLD|ENTRY|CHARACTER|SCENE|SCRIPT|REGEX|COMPONENT|VARIABLE)(?:_|\b)/);
 });
+
+test("adaptive user contracts keep only a semantic floor and no project-field ceiling", async () => {
+  const schema = JSON.parse(await readFile(path.join(root, "assets", "schemas", "user-character.schema.json"), "utf8"));
+  assert.equal(schema.properties.profile.additionalProperties, true);
+  assert.equal(schema.properties.profile.maxProperties, undefined);
+  assert.equal(schema.properties.contract.properties.creation_fields.maxItems, undefined);
+  assert.equal(schema.properties.contract.properties.runtime_state.properties.dynamic_paths.maxItems, undefined);
+  assert.match(schema.$defs.contractPath.pattern, /profile\|runtime/);
+
+  const runtime = await readFile(path.join(root, "scripts", "rp-card-runtime.mjs"), "utf8");
+  assert.match(runtime, /至少需要一个静态身份锚点/);
+  assert.doesNotMatch(runtime, /用户合同必须(?:包含|使用).*(?:姓名|年龄|性别|职业)/);
+});

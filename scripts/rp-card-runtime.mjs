@@ -1591,9 +1591,166 @@ function uiPromptRegexPatterns(runtime) {
   return patterns;
 }
 
-function validateOpeningTransitionAndBridge(source, assembly, base, issues, warnings) { const target=stageTarget(source.status,issues,warnings); const openings=source.openings??[]; const transition=source.opening_transition; if(isObject(transition)&&transition.route!=="none"){ if(transition.route==="swipe_switch"){ if(!Number.isInteger(transition.source_message))target.push(issue(`${base}/opening_transition/source_message`,"opening.transition","swipe_switch 需要明确源消息楼层，通常为 0")); if(!openings.some((opening)=>opening.id===transition.target_opening))target.push(issue(`${base}/opening_transition/target_opening`,"opening.transition","swipe_switch 指向的备用开场不存在")); if(!transition.api_ref && !(transition.evidence??[]).length)target.push(issue(`${base}/opening_transition/api_ref`,"opening.transition","swipe_switch 需要记录 getChatMessages/setChatMessage 等真实宿主路线")); } }
-  const bridge=source.creation_bridge; if(!isObject(bridge)||!bridge.enabled)return; const commit=bridge.commit??{}; if(["worldbook_api","hybrid"].includes(commit.route)){ const book=assembly?.worldbook_manifest; if(commit.worldbook_ref && ![book?.id,book?.display_name].includes(commit.worldbook_ref))target.push(issue(`${base}/creation_bridge/commit/worldbook_ref`,"opening.worldbook_bridge","创角桥指向的世界书不是本卡主世界书")); if(!commit.entry_name)target.push(issue(`${base}/creation_bridge/commit/entry_name`,"opening.worldbook_bridge","worldbook_api/hybrid 需要明确 <user> 条目名")); if(!["create","update","upsert"].includes(commit.write_mode))target.push(issue(`${base}/creation_bridge/commit/write_mode`,"opening.worldbook_bridge","需要选择 create、update 或 upsert")); if(!commit.worldbook_readback)target.push(issue(`${base}/creation_bridge/commit/worldbook_readback`,"opening.worldbook_bridge","写入世界书后必须声明读回验证")); }
-  if(commit.route==="hybrid"&&!commit.api_ref&&!commit.source_file)target.push(issue(`${base}/creation_bridge/commit`,"opening.hybrid_bridge","hybrid 还需要真实变量写入 API 或桥接脚本")); }
+function userCharacterContract(source) {
+  const user = source?.value ?? source;
+  return isObject(user?.contract) ? user.contract : null;
+}
+
+function contractCreationFields(contract) {
+  return Array.isArray(contract?.creation_fields) ? contract.creation_fields : [];
+}
+
+function userRuntimeContractPaths(contract) {
+  return new Set([
+    ...(Array.isArray(contract?.runtime_state?.dynamic_paths) ? contract.runtime_state.dynamic_paths : []),
+    ...contractCreationFields(contract)
+      .filter((field) => field?.scope === "initial_runtime")
+      .map((field) => field.target),
+  ].filter((value) => typeof value === "string" && value.trim()));
+}
+
+function userStaticContractPaths(contract) {
+  return new Set(Array.isArray(contract?.static_paths) ? contract.static_paths : []);
+}
+
+function dottedPathExists(root, dottedPath) {
+  if (!isObject(root) || typeof dottedPath !== "string" || !dottedPath.trim()) return false;
+  let current = root;
+  for (const segment of dottedPath.split(".").filter(Boolean)) {
+    if (!isObject(current) || !Object.hasOwn(current, segment)) return false;
+    current = current[segment];
+  }
+  return true;
+}
+
+function containsUserProfileValue(value) {
+  if (value === undefined || value === null || value === "") return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (isObject(value)) return Object.values(value).some(containsUserProfileValue);
+  return true;
+}
+
+function validateUserCharacterSources(sources, issues, warnings) {
+  const userSources = entries(sources, "user_character");
+  if (userSources.length > 1) issues.push(issue("/source_manifest/user_character", "user_character.cardinality", "一个 RP 项目只能有一个 canonical <user> 用户角色档案源"));
+  for (const [index, sourceEntry] of userSources.entries()) {
+    const source = sourceEntry.value;
+    const base = `/runtime/user_character/${index}`;
+    const target = stageTarget(source?.status, issues, warnings);
+    if (!["1.1.0", "1.2.0"].includes(source?.schema_version)) {
+      warnings.push(issue(`${base}/schema_version`, "user_character.legacy_contract", "旧版用户模板仍可保真导入，但新建或重构时应升级到静态档案 + 动态状态分层合同"));
+      continue;
+    }
+    const contract = userCharacterContract(source);
+    if (!contract) {
+      target.push(issue(`${base}/contract`, "user_character.contract", "新版 <user> 模板缺少 canonical 用户角色字段合同"));
+      continue;
+    }
+    if (containsUserProfileValue(source.profile)) target.push(issue(`${base}/profile`, "user_character.prefilled", "正式 <user> 模板必须保持空白；Agent 不得预填或代定义最终游玩者的人物值"));
+    const staticPaths = userStaticContractPaths(contract);
+    const runtimePaths = userRuntimeContractPaths(contract);
+    const staticFields = contractCreationFields(contract).filter((field) => field?.scope === "static_profile");
+    if (staticFields.length === 0) target.push(issue(`${base}/contract/creation_fields`, "user_character.minimum_identity", "自适应用户合同至少需要一个静态身份锚点；字段内容由项目决定，不要求固定为姓名"));
+    if (source?.schema_version === "1.2.0" && contract.mode !== "adaptive") target.push(issue(`${base}/contract/mode`, "user_character.adaptive", "1.2.0 用户合同必须使用 adaptive 模式，具体字段按项目改写"));
+    for (const pathValue of staticPaths) {
+      if (!pathValue.startsWith("profile.") || !dottedPathExists(source, pathValue)) target.push(issue(`${base}/contract/static_paths`, "user_character.static_path", `静态档案路径不存在或不属于 profile: ${pathValue}`));
+    }
+    for (const field of contractCreationFields(contract)) {
+      if (!field?.id || !field?.target) continue;
+      if (field.scope === "static_profile" && (!staticPaths.has(field.target) || !dottedPathExists(source, field.target))) target.push(issue(`${base}/contract/creation_fields`, "user_character.static_field", `静态创角字段 ${field.id} 没有对应 <user> 档案路径 ${field.target}`));
+      if (field.scope === "initial_runtime" && !runtimePaths.has(field.target)) target.push(issue(`${base}/contract/creation_fields`, "user_character.runtime_field", `动态开局字段 ${field.id} 没有登记运行状态路径 ${field.target}`));
+      if (field.scope === "static_profile" && field.target.startsWith("runtime.")) target.push(issue(`${base}/contract/creation_fields`, "user_character.scope", `静态字段 ${field.id} 错误指向运行状态`));
+      if (field.scope === "initial_runtime" && field.target.startsWith("profile.")) target.push(issue(`${base}/contract/creation_fields`, "user_character.scope", `动态字段 ${field.id} 错误写入 <user> 静态档案`));
+    }
+    if (source?.schema_version === "1.1.0") {
+      for (const forbidden of ["profile.current_state", "profile.inventory", "profile.entry_point"]) {
+        if (dottedPathExists(source, forbidden)) target.push(issue(`${base}/${forbidden.replaceAll(".", "/")}`, "user_character.dynamic_in_profile", `${forbidden} 会随 RP 变化，不应保存在新版 <user> 静态档案`));
+      }
+    }
+    if (source?.usage?.runtime_state_policy !== "separate") target.push(issue(`${base}/usage/runtime_state_policy`, "user_character.runtime_policy", "新版用户角色合同必须把动态状态与 <user> 静态档案分开"));
+  }
+}
+
+function validateUserCreationContract(source, sources, assembly, base, issues, warnings) {
+  const target = stageTarget(source.status, issues, warnings);
+  const bridge = source.creation_bridge;
+  if (!isObject(bridge) || !bridge.enabled) return;
+  if (bridge.content_policy !== "blank_user_defined") target.push(issue(`${base}/creation_bridge/content_policy`, "opening.user_content", "创角前端必须由最终游玩者自行填写，不能携带预设用户人物或默认身份"));
+  const userSources = Array.isArray(sources?.user_character) ? sources.user_character : [];
+  if (userSources.length !== 1) {
+    target.push(issue(`${base}/creation_bridge/profile_contract`, "opening.user_contract", "启用创角桥时必须存在且只能存在一个 canonical <user> 用户角色模板"));
+    return;
+  }
+  const userSource = userSources[0];
+  const contract = userCharacterContract(userSource);
+  if (!contract) {
+    target.push(issue(`${base}/creation_bridge/profile_contract`, "opening.user_contract", "创角桥指向的用户角色模板没有 user_character contract；不能证明前端字段与 <user> 模板一致"));
+    return;
+  }
+  if (!bridge.profile_contract) target.push(issue(`${base}/creation_bridge/profile_contract`, "opening.user_contract", "创角桥必须显式引用唯一 user-character.yaml 合同"));
+  if (bridge.profile_contract && bridge.profile_contract !== userSource.relativePath) {
+    target.push(issue(`${base}/creation_bridge/profile_contract`, "opening.user_contract", `profile_contract 必须精确指向 ${userSource.relativePath}`));
+  }
+  const fields = contractCreationFields(contract);
+  const fieldMap = new Map(fields.map((field) => [field.id, field]));
+  const inputs = Array.isArray(bridge.input_fields) ? bridge.input_fields : [];
+  const bindings = Array.isArray(bridge.bindings) ? bridge.bindings : [];
+  const inputIds = new Set(inputs.map((field) => field?.id).filter(Boolean));
+  for (const field of fields.filter((candidate) => candidate?.required === true)) {
+    if (!inputIds.has(field.id)) target.push(issue(`${base}/creation_bridge/input_fields`, "opening.user_contract", `必填用户角色字段 ${field.id} 没有进入开场创角表单`));
+  }
+  const staticPaths = userStaticContractPaths(contract);
+  const runtimePaths = userRuntimeContractPaths(contract);
+  const enabledMvu = values(sources, "mvu").find((candidate) => candidate?.mvu?.enabled === true);
+  const mvuUserState = enabledMvu?.user_character_state;
+  for (const input of inputs) {
+    const field = fieldMap.get(input?.id);
+    if (!field) {
+      target.push(issue(`${base}/creation_bridge/input_fields`, "opening.user_contract", `创角表单字段 ${input?.id ?? "<unknown>"} 不存在于 user_character contract`));
+      continue;
+    }
+    const binding = bindings.find((candidate) => candidate?.input === input.id);
+    if (!binding) {
+      target.push(issue(`${base}/creation_bridge/bindings`, "opening.user_contract", `创角字段 ${input.id} 没有绑定到 user_character contract`));
+      continue;
+    }
+    if (binding.contract_path !== field.target) target.push(issue(`${base}/creation_bridge/bindings`, "opening.user_contract", `字段 ${input.id} 的 contract_path 必须为 ${field.target}`));
+    const targets = isObject(binding.targets) ? binding.targets : {};
+    const userEntryTarget = targets.user_entry;
+    const runtimeTarget = targets.mvu ?? targets.runtime;
+    if (field.scope === "static_profile") {
+      if (userEntryTarget !== field.target || !staticPaths.has(userEntryTarget)) target.push(issue(`${base}/creation_bridge/bindings`, "opening.user_contract", `静态字段 ${input.id} 必须写入 <user> 路径 ${field.target}`));
+      if (runtimeTarget && !(contract.runtime_state?.read_only_mirrors ?? []).some((mirror) => mirror?.from === field.target)) target.push(issue(`${base}/creation_bridge/bindings`, "opening.user_contract", `字段 ${input.id} 的 MVU 镜像没有登记为只读镜像`));
+      if (runtimeTarget && enabledMvu && !(mvuUserState?.read_only_mirrors ?? []).some((mirror) => mirror?.contract_path === field.target && mirror?.state_path === runtimeTarget)) target.push(issue(`${base}/creation_bridge/bindings`, "opening.user_contract", `字段 ${input.id} 的只读镜像与 MVU user_character_state 不一致`));
+    } else if (field.scope === "initial_runtime") {
+      if (userEntryTarget) target.push(issue(`${base}/creation_bridge/bindings`, "opening.user_contract", `动态字段 ${input.id} 不能写入静态 <user> 档案`));
+      if (!runtimeTarget || !runtimePaths.has(field.target)) target.push(issue(`${base}/creation_bridge/bindings`, "opening.user_contract", `动态字段 ${input.id} 必须绑定到真实运行状态路径`));
+      if (enabledMvu && !(mvuUserState?.dynamic_bindings ?? []).some((candidate) => candidate?.contract_path === field.target && candidate?.state_path === runtimeTarget)) target.push(issue(`${base}/creation_bridge/bindings`, "opening.user_contract", `动态字段 ${input.id} 与 MVU user_character_state 的路径不一致`));
+    }
+  }
+  const commit = bridge.commit ?? {};
+  const staticInputs = inputs.filter((input) => fieldMap.get(input?.id)?.scope === "static_profile");
+  const dynamicInputs = inputs.filter((input) => fieldMap.get(input?.id)?.scope === "initial_runtime");
+  if (staticInputs.length > 0 && bridge.profile_output !== "user_entry_yaml_block") target.push(issue(`${base}/creation_bridge/profile_output`, "opening.user_contract", "含静态字段时，前端必须生成与 <user> 模板一致的 YAML 块"));
+  if (dynamicInputs.length > 0 && bridge.runtime_output !== "initial_state_patch") target.push(issue(`${base}/creation_bridge/runtime_output`, "opening.user_contract", "含动态开局字段时，前端必须生成独立初始状态补丁"));
+  const userEntryWrite = commit.user_entry_write ?? (commit.route === "user_message" ? "copy_only" : "none");
+  const runtimeWrite = commit.runtime_write ?? (commit.route === "user_message" ? "none" : commit.route === "none" ? "none" : "message_update");
+  if (staticInputs.length > 0 && !["copy_only", "update_and_enable"].includes(userEntryWrite)) target.push(issue(`${base}/creation_bridge/commit/user_entry_write`, "opening.user_contract", "含静态用户角色字段时必须生成可粘贴 <user> 内容，或真实更新并启用世界书条目"));
+  if (dynamicInputs.length > 0 && runtimeWrite === "none") target.push(issue(`${base}/creation_bridge/commit/runtime_write`, "opening.user_contract", "含开局动态字段时必须声明变量/消息/脚本写入路线；不能只生成静态档案"));
+  if (runtimeWrite === "mvu" && !enabledMvu) target.push(issue(`${base}/creation_bridge/commit/runtime_write`, "opening.user_contract", "创角桥声明写入 MVU，但项目没有启用 MVU 用户角色状态合同"));
+  if (commit.route === "user_message" && userEntryWrite !== "copy_only") target.push(issue(`${base}/creation_bridge/commit/user_entry_write`, "opening.user_contract", "user_message 只能作为可复制/临时消息回退，不能冒充世界书已经被更新"));
+  if (["worldbook_api", "hybrid"].includes(commit.route)) {
+    const book = assembly?.worldbook_manifest;
+    if (commit.worldbook_ref && ![book?.id, book?.display_name].includes(commit.worldbook_ref)) target.push(issue(`${base}/creation_bridge/commit/worldbook_ref`, "opening.worldbook_bridge", "创角桥指向的世界书不是本卡主世界书"));
+    if (!commit.entry_name) target.push(issue(`${base}/creation_bridge/commit/entry_name`, "opening.worldbook_bridge", "worldbook_api/hybrid 需要明确 <user> 条目名"));
+    if (!commit.worldbook_readback) target.push(issue(`${base}/creation_bridge/commit/worldbook_readback`, "opening.worldbook_bridge", "写入世界书后必须声明读回验证"));
+    if (userEntryWrite !== "update_and_enable") target.push(issue(`${base}/creation_bridge/commit/user_entry_write`, "opening.worldbook_bridge", "真实世界书写入路线必须在写入后启用 <user> 条目"));
+  }
+  if (commit.route === "hybrid" && (!commit.api_ref && !commit.source_file || runtimeWrite === "none")) target.push(issue(`${base}/creation_bridge/commit`, "opening.hybrid_bridge", "hybrid 必须同时声明真实世界书写入和运行状态写入路线"));
+}
+
+function validateOpeningTransitionAndBridge(source, assembly, sources, base, issues, warnings) { const target=stageTarget(source.status,issues,warnings); const openings=source.openings??[]; const transition=source.opening_transition; if(isObject(transition)&&transition.route!=="none"){ if(transition.route==="swipe_switch"){ if(!Number.isInteger(transition.source_message))target.push(issue(`${base}/opening_transition/source_message`,"opening.transition","swipe_switch 需要明确源消息楼层，通常为 0")); if(!openings.some((opening)=>opening.id===transition.target_opening))target.push(issue(`${base}/opening_transition/target_opening`,"opening.transition","swipe_switch 指向的备用开场不存在")); if(!transition.api_ref && !(transition.evidence??[]).length)target.push(issue(`${base}/opening_transition/api_ref`,"opening.transition","swipe_switch 需要记录 getChatMessages/setChatMessage 等真实宿主路线")); } }
+  validateUserCreationContract(source, sources, assembly, base, issues, warnings); }
 
 async function validateOpeningUiSources(sources, projectRoot, assembly, issues, warnings) {
   const runtime = assembly?.runtime_manifest;
@@ -1601,7 +1758,7 @@ async function validateOpeningUiSources(sources, projectRoot, assembly, issues, 
   const promptPatterns = uiPromptRegexPatterns(runtime);
   const helperIds = helperRuntimeIds(runtime?.tavern_helper_scripts);
   for (const [sourceIndex, source] of values(sources, "prompts").entries()) {
-    validateOpeningTransitionAndBridge(source, assembly, `/runtime/opening/${sourceIndex}`, issues, warnings);
+    validateOpeningTransitionAndBridge(source, assembly, sources, `/runtime/opening/${sourceIndex}`, issues, warnings);
     const openingUi = source.opening_ui;
     if (!isObject(openingUi) || !openingUi.enabled) continue;
     const base = `/runtime/opening/${sourceIndex}/opening_ui`;
@@ -1980,6 +2137,51 @@ function validateUniqueMvuLoader(helperComponents, mvuSources, issues, warnings)
   const locked = mvuSources.some((source) => source.status === "locked");
   (locked ? issues : warnings).push(issue("/runtime_manifest/tavern_helper_scripts", "mvu.loader_unique", message));
 }
+
+function validateMvuUserCharacterState(source, sources, base, target) {
+  const state = source?.user_character_state;
+  if (!isObject(state) || state.enabled !== true) return;
+  if (source?.mvu?.enabled !== true) {
+    target.push(issue(`${base}/user_character_state/enabled`, "mvu.user_state", "用户角色动态状态已启用，但 MVU 本身没有启用"));
+    return;
+  }
+  const userSources = entries(sources, "user_character");
+  if (userSources.length !== 1) {
+    target.push(issue(`${base}/user_character_state/profile_source`, "mvu.user_state", "用户角色动态状态必须对应唯一 canonical <user> 档案源"));
+    return;
+  }
+  const userSource = userSources[0];
+  const contract = userCharacterContract(userSource);
+  if (!contract) {
+    target.push(issue(`${base}/user_character_state/profile_source`, "mvu.user_state", "MVU 用户状态指向的 <user> 模板没有字段合同"));
+    return;
+  }
+  if (state.profile_source !== userSource.relativePath) target.push(issue(`${base}/user_character_state/profile_source`, "mvu.user_state", `profile_source 必须精确指向 ${userSource.relativePath}`));
+  if (state.state_root !== contract.runtime_state?.root) target.push(issue(`${base}/user_character_state/state_root`, "mvu.user_state", `MVU 主控状态根必须与用户合同一致：${contract.runtime_state?.root}`));
+  const dynamicPaths = userRuntimeContractPaths(contract);
+  const staticPaths = userStaticContractPaths(contract);
+  const mirrors = Array.isArray(contract.runtime_state?.read_only_mirrors) ? contract.runtime_state.read_only_mirrors : [];
+  const seenStatePaths = new Set();
+  for (const [index, binding] of (state.dynamic_bindings ?? []).entries()) {
+    const bindingBase = `${base}/user_character_state/dynamic_bindings/${index}`;
+    if (!dynamicPaths.has(binding?.contract_path)) target.push(issue(`${bindingBase}/contract_path`, "mvu.user_state_dynamic", `动态绑定必须来自 user_character contract 的 runtime 路径：${binding?.contract_path ?? "<missing>"}`));
+    if (typeof binding?.state_path !== "string" || !binding.state_path.startsWith(`${state.state_root}.`)) target.push(issue(`${bindingBase}/state_path`, "mvu.user_state_dynamic", "动态变量必须写入 canonical 主控状态根之下"));
+    if (seenStatePaths.has(binding?.state_path)) target.push(issue(`${bindingBase}/state_path`, "mvu.user_state_writer", `同一用户状态路径存在多个绑定：${binding.state_path}`));
+    seenStatePaths.add(binding?.state_path);
+  }
+  for (const [index, binding] of (state.read_only_mirrors ?? []).entries()) {
+    const bindingBase = `${base}/user_character_state/read_only_mirrors/${index}`;
+    if (!staticPaths.has(binding?.contract_path)) target.push(issue(`${bindingBase}/contract_path`, "mvu.user_state_mirror", "只读镜像必须来源于 <user> 静态档案字段"));
+    if (!mirrors.some((mirror) => mirror?.from === binding?.contract_path)) target.push(issue(`${bindingBase}/contract_path`, "mvu.user_state_mirror", `静态字段 ${binding?.contract_path ?? "<missing>"} 未在用户合同中授权为只读镜像`));
+    if (typeof binding?.state_path !== "string" || !binding.state_path.startsWith(`${state.state_root}.`)) target.push(issue(`${bindingBase}/state_path`, "mvu.user_state_mirror", "只读镜像必须落在 canonical 主控状态根之下"));
+    if (seenStatePaths.has(binding?.state_path)) target.push(issue(`${bindingBase}/state_path`, "mvu.user_state_writer", `同一用户状态路径存在多个绑定：${binding.state_path}`));
+    seenStatePaths.add(binding?.state_path);
+  }
+  for (const forbidden of state.forbidden_profile_paths ?? []) {
+    if (![...staticPaths].some((pathValue) => pathValue === forbidden || pathValue.startsWith(`${forbidden}.`))) target.push(issue(`${base}/user_character_state/forbidden_profile_paths`, "mvu.user_state_forbidden", `禁止复制的静态档案路径未在 <user> 合同中定义：${forbidden}`));
+    if ((state.dynamic_bindings ?? []).some((binding) => binding?.contract_path === forbidden)) target.push(issue(`${base}/user_character_state/dynamic_bindings`, "mvu.user_state_duplication", `MVU 不得把完整静态档案路径当作动态变量：${forbidden}`));
+  }
+}
 async function validateMvuRuntimeSources(project, sources, projectRoot, assembly, issues, warnings) {
   const helperIds = helperRuntimeIds(assembly?.runtime_manifest?.tavern_helper_scripts);
   const helperComponents = await authoredHelperComponents(assembly?.runtime_manifest, projectRoot);
@@ -1988,6 +2190,7 @@ async function validateMvuRuntimeSources(project, sources, projectRoot, assembly
     const base = `/runtime/mvu/${index}`;
     const target = stageTarget(source.status, issues, warnings);
     const mvu = source.mvu ?? {};
+    validateMvuUserCharacterState(source, sources, base, target);
     if (mvu.enabled) {
       if (!mvu.route || mvu.route === "none") {
         target.push(issue(`${base}/mvu/route`, "mvu.route", "启用 MVU 时需要选择 native_schema、mvu_zod、hybrid 或 existing 路线"));
@@ -2193,6 +2396,7 @@ function validateRetrofitUiInterviews(project, state, sources, issues, warnings)
 export async function validateRuntimeSources({ project, state, sources, projectRoot }) {
   const issues = [];
   const warnings = [];
+  validateUserCharacterSources(sources, issues, warnings);
   const assemblies = assemblySources(sources);
   if (assemblies.length > 1) {
     issues.push(issue('/source_manifest/assembly', 'assembly.configuration', 'Exactly one assembly source is allowed'));

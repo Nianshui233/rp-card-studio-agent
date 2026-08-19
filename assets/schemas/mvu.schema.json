@@ -638,6 +638,25 @@
       "type": "object",
       "additionalProperties": true
     },
+    "user_character_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "profile_source", "state_root", "dynamic_bindings", "read_only_mirrors", "forbidden_profile_paths"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "profile_source": { "type": ["string", "null"] },
+        "state_root": { "type": "string", "minLength": 1 },
+        "dynamic_bindings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/userStateBinding" }
+        },
+        "read_only_mirrors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/userStateBinding" }
+        },
+        "forbidden_profile_paths": { "$ref": "#/$defs/pathList" }
+      }
+    },
     "dependencies": {
       "type": "array",
       "items": {
@@ -653,6 +672,20 @@
     }
   },
   "$defs": {
+    "pathList": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-zA-Z_][a-zA-Z0-9_.]*$" }
+    },
+    "userStateBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract_path", "state_path", "reason"],
+      "properties": {
+        "contract_path": { "type": "string", "minLength": 1 },
+        "state_path": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
     "cleanupChannel": {
       "type": "object",
       "additionalProperties": false,

@@ -136,6 +136,9 @@ test("opening/status separation sample is a reproducible modular double applicat
   const openingHtml = await readFile(openingOutput, "utf8");
   const statusHtml = await readFile(statusOutput, "utf8");
   assert.doesNotMatch(openingHtml, /window\.__RP_UI_MOCK__\s*=/);
+  assert.doesNotMatch(openingHtml, /form:\s*\{\s*name:\s*["']林砚["']/);
+  assert.match(openingHtml, /快速示例（可编辑）/);
+  assert.match(openingHtml, /已载入可编辑示例/);
   assert.doesNotMatch(statusHtml, /window\.__RP_UI_MOCK__\s*=/);
   const openingPreview = await readFile(join(sample, "src", "runtime", "apps", "opening", "dist", "开场页.preview.html"), "utf8");
   const statusPreview = await readFile(join(sample, "src", "runtime", "apps", "status", "dist", "状态页.preview.html"), "utf8");
@@ -144,14 +147,22 @@ test("opening/status separation sample is a reproducible modular double applicat
 
   const openingPlan = YAML.parse(await readFile(join(sample, "src", "opening.yaml"), "utf8"));
   const statusPlan = YAML.parse(await readFile(join(sample, "src", "ui", "status-ui.yaml"), "utf8"));
+  const userContract = YAML.parse(await readFile(join(sample, "src", "user-character.yaml"), "utf8"));
   assert.equal(openingPlan.opening_ui.authoring_mode, "multi_file_html");
   assert.equal(statusPlan.status_ui.authoring_mode, "multi_file_html");
   assert.equal(statusPlan.status_ui.surfaces[0].app_manifest, "src/runtime/apps/status/ui-app.yaml");
+  assert.equal(openingPlan.creation_bridge.profile_contract, "src/user-character.yaml");
+  assert.equal(openingPlan.creation_bridge.commit.user_entry_write, "copy_only");
+  assert.equal(openingPlan.creation_bridge.commit.runtime_write, "message_update");
+  assert.equal(userContract.usage.runtime_state_policy, "separate");
+  assert.equal(userContract.profile.entry_point, undefined);
+  assert.ok(userContract.contract.creation_fields.some((field) => field.scope === "initial_runtime"));
 
   const assembly = YAML.parse(await readFile(join(sample, "assembly.yaml"), "utf8"));
   assert.ok(assembly.runtime_manifest.regex_scripts.some(item => item.replace_file === "src/runtime/ui/开场页.html"));
   assert.ok(assembly.runtime_manifest.regex_scripts.some(item => item.replace_file === "src/runtime/ui/状态页.html"));
   assert.ok(assembly.worldbook_manifest.entries.some(item => item.id === "wb_rain_status_contract"));
+  assert.equal(assembly.worldbook_manifest.entries.filter(item => item.id === "user_character_template").length, 1);
 });
 
 test("retrofit sample preserves the old input and replaces the user profile with a real blank template", async () => {

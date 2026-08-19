@@ -8,21 +8,21 @@ function showView(name) {
 
 function renderPreview() {
   const form = collectForm();
-  document.querySelector("#monogram").textContent = form.name.charAt(0) || "客";
-  document.querySelector("#previewName").textContent = form.name;
-  document.querySelector("#previewSummary").textContent = `${form.room} · ${form.rainMood} · ${form.pace}。今夜来意：${form.reason}`;
+  document.querySelector("#monogram").textContent = form.name.charAt(0) || "—";
+  document.querySelector("#previewName").textContent = form.name || "尚未填写名称";
+  document.querySelector("#previewSummary").textContent = [form.startingLocation, form.publicIdentity, form.startingGoal].filter(Boolean).join(" · ") || "请完成必填项后确认。";
   document.querySelector("#xmlPreview").textContent = buildUserBlock();
 }
 
 function applyPreset(name) {
   const presets = {
-    traveler: { reason: "赶了一整日山路，只想找个地方躲雨歇脚", rainMood: "只是躲雨", pace: "安静观察" },
-    messenger: { reason: "寻找一名失踪的信使和他最后送出的信", rainMood: "故意等雨", pace: "自然交谈" },
-    runaway: { reason: "不愿说明来处，只想在天亮前避开追索", rainMood: "正在逃离什么", pace: "麻烦很快上门" },
+    traveler: { publicIdentity: "赶路人", startingGoal: "赶了一整日山路，只想找个地方躲雨歇脚" },
+    messenger: { publicIdentity: "寻信人", startingGoal: "寻找一名失踪的信使和他最后送出的信" },
+    runaway: { publicIdentity: "避事者", startingGoal: "不愿说明来处，只想在天亮前避开追索" },
   };
   const preset = presets[name];
   if (!preset) return;
-  document.querySelector("#reason").value = preset.reason;
-  document.querySelector("#rainMood").value = preset.rainMood;
-  document.querySelector("#pace").value = preset.pace;
+  document.querySelector("#publicIdentity").value = preset.publicIdentity;
+  document.querySelector("#startingGoal").value = preset.startingGoal;
+  document.querySelector("#feedback").textContent = "已载入可编辑示例，请按自己的角色修改后再确认。";
 }

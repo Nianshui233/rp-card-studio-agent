@@ -10,7 +10,7 @@
 - NPC 与世界如何主动行动、如何呈现场外变化；
 - 信息揭露、秘密、推理与结算怎样进入正文；
 - 默认开场和真正有区别的备选开场；
-- 自由创角入口需要收集哪些信息；
+- Agent 根据已完成项目事实推导空白创角合同需要哪些字段；不询问用户实际准备填写什么人物，也不在正式前端预填人物值；
 - 使用变量时，各开场对应的完整初始状态；
 - 是否需要开局 HTML 入口，以及模型可见的短回退文本。
 - 开场呈现选择：纯文本、介绍页、介绍+路线选择、介绍+完整创角，或超重型同层入口；其视觉和交互等级与后续状态栏分别决定。
@@ -39,7 +39,7 @@
 
 复杂开局可以使用短、稳定的首消息标记，由 display 正则替换为完整 HTML；同时用 prompt-only 规则让模型看到简短、可理解的叙事/状态说明，而不是整页 HTML/CSS/JS。
 
-开局 HTML 可以介绍版本、世界观、更新信息、作者留言、游玩指南、预制开场、自定义创角和实时预览。它的确认动作应形成真实用户开局消息并回到正常对话链；若整个游玩始终由首楼应用代理，则属于超重型同层/0层前端，需在 UI 阶段明确设计。
+开局 HTML 可以介绍版本、世界观、更新信息、作者留言、游玩指南、场景切入路线、空白创角和实时预览。为了快速启动，可以提供明确标注的预设/示例人物，但页面加载时不得自动应用，用户必须主动点击，且所有字段在提交前仍可编辑。确认动作提交最终游玩者亲自填写或主动选择后的内容并回到正常对话链。若整个游玩始终由首楼应用代理，则属于超重型同层/0层前端，需在 UI 阶段明确设计。
 
 不要依赖普通消息 HTML 内的 `<script>` 自动执行。需要 JS 时使用 Tavern Helper 支持的 HTML/iframe 路线或由卡内脚本绑定真实 DOM，并在目标环境验证。
 
@@ -83,11 +83,14 @@ mock/state.json            浏览器满数据预览
 
 ## 创角表单必须有“变量桥”
 
-创角前端不只是把姓名、地点、身份等字段拼成一段漂亮的开局文案。只要这些字段会影响 MVU、EJS、状态栏或其他运行时数据，就要在 `opening.yaml` 中填写 `creation_bridge`，把“表单字段 → 运行时路径 → 提交 → 回读”写成一条真实链：
+创角前端不自行发明用户角色字段。先读取唯一的 `src/user-character.yaml` 合同，再从 `contract.creation_fields` 选择本项目需要展示的字段：`static_profile` 写入 `<user>` 静态档案，`initial_runtime` 只写入开局运行状态。只要这些字段会影响 MVU、EJS、状态栏或其他运行时数据，就在 `opening.yaml` 中填写 `creation_bridge`，把“合同字段 → 静态档案/动态状态 → 提交 → 回读”写成一条真实链：
 
 ```yaml
 creation_bridge:
   enabled: true
+  profile_contract: src/user-character.yaml
+  profile_output: user_entry_yaml_block
+  runtime_output: initial_state_patch
   input_fields:
     - id: name
       label: 姓名
@@ -99,34 +102,47 @@ creation_bridge:
       required: true
   bindings:
     - input: name
+      contract_path: "profile.name"
       targets:
-        mvu: "玩家.姓名"
         user_entry: "profile.name"
+        mvu: "stat_data.主控.显示.姓名"
       transform: text
     - input: starting_region
+      contract_path: "runtime.location.current"
       targets:
-        mvu: "元信息.所在府县"
+        mvu: "stat_data.主控.位置.当前地点"
       transform: text
   commit:
-    route: mvu_api
+    route: hybrid
     marker: "<开局设定已写入/>"
     source_file: "src/runtime/opening/创角变量桥.js"
     api_ref: "目标环境实测的 MVU/Tavern Helper 写入 API"
-    readback: "提交后重新读取实际状态，姓名和地点均不得仍为默认值"
+    worldbook_ref: "本卡主世界书"
+    entry_name: "用户主控设定（<user>）"
+    write_mode: upsert
+    worldbook_readback: "重新读取 <user> 条目，确认静态内容一致且条目已启用"
+    user_entry_write: update_and_enable
+    runtime_write: mvu
+    order: [render_outputs, write_user_entry, readback_user_entry, write_runtime, readback_runtime, start_opening]
+    readback: "提交后重新读取实际状态，当前位置不得仍为默认值；显示姓名只能是静态档案镜像"
     failure_fallback: "写入失败时保留表单并生成可复制的手动开局消息，不显示成功"
 ```
+
+静态与动态按项目语义判断，不按固定字段名判断。例如奇幻项目的血脉可能稳定而当前魔力会变化；修仙项目的灵根与道途可能稳定而当前真元、境界进度和劫数会变化。任何静态字段为了 UI 展示都可以镜像进 MVU，但 `<user>` 仍是权威来源，普通更新规则不得改写只读镜像。
 
 提交路线由目标环境实测后选择：
 
 - `mvu_api`：开场页或 Tavern Helper 直接调用实际可用的 MVU 写入接口，然后立即读回状态；
 - `update_message`：生成目标 MVU 能解析的真实更新块，并确认该消息会经过更新管线；
 - `helper_script`：由卡内 Tavern Helper 脚本完成写入和回读；
-- `user_message`：非 MVU 项目生成 `<user>`/XML/文本设定块，让后续叙事与正则消费，但不能假称它已经修改了世界书或宿主状态；
+- `worldbook_api`：非 MVU 项目直接更新并启用 `<user>` 条目，再读回确认；没有动态状态时不创建用户变量；
+- `hybrid`：先更新并启用 `<user>` 静态档案，再写入动态运行状态，两边分别读回；
+- `user_message`：只能作为复制/手动回退。它生成与 `<user>` 空白模板一致的 YAML 块供用户粘贴，但不能假称世界书已经修改或条目已经启用；
 - `existing`：沿用项目已有且已验证的桥接实现。
 
 `createChatMessages({ data: ... })` 只是给聊天楼附加数据，不能单独证明 MVU 当前状态已被更新。除非目标环境实测读回成功，否则不得把它写成“变量已初始化”。确认按钮的顺序应是：收集并预览 → 执行真实写入 → 读回并显示结果 → 再写入/发送开局消息。写入失败必须保留可恢复的表单和手动回退，不得静默进入默认状态。
 
-开场 `<initvar>` 或默认初始值仍然只是基线；创角桥负责把开场页选择的值覆盖到正确路径。两者不能互相冒充。`<user>` 世界书条目仍可作为长期主控设定模板，但它是上下文资料，不会自动把同名字段同步进 MVU。
+开场 `<initvar>` 或默认初始值仍然只是基线；创角桥负责把动态开局值覆盖到正确路径。两者不能互相冒充。`<user>` 是唯一长期静态主控档案，不会自动把同名字段同步进 MVU；MVU 也不得反向成为第二份完整人物档案。
 
 开场前端的等级也是交付下限。重型开场必须在实际 HTML 中形成完整玩家旅程，例如项目导读、规则/版本信息、实质不同的路线或预设、创角、实时预览、确认提交、状态写入/回读和失败回退；不能只把一张表单配色后声明为 `heavy`。Forge 会读取 HTML 做功能面探针，锁定后缺少承重能力会阻断。
 
@@ -155,15 +171,18 @@ MVU 创角页还要安全探测 `window.Mvu` 与 `window.parent.Mvu`。如果项
 - 叙事规则能直接指导模型；
 - 世界和 NPC 不围绕用户角色停止或启动；
 - 每条开场可直接游玩且不替用户作决定；
+- 制作访谈没有询问用户要扮演谁；正式 `<user>` 与变量初值保持空白；创角 HTML 没有自动预填或自动选中用户人物。可选快速预设必须明确标注、默认不选且可编辑；
 - 普通文本、UI 标记、prompt 回退与初始化关系清楚；
 - `opening_ui` 的标记、HTML、目标 opening、prompt 回退和确认入局消息形成闭环，且未混入 `status_ui.surfaces`；
 - 模块化模式下开发源码、模拟状态、`app_manifest` 与最终 HTML 构建结果一致；
 - 备选开场确实不同，而不是换一句欢迎词；
 - 不把完整 HTML 直接送入模型上下文；
 - 示例对话属于角色或叙事校准，不重复塞进多个高级定义字段。
+- 创角字段全部来自唯一用户合同；静态字段能生成与 `<user>` 模板一致的 YAML，动态字段只进入运行状态。
+- 非 MVU 项目不伪造用户变量；无法直接修改世界书时明确提供复制粘贴与启用说明。
 
 ## Swipe 切换与混合创角提交
 
 介绍/创角前端若通过备用开场白进入剧情，使用 `opening_transition.route: swipe_switch` 记录源消息、目标 opening，以及实际的消息读取/修改路线。
 
-创角资料既需要长期写入 `<user>` 世界书条目、又需要立刻影响 MVU 状态时，使用 `creation_bridge.commit.route: hybrid`：先 upsert 目标条目并读回，再写入当前消息变量并读回，最后才触发开局。任一步失败都保留表单和可复制回退文本。
+创角资料既需要长期写入 `<user>` 世界书条目、又需要立刻影响 MVU 状态时，使用 `creation_bridge.commit.route: hybrid`：先 upsert 并启用目标条目、读回静态档案，再写入当前消息变量、读回动态状态，最后才触发开局。任一步失败都保留表单和可复制回退文本。

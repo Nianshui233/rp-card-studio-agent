@@ -105,6 +105,10 @@ opening_transition:
 # “表单字段 → 状态路径 → 提交 → 回读”的真实桥接；不能只附加聊天楼 data。
 creation_bridge:
   enabled: false
+  content_policy: blank_user_defined
+  profile_contract: src/user-character.yaml
+  profile_output: user_entry_yaml_block
+  runtime_output: initial_state_patch
   input_fields: []
   bindings: []
   commit:
@@ -117,6 +121,9 @@ creation_bridge:
     entry_name: null
     write_mode: none
     worldbook_readback: null
+    user_entry_write: none       # none / copy_only / update_and_enable
+    runtime_write: none          # none / mvu / message_update / helper_script
+    order: [render_outputs, write_user_entry, readback_user_entry, write_runtime, readback_runtime, start_opening]
     readback: ""
     failure_fallback: ""
 
