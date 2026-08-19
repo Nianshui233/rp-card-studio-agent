@@ -14565,7 +14565,11 @@ var init_agent_routing = __esm({
       "frontend.compiled_application",
       "frontend.zero_layer",
       "frontend.asset_library",
-      "runtime.external_dependency"
+      "runtime.external_dependency",
+      "host.api_resolution",
+      "host.runtime_version",
+      "host.regex_replay",
+      "host.audio_surface"
     ]);
     CAPABILITY_ID_SET = new Set(CAPABILITY_IDS);
     STAGE_PRIMARY_SKILL = Object.freeze({

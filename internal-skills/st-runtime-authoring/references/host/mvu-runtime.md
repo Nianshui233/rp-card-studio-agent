@@ -14,6 +14,19 @@ MVU 项目至少要区分：
 
 额外问候语或开场消息中的 `<UpdateVariable>...</UpdateVariable>` 可以覆盖 `[initvar]` 的默认值。它解决的是“不同开场使用不同初态”，不是替代世界书初始化，也不是让任意聊天 `data` 自动变成变量。
 
+## 2.1 运行时读取的标准回退
+
+消息前端和卡内脚本共享一套读取顺序：
+
+```text
+await waitGlobalInitialized("Mvu")
+→ Mvu.getMvuData({ type: "message", message_id: currentMessageId ?? "latest" })
+→ 读取 stat_data
+→ 若 MVU 不存在，回退 TavernHelper.getVariables({ type: "message", message_id })
+→ 仍失败时显示空态/错误态，而不是伪造状态
+```
+
+`currentMessageId` 不能缺省为 `0`；如果当前表面不是消息 iframe，应使用 `'latest'` 或明确返回不可用。`registerVariableSchema` 只是变量管理器 UI 校验，不能替代 `registerMvuSchema`、`Mvu.getMvuData` 或 `Mvu.replaceMvuData`。
 ## 2. 开场创角优先走直接写入和回读
 
 当开场表单要把姓名、地点、身份、关系或资源写入 MVU，优先使用目标环境实际提供的全局对象和 API：

@@ -153,19 +153,31 @@ function buildUserBlock() {
 }
 
 /* ===== script bundle ===== */
-const Host = {
-  writeInput(text) {
+const Host = (() => {
+  const value = name => {
+    try { if (window[name] !== undefined && window[name] !== null) return window[name]; } catch {}
+    try { if (window.parent?.[name] !== undefined && window.parent?.[name] !== null) return window.parent[name]; } catch {}
+    return null;
+  };
+  const api = name => {
+    const direct = value(name);
+    if (typeof direct === "function") return direct;
+    const helper = value("TavernHelper");
+    if (typeof helper?.[name] === "function") return helper[name].bind(helper);
+    return null;
+  };
+  async function writeInput(text) {
+    const valueToWrite = String(text ?? "");
+    try { if (api("triggerSlash")) { await api("triggerSlash")(`/setinput ${JSON.stringify(valueToWrite)}`); return { ok: true, route: "tavern-helper-slash" }; } } catch {}
     try {
       const input = window.parent?.document?.getElementById("send_textarea");
-      if (input) { input.value = text; input.focus(); return { ok: true, route: "textarea" }; }
+      if (input) { input.value = valueToWrite; input.dispatchEvent(new Event("input", { bubbles: true })); input.dispatchEvent(new Event("change", { bubbles: true })); input.focus(); return { ok: true, route: "textarea" }; }
     } catch {}
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(text);
-      return { ok: false, route: "clipboard" };
-    }
-    return { ok: false, route: "manual" };
-  },
-};
+    try { if (navigator?.clipboard?.writeText) { await navigator.clipboard.writeText(valueToWrite); return { ok: false, route: "clipboard", text: valueToWrite }; } } catch {}
+    return { ok: false, route: "manual", text: valueToWrite };
+  }
+  return { value, api, writeInput };
+})();
 
 /* ===== script bundle ===== */
 function showView(name) {
@@ -209,10 +221,10 @@ document.addEventListener("click", event => {
   if (preset) applyPreset(preset);
 });
 
-document.querySelector("#confirm").addEventListener("click", () => {
+document.querySelector("#confirm").addEventListener("click", async () => {
   const feedback = document.querySelector("#feedback");
   const text = buildUserBlock();
-  const result = Host.writeInput(text);
+  const result = await Host.writeInput(text);
   feedback.className = `feedback ${result.ok ? "success" : ""}`;
   feedback.textContent = result.ok ? "主控设定块已写入酒馆输入框，请检查后发送。" : result.route === "clipboard" ? "无法直接访问输入框，设定块已复制，请粘贴发送。" : `无法自动写入，请手动复制上方设定块。`;
 });

@@ -1,7 +1,7 @@
-function bootstrap() {
+async function bootstrap() {
   const sync = document.querySelector("#sync");
   try {
-    AppState.data = Host.readState();
+    AppState.data = await Host.readState();
     sync.textContent = AppState.data ? "状态已载入" : "暂无状态数据";
     sync.classList.toggle("ready", Boolean(AppState.data));
     renderAll(); showView("room");

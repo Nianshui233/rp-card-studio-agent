@@ -36,17 +36,17 @@ capabilities:
   - id: host.message_lifecycle
     owner: st-host-capabilities
     consumers: [st-runtime-authoring, st-frontend-authoring]
-    supports: [edit, swipe, reload, chat_switch, current_message_id, displayed_message_refresh]
+    supports: [edit, swipe, reload, chat_switch, current_message_id, displayed_message_refresh, mvu_initialized, mvu_updated, event_cleanup]
     fallback: 只读渲染并在生命周期不确定时清理实例
   - id: host.variable_scopes
     owner: st-host-capabilities
     consumers: [st-runtime-authoring, st-frontend-authoring]
-    supports: [global, character, chat, message, script, extension, mvu]
+    supports: [global, character, chat, message, script, extension, mvu, message_latest, wait_global_initialized]
     fallback: 只读当前消息或不提供持久化按钮
   - id: host.worldbook_binding
     owner: st-host-capabilities
     consumers: [st-worldbook-regex, st-integration-qa]
-    supports: [inspect, import, bind_character, bind_chat, bind_global, create_chat_worldbook]
+    supports: [inspect, import, bind_character, bind_chat, bind_global, create_chat_worldbook, read_back_binding, current_worldbook_aliases]
     fallback: 标准 JSON 交付并明确记录需要用户执行导入/绑定
   - id: host.worldbook_runtime
     owner: st-host-capabilities
@@ -56,12 +56,12 @@ capabilities:
   - id: host.regex_control
     owner: st-host-capabilities
     consumers: [st-worldbook-regex, st-integration-qa]
-    supports: [inspect_regex, replace_regex, scoped_enable, run_on_edit, prompt_display_channels]
+    supports: [inspect_regex, replace_regex, scoped_enable, run_on_edit, prompt_display_channels, regex_replay, version_checked]
     fallback: 卡内静态正则或手动启用说明
   - id: host.script_lifecycle
     owner: st-host-capabilities
     consumers: [st-runtime-authoring, st-frontend-authoring]
-    supports: [event_on, event_once, event_emit, unload_cleanup, script_buttons, reload_iframe]
+    supports: [event_on, event_once, event_emit, unload_cleanup, script_buttons, reload_iframe, mvu_events, native_event_source]
     fallback: 局部 DOM 监听与 pagehide 清理
   - id: host.prompt_generation
     owner: st-host-capabilities
@@ -81,7 +81,7 @@ capabilities:
   - id: host.parent_dom_bridge
     owner: st-host-capabilities
     consumers: [st-frontend-authoring, st-runtime-authoring]
-    supports: [parent_dom, input_box, host_global, iframe_bridge, capability_detection]
+    supports: [parent_dom, input_box, input_event_dispatch, slash_input, host_global, iframe_bridge, popup, mobile_detection, capability_detection]
     fallback: iframe 内独立 UI、复制文本或普通输入框回退
   - id: runtime.ejs_phases
     owner: st-runtime-authoring
@@ -108,3 +108,24 @@ capabilities:
     consumers: [st-runtime-authoring, st-frontend-authoring]
     supports: [remote_loader, version_pin, load_order, fallback, runtime_evidence]
     fallback: 内嵌源码或删除该外部依赖
+
+  - id: host.api_resolution
+    owner: st-host-capabilities
+    consumers: [st-runtime-authoring, st-frontend-authoring, st-integration-qa]
+    supports: [iframe_globals, tavern_helper, sillytavern_context, parent_dom_fallback]
+    fallback: 只使用当前表面可确认的能力，并显示普通浏览器预览回退
+  - id: host.runtime_version
+    owner: st-host-capabilities
+    consumers: [st-runtime-authoring, st-frontend-authoring, st-integration-qa]
+    supports: [tavern_version, tavern_helper_version, evidence_snapshot]
+    fallback: 标记版本未读取，不把未验证环境说成已通过
+  - id: host.regex_replay
+    owner: st-host-capabilities
+    consumers: [st-worldbook-regex, st-integration-qa]
+    supports: [format_as_tavern_regexed_string, display_prompt_replay, old_message_replay]
+    fallback: 静态正则测试与手工 SillyTavern 验证
+  - id: host.audio_surface
+    owner: st-host-capabilities
+    consumers: [st-frontend-authoring, st-integration-qa]
+    supports: [bgm, ambient, play_pause, playlist]
+    fallback: 不启用音频，保留纯视觉体验

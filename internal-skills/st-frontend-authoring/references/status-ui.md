@@ -109,6 +109,16 @@ status_ui:
 MVU 状态栏通常等待 `Mvu` 就绪，再用 `Mvu.getMvuData({ type: 'message', message_id: getCurrentMessageId() })` 读取当前楼层 `stat_data`，并监听目标版本的实际更新事件。`display_data` / `delta_data` 在当前 MVU 源码中已标为 deprecated，不作为新 UI 的唯一数据源。非 MVU 状态栏可捕获模型输出的稳定状态块。不要让正则凭空“把变量变成 HTML”，也不要把示例初值硬编码成运行数据。
 
 消息 iframe 中的全局对象可能位于当前 `window`，也可能只位于 `window.parent`。MVU/Tavern Helper UI 必须建立能力桥：安全探测当前窗口和父窗口，选择实际存在的 `Mvu`、`TavernHelper`、`eventOn` 与楼层 API。只写 `window.Mvu`、只写 `window.getCurrentMessageId`，而项目运行契约又声明对象挂在父窗口，会使完整 UI 退化为加载框、空态或无数据外壳。
+推荐所有新 UI 复用项目模板中的 `Host` 适配器：
+
+- `Host.waitForMvu()`：等待共享 MVU 初始化，超时后进入非 MVU 回退；
+- `Host.currentMessageId()`：读取真实楼层，失败时返回 `null`，不把 `0` 当成当前楼；
+- `Host.readState()`：优先读取 MVU `stat_data`，再回退 Tavern Helper message 变量；
+- `Host.writeInput()`：优先 `triggerSlash('/setinput ...')`，再走输入框事件派发，最后复制文本；
+- `Host.onNamed()` / `Host.clear()`：订阅实际宿主事件并在 `pagehide` 时清理；
+- `Host.capabilities()`：把当前宿主、版本和可用路线反馈给 UI 或验收日志。
+
+这套适配器只是默认起点，不限制用户直接使用父页面 DOM、弹窗、生成、音频或本体接口；复杂项目可以扩展它，但必须保留真实数据来源、失败状态和卸载清理。
 
 ## 标记生产链
 

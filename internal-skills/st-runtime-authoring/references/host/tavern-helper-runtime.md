@@ -79,6 +79,10 @@
 
 接口声明文件只能作为目标版本的签名快照。优先使用 Tavern Helper 的高层接口；只有高层接口没有覆盖目标动作时，才读取 SillyTavern 原生导出。升级酒馆助手后，应重新核对 `getChatMessages/setChatMessages`、`getWorldbook/replaceWorldbook`、`getVariables/replaceVariables`、正则、生成和事件接口，而不是继续依赖旧的类型文件。
 
+卡内前端的默认适配顺序应是：当前 iframe 已注入的全局函数/TavernHelper → `window.TavernHelper` → `window.SillyTavern.getContext()` → `window.parent` DOM 或本体导出 → 复制文本/手动回退。不要把整个 `getContext()` 对象序列化到交付物。
+
+通用 UI 适配器至少应提供 `waitForMvu()`、`currentMessageId()`、`readState()`、`writeInput()`、`onNamed()` 和 `clear()`。`readState()` 先等待 MVU、读取当前楼层 `stat_data`，再回退 `getVariables({type:"message", message_id})`；`writeInput()` 先尝试 `triggerSlash("/setinput ...")`，DOM 路线必须派发 `input/change` 事件，最后才复制文本。缺失 `getCurrentMessageId()` 时使用 `latest` 或显示不可用，不要硬编码楼层 `0`。
+
 ## 7. 流式楼层界面是另一条路线
 
 酒馆原生消息前端通常要等标记所在文本完成后才渲染，因此不能默认声称“消息 HTML 支持流式”。如果项目真的需要流式楼层界面，应使用已经验证的流式挂载路线，或让脚本接管原生楼层显示；同时验证增量文本、最终文本、编辑、Swipe 和清理时机。

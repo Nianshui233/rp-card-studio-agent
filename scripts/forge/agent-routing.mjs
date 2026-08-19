@@ -22,6 +22,10 @@ export const CAPABILITY_IDS = Object.freeze([
   "frontend.zero_layer",
   "frontend.asset_library",
   "runtime.external_dependency",
+  "host.api_resolution",
+  "host.runtime_version",
+  "host.regex_replay",
+  "host.audio_surface",
 ]);
 
 export const CAPABILITY_ID_SET = new Set(CAPABILITY_IDS);

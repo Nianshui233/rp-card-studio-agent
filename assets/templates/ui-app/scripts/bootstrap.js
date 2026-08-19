@@ -1,4 +1,4 @@
-async function bootstrap() {
+async function syncHostState() {
   const connection = document.querySelector("#connectionState");
   try {
     AppState.data = await Host.readState();
@@ -10,6 +10,13 @@ async function bootstrap() {
     AppState.mode = "error";
     connection.textContent = "读取失败";
     document.querySelector("#currentSituation").innerHTML = `<div class="error">${String(error.message || error)}</div>`;
+  }
+}
+
+async function bootstrap() {
+  await syncHostState();
+  for (const event of ["MESSAGE_UPDATED", "MESSAGE_SWIPED", "CHAT_CHANGED", "GENERATION_ENDED", "VARIABLE_INITIALIZED", "VARIABLE_UPDATE_ENDED"]) {
+    Host.onNamed(event, syncHostState);
   }
 }
 

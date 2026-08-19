@@ -9,10 +9,10 @@ document.addEventListener("click", event => {
   if (preset) applyPreset(preset);
 });
 
-document.querySelector("#confirm").addEventListener("click", () => {
+document.querySelector("#confirm").addEventListener("click", async () => {
   const feedback = document.querySelector("#feedback");
   const text = buildUserBlock();
-  const result = Host.writeInput(text);
+  const result = await Host.writeInput(text);
   feedback.className = `feedback ${result.ok ? "success" : ""}`;
   feedback.textContent = result.ok ? "主控设定块已写入酒馆输入框，请检查后发送。" : result.route === "clipboard" ? "无法直接访问输入框，设定块已复制，请粘贴发送。" : `无法自动写入，请手动复制上方设定块。`;
 });

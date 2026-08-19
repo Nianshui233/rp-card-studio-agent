@@ -67,7 +67,7 @@ MVU 原生路线从 `[initvar]` 的 `$meta` 生成内部 Schema，支持可扩�
 
 EJS 是 ST-Prompt-Template 或既有宿主执行的真实 `.ejs` 模板，不是存储层。每份模板记录：真实文件、执行宿主、读取变量、输出对象、失败回退。使用 Tavern Helper 的 `EjsTemplate.getSyntaxErrorInfo / prepareContext / evalTemplate / getFeatures` 可做目标环境诊断；离线构建不能冒充宿主执行成功。
 
-独立 EJS 合同还要记录生成前/渲染后阶段、变量作用域、装饰器、`getwi`/`activewi`/`injectPrompt` 调用、缓存、是否写变量、是否写回原始消息、是否读取 MVU，以及失败回退。EJS 读取或写入 MVU 时必须在 `bridges` 中登记方向和路径；这表示两套系统之间的显式桥，不表示 EJS 变成 MVU。
+独立 EJS 合同还要记录生成前/渲染后阶段、变量作用域、装饰器、`getwi`/`activewi`/`injectPrompts` 调用、缓存、是否写变量、是否写回原始消息、是否读取 MVU，以及失败回退。EJS 读取或写入 MVU 时必须在 `bridges` 中登记方向和路径；这表示两套系统之间的显式桥，不表示 EJS 变成 MVU。
 
 ## 开场创角与 MVU 初值不是一回事
 
@@ -86,7 +86,7 @@ EJS 是 ST-Prompt-Template 或既有宿主执行的真实 `.ejs` 模板，不是
 
 ## UI 数据交接
 
-新 MVU UI 优先等待 `Mvu` 初始化，再按当前楼层读取：
+新 MVU UI 优先等待 `Mvu` 初始化，再按当前楼层读取；如果项目复用通用 `Host` 适配器，应由适配器统一处理等待、当前楼层和非 MVU 回退：
 
 ```js
 await waitGlobalInitialized('Mvu');
