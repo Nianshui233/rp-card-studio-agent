@@ -4,14 +4,80 @@ display_name: 未命名场景
 status: draft
 
 purpose: ""
+scene_type: ""                    # 日常 / 会面 / 探索 / 经营 / 潜入 / 推理 / 战术 / 密室 / 其他
+play_focus: []
+depth_profile: ""                  # light / structured / tactical / custom；表示内容深度，不是 UI 等级
 daily_life: ""
 atmosphere: []
-space_and_access: []
+
+spatial_structure:
+  scale: ""
+  topology: []                      # 用自然语言记录区域连通关系
+  levels_or_districts: []
+  main_routes: []
+  alternate_routes: []
+  vertical_routes: []
+  immutable_facts: []              # 不可为剧情方便临时改变的空间事实
+  expansion_rules: []              # 未命名区域如何保持一致地补全
+  zones:
+    - id: zone_id
+      name: "区域名"
+      function: ""
+      visible_information: []
+      interactions: []
+      resources: []
+      risks: []
+      connects_to: []
+
+access_and_security:
+  openness: ""                     # 公开 / 需邀请 / 需凭证 / 禁区 / 混合
+  entrances:
+    - name: "入口名"
+      location: ""
+      visibility: ""
+      requirements: []
+      acquisition_routes: []
+      failure_consequence: ""
+  permission_levels: []
+  surveillance: []
+  patrols: []
+  alarm_triggers: []
+  bypasses: []
+
 actors_and_motion: []
 interactions: []
 risks: []
-clues: []
-events: []
+
+resources_and_changes:
+  obtainable_resources: []
+  key_items: []
+  destructible_elements: []
+  modification_consequences: []
+
+clue_structure:
+  - clue: ""
+    location_ref: ""
+    acquisition: ""
+    prerequisites: []
+    time_window: ""
+    possible_misdirection: ""
+    supports: ""
+
+time_and_events:
+  time_variations: []
+  random_events: []
+  inevitable_events: []
+  offscreen_events: []
+
+local_rules:
+  special_rules: []
+  common_action_rulings: []
+  impossible_actions: []
+  edge_cases: []
+
+space_and_access: []                 # 兼容旧项目；新建优先使用 spatial_structure/access_and_security
+clues: []                           # 兼容旧项目；新建优先使用 clue_structure
+events: []                          # 兼容旧项目；新建优先使用 time_and_events
 secrets: []
 long_term_changes: []
 source_refs: []

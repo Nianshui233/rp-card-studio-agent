@@ -2,6 +2,7 @@ schema_version: 2.0.0
 id: system_id
 display_name: 未命名系统
 status: draft
+system_mode: narrative             # narrative / quantitative / hybrid；数值型或混合型再合并 quantitative-system.mixin.yaml
 
 purpose: ""
 roleplay_experience: ""

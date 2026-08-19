@@ -1,0 +1,71 @@
+# 仅合并到真正的数值型或混合型系统；不要为了状态栏丰富度虚构数值。
+quantitative:
+  display:
+    mode: implicit                 # implicit / explicit / mixed
+    player_facing_format: ""
+  axes:
+    - id: axis_id
+      name: "数值轴名称"
+      applies_to: ""              # 每角色独立 / 势力共享 / 世界唯一 / 其他
+      range: [0, 100]
+      initial: 0
+      direction: bidirectional     # bidirectional / ascending / descending
+      meaning: "下限含义 ↔ 上限含义"
+      thresholds:
+        - range: [0, 29]
+          label: "低位"
+          behavioral_signs: []     # 至少两项可观察变化
+          positive_modifier: 1.0
+          negative_modifier: 1.0
+        - range: [30, 69]
+          label: "中位"
+          behavioral_signs: []
+          positive_modifier: 1.0
+          negative_modifier: 1.0
+        - range: [70, 100]
+          label: "高位"
+          behavioral_signs: []
+          positive_modifier: 1.0
+          negative_modifier: 1.0
+  calculation:
+    formula: "delta = round(base * threshold_mod * context_mod * repetition_mod)"
+    base_ranges:
+      positive: [1, 10]
+      negative: [-10, -1]
+    context_modifiers: []
+    repetition:
+      grouping_rule: "按行为意图而非字面重复归类"
+      modifiers: [1.0, 0.6, 0.3, 0.1]
+      reset_condition: ""
+    multiple_events:
+      merge_rule: ""
+    caps:
+      per_interaction: { min: -20, max: 20 }
+      per_cycle: { min: -40, max: 40 }
+      cycle_definition: ""
+  boundaries:
+    ceiling:
+      value: 100
+      numeric_effect: ""
+      roleplay_effect: ""
+    floor:
+      value: 0
+      numeric_effect: ""
+      roleplay_effect: ""
+  decay_or_recovery: []
+  anti_exploitation: []
+  cross_axis_interactions: []
+  conflict_priority: []
+  worked_examples:
+    - name: "正向事件"
+      old_values: {}
+      event: ""
+      calculation_steps: []
+      new_values: {}
+      observable_consequence: ""
+    - name: "负向事件"
+      old_values: {}
+      event: ""
+      calculation_steps: []
+      new_values: {}
+      observable_consequence: ""

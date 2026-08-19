@@ -8,13 +8,16 @@ description: "Private module for gameplay systems, scenes, events, narrative voi
 只接受主 Agent 调度。完整读取 `shared/contracts/module-io.md`，并按当前阶段读取：
 
 - `references/systems.md`
+- `references/quantitative-systems.md`（只有系统被判定为数值型或混合型时读取）
 - `references/scenes.md`
 - `references/narrative-opening.md`
 
 ## 职责
 
 - 设计由 RP 内容真实实现的规则、循环、后果、成长、资源和事件。
+- 先判断系统属于叙事型、数值型还是混合型；只把真正需要精确追踪和计算的部分数字化。
 - 创作可复用的场景与情境引擎，而不是静态布景。
+- 对潜入、调查、战术、经营、密室或长期据点场景，补足空间拓扑、权限、安保、线索、时间表和可破坏结构。
 - 确定叙事视角、语气、节奏、信息披露和输出体验。
 - 写出真实开场白和有实质差异的备用开场。
 - 设计介绍页、游玩指南与创角流程要传达的内容和玩家旅程。

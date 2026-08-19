@@ -15,6 +15,7 @@
     "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
     "display_name": { "type": "string", "minLength": 1 },
     "status": { "enum": ["draft", "locked"] },
+    "system_mode": { "enum": ["narrative", "quantitative", "hybrid"] },
     "purpose": { "type": "string" },
     "roleplay_experience": { "type": "string" },
     "core_rules": { "type": "array" },
@@ -25,6 +26,33 @@
     "anti_exploitation": { "type": "array" },
     "state_to_remember": { "type": "array" },
     "examples": { "type": "array" },
+    "quantitative": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "display": { "type": "object" },
+        "axes": { "type": "array" },
+        "calculation": { "type": "object" },
+        "boundaries": { "type": "object" },
+        "decay_or_recovery": { "type": "array" },
+        "anti_exploitation": { "type": "array" },
+        "cross_axis_interactions": { "type": "array" },
+        "conflict_priority": { "type": "array" },
+        "worked_examples": { "type": "array" }
+      }
+    },
     "source_refs": { "type": "array", "items": { "type": "string" } }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "system_mode": { "enum": ["quantitative", "hybrid"] } },
+        "required": ["system_mode"]
+      },
+      "then": {
+        "required": ["quantitative"],
+        "properties": { "quantitative": { "type": "object" } }
+      }
+    }
+  ]
 }
