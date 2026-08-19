@@ -31,33 +31,39 @@ MVU 原生路线从 `[initvar]` 的 `$meta` 生成内部 Schema，支持可扩�
 
 ## 更新路线
 
-## MVU 变量卡的固定酒馆助手底座
+## MVU 变量卡的酒馆助手底座
 
-只要项目选择 MVU 变量路线，酒馆助手脚本树默认先建立两个基础脚本位；它们不是每张卡都无条件存在，非 MVU/XML 卡不生成：
+项目选择卡内 MagVarUpdate 路线时，脚本树必须有且只有一个 `role: mvu_loader`：
 
-1. `role: mvu_loader`：固定加载字段
+```js
+import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js';
+```
 
-   ```js
-   import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js';
-   ```
+Loader 节点记录 `source_file`、`phase`、`depends_on`、`provides: [Mvu]` 和二级远程依赖证据。若宿主已经全局加载，则使用 `host_required`，不要再附加第二个 Loader。
 
-   beta 路线可以明确使用同一路径的 `@beta` 版本，但必须记录版本选择。
+Schema 脚本按路线决定：
 
-2. `role: mvu_schema`：固定注册字段
+- `native_schema`：MagVarUpdate 从 `[initvar]` 的 `$meta` 与实际数据生成内部 Schema，不要求 `mvu_schema`；
+- `mvu_zod`：必须提供 `role: mvu_schema`，并固定导入 `registerMvuSchema`；
+- `hybrid`：只有明确声明 Zod 职责时才要求 `mvu_schema`；
+- `existing`：按既有实现和证据处理。
 
-   ```js
-   import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';
-   ```
+使用 Zod 时固定 import 为：
 
-   这个 import 是固定底座；其后的 `Schema`、默认结构、枚举、范围和 `registerMvuSchema(Schema)` 内容必须根据当前卡的变量结构创作，不能把别的卡的变量定义照搬过来。
+```js
+import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';
+```
 
-`[initvar]`、更新规则、回复输出格式、完整/流式隐藏正则仍然是另外的承重组件。只有 `existing` 路线可以沿用旧卡已经验证的等价脚本；如果项目选择卡内脚本路线，两个基础脚本都必须在 `runtime_manifest.tavern_helper_scripts` 中有真实节点，并在节点上记录 `source_file`、`phase`、`depends_on` 与 `provides`。
-
+后续 `Schema`、默认结构、枚举、范围和 `registerMvuSchema(Schema)` 必须根据本卡变量结构创作。`[initvar]`、更新规则、回复输出格式、prompt/display 双通道清理正则仍是另外的承重组件。
 更新可以随正文同轮发生，也可以由额外模型解析；额外模型还可能使用普通聊天、Tool Calling、JSON Schema、JSON Object 等响应方式。操作方言可以是 lodash 命令、MVU JSON Patch 或既有实现。技能根据目标 API、可靠性、成本和现成卡结构选路，不把这些问题抛给用户。
 
 额外模型模式下，条目名中的 `[mvu_plot]` 与 `[mvu_update]` 用于剧情模型/更新模型分流；没有标记或同时有两种标记时会进入两边。只有目标 MVU 版本实证支持时才依赖此行为。
 
 `[config_override]` 是可选的角色级配置覆盖条目，可控制更新方式、自动额外请求、世界书过滤和部分兼容行为。它不是每张卡都必须注入的固定组件。
+
+MagVarUpdate 当前通过一个名为 `[config_override]` 的禁用世界书条目主动读取它，而不是把它当作普通提示词条目。维护源应是 JSON 对象，交付时要检查：条目存在、`enabled: false`、内容可解析、来源路径与 `mvu.files.config_override` 一致。已知字段包括 `更新方式`、`额外模型解析配置.启用自动请求`、白名单/黑名单正则、`兼容性.更新到聊天变量` 和 `兼容性.sendas不视为user消息`；未知字段可保留以兼容未来版本。
+
+`native_schema` 不等于 MVU_ZOD：MagVarUpdate 会从 `[initvar]` 的 `stat_data` 和 `$meta` 自动生成内部 schema，因此 native 路线不必强行附带 `registerMvuSchema`。只有 `mvu_zod` 或明确的 `hybrid` 路线才把 Zod 注册脚本视为承重组件；如果项目政策仍要求每张 MVU 卡都带 Zod，应把它记录为项目偏好，而非框架硬性依赖。
 
 ### 制作期清理不等于运行时年龄门禁
 
@@ -84,6 +90,15 @@ EJS 是 ST-Prompt-Template 或既有宿主执行的真实 `.ejs` 模板，不是
 
 创角桥失败时必须显示失败、保留表单并提供手动回退；不能继续自动生成一轮，让模型在默认变量上开始剧情。
 
+## MagVarUpdate 的清理、快照与全局副作用
+
+当前 MagVarUpdate 会在处理消息后追加 `<StatusPlaceHolderImpl/>`。它的提示词过滤器会把该占位符从发送给模型的上下文中移除，但不会替代玩家显示层的正则；玩家显示仍需要一条匹配占位符的 display 路线。`<UpdateVariable>` 技术块的玩家显示清理与模型提示词清理也要分别记录，不能用一个“清理已完成”同时代表两个通道。
+
+框架还可能每隔若干楼层清理旧变量，只保留快照楼层，并在删除消息后尝试重演/恢复变量。因此历史楼层的 `stat_data`、`schema` 和显示快照不是永久存在；UI/EJS 读取旧楼层时必须有缺失回退。
+
+Loader 初始化时会调整部分 SillyTavern 全局世界书设置（扫描深度、递归、插入策略等）。个人项目可以使用，但交付报告必须说明这是宿主全局副作用，不能声称只影响当前角色。
+
+`MVU变量框架` 使用唯一脚本名注册；同一宿主同时启用多个 MagVarUpdate Loader 时只有一个实例可靠生效。项目交付应只保留一个有效 Loader。
 ## UI 数据交接
 
 新 MVU UI 优先等待 `Mvu` 初始化，再按当前楼层读取；如果项目复用通用 `Host` 适配器，应由适配器统一处理等待、当前楼层和非 MVU 回退：

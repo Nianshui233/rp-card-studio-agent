@@ -71,6 +71,19 @@
 
 世界观按主题切片；NPC 通常保持完整；系统、场景与叙事按职责保持连续。正文应是可读 YAML/文本，不机械转成 JSON。
 
+## MagVarUpdate 运行专项
+
+若实际使用 MagVarUpdate，除了通用 MVU 校验，还要检查：
+
+- `native_schema` 不因缺少 `registerMvuSchema` 被误判失败；`mvu_zod` / `hybrid` 才按声明要求检查 Zod 注册；
+- `[config_override]` 是禁用但可被框架主动读取的 JSON 世界书条目，不应作为普通模型提示词发送；
+- `StatusPlaceHolderImpl` 的 prompt 清理和玩家显示替换分别闭环；
+- `<UpdateVariable>` 的完整块、流式半块在玩家显示层有真实清理，若模型提示词层也清理则单独记录；
+- 世界书初始化根键没有发生角色书/全局书意外覆盖；
+- 至少记录 Loader 的全局世界书设置副作用、自动快照/清理/重演行为和历史变量缺失回退；
+- 同时启用的 MagVarUpdate Loader 不超过一个；
+- 若启用额外模型，分别核对普通消息、工具调用、Json Schema、Json Object、批量请求和自定义 API 的 Tavern Helper 版本能力；
+- Loader 及其 bundle 的二级远程 ESM 依赖在浏览器控制台/网络面板中可访问。
 ## MVU/EJS 校验
 
 只校验项目真实选择的实现：
@@ -82,7 +95,7 @@
 - 更新规则和回复输出格式与变量路径一致；
 - EJS 文件语法、依赖、读取路径和目标条目明确；
 - Tavern Helper 脚本内容原样进入卡内扩展；
-- MVU 变量路线的 Tavern Helper ScriptFolder 至少有真实 `mvu_loader` 与 `mvu_schema` 两个基础节点：前者包含 MagVarUpdate 固定 import，后者包含 `registerMvuSchema` 固定 import，且顺序、依赖和来源文件可追溯；
+- 卡内 MagVarUpdate 路线有且只有一个真实 `mvu_loader`；`native_schema` 不要求 `mvu_schema`，`mvu_zod`/明确的 `hybrid` 才要求包含 `registerMvuSchema` 固定 import 的真实注册节点；顺序、依赖和来源文件可追溯；
 - 变量更新块的完整与流式正则符合本卡实际标签；
 - 技术测试卡可以缩小内容与 UI 规模，但不能省略所选技术路线的承重组件；聊天消息中的变量更新块必须同时验证“完整块”和“流式未闭合块”在玩家显示层不可见；
 - 默认由卡内正则承担变量块显示清理；若改由 MVU 框架、宿主全局正则或既有实现承担，必须在 `mvu.update_strategy.display_cleanup` 记录模式与实际证据，不能只凭“框架应该会处理”跳过；

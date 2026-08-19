@@ -56,7 +56,7 @@ function sourceSet(assemblySource, mvuSource = null) {
 
 function nativeMvu(overrides = {}) {
   return {
-    schema_version: "3.0.0",
+    schema_version: "3.1.0",
     status: "locked",
     mvu: {
       enabled: true,
@@ -84,7 +84,14 @@ function nativeMvu(overrides = {}) {
         operation_dialect: "lodash_commands",
         notes: [],
       },
-      implementation_notes: [],
+      runtime_contract: {
+        initialization: { entry_pattern: "[initvar]", enabled_worldbooks: ["character_primary", "character_additional", "global"], opening_override: "character_primary_replace", root_collision_policy: "unique_top_level_keys", notes: [] },
+        persistence: { scope: "message", swipe_aware: true, readback: "current_message", notes: [] },
+        cleanup: { snapshot_cleanup: "framework", replay_restore: "framework", history_missing_fallback: "读取最近有效快照，无数据时显示不可用", notes: [] },
+        side_effects: { global_worldbook_settings: "framework_changes", notes: ["MagVarUpdate 调整世界书全局设置"] },
+        version_matrix: { base_loader: ">=3.4.17", tool_calling: ">=4.8.4", custom_request_body: ">=4.8.13", batch_requests: ">=4.4.3" },
+        remote_dependencies: { loader: "https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js", transitive_imports: ["testingcf.jsdelivr.net/npm/*/+esm"], runtime_evidence: [] },
+      },      implementation_notes: [],
       ...overrides,
     },
     ejs: { enabled: false, engine: "none", templates: [], implementation_notes: [] },
@@ -151,6 +158,9 @@ test("card-contained native MVU requires a real loader script and real source fi
   const valid = await validateRuntimeSources({ project: { features: { mvu: true, ejs: false, status_ui: false } }, sources, projectRoot: root });
   assert.deepEqual(valid.issues, []);
 
+  const nativeWithoutZod = nativeMvu({ files: { initial_values: "src/runtime/mvu/初始变量.yaml", schema_script: null, update_rules: "src/runtime/mvu/变量更新规则.yaml", output_format: "src/runtime/mvu/变量输出格式.yaml", config_override: null, helper_scripts: [], supporting_files: [] } });
+  const nativeWithoutZodReport = await validateRuntimeSources({ project: { features: { mvu: true } }, sources: sourceSet(assembly([loader], [initVarEntry()]), nativeWithoutZod), projectRoot: root });
+  assert.ok(!nativeWithoutZodReport.issues.some((entry) => entry.rule === "mvu.schema" || entry.rule === "mvu.schema_component"), "native_schema must not require MVU_ZOD");
   const missingLoader = sourceSet(assembly([schema], [initVarEntry()]), nativeMvu());
   const invalid = await validateRuntimeSources({ project: { features: { mvu: true, ejs: false, status_ui: false } }, sources: missingLoader, projectRoot: root });
   assert.ok(invalid.issues.some((entry) => entry.rule === "mvu.loader"));
@@ -160,6 +170,32 @@ test("card-contained native MVU requires a real loader script and real source fi
   assert.ok(wrongImportReport.issues.some((entry) => entry.rule === "mvu.loader_component"));
 });
 
+test("MagVarUpdate config_override is a disabled worldbook entry with JSON content", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "rp-mvu-config-override-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(path.join(root, "src/runtime/mvu"), { recursive: true });
+  await writeFile(path.join(root, "src/runtime/mvu/初始变量.yaml"), "状态:\n  天气: 雨", "utf8");
+  await writeFile(path.join(root, "src/runtime/mvu/配置覆盖.json"), JSON.stringify({ 更新方式: "额外模型解析", 额外模型解析配置: { 启用自动请求: true } }), "utf8");
+  const loader = { id: "mvu-loader", name: "加载 MVU 框架", enabled: true, role: "mvu_loader", content: "import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js';" };
+  const source = nativeMvu({ files: { initial_values: "src/runtime/mvu/初始变量.yaml", schema_script: null, update_rules: null, output_format: null, config_override: "src/runtime/mvu/配置覆盖.json", helper_scripts: [], supporting_files: [] } });
+  const overrideEntry = { ...initVarEntry(), id: "mvu_config_override", display_name: "[config_override]", enabled: false, source: { kind: "file", path: "src/runtime/mvu/配置覆盖.json" } };
+  const validation = await validateRuntimeSources({ project: { features: { mvu: true } }, sources: sourceSet(assembly([loader], [initVarEntry(), overrideEntry]), source), projectRoot: root });
+  assert.deepEqual(validation.issues, []);
+
+  const leaked = { ...overrideEntry, enabled: true };
+  const leakedReport = await validateRuntimeSources({ project: { features: { mvu: true } }, sources: sourceSet(assembly([loader], [initVarEntry(), leaked]), source), projectRoot: root });
+  assert.ok(leakedReport.issues.some((entry) => entry.rule === "mvu.config_override_visibility"));
+});
+test("MVU runtime warns or blocks duplicate active MagVarUpdate loaders", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "rp-mvu-loader-unique-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(path.join(root, "src/runtime/mvu"), { recursive: true });
+  await writeFile(path.join(root, "src/runtime/mvu/初始变量.yaml"), "状态:\n  天气: 雨", "utf8");
+  const loader = (id) => ({ id, name: id, enabled: true, role: "mvu_loader", content: "import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js';" });
+  const source = nativeMvu({ status: "locked", files: { initial_values: "src/runtime/mvu/初始变量.yaml", schema_script: null, update_rules: null, output_format: null, config_override: null, helper_scripts: [], supporting_files: [] } });
+  const report = await validateRuntimeSources({ project: { features: { mvu: true } }, sources: sourceSet(assembly([loader("loader-a"), loader("loader-b")], [initVarEntry()]), source), projectRoot: root });
+  assert.ok(report.issues.some((entry) => entry.rule === "mvu.loader_unique"));
+});
 test("MVU initial values must be projected into a real [initvar] CharacterBook entry", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "rp-mvu-initvar-projection-"));
   t.after(() => rm(root, { recursive: true, force: true }));

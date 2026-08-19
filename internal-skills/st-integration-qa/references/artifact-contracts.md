@@ -66,10 +66,7 @@ runtime_manifest:
 
 `content_file` 读取完整 JavaScript 形成可独立导入的 Tavern Helper 脚本 JSON；`content` 保留内联脚本。Forge 不改写脚本语义。
 
-采用 MVU 变量路线时，ScriptFolder 内至少登记两个基础节点：
-
-- `role: mvu_loader`：脚本内容必须包含 MagVarUpdate bundle 的固定 import；
-- `role: mvu_schema`：脚本内容必须包含 `registerMvuSchema` 的固定 import，后续 Schema 内容按项目变量结构编写。
+采用卡内 MagVarUpdate 路线时，ScriptFolder 内必须登记一个且仅一个 `role: mvu_loader`，脚本内容包含 MagVarUpdate bundle 的固定 import。`role: mvu_schema` 按路线决定：`native_schema` 可省略；`mvu_zod` 与明确依赖 Zod 的 `hybrid` 必须包含 `registerMvuSchema` 的固定 import，后续 Schema 内容按项目变量结构编写。
 
 节点可用 `source_file` 指向维护源；交付清单会保留角色、阶段、依赖、能力和来源文件，确保它们不是只存在于 `mvu.yaml` 的路径声明。
 

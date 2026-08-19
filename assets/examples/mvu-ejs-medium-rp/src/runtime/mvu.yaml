@@ -1,4 +1,4 @@
-schema_version: 3.0.0
+schema_version: 3.1.0
 status: locked
 mvu:
   enabled: true
@@ -24,6 +24,21 @@ mvu:
     operation_dialect: lodash_commands
     display_cleanup: { mode: card_regex, evidence: ["完整与流式技术块由项目正则覆盖"] }
     notes: []
+  runtime_contract:
+    initialization:
+      entry_pattern: "[initvar]"
+      enabled_worldbooks: [character_primary, character_additional, global]
+      opening_override: character_primary_replace
+      root_collision_policy: unique_top_level_keys
+      notes: []
+    persistence: { scope: message, swipe_aware: true, readback: current_message, notes: [] }
+    cleanup: { snapshot_cleanup: framework, replay_restore: framework, history_missing_fallback: "读取最近有效快照，无数据时显示不可用", notes: [] }
+    side_effects: { global_worldbook_settings: framework_changes, notes: ["MagVarUpdate 会调整世界书全局设置"] }
+    version_matrix: { base_loader: ">=3.4.17", tool_calling: ">=4.8.4", custom_request_body: ">=4.8.13", batch_requests: ">=4.4.3" }
+    remote_dependencies:
+      loader: https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js
+      transitive_imports: [klona, compare-versions, json5, jsonrepair, mathjs]
+      runtime_evidence: []
   implementation_notes: ["MVU 维护状态；EJS 只读 stat_data"]
 ejs: { enabled: false, engine: none, templates: [], implementation_notes: [] }
 runtime_target: { sillytavern: unverified, tavern_helper: unverified, mvu: unverified, st_prompt_template: unverified }

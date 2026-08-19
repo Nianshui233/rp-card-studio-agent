@@ -1,12 +1,19 @@
-schema_version: 3.0.0
+schema_version: 3.1.0
 status: locked
 mvu:
   enabled: true
-  route: native_schema
+  route: hybrid
   state_root: stat_data
   framework: { delivery: host_required, loader_script_id: null, loader_url: null, expected_global: Mvu, notes: ["宿主已安装 MVU 后运行"] }
   files: { initial_values: src/world/变量初始化.yaml, schema_script: src/runtime/mvu/变量结构.js, update_rules: src/runtime/mvu/变量更新规则.yaml, output_format: src/runtime/mvu/回复输出格式.yaml, config_override: null, helper_scripts: [src/runtime/scripts/零层生命周期.js], supporting_files: [] }
   update_strategy: { mode: same_turn, response_transport: chat_message, operation_dialect: lodash_commands, display_cleanup: { mode: card_regex, evidence: ["完整与流式技术块隐藏"] }, notes: [] }
+  runtime_contract:
+    initialization: { entry_pattern: "[initvar]", enabled_worldbooks: [character_primary, character_additional, global], opening_override: character_primary_replace, root_collision_policy: unique_top_level_keys, notes: [] }
+    persistence: { scope: message, swipe_aware: true, readback: current_message, notes: [] }
+    cleanup: { snapshot_cleanup: framework, replay_restore: framework, history_missing_fallback: "读取最近有效快照，无数据时显示不可用", notes: [] }
+    side_effects: { global_worldbook_settings: framework_changes, notes: ["宿主 MagVarUpdate 会调整世界书全局设置"] }
+    version_matrix: { base_loader: ">=3.4.17", tool_calling: ">=4.8.4", custom_request_body: ">=4.8.13", batch_requests: ">=4.4.3" }
+    remote_dependencies: { loader: null, transitive_imports: [], runtime_evidence: [] }
   implementation_notes: ["UI 读取当前消息 stat_data，不读取示例常量"]
 runtime_target: { sillytavern: unverified, tavern_helper: unverified, mvu: unverified, st_prompt_template: unverified }
 dependencies: []

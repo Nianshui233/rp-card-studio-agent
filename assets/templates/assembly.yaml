@@ -33,7 +33,7 @@ runtime_manifest:
   mode: authored
   regex_scripts: []
   # MVU 项目应在这里登记真实 Tavern Helper 脚本：
-  # role=mvu_loader 的框架加载器先于 role=mvu_schema 的变量结构脚本；
+  # 先启用唯一 role=mvu_loader；只有 mvu_zod/明确 hybrid 才追加 role=mvu_schema；
   # source_file 可与 mvu.files.schema_script / supporting_files 对应，
   # 交付时这些节点会原样进入 06_酒馆助手，而不是只留在维护源路径里。
   tavern_helper_scripts: []

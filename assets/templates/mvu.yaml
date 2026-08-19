@@ -1,4 +1,4 @@
-schema_version: 3.0.0
+schema_version: 3.1.0
 status: draft
 
 mvu:
@@ -13,6 +13,8 @@ mvu:
     notes: []
     # 卡内路线通常对应 runtime_manifest.tavern_helper_scripts 中
     # role: mvu_loader 的真实脚本节点；不要只写 loader_url。
+    # MagVarUpdate 0.181.0 基础运行最低依赖 Tavern Helper 3.4.17。
+    # 工具调用/格式化输出等额外模型能力有更高的版本门槛。
   files:
     initial_values: null
     schema_script: null
@@ -25,10 +27,47 @@ mvu:
     mode: same_turn
     response_transport: chat_message
     operation_dialect: lodash_commands
+    # 玩家显示层与模型提示词层是两条不同清理链。
     display_cleanup:
       mode: card_regex
       evidence: []
+      update_variable: { mode: card_regex, evidence: [] }
+      status_placeholder: { mode: card_regex, evidence: [] }
+    prompt_cleanup:
+      mode: framework
+      evidence: [MagVarUpdate 会在提示词组装时移除 StatusPlaceHolderImpl；UpdateVariable 是否清理由实际路线决定]
+      update_variable: { mode: card_regex, evidence: [] }
+      status_placeholder: { mode: framework, evidence: [MagVarUpdate filterPrompts] }
     notes: []
+  runtime_contract:
+    initialization:
+      entry_pattern: "[initvar]"
+      enabled_worldbooks: [character_primary, character_additional, global]
+      opening_override: character_primary_replace
+      root_collision_policy: unique_top_level_keys
+      notes: []
+    persistence:
+      scope: message
+      swipe_aware: true
+      readback: current_message
+      notes: []
+    cleanup:
+      snapshot_cleanup: framework
+      replay_restore: framework
+      history_missing_fallback: 从最近有效快照读取；无快照时显示状态不可用，不伪造旧值
+      notes: []
+    side_effects:
+      global_worldbook_settings: framework_changes
+      notes: [MagVarUpdate 会调整部分 SillyTavern 全局世界书扫描设置，交付报告需说明]
+    version_matrix:
+      base_loader: ">=3.4.17"
+      tool_calling: ">=4.8.4"
+      custom_request_body: ">=4.8.13"
+      batch_requests: ">=4.4.3"
+    remote_dependencies:
+      loader: null
+      transitive_imports: []
+      runtime_evidence: []
   implementation_notes: []
 
 runtime_target:
@@ -37,5 +76,6 @@ runtime_target:
   mvu: unverified
   st_prompt_template: unverified
 
+# 远程依赖不仅包括 Loader URL，还应记录 bundle.js 的二级 ESM 依赖。
 dependencies: []
 source_refs: []

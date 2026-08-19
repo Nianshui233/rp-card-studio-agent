@@ -59,7 +59,7 @@ function initVarEntry() {
 
 function mvuSource(displayCleanup) {
   return {
-    schema_version: "3.0.0",
+    schema_version: "3.1.0",
     status: "locked",
     mvu: {
       enabled: true,
@@ -82,7 +82,14 @@ function mvuSource(displayCleanup) {
         ...(displayCleanup ? { display_cleanup: displayCleanup } : {}),
         notes: [],
       },
-      implementation_notes: [],
+      runtime_contract: {
+        initialization: { entry_pattern: "[initvar]", enabled_worldbooks: ["character_primary", "character_additional", "global"], opening_override: "character_primary_replace", root_collision_policy: "unique_top_level_keys", notes: [] },
+        persistence: { scope: "message", swipe_aware: true, readback: "current_message", notes: [] },
+        cleanup: { snapshot_cleanup: "framework", replay_restore: "framework", history_missing_fallback: "读取最近有效快照，无数据时显示不可用", notes: [] },
+        side_effects: { global_worldbook_settings: "framework_changes", notes: ["MagVarUpdate 调整世界书全局设置"] },
+        version_matrix: { base_loader: ">=3.4.17", tool_calling: ">=4.8.4", custom_request_body: ">=4.8.13", batch_requests: ">=4.4.3" },
+        remote_dependencies: { loader: "https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js", transitive_imports: ["testingcf.jsdelivr.net/npm/*/+esm"], runtime_evidence: [] },
+      },      implementation_notes: [],
     },
     ejs: { enabled: false, engine: "none", templates: [], implementation_notes: [] },
     runtime_target: { sillytavern: "unverified" },
@@ -161,6 +168,25 @@ test("chat-message MVU blocks require complete and streaming player-display clea
   assert.deepEqual(closed.issues, []);
 });
 
+test("prompt cleanup is a separate optional MVU channel", async (t) => {
+  const root = await fixtureRoot(t);
+  const source = projectSources([], null);
+  source.mvu[0].value.mvu.update_strategy.prompt_cleanup = {
+    mode: "card_regex",
+    evidence: [],
+    update_variable: { mode: "card_regex", evidence: [] },
+    status_placeholder: { mode: "framework", evidence: ["MagVarUpdate filterPrompts"] },
+  };
+  const missing = await validateRuntimeSources({ project: { features: { mvu: true } }, sources: source, projectRoot: root });
+  assert.ok(missing.issues.some((entry) => entry.rule === "mvu.update_block_complete_prompt_visibility"));
+
+  const promptComplete = { ...COMPLETE_REGEX, id: "55555555-5555-4555-8555-555555555555", prompt_only: true, markdown_only: false };
+  const promptStreaming = { ...STREAMING_REGEX, id: "66666666-6666-4666-8666-666666666666", prompt_only: true, markdown_only: false };
+  const closedSource = projectSources([promptComplete, promptStreaming], null);
+  closedSource.mvu[0].value.mvu.update_strategy.prompt_cleanup = source.mvu[0].value.mvu.update_strategy.prompt_cleanup;
+  const closed = await validateRuntimeSources({ project: { features: { mvu: true } }, sources: closedSource, projectRoot: root });
+  assert.ok(!closed.issues.some((entry) => entry.rule === "mvu.update_block_complete_prompt_visibility" || entry.rule === "mvu.update_block_streaming_prompt_visibility"));
+});
 test("mature external cleanup routes remain valid when their evidence is recorded", async (t) => {
   const root = await fixtureRoot(t);
   assert.ok(validateNamedSchema("mvu", mvuSource({ mode: "framework", evidence: [] })).length > 0);

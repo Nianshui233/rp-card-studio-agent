@@ -267,9 +267,21 @@ Vue、Pinia、Zod、Tailwind、Vite、TypeScript 是可选工程能力，不是�
 
 酒馆助手提供 BGM / ambient 播放、暂停、列表和设置接口。它们可作为中型、重型或超重型前端的可选体验增强，但不应成为普通卡的强制依赖。没有音频能力时回退为纯视觉体验。
 
+## MVU 版本能力分级
+
+MagVarUpdate 当前源码核对到的能力门槛应分开记录：
+
+- 基础 Loader：Tavern Helper `3.4.17`；
+- 工具调用变量更新：约 `4.8.4` 起；
+- 自定义请求体 / v4 兼容格式化输出：约 `4.8.13` 起；
+- 批量额外请求还涉及 `4.4.3` 相关行为。
+
+“MVU 已加载”不等于“额外模型工具调用、格式化输出和批量请求都可用”。当前项目的 `4.9.3` 已覆盖这些门槛，但换环境时要按能力分别探测。
+
+MagVarUpdate 还会注册唯一脚本名 `MVU变量框架`；同一宿主不要同时启用多份 Loader。
 ## 远程依赖
 
-任何远程 import 都记录：
+任何远程 import 都记录；对于 bundle.js 这类二级加载器，还要继续检查它内部的 ESM 依赖是否能访问：
 
 ```yaml
 id: mvu_loader
@@ -277,6 +289,7 @@ url: https://...
 version: pinned-or-declared
 load_order: 10
 fallback: 内嵌源码或禁用相关能力
+transitive_imports: []
 evidence: not_run | source_checked | runtime_pass
 ```
 

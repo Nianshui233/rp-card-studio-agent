@@ -11,7 +11,7 @@ samples:
   - id: mvu-native-rp
     route: "原生 MVU"
     rp_shape: "规则驱动群像"
-    runtime: [mvu, mvu_loader, mvu_schema, initvar, regex]
+    runtime: [mvu, mvu_loader, native_schema, initvar, regex]
     ui: "无持续前端"
     delivery: [worldbook, mvu_sources, regex]
     fallback: [mvu_not_ready, current_floor_unavailable]

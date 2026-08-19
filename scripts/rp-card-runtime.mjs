@@ -1528,6 +1528,20 @@ async function authoredDisplayRegexPipeline(runtime, projectRoot) {
     }
   }
   return pipeline;
+}async function authoredPromptRegexPipeline(runtime, projectRoot) {
+  const pipeline = [];
+  for (const [index, regex] of (runtime?.regex_scripts ?? []).entries()) {
+    if (regex?.disabled === true || regex?.prompt_only !== true || !Array.isArray(regex?.placement) || regex.placement.length === 0) continue;
+    try {
+      pipeline.push({
+        pattern: parseRegexLiteral(regex.find_regex),
+        replacement: await authoredText(projectRoot, regex.replace_string, regex.replace_file, `regex_scripts[${index}]`),
+      });
+    } catch {
+      // validateAuthoredRuntime reports syntax and source errors separately.
+    }
+  }
+  return pipeline;
 }
 
 function applyRegexPipeline(text, pipeline) {
@@ -1758,6 +1772,25 @@ async function validateUiSurfaceProducers(sources, projectRoot, assembly, openin
   }
 }
 
+async function validateMvuStatusPlaceholderCleanup(mvu, runtime, base, issues) {
+  const strategy = mvu?.update_strategy ?? {};
+  const checks = [
+    { channel: "display_cleanup", patterns: uiDisplayRegexPatterns(runtime), label: "玩家显示层" },
+    { channel: "prompt_cleanup", patterns: uiPromptRegexPatterns(runtime), label: "模型提示词层" },
+  ];
+  for (const check of checks) {
+    const contract = strategy[check.channel] ?? {};
+    const mode = contract.status_placeholder?.mode ?? null;
+    if (mode !== "card_regex") continue;
+    if (!check.patterns.some((pattern) => regexMatchesMarker(pattern, "<StatusPlaceHolderImpl/>"))) {
+      issues.push(issue(
+        `${base}/mvu/update_strategy/${check.channel}/status_placeholder`,
+        `mvu.status_placeholder_${check.channel}`,
+        `${check.label}声明由卡内正则清理 StatusPlaceHolderImpl，但没有匹配该精确标记的正则`,
+      ));
+    }
+  }
+}
 async function validateMvuUpdateBlockDisplay(mvu, runtime, projectRoot, base, issues) {
   if (mvu?.update_strategy?.response_transport !== "chat_message") return;
 
@@ -1774,31 +1807,44 @@ async function validateMvuUpdateBlockDisplay(mvu, runtime, projectRoot, base, is
   const tags = new Set(protocolParts.flatMap((text) => [...updateBlockTags(text)]));
   if (tags.size === 0) return;
 
-  const cleanupMode = mvu?.update_strategy?.display_cleanup?.mode
+  const displayCleanup = mvu?.update_strategy?.display_cleanup ?? {};
+  const displayMode = displayCleanup.update_variable?.mode
+    ?? displayCleanup.mode
     ?? (mvu?.route === "existing" ? "existing" : "card_regex");
-  if (cleanupMode !== "card_regex") return;
+  const promptCleanup = mvu?.update_strategy?.prompt_cleanup ?? {};
+  const promptMode = promptCleanup.update_variable?.mode ?? null;
+  const displayPipeline = displayMode === "card_regex"
+    ? await authoredDisplayRegexPipeline(runtime, projectRoot)
+    : [];
+  const promptPipeline = promptMode === "card_regex"
+    ? await authoredPromptRegexPipeline(runtime, projectRoot)
+    : [];
 
-  const pipeline = await authoredDisplayRegexPipeline(runtime, projectRoot);
-  for (const tag of tags) {
-    const completeSentinel = `__RP_MVU_COMPLETE_${tag}__`;
-    const streamingSentinel = `__RP_MVU_STREAMING_${tag}__`;
-    const complete = `正文\n<${tag}>\n<Analysis>${completeSentinel}</Analysis>\n_.set('状态', 0, 1);\n</${tag}>\n正文`;
-    const streaming = `正文\n<${tag}>\n<Analysis>${streamingSentinel}</Analysis>\n_.set('状态', 0,`;
-    if (applyRegexPipeline(complete, pipeline).includes(completeSentinel)) {
-      issues.push(issue(
-        `${base}/mvu/update_strategy/display_cleanup`,
-        "mvu.update_block_complete_visibility",
-        `聊天变量协议 <${tag}> 的完整技术块仍会出现在玩家显示层；请增加匹配本卡真实标签的完整块隐藏正则，或显式记录已经验证的外部清理机制`,
-      ));
+  const checkPipeline = (pipeline, suffix, message) => {
+    for (const tag of tags) {
+      const completeSentinel = `__RP_MVU_COMPLETE_${tag}__`;
+      const streamingSentinel = `__RP_MVU_STREAMING_${tag}__`;
+      const complete = `正文\n<${tag}>\n<Analysis>${completeSentinel}</Analysis>\n_.set('状态', 0, 1);\n</${tag}>\n正文`;
+      const streaming = `正文\n<${tag}>\n<Analysis>${streamingSentinel}</Analysis>\n_.set('状态', 0,`;
+      if (applyRegexPipeline(complete, pipeline).includes(completeSentinel)) {
+        issues.push(issue(
+          `${base}/mvu/update_strategy/${suffix}`,
+          suffix === "display_cleanup" ? "mvu.update_block_complete_visibility" : "mvu.update_block_complete_prompt_visibility",
+          `${message} <${tag}> 的完整技术块仍会泄露；请增加匹配本卡真实标签的完整块清理正则，或记录已验证的外部清理机制`,
+        ));
+      }
+      if (applyRegexPipeline(streaming, pipeline).includes(streamingSentinel)) {
+        issues.push(issue(
+          `${base}/mvu/update_strategy/${suffix}`,
+          suffix === "display_cleanup" ? "mvu.update_block_streaming_visibility" : "mvu.update_block_streaming_prompt_visibility",
+          `${message} <${tag}> 的流式半块仍会泄露；请增加流式半块清理正则，或记录已验证的外部清理机制`,
+        ));
+      }
     }
-    if (applyRegexPipeline(streaming, pipeline).includes(streamingSentinel)) {
-      issues.push(issue(
-        `${base}/mvu/update_strategy/display_cleanup`,
-        "mvu.update_block_streaming_visibility",
-        `聊天变量协议 <${tag}> 在流式生成尚未闭合时仍会泄露技术正文；请增加流式半块隐藏正则，或显式记录已经验证的外部清理机制`,
-      ));
-    }
-  }
+  };
+
+  if (displayMode === "card_regex") checkPipeline(displayPipeline, "display_cleanup", "玩家显示层");
+  if (promptMode === "card_regex") checkPipeline(promptPipeline, "prompt_cleanup", "模型提示词层");
 }
 
 async function validateAuthoredRuntime(runtime, projectRoot, issues, warnings) {
@@ -1893,9 +1939,51 @@ function componentLooksLikeMvuSchema(component) {
   return /import\s*\{\s*registerMvuSchema\s*\}\s*from\s*['"]https:\/\/[^'"\n]*StageDog\/tavern_resource\/dist\/util\/mvu_zod\.js['"]/.test(component?.content ?? "");
 }
 
+async function validateMvuConfigOverride(mvu, assembly, projectRoot, base, target) {
+  const relativePath = mvu?.files?.config_override;
+  if (typeof relativePath !== "string" || !relativePath) return;
+  let content;
+  try {
+    content = await readFile(resolveWithin(projectRoot, relativePath), "utf8");
+  } catch {
+    return;
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch (error) {
+    target.push(issue(`${base}/mvu/files/config_override`, "mvu.config_override_json", `MagVarUpdate [config_override] 必须是 JSON 对象: ${error.message}`));
+    return;
+  }
+  if (!isObject(parsed) || Array.isArray(parsed)) {
+    target.push(issue(`${base}/mvu/files/config_override`, "mvu.config_override_shape", "MagVarUpdate [config_override] 必须是 JSON 对象"));
+  }
+  const entries = assembly?.worldbook_manifest?.entries ?? [];
+  const overrideEntry = entries.find((entry) => String(entry?.display_name ?? "").trim().toLowerCase() === "[config_override]");
+  if (!overrideEntry) {
+    target.push(issue(`${base}/mvu/files/config_override`, "mvu.config_override_projection", "config_override 源文件没有投影到名为 [config_override] 的世界书条目"));
+  } else {
+    if (overrideEntry.enabled !== false) {
+      target.push(issue(`${base}/mvu/files/config_override`, "mvu.config_override_visibility", "[config_override] 必须保持禁用，交给 MagVarUpdate 脚本主动读取，不能作为普通提示词条目发送给模型"));
+    }
+    const sourcePath = overrideEntry.source?.path ?? overrideEntry.source?.file ?? overrideEntry.source?.source_file;
+    if (typeof sourcePath === "string" && sourcePath !== relativePath) {
+      target.push(issue(`${base}/mvu/files/config_override`, "mvu.config_override_source", "[config_override] 条目的维护源没有指向 mvu.files.config_override"));
+    }
+  }
+}
+
+function validateUniqueMvuLoader(helperComponents, mvuSources, issues, warnings) {
+  const active = helperComponents.filter((component) => component.node?.enabled !== false && componentLooksLikeMvuLoader(component));
+  if (active.length <= 1 || !mvuSources.some((source) => source?.mvu?.enabled)) return;
+  const message = `检测到 ${active.length} 个启用的 MagVarUpdate Loader；框架通过唯一脚本名只会让一个实例生效，请保留一个 Loader，其他加载器改为宿主预装或禁用`;
+  const locked = mvuSources.some((source) => source.status === "locked");
+  (locked ? issues : warnings).push(issue("/runtime_manifest/tavern_helper_scripts", "mvu.loader_unique", message));
+}
 async function validateMvuRuntimeSources(project, sources, projectRoot, assembly, issues, warnings) {
   const helperIds = helperRuntimeIds(assembly?.runtime_manifest?.tavern_helper_scripts);
   const helperComponents = await authoredHelperComponents(assembly?.runtime_manifest, projectRoot);
+  validateUniqueMvuLoader(helperComponents, values(sources, 'mvu'), issues, warnings);
   for (const [index, source] of values(sources, "mvu").entries()) {
     const base = `/runtime/mvu/${index}`;
     const target = stageTarget(source.status, issues, warnings);
@@ -1914,8 +2002,9 @@ async function validateMvuRuntimeSources(project, sources, projectRoot, assembly
           target.push(issue(`${base}/mvu/files/initial_values`, "mvu.initial_values_projection", "最终 CharacterBook 需要名称含 [initvar] 的有效初始化条目；其维护源可以是文件、内联、登记源或既有导入"));
         }
       }
-      if (["native_schema", "mvu_zod", "hybrid"].includes(mvu.route) && !mvu.files?.schema_script) {
-        target.push(issue(`${base}/mvu/files/schema_script`, "mvu.schema", "MVU 变量路线需要实际变量结构/ZOD 注册脚本"));
+      const zodSchemaRequired = ["mvu_zod", "hybrid"].includes(mvu.route);
+      if (zodSchemaRequired && !mvu.files?.schema_script) {
+        target.push(issue(`${base}/mvu/files/schema_script`, "mvu.schema", "MVU_ZOD/混合路线需要实际变量结构注册脚本；native_schema 可由 MagVarUpdate 根据 [initvar] 自动生成内部 schema"));
       }
       const delivery = mvu.framework?.delivery;
       if (mvu.route !== "existing" && !["card_script", "host_required"].includes(delivery)) {
@@ -1935,7 +2024,7 @@ async function validateMvuRuntimeSources(project, sources, projectRoot, assembly
       if (delivery === "host_required") {
         warnings.push(issue(`${base}/mvu/framework`, "mvu.host_dependency", "MVU 框架依赖宿主预装；角色卡自身不携带加载器"));
       }
-      if (["native_schema", "mvu_zod", "hybrid"].includes(mvu.route)) {
+      if (zodSchemaRequired) {
         const schemaFile = mvu.files?.schema_script;
         const schema = helperComponents.find((component) => (
           (schemaFile && component.node.source_file === schemaFile)
@@ -1944,9 +2033,20 @@ async function validateMvuRuntimeSources(project, sources, projectRoot, assembly
           || component.node.role === "schema_registration"
         ));
         if (!schema) {
-          target.push(issue(`${base}/mvu/files/schema_script`, "mvu.schema_component", "MVU 变量路线的 schema_script 必须同时对应一个真实 Tavern Helper 变量结构/ZOD 注册脚本"));
+          target.push(issue(`${base}/mvu/files/schema_script`, "mvu.schema_component", "MVU_ZOD/混合路线的 schema_script 必须对应真实 Tavern Helper 注册脚本"));
         } else if (!componentLooksLikeMvuSchema(schema)) {
-          target.push(issue(`${base}/mvu/files/schema_script`, "mvu.schema_component", "变量结构脚本没有检测到 registerMvuSchema 或 mvu_schema 角色声明"));
+          target.push(issue(`${base}/mvu/files/schema_script`, "mvu.schema_component", "MVU_ZOD/混合路线的变量结构脚本没有检测到 registerMvuSchema 固定 import"));
+        }
+      } else if (mvu.route === "native_schema" && mvu.files?.schema_script) {
+        const schemaFile = mvu.files.schema_script;
+        const schema = helperComponents.find((component) => (
+          (schemaFile && component.node.source_file === schemaFile)
+          || component.node.role === "mvu_schema"
+          || component.node.role === "mvu-schema"
+          || component.node.role === "schema_registration"
+        ));
+        if (!schema) {
+          warnings.push(issue(`${base}/mvu/files/schema_script`, "mvu.schema_optional", "native_schema 不要求额外 ZOD 脚本；已登记 schema_script 但没有对应 Tavern Helper 节点"));
         }
       }
       for (const [name, relativePath] of Object.entries(mvu.files ?? {})) {
@@ -1957,6 +2057,8 @@ async function validateMvuRuntimeSources(project, sources, projectRoot, assembly
           catch { target.push(issue(`${base}/mvu/files/${name}/${fileIndex}`, "mvu.source", `MVU 源文件不存在: ${candidate}`)); }
         }
       }
+      await validateMvuConfigOverride(mvu, assembly, projectRoot, base, target);
+      await validateMvuStatusPlaceholderCleanup(mvu, assembly?.runtime_manifest, base, target);
       await validateMvuUpdateBlockDisplay(mvu, assembly?.runtime_manifest, projectRoot, base, target);
     }
     const ejs = source.ejs ?? {};

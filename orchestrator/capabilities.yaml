@@ -109,6 +109,16 @@ capabilities:
     supports: [remote_loader, version_pin, load_order, fallback, runtime_evidence]
     fallback: 内嵌源码或删除该外部依赖
 
+  - id: runtime.mvu_lifecycle
+    owner: st-runtime-authoring
+    consumers: [st-runtime-authoring, st-frontend-authoring, st-integration-qa]
+    supports: [initvar, schema_generation, placeholder_emission, snapshot_cleanup, replay_restore, unique_loader, config_override]
+    fallback: 只使用已验证的当前楼层变量读取，并明确关闭快照/额外模型等能力
+  - id: runtime.mvu_version_matrix
+    owner: st-host-capabilities
+    consumers: [st-runtime-authoring, st-integration-qa]
+    supports: [base_loader_minimum, tool_calling_minimum, custom_body_minimum, batch_request_minimum]
+    fallback: 降级到普通同轮消息更新或关闭不兼容的额外模型路线
   - id: host.api_resolution
     owner: st-host-capabilities
     consumers: [st-runtime-authoring, st-frontend-authoring, st-integration-qa]

@@ -15,7 +15,10 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "3.0.0"
+      "enum": [
+        "3.0.0",
+        "3.1.0"
+      ]
     },
     "status": {
       "enum": [
@@ -207,6 +210,12 @@
                     "type": "string",
                     "minLength": 1
                   }
+                },
+                "update_variable": {
+                  "$ref": "#/$defs/cleanupChannel"
+                },
+                "status_placeholder": {
+                  "$ref": "#/$defs/cleanupChannel"
                 }
               },
               "allOf": [
@@ -241,6 +250,63 @@
               "items": {
                 "type": "string"
               }
+            },
+            "prompt_cleanup": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "mode",
+                "evidence"
+              ],
+              "properties": {
+                "mode": {
+                  "enum": [
+                    "card_regex",
+                    "framework",
+                    "host_regex",
+                    "existing"
+                  ]
+                },
+                "evidence": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "update_variable": {
+                  "$ref": "#/$defs/cleanupChannel"
+                },
+                "status_placeholder": {
+                  "$ref": "#/$defs/cleanupChannel"
+                }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "mode": {
+                        "enum": [
+                          "framework",
+                          "host_regex",
+                          "existing"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "mode"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "evidence": {
+                        "type": "array",
+                        "minItems": 1
+                      }
+                    }
+                  }
+                }
+              ]
             }
           }
         },
@@ -248,6 +314,224 @@
           "type": "array",
           "items": {
             "type": "string"
+          }
+        },
+        "runtime_contract": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "initialization",
+            "persistence",
+            "cleanup",
+            "side_effects",
+            "version_matrix",
+            "remote_dependencies"
+          ],
+          "properties": {
+            "initialization": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "entry_pattern",
+                "enabled_worldbooks",
+                "opening_override",
+                "root_collision_policy"
+              ],
+              "properties": {
+                "entry_pattern": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "enabled_worldbooks": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "enum": [
+                      "character_primary",
+                      "character_additional",
+                      "global",
+                      "chat",
+                      "persona",
+                      "existing"
+                    ]
+                  }
+                },
+                "opening_override": {
+                  "enum": [
+                    "none",
+                    "character_primary_replace",
+                    "merge",
+                    "existing"
+                  ]
+                },
+                "root_collision_policy": {
+                  "enum": [
+                    "unique_top_level_keys",
+                    "intentional_override",
+                    "existing"
+                  ]
+                },
+                "notes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "persistence": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "scope",
+                "swipe_aware",
+                "readback"
+              ],
+              "properties": {
+                "scope": {
+                  "enum": [
+                    "message",
+                    "chat_compat",
+                    "existing"
+                  ]
+                },
+                "swipe_aware": {
+                  "type": "boolean"
+                },
+                "readback": {
+                  "enum": [
+                    "current_message",
+                    "latest_valid_snapshot",
+                    "existing"
+                  ]
+                },
+                "notes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "cleanup": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "snapshot_cleanup",
+                "replay_restore",
+                "history_missing_fallback"
+              ],
+              "properties": {
+                "snapshot_cleanup": {
+                  "enum": [
+                    "framework",
+                    "disabled",
+                    "existing"
+                  ]
+                },
+                "replay_restore": {
+                  "enum": [
+                    "framework",
+                    "disabled",
+                    "existing"
+                  ]
+                },
+                "history_missing_fallback": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "notes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "side_effects": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "global_worldbook_settings",
+                "notes"
+              ],
+              "properties": {
+                "global_worldbook_settings": {
+                  "enum": [
+                    "framework_changes",
+                    "disabled",
+                    "existing",
+                    "unknown"
+                  ]
+                },
+                "notes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "version_matrix": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "base_loader",
+                "tool_calling",
+                "custom_request_body",
+                "batch_requests"
+              ],
+              "properties": {
+                "base_loader": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "tool_calling": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "custom_request_body": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "batch_requests": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "remote_dependencies": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "loader",
+                "transitive_imports",
+                "runtime_evidence"
+              ],
+              "properties": {
+                "loader": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "transitive_imports": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "runtime_evidence": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -367,5 +651,87 @@
         "type": "string"
       }
     }
-  }
+  },
+  "$defs": {
+    "cleanupChannel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "evidence"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "card_regex",
+            "framework",
+            "host_regex",
+            "existing"
+          ]
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "enum": [
+                  "framework",
+                  "host_regex",
+                  "existing"
+                ]
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          },
+          "then": {
+            "properties": {
+              "evidence": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": "3.1.0"
+          }
+        },
+        "required": [
+          "schema_version"
+        ]
+      },
+      "then": {
+        "properties": {
+          "mvu": {
+            "type": "object",
+            "required": [
+              "runtime_contract"
+            ],
+            "properties": {
+              "runtime_contract": {
+                "$ref": "#/properties/mvu/properties/runtime_contract"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

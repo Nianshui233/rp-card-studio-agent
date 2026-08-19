@@ -14566,6 +14566,8 @@ var init_agent_routing = __esm({
       "frontend.zero_layer",
       "frontend.asset_library",
       "runtime.external_dependency",
+      "runtime.mvu_lifecycle",
+      "runtime.mvu_version_matrix",
       "host.api_resolution",
       "host.runtime_version",
       "host.regex_replay",
@@ -15317,9 +15319,13 @@ async function buildDeliveryPackage({ project, projectRoot, source, outputRoot }
   }
   const helperFiles = helperScriptFiles(data.extensions?.tavern_helper?.scripts, outputRoot);
   packageFiles.push(...helperFiles);
+  const mvuLoaders = helperFiles.filter((file) => file.role === "mvu_loader" || /MagicalAstrogy\/MagVarUpdate(?:@[^/]+)?\/artifact\/bundle\.js/.test(String(file.content))).map((file) => ({ id: file.id, name: file.name, file: file.relativePath, role: "mvu_loader" }));
   const runtimeBaseline = {
-    mvu_loader: helperFiles.filter((file) => file.role === "mvu_loader" || /MagicalAstrogy\/MagVarUpdate(?:@[^/]+)?\/artifact\/bundle\.js/.test(String(file.content))).map((file) => ({ id: file.id, name: file.name, file: file.relativePath, role: "mvu_loader" })),
-    mvu_schema: helperFiles.filter((file) => file.role === "mvu_schema" || /registerMvuSchema/.test(String(file.content))).map((file) => ({ id: file.id, name: file.name, file: file.relativePath, role: "mvu_schema", source_file: file.source_file ?? null }))
+    mvu_loader: mvuLoaders,
+    mvu_loader_count: mvuLoaders.length,
+    mvu_loader_policy: "MagVarUpdate \u53EA\u4FDD\u7559\u4E00\u4E2A\u542F\u7528 Loader\uFF1B\u91CD\u590D\u5B9E\u4F8B\u4E0D\u4F1A\u5F62\u6210\u66F4\u5F3A\u7684\u8FD0\u884C\u94FE",
+    mvu_schema: helperFiles.filter((file) => file.role === "mvu_schema" || /registerMvuSchema/.test(String(file.content))).map((file) => ({ id: file.id, name: file.name, file: file.relativePath, role: "mvu_schema", source_file: file.source_file ?? null })),
+    mvu_schema_policy: "native_schema \u53EF\u7701\u7565 mvu_schema\uFF1Bmvu_zod/hybrid \u6309\u9879\u76EE\u58F0\u660E\u9700\u8981\u6CE8\u518C\u811A\u672C"
   };
   packageFiles.push(...await sourceFiles(projectRoot, (project.source_manifest?.mvu ?? []).filter(Boolean), "MVU"));
   packageFiles.push(...await sourceFiles(projectRoot, (project.source_manifest?.ejs ?? []).filter(Boolean), "EJS"));
@@ -15332,7 +15338,7 @@ async function buildDeliveryPackage({ project, projectRoot, source, outputRoot }
       "\u89D2\u8272\u5361",
       "\u4E16\u754C\u4E66\u5E76\u7ED1\u5B9A\u5230\u89D2\u8272",
       "\u6B63\u5219\u914D\u7F6E\uFF1B\u5C06\u914D\u5957 05_\u524D\u7AEF/*.html \u7684\u5B8C\u6574\u5185\u5BB9\u7C98\u8D34\u5230\u6B63\u5219\u201C\u66FF\u6362\u5185\u5BB9\u201D",
-      "\u9152\u9986\u52A9\u624B\u811A\u672C\uFF08\u5148 mvu_loader\uFF0C\u518D mvu_schema\uFF0C\u518D\u9879\u76EE\u4E13\u5C5E\u811A\u672C\uFF09",
+      "\u9152\u9986\u52A9\u624B\u811A\u672C\uFF08\u5148\u552F\u4E00 mvu_loader\uFF1B\u6309\u8DEF\u7EBF\u51B3\u5B9A\u662F\u5426 mvu_schema\uFF0C\u518D\u9879\u76EE\u4E13\u5C5E\u811A\u672C\uFF09",
       "MVU/EJS \u5BBF\u4E3B\u4F9D\u8D56\u4E0E\u8BBE\u7F6E"
     ],
     components: {
@@ -15369,8 +15375,8 @@ async function buildDeliveryPackage({ project, projectRoot, source, outputRoot }
 1. \u5BFC\u5165\u89D2\u8272\u5361\uFF1A\u6253\u5F00 \`02_\u89D2\u8272\u5361\`\u3002
 2. \u5BFC\u5165\u4E16\u754C\u4E66\uFF1A\u6253\u5F00 \`03_\u4E16\u754C\u4E66\`\uFF0C\u7136\u540E\u7ED1\u5B9A\u5230\u89D2\u8272\u3002
 3. \u5BFC\u5165 \`04_\u6B63\u5219\` \u4E2D\u7684\u914D\u7F6E\uFF1B\u5BF9\u6709\u914D\u5957 HTML \u7684\u6B63\u5219\uFF0C\u5C06 \`05_\u524D\u7AEF\` \u4E2D\u540C\u540D HTML \u7684\u5168\u90E8\u5185\u5BB9\u590D\u5236\u5230\u6B63\u5219\u7684\u201C\u66FF\u6362\u5185\u5BB9\u201D\u3002
-4. \u5BFC\u5165 \`06_\u9152\u9986\u52A9\u624B\` \u4E2D\u7684\u811A\u672C\u3002\u82E5\u9879\u76EE\u542F\u7528 MVU\uFF0C\u5148\u5BFC\u5165/\u542F\u7528 \`role: mvu_loader\` \u7684 MagVarUpdate \u52A0\u8F7D\u811A\u672C\uFF0C\u518D\u5BFC\u5165/\u542F\u7528 \`role: mvu_schema\` \u7684\u53D8\u91CF\u7ED3\u6784\u811A\u672C\uFF0C\u6700\u540E\u518D\u542F\u7528\u9879\u76EE\u4E13\u5C5E\u540C\u6B65\u3001\u4E8B\u4EF6\u6216\u751F\u547D\u5468\u671F\u811A\u672C\u3002
-5. \u6309 \`07_MVU\u4E0EEJS\` \u548C\u6700\u7EC8\u62A5\u544A\u68C0\u67E5\u5BBF\u4E3B\u4F9D\u8D56\u3002
+4. \u5BFC\u5165 \`06_\u9152\u9986\u52A9\u624B\` \u4E2D\u7684\u811A\u672C\u3002\u82E5\u9879\u76EE\u542F\u7528 MVU\uFF0C\u5148\u5BFC\u5165/\u542F\u7528\u552F\u4E00\u7684 \`role: mvu_loader\`\uFF1B\u53EA\u6709 \`mvu_zod\`/\`hybrid\` \u6216\u9879\u76EE\u660E\u786E\u9009\u62E9\u7684\u8DEF\u7EBF\u624D\u5BFC\u5165 \`role: mvu_schema\`\uFF0C\u6700\u540E\u518D\u542F\u7528\u9879\u76EE\u4E13\u5C5E\u540C\u6B65\u3001\u4E8B\u4EF6\u6216\u751F\u547D\u5468\u671F\u811A\u672C\u3002
+5. \u6309 \`07_MVU\u4E0EEJS\` \u548C\u6700\u7EC8\u62A5\u544A\u68C0\u67E5\u5BBF\u4E3B\u4F9D\u8D56\u3001\u5168\u5C40\u4E16\u754C\u4E66\u8BBE\u7F6E\u526F\u4F5C\u7528\u3001Loader \u4E8C\u7EA7\u8FDC\u7A0B\u4F9D\u8D56\u548C\u5F53\u524D\u7248\u672C\u80FD\u529B\u3002
 
 HTML \u4E0D\u4F9D\u8D56\u540C\u76EE\u5F55\u7684 CSS \u6216 JS \u6587\u4EF6\uFF1B\u6BCF\u4E2A\u9875\u9762\u5DF2\u7ECF\u662F\u5B8C\u6574\u81EA\u5305\u542B\u6587\u6863\u3002
 `;
