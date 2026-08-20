@@ -32,7 +32,7 @@ maxDepth
 6 REASONING
 ```
 
-`first_mes` 和 alternate greetings 属于 AI_OUTPUT（加载时即过 AI_OUTPUT 正则）；旁白消息（`extra.type === narrator`）按 SLASH_COMMAND 处理。
+`first_mes` 和 alternate greetings 属于 AI_OUTPUT（加载时即过 AI_OUTPUT 正则）；旁白消息（`extra.type === narrator`）按 SLASH_COMMAND 处理。世界书条目位置枚举：`before:0 / after:1 / ANTop:2 / ANBottom:3 / atDepth:4 / EMTop:5 / EMBottom:6 / outlet:7`。
 
 Tavern Helper 高层 `getTavernRegexes()` 返回 snake_case 和 `source/destination` 对象，不能把它与上述存储结构混传。
 
@@ -65,7 +65,20 @@ GLOBAL → SCOPED → PRESET
 - **`trimStrings` 作用于每个捕获组的匹配值**（`filterString` 逐组移除子串），不是作用于整体结果；
 - 替换完成后 `replaceString` 再过一次本体宏（`substituteParams`）。
 
-depth 语义：显示通道按**非 system 消息**从末尾计数（最后一条为 0）；编辑保存路径不传 depth，min/max 不生效。
+depth 语义：显示通道按**非 system 消息**从末尾计数（最后一条为 0）；编辑保存路径不传 depth，min/max 不生效；提示词通道同样按过滤后的非 system 消息从末尾计数，续写时整体右移。世界书条目只在提示词组装时应用 `WORLD_INFO` 正则（`isPrompt:true`，仅 atDepth 位置条目带 `entry.depth`），正则后为空的条目整条跳过。
+
+## 渲染管线顺序（messageFormatting）
+
+```text
+0楼assistant消息宏替换（结果写回 chat[0].mes 永久固化；且每轮生成前都会重新替换）
+→ display 正则（isMarkdown:true）
+→ fixMarkdown / encode_tags
+→ 引号与代码围栏保护
+→ Showdown Markdown → HTML
+→ DOMPurify 净化
+```
+
+提示词通道为：每轮对 `chat[0].mes` 重新宏替换 → 逐消息正则（`isPrompt:true`）→ reasoning 内容单独走 `REASONING` placement 正则。
 
 Display、prompt、edit、Swipe 和 WORLD_INFO 的 depth/输入链不同，离线夹具不能用一个统一深度冒充全部宿主路径。
 

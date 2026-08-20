@@ -46,7 +46,7 @@ Tavern Helper iframe 中：
 - additional books：本体角色世界书设置；
 - chat book：聊天 metadata。
 
-嵌入书存在、独立书已导入、角色已绑定是三项不同证据。
+嵌入书存在、独立书已导入、角色已绑定是三项不同证据。MVU 的角色卡配置覆盖存于主世界书禁用条目 `[config_override]`（见 host/mvu-runtime.md）。
 
 ### Tavern Helper
 

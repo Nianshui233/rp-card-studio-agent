@@ -21,7 +21,7 @@
 const context = window.SillyTavern?.getContext?.();
 ```
 
-`getContext()` 是现场快照，可按项目需要读取 `chat`、`characters`、`eventSource`、`eventTypes`、`generate`、`generateRaw`、`generateQuietPrompt`、`setExtensionPrompt`、`updateMessageBlock`、`callGenericPopup`、`loadWorldInfo`、`saveWorldInfo`、`getWorldInfoPrompt`、`getWorldInfoNames` 等字段。只保存需要的函数引用，不序列化整个 context。
+`getContext()` 是现场快照（`scripts/st-context.js`，下列字段均已逐一对源码核对），可按项目需要读取 `chat`、`characters`、`eventSource`、`eventTypes`、`generate`、`generateRaw`、`generateQuietPrompt`、`setExtensionPrompt`、`updateMessageBlock`、`callGenericPopup`、`loadWorldInfo`、`saveWorldInfo`、`getWorldInfoPrompt`、`getWorldInfoNames` 等字段，另有 `variables.local/global`、`swipe`、`Popup/POPUP_TYPE/POPUP_RESULT`、`substituteParams(Extended)`、`SlashCommandParser`、`tokenizers`、`writeExtensionField`、`chatMetadata`、`reloadCurrentChat`、`saveChat` 可用。只保存需要的函数引用，不序列化整个 context。
 
 本体事件使用 `eventSource.on/once/makeFirst/makeLast/removeListener/emit`。本体没有 Tavern Helper 的 `eventOn()`、`eventClearAll()` 或自动按 iframe 清理合同。
 

@@ -109,7 +109,7 @@ InjectionPrompt = {id, position:'in_chat'|'none', depth, role:'system'|'user'|'a
 
 角色卡存储对象是 camelCase（`scriptName/findRegex/replaceString/placement/markdownOnly/promptOnly/runOnEdit`），Tavern Helper 高层对象是 snake_case（`script_name/find_regex/replace_string/source/destination/run_on_edit`），不能混传。
 
-`formatAsTavernRegexedString` 可离线预演；`replaceTavernRegexes` 是重操作（保存并重载），不要在按钮点击中频繁重写整套规则；`updateTavernRegexesWith`、`isCharacterTavernRegexesEnabled` 可用。
+`formatAsTavernRegexedString(text, source, destination, {depth, character_name})` 可离线预演（source 五选一含 `reasoning`；destination `display`→isMarkdown、`prompt`→isPrompt，之后还应用 TH 宏）；`formatAsDisplayedMessage(text, {message_id:'last'|'last_user'|'last_char'|数值})` 走完整本体 messageFormatting（含 display 正则与净化），可预览最终显示 HTML。`replaceTavernRegexes` 是重操作（保存并重载），不要在按钮点击中频繁重写整套规则；`updateTavernRegexesWith`、`isCharacterTavernRegexesEnabled` 可用。`getTavernRegexes` 选项为 `{type:'global'}` / `{type:'character', name?:'current'}` / `{type:'preset', name?:'in_use'}`。
 
 ## 世界书与设置
 

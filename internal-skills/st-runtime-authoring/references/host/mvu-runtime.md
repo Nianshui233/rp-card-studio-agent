@@ -98,6 +98,14 @@ BEFORE_MESSAGE_UPDATE({variables, message_content})       # 可修改 message_co
 
 另有 `VARIABLE_UPDATE_ENDED + '_for_zod'` 二次触发供 Zod 路线挂钩。事件回调适合幂等校正（范围限制、日期同步），遵守单写者规则，不和状态栏按钮、额外模型争写同一字段。
 
+## 角色卡配置覆盖
+
+MVU 的角色卡设置覆盖**不存角色卡 extensions 字段**，而是存在角色主世界书中名为 `[config_override]` 的**禁用条目**（JSON 内容）。该条目必须保持禁用，避免 JSON 被当普通内容注入提示词；玩家在 MVU 面板改配置且卡有主世界书时，MVU 会按需创建并串行保存该条目。随卡交付配置覆盖 = 在主世界书里带上禁用的 `[config_override]` 条目；角色没有主世界书时覆盖功能整体 unbound。
+
+## 内置脚本按钮
+
+MVU 在自己的 Tavern Helper 脚本实例上注册六个按钮：`重新处理变量`、`重新读取初始变量`、`快照楼层`、`重演楼层`、`重试额外模型解析`、`清除旧楼层变量`。重试额外模型解析会先裁掉最后一条消息中已有的 `<UpdateVariable>` 块、把变量回退到上一楼快照，再重新请求解析。
+
 ## 额外模型解析
 
 - 条目路由按名称含 `[mvu_plot]` / `[mvu_update]` 判定（见 mvu-ejs.md 路由矩阵）。
