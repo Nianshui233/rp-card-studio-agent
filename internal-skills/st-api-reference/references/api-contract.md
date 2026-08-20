@@ -48,9 +48,9 @@ Tavern Helper 消息 iframe 和脚本 iframe 会把高层函数注入为当前 w
 
 - 消息：`getChatMessages`、`setChatMessages`、`createChatMessages`、`deleteChatMessages`、`rotateChatMessages`；
 - 显示：`retrieveDisplayedMessage`、`formatAsDisplayedMessage`、`refreshOneMessage`；
-- 变量：`getVariables`、`replaceVariables`、`updateVariablesWith`、`registerVariableSchema`；
-- 世界书：`getWorldbook`、`createOrReplaceWorldbook`、`replaceWorldbook`、`getCharWorldbookNames`、`rebindCharWorldbooks`、`getChatWorldbookName`、`rebindChatWorldbook`；
-- 正则：`formatAsTavernRegexedString`、`getTavernRegexes`、`replaceTavernRegexes`；
+- 变量：`getVariables`、`replaceVariables`、`updateVariablesWith`、`insertOrAssignVariables`、`insertVariables`、`deleteVariable`、`registerVariableSchema`；
+- 世界书：`getWorldbook`、`createOrReplaceWorldbook`、`replaceWorldbook`、`getCharWorldbookNames`、`rebindCharWorldbooks`、`getChatWorldbookName`、`rebindChatWorldbook`、`getLorebookEntries`；
+- 正则：`formatAsTavernRegexedString`、`getTavernRegexes`、`replaceTavernRegexes`、`updateTavernRegexesWith`；
 - 生成：`generate`、`generateRaw`、`stopGenerationById`、`stopAllGeneration`；
 - 注入：`injectPrompts`、`uninjectPrompts`；
 - 事件：`eventOn`、`eventOnce`、`eventMakeFirst`、`eventMakeLast`、`eventEmit`、`eventRemoveListener`、`eventClearEvent`、`eventClearListener`、`eventClearAll`。
@@ -58,13 +58,15 @@ Tavern Helper 消息 iframe 和脚本 iframe 会把高层函数注入为当前 w
 关键限制：
 
 - `getCurrentMessageId()` 只能在 Tavern Helper 消息 iframe 调用；脚本 iframe中会抛错；
-- 消息变量 `message_id` 只接受数值或 `'latest'`，不接受 `'current'`；
-- 变量作用域包括 `global`、`preset`、`character`、`chat`、`message`、`script`、`extension`；
+- 消息变量 `message_id` 只接受数值或 `'latest'`，不接受 `'current'`；负数是从末尾起的索引，`'latest'` 会跳过 system 消息；
+- 所有变量函数 `option` 默认 `{type:'chat'}`——读楼层必须显式 `{type:'message', message_id}`；
+- 变量作用域包括 `global`、`preset`、`character`、`chat`、`message`、`script`、`extension`（extension 必填 `extension_id`）；
 - 脚本 iframe 的裸 `getVariables({type:'script'})` 会补当前脚本 ID；直接调用 `TavernHelper.getVariables({type:'script'})` 时需显式传 `script_id`；
-- `ChatMessage.data` 映射当前 Swipe 的消息变量，`extra` 才是普通附加信息；
-- `retrieveDisplayedMessage()` 只改临时 DOM；持久正文使用 `setChatMessages()`；
-- `rebindCharWorldbooks`、聊天书读取/重绑当前版本只操作 `'current'`；
-- Tavern Helper 高层正则对象使用 snake_case，角色卡 `data.extensions.regex_scripts` 使用 camelCase，不能直接混传。
+- `ChatMessage.data` 映射当前 Swipe 的消息变量（按 `variables[swipe_id]` 存储），`extra` 才是普通附加信息；
+- `retrieveDisplayedMessage()` 只改临时 DOM；持久正文使用 `setChatMessages()`（它也可传 `swipe_id` 切换当前 Swipe）；
+- `rebindCharWorldbooks`、聊天书读取/重绑当前版本只操作 `'current'`；`getLorebookEntries` 返回全部条目不按 disable 过滤；
+- Tavern Helper 高层正则对象使用 snake_case，角色卡 `data.extensions.regex_scripts` 使用 camelCase，不能直接混传；
+- `injectPrompts` 返回 `{uninject}` 并注册 `pagehide` 自动清理；`generate` 不传 `generation_id` 时自动生成，同 ID 重复请求抛错。
 
 ### `mvu`
 
@@ -76,6 +78,8 @@ waitGlobalInitialized('Mvu') + timeout
 → Mvu.getMvuData({type:'message', message_id})
 → 读取 stat_data
 ```
+
+`waitGlobalInitialized` 无内建超时，项目自设超时。注意 `Mvu.getMvuData` 的 `option.type` **默认 `'chat'`**，读楼层必须显式 `type:'message'`。
 
 常用接口：
 
@@ -95,10 +99,10 @@ EJS 模板内可用 `getvar/setvar/getwi/activewi/define/activateRegex/injectPro
 
 ```text
 EjsTemplate.prepareContext(context = {}, end = -1)
-EjsTemplate.evalTemplate(code, context = {}, options = {})
-EjsTemplate.getSyntaxErrorInfo(code, max_lines = 4)
+EjsTemplate.evalTemplate(code, context = null, options = {})   # context 为 null 时自动 prepareContext
+EjsTemplate.getSyntaxErrorInfo(code, count = 4)
 EjsTemplate.getFeatures()
-EjsTemplate.saveVariables()
+EjsTemplate.saveVariables(force?)    # 受 autosave 设置门控
 EjsTemplate.refreshWorldInfo()
 ```
 

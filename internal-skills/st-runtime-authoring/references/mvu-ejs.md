@@ -52,16 +52,18 @@ stat_data:
 
 ## 更新协议
 
-当前 MVU 可解析的常用方言包括：
+当前 MVU 可解析的常用方言包括（**命令必须以 `;` 结尾**；其后 `// 注释` 成为该命令的 reason）：
 
 ```text
 _.set(path, newValue);
 _.set(path, expectedOldValue, newValue);
 _.assign / _.insert
 _.remove / _.delete / _.unset
-_.add
+_.add(path, delta)
 <JSONPatch>[...]</JSONPatch>
 ```
+
+精确参数形态、`_.add` 的数值/日期语义与事件挂钩见 host/mvu-runtime.md。
 
 项目只能声明真实写出的方言。自定义外层标签可以用于显示清理，但内层必须含 MVU 能解析的命令或 JSON Patch，不能只写含糊的 `<Patch>...</Patch>`。
 
@@ -123,7 +125,7 @@ getCurrentMessageId()（仅消息 iframe）
 
 ST-Prompt-Template 原生作用域只有 `global/local/message/cache/initial`。它不会自动提供顶层 `stat_data`。联动必须采用真实桥：
 
-- Tavern Helper 脚本监听 `prompt_template_prepare`，从消息变量中找到最近有效 MVU 快照并显式写入 `context.mvu`；或
+- Tavern Helper 脚本监听 `prompt_template_prepare`，从消息变量中找到最近有效 MVU 快照（`stat_data` 与 `schema` 同时存在才算有效）并显式写入 `context.mvu`；或
 - 模板通过已验证的宿主 API主动读取。
 
 EJS 模板随后读取：

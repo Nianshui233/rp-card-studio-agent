@@ -22,7 +22,7 @@
       "enabled": false,
       "name": "MVU到EJS只读桥",
       "id": "33764d55-d755-4615-9be7-a82ae1cb1cd1",
-      "content": "(() => {\n  'use strict';\n  function latestMvuData() {\n    const messages = getChatMessages('0-{{lastMessageId}}');\n    for (let i = messages.length - 1; i >= 0; i--) {\n      if (messages[i]?.data?.stat_data) return _.cloneDeep(messages[i].data);\n    }\n    return null;\n  }\n  const subscription = eventOn('prompt_template_prepare', context => {\n    context.mvu = latestMvuData();\n  });\n  addEventListener('pagehide', () => subscription?.stop?.(), { once: true });\n})();\n",
+      "content": "(() => {\n  'use strict';\n  function latestMvuData() {\n    const messages = getChatMessages('0-{{lastMessageId}}');\n    for (let i = messages.length - 1; i >= 0; i--) {\n      const d = messages[i]?.data;\n      if (d?.stat_data && d?.schema) return _.cloneDeep(d);\n    }\n    return null;\n  }\n  const subscription = eventOn('prompt_template_prepare', context => {\n    context.mvu = latestMvuData();\n  });\n  addEventListener('pagehide', () => subscription?.stop?.(), { once: true });\n})();\n",
       "info": "把最近有效消息的完整 MvuData 深拷贝到 ST-Prompt-Template context.mvu；只读。",
       "button": { "enabled": true, "buttons": [] },
       "data": {},

@@ -22,7 +22,7 @@ minDepth
 maxDepth
 ```
 
-当前 placement：
+当前 placement（`engine.js` 数值；`0 MD_DISPLAY` 已废弃不使用）：
 
 ```text
 1 USER_INPUT
@@ -32,7 +32,7 @@ maxDepth
 6 REASONING
 ```
 
-`first_mes` 和 alternate greetings 属于 AI_OUTPUT。
+`first_mes` 和 alternate greetings 属于 AI_OUTPUT（加载时即过 AI_OUTPUT 正则）；旁白消息（`extra.type === narrator`）按 SLASH_COMMAND 处理。
 
 Tavern Helper 高层 `getTavernRegexes()` 返回 snake_case 和 `source/destination` 对象，不能把它与上述存储结构混传。
 
@@ -46,15 +46,26 @@ GLOBAL → SCOPED → PRESET
 
 来源：`engine.js` 中 `SCRIPT_TYPES = { GLOBAL: 0, PRESET: 2, SCOPED: 1 }`，`getRegexScripts()` 按 `Object.values(SCRIPT_TYPES)` 遍历；三个键均为整数键，JS 按数值升序迭代为 0→1→2。对象字面量里 PRESET 写在 SCOPED 之前的声明顺序不参与执行。
 
-角色 scoped regex 和 preset regex 还受 allowlist 控制。最终 QA 不只看规则存在，还检查：
+角色 scoped regex 和 preset regex 还受 allowlist 控制（scoped 按 avatar 白名单、preset 按 `preset_allowed_regex[apiId]` 的预设名白名单）。
 
-- Regex 扩展总开关；
-- 当前角色/预设允许执行；
-- display 或 prompt；
-- placement；
-- 当前 depth；
-- edit 标记；
-- 前序规则变换结果。
+`getRegexedString` 内部判定顺序（`engine.js`）：
+
+```text
+1 通道门：markdownOnly&&isMarkdown 或 promptOnly&&isPrompt 或（双 false 且非 markdown 非 prompt）
+  —— markdownOnly 与 promptOnly 同为 true 的规则三个条件都不满足，永远不执行
+2 isEdit 且无 runOnEdit → 跳过
+3 depth 在 min/max 区间内（depth 为数值时才检查）
+4 placement.includes(当前placement) → 执行
+```
+
+替换细节（`runRegexScript`）：
+
+- `substituteRegex`：`0` 不替换、`1` RAW 宏替换、`2` ESCAPED 宏替换（替换值按正则转义）；
+- `replaceString` 中 `{{match}}` 等价 `$0`；支持 `$1`、`$<命名组>`；
+- **`trimStrings` 作用于每个捕获组的匹配值**（`filterString` 逐组移除子串），不是作用于整体结果；
+- 替换完成后 `replaceString` 再过一次本体宏（`substituteParams`）。
+
+depth 语义：显示通道按**非 system 消息**从末尾计数（最后一条为 0）；编辑保存路径不传 depth，min/max 不生效。
 
 Display、prompt、edit、Swipe 和 WORLD_INFO 的 depth/输入链不同，离线夹具不能用一个统一深度冒充全部宿主路径。
 

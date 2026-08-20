@@ -56,8 +56,8 @@ Tavern Helper iframe 中：
 
 ### ST-Prompt-Template
 
-- `getwi`：绕过普通关键词入口，执行正则、宏和递归 EJS后返回文本；
-- `activewi`：把条目加入原生激活流程；当前轮应在 generate-before 调用；
+- `getwi`：绕过普通关键词入口，执行正则、宏和递归 EJS后返回文本；无书名形态使用当前扫描上下文的世界书，不是多级查找；
+- `activewi`：把条目加入原生激活流程；当前轮应在 generate-before 调用；`force` 覆盖冷却/延迟/组/向量化/预算/触发器并强制 constant，但不清理 sticky 与递归限制；
 - `@@preprocessing`：原生扫描前改内容/关键词，存在二次处理与顺序风险。
 
 ## 正则
@@ -104,9 +104,10 @@ GLOBAL → SCOPED → PRESET
 ## 前端载体
 
 - 纯 SillyTavern：静态 Markdown/净化后 HTML；不执行消息内脚本；
-- Tavern Helper：fenced HTML 代码块 → `<pre>` → 独立 iframe；
-- ST-Prompt-Template `@@iframe`：扩展创建 srcdoc iframe，但不会自动注入 Tavern Helper 高层函数；
+- Tavern Helper：fenced HTML 代码块（代码文本含 `html>` / `<head>` / `<body` 子串）→ `<pre>` → `srcdoc` 或 Blob URL iframe；
+- ST-Prompt-Template `@@iframe`：扩展创建 srcdoc iframe（仅尺寸监听脚本），不注入 Tavern Helper 高层函数；
 - 后台 Tavern Helper Script：隐藏脚本 iframe，适合事件和桥接；
+- 每个 TH iframe 注入 `_`、`z`（Zod）、`YAML`、`showdown`、`toastr`、`EjsTemplate`、`TavernHelper` 与裸绑定函数；
 - 页面级全局扩展：只有用户明确要求时单独开发。
 
 ## 远程依赖
