@@ -10,4 +10,4 @@ fixture:
   expected: ""
 ```
 
-离线 Trace 只证明声明的 JavaScript 替换语义；SillyTavern 的宏、Markdown、DOMPurify、全局/Scoped/Preset 顺序、Blob URL 和真实生命周期仍由 `st-runtime-debug` 验收。
+离线 Trace 只证明声明的 JavaScript 替换语义；SillyTavern 的宏、Markdown、DOMPurify、当前 `GLOBAL → PRESET → SCOPED` 顺序、scoped/preset allowlist、Tavern Helper fenced HTML iframe、Blob URL 和真实生命周期仍由 `st-runtime-debug` 验收。display、prompt、edit 和 Swipe 使用各自真实 depth，不能共用一个模拟值冒充宿主结果。

@@ -1,127 +1,132 @@
-# EJS / ST-Prompt-Template 运行时参考
+# ST-Prompt-Template / EJS 运行时参考
 
-这是一份面向制卡的 EJS 行为摘要，不是扩展源码副本。它用于决定 EJS 放在哪个世界书条目、哪个处理阶段、读取哪种变量、如何回退，以及何时应该改用 MVU、正则或 Tavern Helper。
+当前静态基线为 ST-Prompt-Template `1.17.8.1`。EJS 是高权限模板执行环境，不是变量存储层，也不是安全的模型代码沙盒。
 
-## 1. EJS 有两个主要处理时机
+## 三条处理路径
 
-目标扩展通常会在两个阶段处理模板：
+1. **生成提示词**：SillyTavern 组装消息后，扩展执行 EJS，再把结果发给模型；
+2. **原始消息永久处理**：对 `message.mes` 执行扩展的 message-before 临时正则与 EJS，然后写回聊天原文；
+3. **显示渲染**：读取 `.mes_text` 已经过正则、Markdown 和净化的 HTML，再执行渲染 EJS，只改变当前 DOM。
 
-1. 生成前：SillyTavern 先组装预设、角色卡、世界书和聊天历史，再执行 EJS，最后把处理后的提示词送给模型；
-2. 生成后/渲染时：模型完整输出后，再处理消息中的 EJS，可能更新变量或改变玩家看到的消息内容。
+三条路径的输入、正则顺序、持久化和错误行为不同。渲染阶段的 `<%=` 使用消息格式化 escaper，`<%-` 直接输出 HTML。
 
-因此同一段 EJS 放在提示词、原始消息和 HTML 中，效果可能完全不同。每份模板都要记录：执行阶段、原始来源、输出通道、是否允许副作用，以及失败时显示什么。
+## 变量作用域
 
-正则和 EJS 也不是同一层：目标扩展的文档路线中，某些正则预处理会先于模板计算；消息原文处理和 HTML 处理又是两种不同路径。不要用一个“正则顺序应该没问题”的假设代替实测。
-
-生成前处理和楼层处理可以分别开关。楼层处理还可能分为：只处理显示、处理代码块、处理原始消息。原始消息处理会把结果直接写回聊天原文，且不会先经过普通正则和宏；它属于有持久副作用的编辑，不应作为普通状态栏刷新手段。
-
-## 2. 变量作用域必须显式写出
-
-常见作用域包括：
-
-- `global`：跨聊天共享；
-- `local`：当前聊天；
-- `message`：绑定到某条消息楼；
-- `cache`：模板运行期间的合并视图；
-- `initial`：初始化值。
-
-`getvar` 的关键选项包括 `scope`、`defaults`、`withMsg`、`noCache` 和 `clone`。没有初始化时，应使用 `defaults` 或先判断路径，而不是直接访问深层属性让模板抛错。需要修改对象时优先取得深拷贝或使用明确的 `setvar`，不要悄悄修改共享引用。
-
-`setvar` 还要明确输入作用域、输出作用域、更新条件、返回旧值/新值/完整缓存、是否允许在准备阶段写入以及是否禁用缓存。调用 `setvar` 后，是否需要显式保存取决于目标扩展的自动保存设置；项目必须在目标环境确认，而不是假设“内存改了就会持久化”。
-
-如果使用 `message` 作用域，还要明确目标楼层和 Swipe；不能把当前缓存改动误当成某一条消息已保存。
-
-## 3. 上下文准备、执行和诊断
-
-宿主通常提供以下能力：
-
-- `prepareContext(context, last_message_id)`：按指定楼层范围准备包含变量和上下文的执行环境；
-- `evalTemplate(code, context, options)`：执行模板并得到文本；
-- `getSyntaxErrorInfo(code)`：只检查语法，不执行副作用；
-- `getFeatures()`：读取扩展是否启用、生成阶段/渲染阶段是否开启、自动保存、预加载、缓存和调试设置；
-- `refreshWorldInfo()`：重新读取并处理世界书；刷新会重新计算相关条目，不能在每次按钮点击时无条件调用；
-- `saveVariables()`：在目标设置允许时显式持久化变量；自动保存是否开启要读取实际配置；
-- `initialVariables`：读取扩展整理出的初始变量视图；它不是当前楼层变量；
-- `compileTemplate()`：只在确实需要提前编译/复用模板时使用。
-
-如果先 `prepareContext`，再补充变量，应原地修改同一个上下文对象后交给 `evalTemplate`；不要展开复制成一个新对象，避免丢失宿主注入的函数、引用和上下文状态。
-
-语法检查通过只表示模板能被解析，不表示宿主开启了对应执行阶段，也不表示世界书、变量、`getwi` 或 `getchar` 能读到内容。离线检查和实机执行必须分开记录。
-
-## 4. 初始变量与特殊条目
-
-扩展支持把世界书条目视为初始变量树，常见标识包括 `[InitialVariables]` 或等价的 `@@initial_variables` 路线。内容通常要求是 JSON/YAML 对象；加载时会合并或覆盖此前的初始变量，具体覆盖顺序必须在项目中写清。
-
-初始变量条目不等于当前聊天状态，也不等于 MVU `[initvar]`。如果同一项目同时使用 EJS 初始变量和 MVU 初始变量，必须明确谁负责基线、谁负责当前楼快照，避免两套初始化器互相覆盖。
-
-## 5. 装饰器与注入位置
-
-可选装饰器用于把模板放在正确的生命周期：
-
-- `@@preload` / `@@only_preload`：角色/聊天打开或预加载阶段；适合初始化和 `define`，不应默认让所有普通条目都提前执行；
-- `@@initial_variables`：把条目作为初始变量来源；目标扩展可能在预加载限制之外优先处理这类条目；
-- `@@generate_before`：生成前注入或激活内容；
-- `@@render_after`：消息渲染后内容；
-- `@@message_formatting`：把输出交给其他消息格式化/前端扩展；
-- `@@iframe`：把 HTML 作为消息前端渲染，可带折叠标题；
-- `@@if condition`：用单行 JavaScript 条件决定条目是否进入处理流程；
-- `@@preprocessing`：在世界书原生处理前先计算内容，功能强但可能产生重复处理和无序执行；
-- `[GENERATE:BEFORE]`、`[RENDER]` 和 `@INJECT`：按目标版本的注入规则控制位置或消息结构。
-
-`@INJECT` 还可以按绝对消息位置、角色目标或正则匹配插入新的消息；插入位置、role、索引和排序会改变最终 API 消息结构。严格交替的模型路线尤其要实测，不能只看酒馆聊天界面的显示顺序。
-
-装饰器是执行路由，不是普通文案。它们应该记录在条目的“处理阶段/插入位置”字段中，并与实际 SillyTavern 版本一起验收。
-
-## 6. `getwi`、原生世界书激活与预处理
-
-三种路线不要混为一谈：
-
-- 直接读取世界书内容：可以无视当前关键词流程并多次加载指定条目，但也可能重复处理内容；
-- 调用原生激活：让宿主按世界书激活逻辑处理，适合需要保留关键词、递归、组、冷却等语义的项目；
-- 预处理世界书：在宿主原生扫描前执行模板，能实现动态关键词/递归，但会带来二次处理、顺序不可保证和状态重复计算风险。
-
-只有在确实需要时才用动态激活。常规世界观和 NPC 条目优先保持普通 CharacterBook 调度，把 EJS 留给压缩上下文、条件分支、派生文本和有限的注入逻辑。
-
-## 7. EJS 与 HTML/状态栏
-
-EJS 可以把真实变量投影进消息 HTML，也可以配合 `@@iframe` 或消息格式化路线生成前端。但必须明确谁负责：
-
-- EJS：读取变量、选择文本、组织上下文或生成 HTML；
-- MVU：维护变量状态；
-- 正则：捕获短标记、隐藏技术块或把已生产的 HTML 交给宿主；
-- Tavern Helper：处理按钮、事件、输入框和宿主动作。
-
-不要让 EJS、MVU、正则和脚本同时写同一字段，也不要让 HTML 里的示例值掩盖 EJS 实际没有读到数据。变量不存在时显示中文空态/等待状态，不能伪造“0”“无记录”作为真实数据。
-
-## 8. 生成后副作用要格外谨慎
-
-如果开启“处理模型生成内容”，模型输出里的 EJS 可能在生成后执行、修改变量或改变显示。只有在项目明确需要时才启用；要同时准备：
-
-- 原始消息和显示消息的分离规则；
-- 副作用发生的作用域与持久化方式；
-- 重复渲染、编辑、Swipe 和重载时是否会再次执行；
-- 失败时保留原文还是移除技术块；
-- 与 MVU 更新块、正则和 HTML 的执行顺序。
-
-默认优先让 EJS 做无副作用的读取和投影。需要写变量时，必须明确 writer、保存、读回和失败回退，并在真实宿主验收中逐项检查。
-
-## 9. Token、缓存和原始消息副作用
-
-EJS 动态插入的文本、`getwi`/`getvar` 读取的内容和 `@INJECT` 追加的消息，可能不会被 SillyTavern 原生的世界书 token 预算、上下文百分比或预估计数完整统计。技能不能只依据酒馆显示的 token 预算判断最终请求大小；需要在目标 API/预设下实测。
-
-启用缓存时，同一模板可能复用预计算上下文；需要最新变量时显式使用 `noCache` 或重新准备上下文。调试时记录模板、消息楼层、Swipe、缓存状态和执行阶段，避免把旧缓存当成当前状态。
-
-如果打开“处理原始消息”，模板结果会永久写回聊天原文，编辑、重载和导出都会携带这个结果。状态栏、通知和临时 HTML 默认不应走这条路线，除非项目就是要把生成结果固化进聊天。
-
-## 10. 最小 EJS 验收清单
+原生作用域：
 
 ```text
-模板在哪个阶段执行？
-读取的是 global、local、message、cache 还是 initial？
-未初始化时是否有默认值和中文空态？
-模板是否会修改变量？修改后是否持久化？
-世界书是直接读取、原生激活还是预处理？
-EJS 与正则、MVU、HTML 的顺序是什么？
-编辑、Swipe、重载、聊天切换时会不会重复执行？
-语法错误、宿主未启用、变量缺失时怎样回退？
+global
+local（当前聊天）
+message（消息与 Swipe）
+cache（本轮合并视图）
+initial
 ```
+
+`variables` 合并 global、initial、local 和消息变量。它不自动包含 MVU 顶层 `stat_data`。
+
+`getvar` 的 `noCache` 控制变量合并视图重读；与模板编译缓存无关。对象读取需要修改时使用 `clone:true` 或显式 `setvar`，不要悄悄改共享引用。
+
+`setvar` 默认写 message scope；准备阶段通常为 dry run，除非明确允许，不应产生副作用。是否立即落盘受自动保存与显式 `EjsTemplate.saveVariables()` 影响。
+
+## 公开 API
+
+```text
+EjsTemplate.prepareContext(context = {}, end = -1)
+EjsTemplate.evalTemplate(code, context = {}, options = {})
+EjsTemplate.getSyntaxErrorInfo(code, max_lines = 4)
+EjsTemplate.getFeatures()
+EjsTemplate.saveVariables()
+EjsTemplate.refreshWorldInfo()
+EjsTemplate.initialVariables
+EjsTemplate.compileTemplate()
+```
+
+注意公开 `prepareContext` 的参数顺序是 `context, end`；扩展内部函数使用另一套参数顺序，卡内脚本不要照内部签名调用。
+
+先准备上下文后需补字段时，原地修改同一对象：
+
+```js
+const context = await EjsTemplate.prepareContext({}, -1);
+context.extra = value;
+const text = await EjsTemplate.evalTemplate(code, context);
+```
+
+公共 `evalTemplate()` 失败会 reject/throw，调用方自己 `try/catch`。宿主内部 handler 多数会 toast/console 后返回 `null`，但生成前和预加载某些错误仍会向上抛出。宿主不会自动生成项目定义的中文空态。
+
+## 初始变量
+
+`[InitialVariables]` / `@@initial_variables` 是 EJS 自己的 initial scope来源，不是 MVU `[initvar]`。当前版本在预加载时处理它们，并把 JSON/YAML 对象合入 initial variables。
+
+若项目同时启用两者，明确谁拥有状态；不要让 EJS initial 和 MVU 快照各自维护一套同名树。
+
+## 特殊条目与设置
+
+常见路由：
+
+```text
+@@preload / @@only_preload / @@dont_preload
+@@initial_variables
+@@generate_before / @@generate_after
+@@render_before / @@render_after
+@@message_formatting
+@@iframe
+@@if
+@@preprocessing
+[GENERATE:*] / [RENDER:*] / @INJECT
+```
+
+特殊标记只决定候选路由，条目仍可能受 constant、关键词、概率、组和 `@@activate/@@dont_activate` 筛选。
+
+特殊条目的启用/禁用语义受 `invert_enabled` 控制。当前默认兼容模式为 `true`，但项目不能假定玩家现场未修改；关键条目可结合现场设置或 `@@always_enabled` 明确处理。
+
+## `getwi`
+
+`getwi()` 是异步的模板化导入：
+
+```text
+读取条目
+→ WORLD_INFO Tavern Regex
+→ SillyTavern 宏
+→ 递归 EJS
+→ 返回字符串
+```
+
+使用：
+
+```ejs
+<%- await getwi('目标世界书', '目标条目') %>
+```
+
+无书名调用的默认查找优先角色主书、Persona 书、聊天书，再在启用书中模糊搜索。关键调用显式写书名，避免同名冲突。被调用条目的 EJS 副作用可能重复执行，不把 `getwi` 当无副作用原文读取。
+
+## `activewi`
+
+要影响当前生成，推荐在 `@@generate_before` / `[GENERATE:BEFORE]` 中调用。世界书扫描之后调用通常只能影响下一轮。
+
+`force=true` 会清除或覆盖冷却、延迟、组、向量化、预算等限制，不等于保留原生关键词语义。
+
+## 模板缓存与变量缓存
+
+- 模板缓存：缓存编译函数，键含 filename 与内容 hash；不缓存最终输出；
+- 变量缓存：`prepareContext/precacheVariables` 建立的合并视图；`getvar(...,{noCache:true})` 负责重读。
+
+调试分别记录 `cache_enabled`、模板 filename/hash、消息 ID/Swipe 和变量重读方式。
+
+## MVU bridge
+
+ST-Prompt-Template 不自动读取 Mvu。真实 bridge 可以由 Tavern Helper 脚本监听：
+
+```text
+prompt_template_prepare(context)
+→ 从 getChatMessages() 找最近含 data.stat_data 的消息快照
+→ 深拷贝到 context.mvu
+→ EJS 只读 mvu.stat_data
+```
+
+没有该脚本时不得在 EJS 中直接引用顶层 `stat_data`。
+
+## 安全与回退
+
+EJS 上下文可包含 `$`、Slash 执行、世界书、正则、提示词注入和 SillyTavern context。默认不执行模型可控 EJS；若启用生成后代码，按高权限副作用路线验收。
+
+语法检查通过只证明可编译。扩展开关、阶段开关、条目激活、变量持久化和实际输出仍需真实宿主检查。

@@ -1,0 +1,42 @@
+[
+  {
+    "id": "display-complete-update",
+    "input": "正文\n<UpdateVariable>\n_.add('角色.体力', -2);\n</UpdateVariable>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "正文\n"
+  },
+  {
+    "id": "display-streaming-update",
+    "input": "正文\n<UpdateVariable>\n_.add('角色.体力',",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "正文\n"
+  },
+  {
+    "id": "prompt-complete-update",
+    "input": "正文\n<UpdateVariable>\n_.add('角色.体力', -2);\n</UpdateVariable>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "prompt",
+    "expected": "正文\n"
+  },
+  {
+    "id": "display-placeholder",
+    "input": "正文\n<StatusPlaceHolderImpl/>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "正文\n"
+  },
+  {
+    "id": "prompt-placeholder",
+    "input": "正文\n<StatusPlaceHolderImpl/>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "prompt",
+    "expected": "正文\n"
+  }
+]

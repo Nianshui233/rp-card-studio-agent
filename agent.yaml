@@ -1,7 +1,7 @@
 schema_version: 1.0.0
 id: rp-card-studio
 display_name: SillyTavern制卡工坊
-description: 低成本的 SillyTavern RP 创作工作台，按固定创作阶段进行多轮问答与即时写改，不维护项目账本，并在结束时执行 QA、成品检验与直接交付。
+description: 低成本的 SillyTavern RP 创作工作台，按固定创作阶段多轮问答并即时写改；运行组件按真实 SillyTavern、Tavern Helper、MVU 与 EJS 契约制作，结束时执行 QA 和直接交付。
 entry: AGENT.md
 language: zh-CN
 invocation:

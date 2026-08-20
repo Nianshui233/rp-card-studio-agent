@@ -1,0 +1,34 @@
+[
+  {
+    "id": "display-complete-snapshot-and-marker",
+    "input": "正文\n<航站状态>\n区域=北栈桥\n天气=小雨\n任务=核对灯标\n</航站状态>\n<航站终端/>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected_contains": "正文\n```html\n<!doctype html>"
+  },
+  {
+    "id": "display-streaming-snapshot",
+    "input": "正文\n<航站状态>\n区域=北栈桥",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "正文\n"
+  },
+  {
+    "id": "display-closed-before-marker",
+    "input": "正文\n<航站状态>\n区域=北栈桥\n</航站状态>\n",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "正文\n"
+  },
+  {
+    "id": "prompt-preserves-snapshot",
+    "input": "正文\n<航站状态>\n区域=北栈桥\n天气=小雨\n任务=核对灯标\n</航站状态>\n<航站终端/>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "prompt",
+    "expected": "正文\n<航站状态>\n区域=北栈桥\n天气=小雨\n任务=核对灯标\n</航站状态>\n"
+  }
+]

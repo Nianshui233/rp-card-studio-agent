@@ -1,0 +1,70 @@
+[
+  {
+    "id": "a02d0e18-4ad6-449d-a921-10f949d61403",
+    "scriptName": "航站状态与终端显示",
+    "findRegex": "/<航站状态>[\\s\\S]*?<\\/航站状态>\\s*<航站终端\\s*\\/>/g",
+    "replaceString": "```html\n<!doctype html>\n<html lang=\"zh-CN\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n<style>\n:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;padding:12px;background:#09131c;color:#eefaff;font:14px/1.55 system-ui,\"Microsoft YaHei\",sans-serif}.app{border:1px solid #315b72;border-radius:14px;padding:14px;background:linear-gradient(145deg,#112b3a,#0b1822)}h1{margin:0;color:#7de3ff;font-size:18px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}.cell{padding:10px;border:1px solid #315b72;border-radius:10px;background:#ffffff08}.label{color:#9fc0d0;font-size:12px}button{border:1px solid #4b7890;border-radius:8px;padding:8px 11px;background:#163448;color:#fff;cursor:pointer}.status{margin-top:8px;color:#aac5d3}@media(max-width:560px){.grid{grid-template-columns:1fr}}\n</style>\n</head>\n<body>\n<main class=\"app\">\n  <h1>航站终端</h1>\n  <div class=\"grid\">\n    <div class=\"cell\"><div class=\"label\">区域</div><b id=\"area\">读取中</b></div>\n    <div class=\"cell\"><div class=\"label\">天气</div><b id=\"weather\">读取中</b></div>\n    <div class=\"cell\"><div class=\"label\">任务</div><b id=\"task\">读取中</b></div>\n  </div>\n  <button id=\"act\">把“前往核对灯标”写入输入框</button>\n  <div id=\"status\" class=\"status\">正在连接宿主……</div>\n</main>\n<script>\n(() => {\n  'use strict';\n  const q = id => document.getElementById(id);\n  const subscriptions = [];\n  let messageId = null;\n\n  function parseSnapshot(text) {\n    const match = String(text ?? '').match(/<航站状态>([\\s\\S]*?)<\\/航站状态>/);\n    if (!match) return null;\n    return Object.fromEntries(match[1].split(/\\r?\\n/).map(line => line.trim()).filter(Boolean).map(line => {\n      const at = line.indexOf('=');\n      return at < 0 ? [line, ''] : [line.slice(0, at).trim(), line.slice(at + 1).trim()];\n    }));\n  }\n\n  async function refresh() {\n    try {\n      if (typeof getCurrentMessageId !== 'function' || typeof getChatMessages !== 'function') {\n        throw new Error('当前不是 Tavern Helper 消息 iframe');\n      }\n      messageId = getCurrentMessageId();\n      const message = getChatMessages(messageId)[0];\n      const data = parseSnapshot(message?.message);\n      if (!data) throw new Error('当前楼层缺少 <航站状态>');\n      q('area').textContent = data.区域 || '未记录';\n      q('weather').textContent = data.天气 || '未记录';\n      q('task').textContent = data.任务 || '未记录';\n      q('status').textContent = `已读取第 ${messageId} 楼`;\n    } catch (error) {\n      q('area').textContent = q('weather').textContent = q('task').textContent = '不可用';\n      q('status').textContent = `读取失败：${error.message}`;\n    }\n  }\n\n  q('act').addEventListener('click', async () => {\n    const text = '前往北栈桥核对灯标。';\n    try {\n      const bridge = window.航站输入桥 || window.parent?.航站输入桥;\n      if (bridge?.setInput) {\n        await bridge.setInput(text);\n        q('status').textContent = '已写入输入框，可继续编辑后发送。';\n        return;\n      }\n      throw new Error('输入桥未启用');\n    } catch (error) {\n      q('status').textContent = `${error.message}；请手动复制：${text}`;\n    }\n  });\n\n  if (typeof eventOn === 'function' && typeof tavern_events === 'object') {\n    for (const eventName of [tavern_events.MESSAGE_UPDATED, tavern_events.MESSAGE_SWIPED]) {\n      if (!eventName) continue;\n      subscriptions.push(eventOn(eventName, id => {\n        if (Number(id) === messageId) refresh();\n      }));\n    }\n  }\n  addEventListener('pagehide', () => subscriptions.forEach(item => item?.stop?.()), { once: true });\n  refresh();\n})();\n</script>\n</body>\n</html>\n```",
+    "trimStrings": [],
+    "placement": [
+      2
+    ],
+    "disabled": false,
+    "runOnEdit": false,
+    "substituteRegex": 0,
+    "minDepth": null,
+    "maxDepth": null,
+    "markdownOnly": true,
+    "promptOnly": false
+  },
+  {
+    "id": "29b5cc40-477d-4c2e-b880-70a1d7c3ff6f",
+    "scriptName": "航站状态流式半块隐藏",
+    "findRegex": "/<航站状态>(?:(?!<\\/航站状态>)[\\s\\S])*$/g",
+    "replaceString": "",
+    "trimStrings": [],
+    "placement": [
+      2
+    ],
+    "disabled": false,
+    "runOnEdit": false,
+    "substituteRegex": 0,
+    "minDepth": null,
+    "maxDepth": null,
+    "markdownOnly": true,
+    "promptOnly": false
+  },
+  {
+    "id": "c93e0434-24ca-4722-8551-638392837c83",
+    "scriptName": "航站状态闭合待终端标记隐藏",
+    "findRegex": "/<航站状态>[\\s\\S]*?<\\/航站状态>\\s*$/g",
+    "replaceString": "",
+    "trimStrings": [],
+    "placement": [
+      2
+    ],
+    "disabled": false,
+    "runOnEdit": false,
+    "substituteRegex": 0,
+    "minDepth": null,
+    "maxDepth": null,
+    "markdownOnly": true,
+    "promptOnly": false
+  },
+  {
+    "id": "fae3d694-c8ff-4cd3-9f36-e9916251d926",
+    "scriptName": "航站终端提示词清理",
+    "findRegex": "/<航站终端\\s*\\/>/g",
+    "replaceString": "",
+    "trimStrings": [],
+    "placement": [
+      2
+    ],
+    "disabled": false,
+    "runOnEdit": false,
+    "substituteRegex": 0,
+    "minDepth": null,
+    "maxDepth": null,
+    "markdownOnly": false,
+    "promptOnly": true
+  }
+]

@@ -255,5 +255,3 @@ open_questions:
     recommendation: ""
     rp_impact: ""
     urgency: ""                      # 开局前必须决定 / 可在 RP 中明确 / 不影响开局
-
-source_refs: []

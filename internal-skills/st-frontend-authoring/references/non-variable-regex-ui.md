@@ -1,113 +1,118 @@
-# 非变量 / 仅正则替换 HTML
+# 非 MVU 消息快照前端
 
-这条路线服务于不启用 MVU、也不把 EJS 当状态容器的消息前端。它依赖每条 AI 消息自身携带的数据快照：世界书输出契约命令模型输出 XML 或带标签正文，SillyTavern 显示正则捕获并替换为完整 HTML。它适合状态栏、任务页、人物关系页、调查记录、商店、论坛、信件和正文排版。
+这条路线让每条 AI 消息携带自己的结构化快照。先选真实载体，再设计数据合同；不能把裸 HTML 正则替换误当成可执行 iframe。
 
-“非变量”只表示没有独立持久变量树，不表示没有结构化数据、没有更新、没有运行合同。每一楼显示的是该楼消息里的快照；编辑、Swipe 或重新生成会得到新的快照，旧楼保留旧状态。
+## 三种载体
 
-## 三条可选路线
-
-### 1. 纯 SillyTavern 捕获注入（默认推荐）
+### 1. 纯 SillyTavern 静态替换
 
 ```text
-模型输出唯一外层标签 + 载荷
-→ display 正则以捕获组取得载荷
-→ 捕获值只注入 HTML 的隐藏 textarea
-→ HTML 解析并渲染
+模型输出标记/字段
+→ display Tavern Regex
+→ 静态 Markdown 或净化后 HTML
+→ .mes_text
 ```
 
-这条路线不要求 MVU、EJS 或 Tavern Helper。正则的替换内容是完整、自包含 HTML；项目包仍把正则 JSON 与 `.html` 分开交付。
+这条路线不要求 Tavern Helper，但只能承诺静态显示。SillyTavern 会在正则后执行 Markdown 与 DOMPurify；消息中的 `<script>` 不会作为独立应用运行。
 
-捕获值（通常是 `$1`）在最终 HTML 源码中只能承担一次数据挂载。推荐把它放进隐藏 textarea，JavaScript 从 textarea 的 value 读取。不要把同一捕获值重复塞进 JavaScript 字符串、模板字符串、属性、CSS 或注释；原始内容可能含换行、引号、反斜线、美元符号和尖括号，重复注入很容易直接破坏语法。
+适合：标题、卡片、表格、简单字段展示。捕获组可直接组成静态 HTML，但所有值仍按不可信文本转义。
 
-### 2. Tavern Helper 原消息读取
+### 2. Tavern Helper 动态 iframe
 
-display 正则只负责把完整块定位并换成 HTML；HTML 通过已经核实的 `getChatMessages` / 当前楼层 API 读取原消息，再提取标签。仅在项目已经依赖 Tavern Helper、且真实版本与 iframe/Blob URL 模式验证通过时使用。此路线不使用 `$1` 注入，但必须记录宿主依赖、当前楼层判定、读取失败表现和重载生命周期。
+```text
+模型输出标记/载荷
+→ display 正则替换为 fenced HTML 代码块
+→ SillyTavern Markdown 生成 <pre><code>
+→ Tavern Helper 识别代码块
+→ 建立消息 iframe
+```
 
-### 3. 纯正文排版
+正则替换内容必须类似：
 
-模型正常写小说、日记、论坛帖、信件或报告，只在正文外包唯一标签。HTML 读取整段文本，按段落、对话、标题或引用排版，不强迫正文改造成字段表。若没有关键词触发需求，可以使用常驻或剧情规则直接规定标签，不要求用户发明技术触发词。
+````text
+```html
+<!doctype html>
+<html lang="zh-CN">
+<head>...</head>
+<body>...</body>
+</html>
+```
+````
 
-## message_contract
+完整 `.html` 文件是可维护源码；真正放入正则的运行内容还要包含外层 fence。导入说明必须声明 Tavern Helper 版本和渲染器依赖。
 
-非变量表面在 `status_ui.surfaces[]` 记录：
+### 3. ST-Prompt-Template `@@iframe`
+
+EJS 世界书条目可使用 `@@iframe` 让 ST-Prompt-Template 建立 srcdoc iframe。该 iframe 不自动等同 Tavern Helper 消息 iframe，也不自动获得 Tavern Helper 裸绑定函数；需要宿主动作时仍做能力探测。
+
+## 数据传输
+
+### 消息 API读取（优先用于复杂载荷）
+
+Tavern Helper 消息 iframe 中使用数值 `getCurrentMessageId()`，再用 `getChatMessages(id)` 读取原始消息并解析外层标签。这样不需要把任意文本拼进 HTML 源码。
+
+### 捕获组注入
+
+仅在载荷可安全编码时使用。未经编码的 `$1` 可能包含：
+
+- `</textarea>`；
+- Markdown fence；
+- 引号、反斜线、美元符号；
+- HTML 或脚本终止序列。
+
+推荐让模型输出 Base64 不现实；更常见的做法是由正则捕获有限字符集字段，或把结构化载荷做项目级转义后放入 `<textarea>`，并在解析器中还原。生产合同、fixture、正则和解析器必须共享同一协议。
+
+不要把任意模型文本直接插入 JavaScript 字符串、模板字符串、属性或 `<script>`。
+
+## message contract
+
+每个表面明确：
 
 ```yaml
 data_route: message_capture
-message_contract:
-  kind: structured_xml            # structured_xml / plaintext
-  transport: regex_capture        # regex_capture / message_api
-  outer_tag: 雾港状态
-  record_syntax: bracket_pipe     # bracket_pipe / yaml_text / plaintext / custom
-  capture_group: 1
-  payload_mount: hidden_textarea  # hidden_textarea / message_api
-  partial_stream: tolerant        # tolerant / hide_until_closed / wait_until_closed
-  fixture_file: src/runtime/fixtures/雾港状态.xml
-  empty_policy: 显示明确空态，不使用预览数据冒充实时状态
+carrier: tavern_helper_fenced_html   # core_static_html / tavern_helper_fenced_html / ejs_iframe
+outer_tag: 雾港状态
+payload: structured_xml
+source: 常驻世界书输出规则
+current_message: numeric_iframe_id
+partial_stream: hide_until_closed
+prompt_channel: compact_summary
+empty_policy: 显示加载/空态/错误态
 ```
 
-`marker` 写可被正则实际命中的完整样例，例如 `<雾港状态>...</雾港状态>`。`emission.source_ref` 指向常驻、模型可见的世界书输出契约。`prompt_channel` 单独决定同一 XML 在送模侧删除、压缩替换、保留或沿用既有处理。
+动态前端正式运行不读取 mock。普通浏览器预览可以显式设置 preview 数据，但宿主模式读取失败时只能显示不可用。
 
-## 输出契约
+## 生命周期
 
-结构化消息合同由 Agent 根据项目已锁定的状态需求设计，不照搬固定通用字段。世界书条目至少说明：何时输出；唯一外层标签以及关闭位置；所有 section、字段、列表列、顺序、类型和缺省值；数据必须来自本轮叙事与已知事实；正文与技术块的边界；值中分隔符的转义协议；以及外层闭合后是否允许继续输出。
+Tavern Helper 消息 iframe：
 
-方括号记录可作为简单、节省上下文的默认：
+- `getCurrentMessageId()` 只在消息 iframe 调用；
+- 监听编辑、Swipe 或消息更新时，只处理当前数值楼层；
+- 页面重建后重新读取；
+- `pagehide` 停止 timer、Observer 和外部监听；
+- 不长期持有父页 DOM；
+- 按钮动作等待结果并给成功/失败/复制回退。
 
-```text
-<雾港状态>
-<人物>
-[姓名|沈槐]
-[状态|清醒|警觉]
-</人物>
-<物品>
-[条目|铜钥匙|1|沾着盐霜]
-[条目|旧车票|2|背面有字]
-</物品>
-</雾港状态>
-```
-
-若值本身会包含 `|`、`[`、`]`，输出合同和解析器必须共享明确转义记号。项目可以使用 `~~PIPE~~ / ~~LSB~~ / ~~RSB~~`，也可以选择更适合当前题材的无冲突编码；关键是生产者、夹具和解析器一致，而不是固定某一组魔法字符串。
+本体流式静态重绘、完整消息后建立 iframe、专门脚本接管流式表面是三条不同路线。普通 fenced iframe 不自动承诺增量稳定运行。
 
 ## 正则套件
 
-至少分别考虑：
+按项目需要分别设计：
 
-1. 玩家显示正则：捕获完整块并替换为 HTML；
-2. 流式显示规则：选择“容忍半截并逐步渲染”或“闭合前隐藏技术块”，避免生成过程中裸露 XML；
-3. prompt-only 规则：按项目需要删除、替换为紧凑语义摘要或保留上一楼状态；不要机械删除模型下一轮仍需参考的信息；
-4. 编辑、Swipe、旧楼深度与重复执行：规则应幂等，不因再次运行嵌套第二份 HTML。
+1. display：静态替换或 fenced HTML；
+2. prompt：删除、压缩为语义摘要或保留历史；
+3. 流式半块：闭合前隐藏或静态容忍；
+4. 旧楼深度；
+5. 编辑与 `runOnEdit`。
 
-纯捕获注入的完整块可使用类似：
-
-```regex
-/<雾港状态>([\s\S]*?)<\/雾港状态>/g
-```
-
-若选择流式逐步渲染，可以把闭合标签或文本结尾纳入实际匹配；若选择闭合前隐藏，则增加独立的半截隐藏规则。正则写法必须用真实夹具重放，不把上例当作所有项目的固定答案。
-
-## HTML 解析与渲染
-
-- HTML 是完整文档或合法消息表面，包含实际 CSS、body 与 JavaScript；开发期仍按多文件浏览器应用制作，交付时构建为一个 `.html`。
-- 解析器覆盖合同中的全部 section、单值、多值和重复列表，不只取第一个竖线后的内容。
-- 原始捕获可能处于流式半截状态；解析器应尽力读取完整行，缺失部分进入明确空态或等待态，不让一个坏字段使整页空白。
-- 所有消息数据在进入 `innerHTML` 前进行文本转义；数值经过解析、范围处理和非法值回退。此处是防止页面被坏数据炸毁，不是限制玩法内容。
-- 初始化和重渲染应幂等；事件绑定、弹层和定时器不能每次正则重跑都重复累积。
-- 多个消息前端共存时使用项目命名空间隔离 DOM id、CSS 类、存储键和全局入口。需要父页面、宿主 API、远程资源或复杂交互时可以使用，但要记录依赖并真机验证。
-- 预览夹具只用于普通浏览器验收。正式运行读取不到捕获载荷时显示空态/错误态，不得自动拿样本数据伪装成功。
-
-## 测试夹具与验收
-
-每个结构化表面至少准备一份完整夹具，并补充：完整数据、空字段、空列表和未知值；多行中文、长文本、引号、反斜线、尖括号、美元符号和分隔符转义；流式半截外层标签、半截字段和缺少闭合标签；正文 + XML 同楼、同楼多个相似标签、不应命中的近似文本；编辑、Swipe、重载、旧楼和重复正则执行。
-
-离线验证至少证明：生产合同中的标签与正则一致、捕获组确实取到载荷、捕获占位在 HTML 中只有一个安全挂载点、解析器能读夹具、显示与 prompt 通道不会互相误用。真实 SillyTavern 再验证 Markdown、DOMPurify、iframe/Blob URL、流式重渲染、当前楼层和宿主动作。
+`runOnEdit:true` 会在编辑保存时将正则结果写回原始消息，动态 UI 规则通常不应机械开启。
 
 ## 完成判定
 
-- 项目明确选择非变量消息快照，而不是遗漏 MVU；
-- 世界书输出契约真实存在、常驻策略与 cadence 对齐；
-- `message_contract`、marker、display 正则、HTML 挂载点、解析器和夹具使用同一标签与字段协议；
-- 技术 XML 在完整输出和流式过程中都不会裸露给玩家；
-- prompt-only 通道符合模型下一轮是否需要历史快照的实际需求；
-- HTML 不依赖模拟数据，空态与解析失败可见；
-- 按钮联动有真实宿主动作、反馈和失败回退；
-- 没有为了“非变量”把用户选定的中型、重型 UI 降级成静态小卡片。
+- 载体 provider 和版本明确；
+- 动态前端实际形成 iframe，而不是只有裸 HTML；
+- marker、载荷、解析器和 prompt/display 规则闭合；
+- 模型载荷不会破坏 fence 或 HTML；
+- 无 mock 冒充运行状态；
+- 编辑、Swipe、重载和失败态可解释；
+- 未实测时记录 `runtime: not_run`。

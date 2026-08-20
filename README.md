@@ -44,6 +44,7 @@
 - 只有 `mvu_zod` 或明确需要 Zod 的 `hybrid` 才要求 `registerMvuSchema`。
 - EJS 只在确实需要提示词/渲染模板时启用；不把 EJS 当变量存储。
 - 正则必须有真实生产者；display 和 prompt 通道按实际用途分开。
+- 动态消息 UI 明确 Tavern Helper fenced HTML、EJS `@@iframe` 等真实载体；裸 HTML 正则不等于可执行 iframe。
 - UI 正式运行必须读取真实状态或真实消息载荷，不能用预览数据冒充当前状态。
 - 真实宿主没有测试时记录 `runtime: not_run`。
 - 不因条目数、角色数、变量数、HTML 长度或项目复杂度限制创作。
@@ -55,7 +56,7 @@
 - 角色卡 JSON；
 - 独立世界书 JSON；
 - 实际使用的正则 JSON；
-- Tavern Helper 脚本 JSON/JS；
+- Tavern Helper Script/ScriptFolder JSON，可选伴随 `.js` 源码；
 - 完整单文件 HTML；
 - 实际使用的 MVU/EJS 文件；
 - 简短导入说明和 QA 结果。
@@ -64,4 +65,4 @@
 
 ## 运行参考
 
-宿主、MVU/EJS、前端和正则的详细参考位于对应 `internal-skills/*/references/`，只在当前任务需要时读取。`assets/examples/` 只存可直接参考的原创运行样本，不是强制模板。
+宿主、MVU/EJS、前端和正则的详细参考位于对应 `internal-skills/*/references/`，只在当前任务需要时读取。`assets/examples/` 只保留经过当前静态合同核对的原创片段；真实导入与浏览器运行仍需单独报告 `runtime_pass` 或 `runtime: not_run`。

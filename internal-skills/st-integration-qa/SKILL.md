@@ -28,8 +28,8 @@ description: "Private final QA and delivery module for checking actual SillyTave
 - MVU 初值、路线、唯一 Loader、更新协议、完整/流式隐藏规则和 UI 路径；
 - EJS 模板、按名调用条目、执行阶段和 MVU bridge；
 - 正则 placement/depth、prompt/display 分工、标记与 HTML 配对；
-- Tavern Helper 脚本内容、ID、依赖、重复注册和必要卸载；
-- HTML 是否自包含，是否读取真实数据并有空态/失败回退；
+- Tavern Helper Script/ScriptFolder JSON 结构、内容、ID、依赖、重复注册和必要卸载；`.js` 不能冒充导入文件；
+- HTML 是否自包含、是否有真实动态载体、是否读取真实数据并有空态/失败回退；
 - 交付文件是否残留绝对路径、`src/...`、`source_refs` 或需要用户拼接的本地 CSS/JS。
 
 只有确定会造成无法导入、无法运行、数据丢失或明确断链的问题才阻断交付。风格、规模和性能建议只作为非阻断说明。
@@ -40,7 +40,7 @@ description: "Private final QA and delivery module for checking actual SillyTave
 
 1. 项目包绝对路径；
 2. 实际组件和导入顺序；
-3. 每个正则与完整 HTML 的配对；
+3. 每个 marker、正则、完整 HTML 与实际 provider/载体的配对；
 4. 已通过的文件检查和真实宿主检查；
 5. `runtime: not_run` 项；
 6. 远程/宿主依赖与已知限制。

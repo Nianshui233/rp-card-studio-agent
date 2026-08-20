@@ -1,0 +1,18 @@
+[
+  {
+    "id": "display-static",
+    "input": "<静态通知 标题=\"潮位变化\">东堤水位上涨半尺。</静态通知>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "<section style=\"border:1px solid #49738a;border-radius:12px;padding:12px;background:#10212d;color:#eefaff\"><strong style=\"color:#7de3ff\">潮位变化</strong><p style=\"margin:.5em 0 0\">东堤水位上涨半尺。</p></section>"
+  },
+  {
+    "id": "prompt-summary",
+    "input": "<静态通知 标题=\"潮位变化\">东堤水位上涨半尺。</静态通知>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "prompt",
+    "expected": "[事件通知：潮位变化；东堤水位上涨半尺。]"
+  }
+]

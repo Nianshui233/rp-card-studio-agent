@@ -80,4 +80,3 @@ clues: []                           # 兼容旧项目；新建优先使用 clue_
 events: []                          # 兼容旧项目；新建优先使用 time_and_events
 secrets: []
 long_term_changes: []
-source_refs: []

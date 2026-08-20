@@ -1,66 +1,128 @@
-# 正则与消息渲染
+# 世界书、Tavern Regex 与消息渲染
 
-正则是 SillyTavern 的文本变换层，不是数据源、MVU 引擎或 UI 生成器。
+正则是文本变换层，不是数据源、MVU 引擎或 iframe 创建器。每条规则先明确 provider、输入来源、目标通道和后续载体。
 
-## 先定义变换
+## 角色卡原始字段
 
-每条规则先写清：
-
-- 原始文本来自用户输入、AI 输出、世界书、Slash Command 还是推理；
-- 只改变显示、只改变送模提示词，还是两者；
-- 对最新楼、旧楼、编辑、Swipe、重载和流式生成怎样工作；
-- 谁在开场或每轮回复中真实生产被捕获的标记/XML 块；只有消费者正则而没有生产者属于断链；
-- 与前后规则的顺序关系；
-- 未匹配、半截匹配和重复执行时怎样退化。
-
-## 卡内正则真实字段
-
-维护 `data.extensions.regex_scripts` 所需的实际字段：`id`、`scriptName`、`findRegex`、`replaceString`、`trimStrings`、`placement`、`disabled`、`markdownOnly`、`promptOnly`、`runOnEdit`、`substituteRegex`、`minDepth`、`maxDepth`。
-
-显示名称尽量中文。`id` 使用 UUID。`findRegex` 既可使用 `/pattern/flags`，也可使用 SillyTavern 接受的裸字符串模式；校验语义应与目标版本的 `regexFromString` 一致。placement 数值和三态行为必须按目标 SillyTavern 版本核实，不凭印象翻译。AI 的 `first_mes` 属于 AI 输出来源，不能误用用户输入 placement。
-
-## HTML 替换
-
-完整消息 UI 常见形式：
+`data.extensions.regex_scripts` 使用：
 
 ```text
-模型或 first_mes 输出短标记
-→ display 正则命中
-→ 项目包中的正则配置与同名完整 HTML 配对
-→ 用户把完整 HTML 粘贴到正则“替换内容”
-→ Tavern Helper/SillyTavern 按目标载体渲染
+id
+scriptName
+findRegex
+replaceString
+trimStrings
+placement
+disabled
+markdownOnly
+promptOnly
+runOnEdit
+substituteRegex
+minDepth
+maxDepth
 ```
 
-HTML 可以很长。不要因为代码量大就拆碎；只要一个功能面应共同加载、共享状态和导航，就保持一份完整源码。
+当前 placement：
 
-显示和送模必须分开验证。玩家看到完整 HTML，不代表模型没有收到它；需要 prompt-only 规则把标记或 HTML 替换为短而有意义的叙事/状态说明。
+```text
+1 USER_INPUT
+2 AI_OUTPUT
+3 SLASH_COMMAND
+5 WORLD_INFO
+6 REASONING
+```
 
-状态栏标记还需要对应的生产契约。开局标记可以直接由开场消息生产；每轮模型状态栏默认由一个常驻 CharacterBook 条目命令模型在回复末尾输出。非 MVU 卡由该条目定义完整 XML 数据块，MVU 卡若使用自定义短标记，也必须由条目、框架或脚本中的一个真实生产。不要把“HTML里写了标记说明”或“卡面描述提到标记”当成生产者。
+`first_mes` 和 alternate greetings 属于 AI_OUTPUT。
 
-创角页的提交标记也要单独检查。表单生成的标记、XML 或更新块必须有真实消费者，并且消费者完成后要能读回对应状态；页面内局部变量或聊天消息 `data` 附件不是运行时状态消费者。
+Tavern Helper 高层 `getTavernRegexes()` 返回 snake_case 和 `source/destination` 对象，不能把它与上述存储结构混传。
 
-## 变量隐藏规则
+## 执行通道
 
-若模型输出原始初始化或更新块，至少检查：
+SillyTavern Core 当前正则顺序：
 
-- 完整块在显示层隐藏；
-- 流式未闭合块不会泄露半截代码；
-- 提示词侧按 MVU/更新模型真实需求保留或移除；
-- 旧楼深度策略不会让上下文无限膨胀；
-- 状态 HTML 使用真实变量 API 读取数据，不靠正则捕获示例值冒充实时状态。
+```text
+GLOBAL → PRESET → SCOPED
+```
 
-具体标签、大小写和闭合形式必须来自本卡实际协议，不自动生成固定 `<update>`/`<initvar>` 套件。
+角色 scoped regex 和 preset regex 还受 allowlist 控制。最终 QA 不只看规则存在，还检查：
+
+- Regex 扩展总开关；
+- 当前角色/预设允许执行；
+- display 或 prompt；
+- placement；
+- 当前 depth；
+- edit 标记；
+- 前序规则变换结果。
+
+Display、prompt、edit、Swipe 和 WORLD_INFO 的 depth/输入链不同，离线夹具不能用一个统一深度冒充全部宿主路径。
+
+## 动态 HTML 载体
+
+### 纯 SillyTavern
+
+正则结果继续经过 Markdown 与 DOMPurify，适合静态 HTML。裸 `<script>` 不会因此执行，也不会获得独立页面生命周期。
+
+### Tavern Helper
+
+动态消息前端的 display 替换必须形成 fenced HTML：
+
+````text
+```html
+<!doctype html>
+<html>...</html>
+```
+````
+
+SillyTavern 将 fence 变成 `<pre><code>` 后，Tavern Helper 才识别并创建 iframe。完整 `.html` 文件与正则 JSON 可以分件维护，但最终正则的 `replaceString` 必须包含真实 fence 和完整 HTML。
+
+### EJS `@@iframe`
+
+由 ST-Prompt-Template 创建 iframe，是另一条 provider 路线。不要写成“SillyTavern/Tavern Helper 都会自动渲染”。
+
+## 标记与生产者
+
+每条消费者正则必须反向找到生产者：
+
+- first message；
+- 常驻世界书输出规则；
+- MVU 占位符；
+- EJS 模板；
+- Tavern Helper 脚本。
+
+HTML 中提到标记不算生产者。
+
+非 MVU 状态快照应由模型输出合同定义字段、顺序、缺省、转义和闭合规则。MVU 状态栏通常消费 `<StatusPlaceHolderImpl/>` 或项目自定义短标记，并从消息变量读取实时状态。
+
+## prompt/display 分离
+
+玩家看到 UI 不表示模型看不到其源文本。按实际需求：
+
+- display：静态卡片或 fenced iframe；
+- prompt：保留状态语义摘要、删除纯技术载体，或只保留最新快照；
+- 更新块：由 MVU 自己的提示词过滤和项目 display 隐藏分别负责。
+
+不要把 prompt-only 清理当玩家显示隐藏，也不要删除模型下一轮仍依赖的唯一状态。
+
+## `runOnEdit`
+
+SillyTavern 编辑保存时会以 `isEdit:true` 运行允许的正则，再把结果写回 `mes.mes` 和当前 Swipe。若 UI display 规则启用 `runOnEdit`，可能把 fenced HTML 永久写进原消息并在后续再次处理。
+
+动态 UI 规则默认评估是否应关闭 `runOnEdit`。编辑 QA 同时检查原始聊天消息和最终 DOM。
+
+## 捕获值安全
+
+捕获载荷进入静态 HTML前做文本转义；进入动态前端源码前必须采用可逆编码或消息 API读取。`</textarea>`、反引号 fence、`</script>`、美元符号和反斜线都进入 fixture。
 
 ## 夹具
 
-至少准备：
+至少覆盖：
 
-- 原始完整块；
-- 流式半截块；
-- 同一回复中正文 + 更新块 + UI 标记；
-- 多行、中文、尖括号、美元符号和捕获组；
-- 最新楼与旧楼深度；
-- 编辑后再次运行；
+- 完整块与流式半块；
+- 正文 + 更新块 + UI marker；
+- 中文长文本、引号、反斜线、尖括号、美元符号、fence 终止序列；
+- 当前楼与旧楼；
+- edit 与 Swipe；
+- allowlist 关闭时的现场检查；
 - 不应命中的相似文本。
 
-离线测试只能证明 JavaScript 替换语义和声明条件。宏求值、DOMPurify、Markdown、Scoped/Global/Preset 顺序、iframe、Blob URL 和宿主生命周期需要真实 SillyTavern 验证。
+离线测试只能证明 JavaScript 替换语义。Markdown、DOMPurify、allowlist、真实 iframe 和生命周期必须在 SillyTavern 验证。

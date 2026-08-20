@@ -1,90 +1,126 @@
-# 酒馆助手运行时参考
+# Tavern Helper 4.9.3 运行时参考
 
-这是一份面向制卡的行为摘要，不是插件源码副本，也不把酒馆助手变成角色卡的隐含依赖。它只帮助技能在设计 HTML、按钮、脚本、正则和消息生命周期时做出正确判断。
+酒馆助手为角色卡提供两类 iframe：消息前端与后台脚本。它不是 SillyTavern 本体；任何依赖都要在导入说明中明确。
 
-## 1. 消息前端是短生命周期实例
+## 消息前端载体
 
-通过正则替换进入消息的完整 HTML 通常运行在独立 iframe/前端实例中。每次消息重渲染、编辑、Swipe、重载或聊天切换，都可能创建新实例。设计时应：
+SillyTavern 本体先执行 display 正则、Markdown 和 DOMPurify。酒馆助手随后扫描消息 DOM 中的 `<pre>`；代码块文本含 `<html>`、`<head>` 或 `<body>` 时，才建立 `srcdoc`/Blob iframe。
 
-- 以幂等初始化为前提，避免重复绑定按钮和事件；
-- 用当前实例的消息楼层 ID 读取状态，不把上一次 iframe 的对象引用当成永久数据；
-- 在实例销毁时停止定时器、观察器和外部订阅；
-- 需要跨实例保存的内容写入聊天消息、MVU 状态或项目自己的持久层。
+因此动态前端的正则替换必须产出 fenced HTML 代码块：
 
-可用的身份概念通常包括：当前消息楼层 ID、脚本 ID、前端实例名。楼层 ID 与“深度”不是一回事：负数深度一般以 `-1` 表示最新楼层，而消息 ID 是从聊天开头递增的实际楼层编号。
+````text
+```html
+<!doctype html>
+<html>...</html>
+```
+````
 
-## 2. 事件监听必须考虑重载、编辑和 Swipe
+裸 `<!doctype html>...<script>...` 只会进入本体消息格式化，不是酒馆助手 iframe 合同。
 
-事件监听应使用目标版本提供的封装，并保留停止监听的能力。常见事件类别包括：
+酒馆助手会给 iframe 注入：
 
-- 消息接收、消息更新、消息 Swipe；
-- 聊天切换；
-- 生成开始、流式完整文本变化、流式增量变化、生成结束；
-- 前端实例渲染开始和结束。
+- 当前 window 的 Tavern Helper 裸绑定函数；
+- `window.TavernHelper`；
+- 动态 `window.SillyTavern` 代理；
+- 可选 `EjsTemplate`、`Mvu` 等共享接口。
 
-监听函数在前端实例关闭时自动清理是理想行为，但不能因此忽略幂等初始化。全局脚本仍应避免每次消息重载都注册一份重复监听。对只需要一次的动作使用一次性监听；对页面自身事件使用局部 DOM 绑定。
+消息重渲染、编辑、Swipe、加载更多、聊天切换会销毁或重建实例。初始化保持幂等。
 
-## 3. 消息写入 API 与运行时变量写入不是一层
+## 身份与消息
 
-创建或修改聊天楼层可以携带正文、角色、隐藏状态、`data` 和 `extra`。但：
+`getCurrentMessageId()` 仅消息 iframe 可用。后台脚本 iframe调用会抛错。不要长期持有 `frameElement`；Firefox teardown 时它可能消失，酒馆助手内部使用缓存 ID和 `window.name` 回退。
 
-- 创建消息是创建聊天历史；
-- 修改消息是修改聊天历史；
-- `data` 是该楼层的附加元数据；
-- 这些动作本身不等于 MVU 当前状态已经改变。
+消息 ID 是真实楼层号；负数是深度索引。消息变量接口只接受数值或 `'latest'`，不接受 `'current'`。
 
-开场创角若需要改变 MVU，必须调用实际的 MVU 写入接口，或生成一个确实会经过 MVU 更新管线的更新块，再读回状态。不能仅因聊天记录中出现了新姓名、新地点，就宣称变量已经初始化。
+`getChatMessages()` 返回的：
 
-页面按钮可以通过宿主能力把文本写入输入框、创建/修改消息或启动生成，但每个动作都要：
+```text
+message   当前 Swipe 正文
+data      当前 Swipe 的消息变量
+extra     当前 Swipe 的附加信息
+swipes / swipes_data / swipes_info（include_swipes 时）
+```
 
-1. `await` 等待宿主操作完成；
-2. 处理宿主不可用、拒绝或异常；
-3. 给玩家成功、失败和手动回退反馈；
-4. 防止重复点击造成重复楼层、重复生成或重复写入。
+修改正文和消息变量应使用 `setChatMessages()`，并考虑当前 Swipe。只改 `retrieveDisplayedMessage()` 得到的 DOM不会保存。
 
-## 4. 正则重应用是重操作
+`createChatMessages()` 首参是数组，每项至少有 `role` 和 `message`：
 
-对文本应用正则进行离线预览很有价值，可用来确认某个标记在 display/prompt、深度和来源条件下的结果。直接替换整套角色/全局正则则属于慢操作，通常会重新载入聊天并触发聊天切换事件。不要把“改一条正则”当成普通 UI 刷新，也不要在每次按钮点击时重写整套正则。
+```js
+await createChatMessages([
+  { role: 'assistant', message: '正文', data: completeMessageVariables },
+]);
+```
 
-正则测试应覆盖：当前楼、旧楼、编辑、Swipe、流式半截文本、聊天切换和重复初始化。完整 HTML 是否被识别为消息前端，也不能替代对实际数据读取和按钮联动的验证。
+## 变量
 
-## 5. 父页面访问的正确定位
+作用域：
 
-个人自用卡可以使用父页面或宿主桥接来完成输入框、聊天楼、生成、正则、MVU 和宿主事件联动。父页面访问不是一概禁止项；真正需要避免的是：
+```text
+global / preset / character / chat / message / script / extension
+```
 
-- 把父页面 DOM 当成稳定 API 而不做能力探测；
-- 没有回退就直接调用宿主私有函数；
-- 页面销毁后仍持有旧 DOM、旧事件或旧 Promise；
-- 无条件创建页面外的常驻面板。
+消息 `data` 就是消息变量，不是普通附件；但不完整对象不能冒充 MVU 快照。
 
-优先调用已验证的宿主封装；没有封装时再做最小化能力探测，并提供复制文本、手动发送或普通叙事回退。
+## 事件与清理
 
-## 6. 卡内脚本、消息前端与完整酒馆插件
+`eventOn()` 等绑定函数返回 `{stop}`，并在当前前端/脚本关闭时自动清理。准确清理函数是：
 
-完整酒馆插件需要自己的 `manifest`、构建入口、全局安装和网页刷新生命周期；它适合扩展酒馆本体功能，不是普通角色卡的默认交付方式。角色卡通常只需要：
+```text
+eventClearEvent
+eventClearListener
+eventClearAll
+```
 
-- 消息内 HTML/iframe 前端；
-- 卡内 Tavern Helper Script/ScriptFolder；
-- 与本卡一起导入的正则、世界书和运行组件。
+定时器、MutationObserver、父页 DOM 监听、音频、自建 Promise 和外部库订阅仍由项目在 `pagehide` 清理。
 
-只有用户明确要求全局扩展、跨角色工具或酒馆级设置面板时，才把完整插件作为独立项目。不要为了让一张卡工作而修改 SillyTavern 本体，也不要把插件模板的构建产物伪装成卡内脚本。
+Tavern Helper `iframe_events` 和 SillyTavern `tavern_events` 是不同事件族，按实际 payload 写回调。
 
-如果确实编写卡内前端，可参考以下工程经验，但不把技术栈变成硬性要求：
+## 生成与注入
 
-- `index.html + index.ts` 更适合消息前端；只有 `index.ts` 更适合后台/事件脚本；
-- iframe 路由使用内存历史，不把宿主路径当作前端路由；
-- 注入式加载不能依赖 `DOMContentLoaded`，用加载回调或 `$()`；卸载使用 `pagehide` 清理监听、定时器和外部订阅；
-- 可恢复问题用 `console.warn/error` 和玩家可见回退；致命问题再抛错并由统一错误包装器记录；
-- Vue、Pinia、Zod、GSAP 等只是可选实现路线，HTML/CSS/原生 JS 也可以，只要数据链和生命周期真实闭合。
+主动生成给每个请求唯一 `generation_id`，监听器按 ID 过滤，按钮锁防止重复请求。单请求停止用 `stopGenerationById`；`stopAllGeneration` 只在明确要中断全部请求时使用。
 
-接口声明文件只能作为目标版本的签名快照。优先使用 Tavern Helper 的高层接口；只有高层接口没有覆盖目标动作时，才读取 SillyTavern 原生导出。升级酒馆助手后，应重新核对 `getChatMessages/setChatMessages`、`getWorldbook/replaceWorldbook`、`getVariables/replaceVariables`、正则、生成和事件接口，而不是继续依赖旧的类型文件。
+`injectPrompts()` 只对当前聊天有效，返回 `{uninject}`；`once` 会在相应生成结束/停止时撤销，iframe 销毁也会清理。跨聊天需要重新注入。
 
-卡内前端的默认适配顺序应是：当前 iframe 已注入的全局函数/TavernHelper → `window.TavernHelper` → `window.SillyTavern.getContext()` → `window.parent` DOM 或本体导出 → 复制文本/手动回退。不要把整个 `getContext()` 对象序列化到交付物。
+## 正则
 
-通用 UI 适配器至少应提供 `waitForMvu()`、`currentMessageId()`、`readState()`、`writeInput()`、`onNamed()` 和 `clear()`。`readState()` 先等待 MVU、读取当前楼层 `stat_data`，再回退 `getVariables({type:"message", message_id})`；`writeInput()` 先尝试 `triggerSlash("/setinput ...")`，DOM 路线必须派发 `input/change` 事件，最后才复制文本。缺失 `getCurrentMessageId()` 时使用 `latest` 或显示不可用，不要硬编码楼层 `0`。
+角色卡存储对象是 camelCase：
 
-## 7. 流式楼层界面是另一条路线
+```text
+scriptName/findRegex/replaceString/placement/markdownOnly/promptOnly/runOnEdit
+```
 
-酒馆原生消息前端通常要等标记所在文本完成后才渲染，因此不能默认声称“消息 HTML 支持流式”。如果项目真的需要流式楼层界面，应使用已经验证的流式挂载路线，或让脚本接管原生楼层显示；同时验证增量文本、最终文本、编辑、Swipe 和清理时机。
+Tavern Helper 高层 API对象是 snake_case：
 
-普通状态栏不需要为了追求流式而引入这条复杂路线。只有用户体验确实需要逐字/增量反馈时才启用，并明确它与普通正则替换状态栏的差异。
+```text
+script_name/find_regex/replace_string/source/destination/run_on_edit
+```
+
+`replaceTavernRegexes()` 是重操作，会保存并重载聊天。不要在按钮点击中频繁重写整套规则。
+
+## Script / ScriptFolder 交付
+
+酒馆助手导入器只读取 JSON 并用 `ScriptTree` 校验。`.js` 可以作为可读源码，但不能代替运行时导入文件。
+
+Script JSON 结构：
+
+```json
+{
+  "type": "script",
+  "enabled": false,
+  "name": "脚本名",
+  "id": "uuid",
+  "content": "完整 JavaScript",
+  "info": "",
+  "button": { "enabled": true, "buttons": [] },
+  "data": {},
+  "export_with": { "data": true, "button": true }
+}
+```
+
+Folder 使用 `type:"folder"` 和 `scripts` 数组，不是 `children`。
+
+## 重载与父页面
+
+`reloadIframe()` 只重载当前 iframe，等价于当前实例的 location reload；共享接口、监听和局部状态要重新建立。它不是 `refreshOneMessage()`。
+
+个人自用项目可以访问父页 DOM，但优先高层接口，探测失败后给复制/手动回退。不要跨实例保存旧 DOM引用。

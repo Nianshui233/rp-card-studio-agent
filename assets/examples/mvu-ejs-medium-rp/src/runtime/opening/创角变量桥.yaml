@@ -1,7 +1,0 @@
-schema_version: 1.0.0
-mode: mvu
-marker: "<雨线创角>"
-bindings:
-  - { input: name, target: "stat_data.站点.值班员" }
-  - { input: duty, target: "stat_data.当前任务.值班方向" }
-commit: { route: mvu_api, readback: "提交后从当前楼层 stat_data 读回", failure_fallback: "显示完整可复制的创角文本" }

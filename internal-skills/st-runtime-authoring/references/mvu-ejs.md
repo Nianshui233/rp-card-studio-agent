@@ -1,93 +1,128 @@
 # MVU / EJS 技术配方
 
-只在项目确实需要变量、跨楼层状态或动态模板时读取。涉及消息楼层、iframe、全局对象或真实 API 时，再按需读取一个 `host/` 参考。
+只在项目确实需要变量、跨楼层快照或动态模板时读取。先选最短真实路线，不为状态栏自动引入 MVU。
 
-## 先选最短路线
+## 路线选择
 
 - 无变量：不启用 MVU；
-- `native_schema`：由 `[initvar]` 的数据与 `$meta` 形成内部结构；
-- `mvu_zod`：使用真实 Zod 脚本注册项目结构；
-- `hybrid`：只有原生 Schema 与 Zod 各有明确职责时使用；
-- `existing`：沿用已有且已验证的实现；
-- EJS 与 MVU 分开决定。
+- `native_schema`：MagVarUpdate 根据 `[initvar]` 数据和 `$meta` 生成内部 Schema；
+- `mvu_zod`：另有真实 `registerMvuSchema()` 脚本负责外部 Zod 约束；
+- `hybrid`：仅在内部 Schema 与 Zod 各有明确职责时使用；
+- `existing`：沿用旧卡中已验证的实现；
+- EJS 单独决定，不是 MVU 存储层。
 
-状态栏不自动意味着需要 MVU。只启用 EJS 时，不生成 MVU Loader、Schema、`[initvar]` 或更新块。
+只启用 EJS 时，不生成 MagVarUpdate Loader、`[initvar]`、MVU Schema 或更新块。
 
-## 用户档案与动态状态
+## MVU 初始化
 
-世界书 `<user>` 条目是唯一静态档案源。稳定资料进入该条目；当前位置、资源、伤势、任务和关系变化进入运行状态。UI 可读取授权的只读镜像，但不得把完整静态档案复制成第二套 MVU 人物树。
+### 世界书 `[initvar]`
 
-创角提交时，静态字段写入 `<user>`，动态字段写入真实运行状态，两边分别读回。只改页面本地对象、聊天正文或消息 `data` 附件不算成功。
+名称包含 `[initvar]` 的已启用世界书条目可提供基线。条目正文直接写 `stat_data` 内部的数据：
 
-## MVU 底座
-
-卡内加载 MagVarUpdate 时只能有一个 Loader：
-
-```js
-import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js';
+```yaml
+世界:
+  当前区域: 港口
+角色:
+  体力: 80
 ```
 
-若宿主已经全局加载，不再附加第二个 Loader，而是在交付说明中记录宿主依赖。
+不要再包一层：
 
-所有新 MVU 路线都需要真实初值，并进入名称含 `[initvar]` 的 CharacterBook 条目。MVU_ZOD 只注册结构，不能代替初值。开场 `<initvar>` 是主世界书初始化后的覆盖层，不是无世界书时的独立启动器。
-
-Zod 路线使用：
-
-```js
-import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js';
+```yaml
+# 错误：会形成 stat_data.stat_data
+stat_data:
+  世界: {}
 ```
 
-`Schema`、默认结构、枚举、范围和 `registerMvuSchema(Schema)` 根据项目实际变量创作。`native_schema` 不强制该脚本。
+关闭的 `[initvar]` 条目仍可被当前 MVU 扫描。世界书必须实际存在于角色主书、附加书或全局启用书中。
+
+### 开场 `<initvar>`
+
+开场或额外问候中的 `<initvar>...</initvar>` 是另一条初始化入口。当前 MVU 会用其内容直接建立该 Swipe 的 `stat_data`，跳过角色主世界书的 `[initvar]` 基线，再加载其他启用世界书。它可以用于无有效角色主世界书的基础路线，但额外模型解析等功能仍可能要求角色主书。
+
+开场中的普通 `_.set(...)` / `<UpdateVariable>` 命令会在基线建立后继续应用。不要把 `<initvar>` 与 `<UpdateVariable>` 写成同一种语义。
+
+## Loader 与 Schema
+
+卡内加载 MagVarUpdate 时只保留一个真实 Tavern Helper Script。Loader URL、固定版本或 commit、传递依赖、最低 Tavern Helper 版本和网络失败回退进入交付说明。
+
+外部 Zod 路线使用经过目标环境验证的 `registerMvuSchema()` 提供者；远程 URL不锁版本时只能标记为未锁定依赖，不能声称可复现。
+
+`registerVariableSchema()`、MVU 内部 Schema 和 `registerMvuSchema()` 是三件不同的事。
 
 ## 更新协议
 
-更新可以随正文同轮发生，也可以由额外模型解析。根据目标版本选择实际支持的 JSON Patch、lodash 命令或既有方言。
+当前 MVU 可解析的常用方言包括：
 
-以下组件分别存在，不能互相冒充：
-
-1. `[initvar]` 初值；
-2. 变量结构/Schema；
-3. 变量更新规则；
-4. 回复输出格式；
-5. 模型提示词侧清理；
-6. 玩家显示侧清理；
-7. UI 读取和必要写入。
-
-只依赖目标版本已经验证的 `[mvu_plot]`、`[mvu_update]`、`[config_override]` 等行为。远程 bundle 记录准确 URL、版本、加载顺序和失败回退。
-
-## EJS
-
-EJS 是 ST-Prompt-Template 或既有宿主执行的真实模板正文，不是存储层。每份模板明确：
-
-- 生成前、渲染后或消息处理阶段；
-- 读取变量和作用域；
-- 输出对象；
-- `getwi`、`activewi`、`injectPrompts` 等调用；
-- 缓存策略；
-- 是否写变量或原始消息；
-- 失败回退。
-
-按名调用的世界书条目使用稳定名称，通常默认关闭且不参与关键词扫描。EJS 读取或写入 MVU 时明确方向和路径，避免 EJS、MVU、正则、脚本同时写同一字段。EJS 可以直接维护为世界书正文或独立文本文件，按目标宿主实际导入。
-
-## 状态、UI 与清理
-
-MVU UI 优先等待初始化并读取当前消息楼层：
-
-```js
-await waitGlobalInitialized('Mvu');
-const state = Mvu.getMvuData({ type: 'message', message_id: getCurrentMessageId() });
-const stat = state.stat_data;
+```text
+_.set(path, newValue);
+_.set(path, expectedOldValue, newValue);
+_.assign / _.insert
+_.remove / _.delete / _.unset
+_.add
+<JSONPatch>[...]</JSONPatch>
 ```
 
-`display_data` / `delta_data` 不作为新 UI 的唯一数据源。编辑、Swipe、重载和聊天切换后重新读取对应楼层。
+项目只能声明真实写出的方言。自定义外层标签可以用于显示清理，但内层必须含 MVU 能解析的命令或 JSON Patch，不能只写含糊的 `<Patch>...</Patch>`。
 
-MagVarUpdate 可能追加 `<StatusPlaceHolderImpl/>`。提示词过滤不等于玩家显示替换；`<UpdateVariable>` 与占位符的 prompt/display 行为分别检查。完整更新块和流式未闭合块都要用真实正则夹具回放，确保技术内容不会裸露。
+以下组件分别存在：
+
+1. 初值；
+2. MVU 内部或外部结构约束；
+3. 更新规则；
+4. 回复输出格式；
+5. prompt 通道清理；
+6. display 通道清理；
+7. UI 读取和必要写入。
+
+同轮更新与额外模型解析是两种执行方式。额外模型路线还需按目标版本核对 `[mvu_update]`、`[mvu_plot]`、工具调用、格式化输出和自动请求设置。
+
+## UI 读写
+
+消息 iframe 中：
+
+```text
+getCurrentMessageId()（仅消息 iframe）
+→ Mvu.getMvuData({type:'message', message_id: 数值ID})
+→ stat_data
+```
+
+无法取得消息 ID 时可只读回退 `'latest'`，关键写入不猜测楼层。`'current'` 不是有效 message_id。
+
+写入流程：
+
+```text
+读取完整 MvuData
+→ 产生合法命令并 Mvu.parseMessage，或直接修改完整副本
+→ Mvu.replaceMvuData
+→ 重新读取同一数值楼层
+→ 校验非默认值并反馈
+```
+
+`ChatMessage.data` 是当前 Swipe 的消息变量存储面；只有写入完整合法 MvuData 且能由 `Mvu.getMvuData()` 读回，才算 MVU 成功。普通 `extra`、叙事正文或页面局部对象不算。
+
+## EJS 与 MVU
+
+ST-Prompt-Template 原生作用域只有 `global/local/message/cache/initial`。它不会自动提供顶层 `stat_data`。联动必须采用真实桥：
+
+- Tavern Helper 脚本监听 `prompt_template_prepare`，从消息变量中找到最近有效 MVU 快照并显式写入 `context.mvu`；或
+- 模板通过已验证的宿主 API主动读取。
+
+EJS 模板随后读取：
+
+```ejs
+<%_ const state = typeof mvu === 'object' && mvu ? mvu.stat_data : null; _%>
+```
+
+没有桥时不得声明 EJS 已能读取 MVU。
+
+`getwi()` 是异步模板化导入，使用 `await`；关键条目显式给世界书名。EJS、MVU、正则和脚本不要竞争同一字段的写入权。
 
 ## 完成条件
 
-- Loader、`[initvar]`、结构、更新、模型上下文和 UI 形成真实闭环；
-- 变量路径只有一个写入权，读取者能处理缺失值；
-- EJS 有真实模板、目标宿主和失败回退；
-- Tavern Helper 保留真实 Script/ScriptFolder 结构；
-- 角色主世界书已在真实 SillyTavern 导入并绑定；
-- 未实测部分明确记录 `runtime: not_run`。
+- 初值最终落在 `MvuData.stat_data` 正确路径；
+- 更新协议能被当前 MVU 解析；
+- Loader/Schema/更新/清理/UI 形成闭环；
+- EJS 有真实条目、执行阶段、桥接脚本和失败行为；
+- Tavern Helper 脚本交付为可导入 Script/ScriptFolder JSON，`.js` 仅作可读源码；
+- 未实测部分记录 `runtime: not_run`。

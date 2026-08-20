@@ -156,4 +156,3 @@ anti_ooc:
 
 state_bindings: []                    # 只有确实需要变量联动时填写
 tags: []
-source_refs: []

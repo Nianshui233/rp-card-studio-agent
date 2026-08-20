@@ -10,8 +10,8 @@ description: "Private module for MVU, MVU_ZOD, EJS, Tavern Helper scripts, messa
 ## 职责
 
 - 判断项目是否真的需要 MVU、MVU_ZOD、EJS 或组合路线。
-- 创作真实 `[initvar]` 初始值、Schema、变量更新规则、回复输出格式、`.ejs` 和 Tavern Helper 脚本。
-- 建立唯一状态合同：状态根、路径、类型、作用域、读写者、派生值、只读值和必要生命周期。
+- 创作真实 `[initvar]` 初始值、Schema、变量更新规则、回复输出格式、`.ejs` 和可导入 Tavern Helper Script JSON。
+- 建立唯一状态合同：状态根、路径、类型、作用域、读写者、派生值、只读值和必要生命周期；`[initvar]` 不包 `stat_data:` 外壳。
 - 将创角结果写入 `<user>` 条目、当前消息 MVU 状态或二者，并在开局前读回验证。
 - 验证当前消息 ID/楼层，以及编辑、Swipe、重载和切换聊天生命周期。
 
@@ -23,7 +23,7 @@ description: "Private module for MVU, MVU_ZOD, EJS, Tavern Helper scripts, messa
 - 卡内 MagVarUpdate 只能有一个 `mvu_loader`。
 - 只有 `mvu_zod` 或明确需要 Zod 的 `hybrid` 才要求 `registerMvuSchema`。
 - `[initvar]`、更新规则、回复输出格式、prompt/display 清理是独立组件。
-- EJS 与 MVU 联动时明确读写方向、作用域和路径。
+- EJS 与 MVU 默认没有自动 bridge；联动时提供真实桥接实现，明确数值楼层、读写方向、作用域和路径。
 
 ## 运行闭环
 

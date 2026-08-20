@@ -1,0 +1,47 @@
+[
+  {
+    "id": "79e50354-29b8-4b77-9482-6dc5a7dfe3ca",
+    "scriptName": "MVU更新块显示隐藏",
+    "findRegex": "/<UpdateVariable>(?:[\\s\\S]*?<\\/UpdateVariable>|[\\s\\S]*)$/g",
+    "replaceString": "",
+    "trimStrings": [],
+    "placement": [2],
+    "disabled": false,
+    "markdownOnly": true,
+    "promptOnly": false,
+    "runOnEdit": false,
+    "substituteRegex": 0,
+    "minDepth": null,
+    "maxDepth": null
+  },
+  {
+    "id": "7181d6dc-9d98-4c56-b9fc-5aedba69a52b",
+    "scriptName": "MVU更新块提示词隐藏",
+    "findRegex": "/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/g",
+    "replaceString": "",
+    "trimStrings": [],
+    "placement": [2],
+    "disabled": false,
+    "markdownOnly": false,
+    "promptOnly": true,
+    "runOnEdit": false,
+    "substituteRegex": 0,
+    "minDepth": null,
+    "maxDepth": null
+  },
+  {
+    "id": "3087597f-0eb8-4533-8fc4-cbdd291eaf4d",
+    "scriptName": "MVU占位符双通道隐藏",
+    "findRegex": "/<StatusPlaceHolderImpl\\s*\\/>/g",
+    "replaceString": "",
+    "trimStrings": [],
+    "placement": [2],
+    "disabled": false,
+    "markdownOnly": true,
+    "promptOnly": true,
+    "runOnEdit": false,
+    "substituteRegex": 0,
+    "minDepth": null,
+    "maxDepth": null
+  }
+]

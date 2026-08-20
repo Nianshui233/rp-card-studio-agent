@@ -14,8 +14,13 @@ export function applyEntry(entry, fixture) {
   const max = entry.maxDepth ?? entry.max_depth;
   if (Number.isInteger(min) && fixture.depth < min) return fixture.input;
   if (Number.isInteger(max) && fixture.depth > max) return fixture.input;
-  if (fixture.channel === "prompt" && !(entry.promptOnly ?? entry.prompt_only)) return fixture.input;
-  if (fixture.channel === "display" && (entry.promptOnly ?? entry.prompt_only)) return fixture.input;
+
+  const display = entry.markdownOnly ?? entry.destination?.display ?? false;
+  const prompt = entry.promptOnly ?? entry.destination?.prompt ?? false;
+  if (fixture.channel === "display" && !display) return fixture.input;
+  if (fixture.channel === "prompt" && !prompt) return fixture.input;
+  if (fixture.channel === "raw" && (display || prompt)) return fixture.input;
+
   return fixture.input.replace(parseRegex(entry.findRegex ?? entry.find_regex), entry.replaceString ?? entry.replace_string ?? "");
 }
 
@@ -27,16 +32,25 @@ export function runFixtures(regexDocument, fixtureDocument) {
   const results = fixtures.map((fixture, index) => {
     let output = fixture.input;
     for (const entry of entries) output = applyEntry(entry, { ...fixture, input: output });
-    return { id: fixture.id ?? `fixture-${index}`, passed: output === fixture.expected, expected: fixture.expected, actual: output };
+    const passed = fixture.expected_contains !== undefined
+      ? output.includes(fixture.expected_contains)
+      : output === fixture.expected;
+    return {
+      id: fixture.id ?? `fixture-${index}`,
+      passed,
+      expected: fixture.expected ?? { contains: fixture.expected_contains },
+      actual: output,
+    };
   });
-  return { ok: results.every((item) => item.passed), passed: results.filter((item) => item.passed).length, total: results.length, results };
+  return { ok: results.every(item => item.passed), passed: results.filter(item => item.passed).length, total: results.length, results };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.meta.filename)) {
   const regexFile = option("--regex");
   const fixturesFile = option("--fixtures");
   if (!regexFile || !fixturesFile) throw new Error("用法: node run-regex-fixtures.mjs --regex regex.json --fixtures fixtures.json");
-  const report = runFixtures(JSON.parse(fs.readFileSync(regexFile, "utf8")), JSON.parse(fs.readFileSync(fixturesFile, "utf8")));
+  const readJson = file => JSON.parse(fs.readFileSync(file, "utf8").replace(/^\uFEFF/, ""));
+  const report = runFixtures(readJson(regexFile), readJson(fixturesFile));
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
   if (!report.ok) process.exitCode = 4;
 }

@@ -1,112 +1,42 @@
-schema_version: 2.0.0
-status: draft
-
 status_ui:
   enabled: false
-  # 开发期拆分 HTML/CSS/JS/模拟数据；最终构建为 surface.file 指向的单文件 HTML。
-  authoring_mode: multi_file_html
-  # 用户选定的等级是交付下限；锁定前实际 HTML 必须通过功能面质量探针。
-  experience_level: light
-  # 事实数据密度与玩家端体验规模分开记录；sparse 不得自动把 heavy 降成 light。
-  data_density: unknown
-  presentation_model:
-    authoritative_paths: []
-    static_modules: []
-    derived_views: []
-    local_interaction_state: []
-    empty_state_policy: ""
-    unknown_state_policy: ""
-  theme_direction: ""
+  purpose: ""
+  player_priority: []
   device_priority: equal
-  # UI需求访谈账本：只记录已知与已锁定事实；未确认项保持 unknown/空值，不虚构用户偏好。
-  ui_requirements:
-    interview_status: draft
-    experience_axis: player_experience
-    interview_mode: create
-    retrofit_audit:
-      complete: false
-      review_rounds: 0
-      existing_surfaces: []
-      current_player_path: ""
-      strengths: []
-      pain_points: []
-      preserve: []
-      revise: []
-      remove: []
-      acceptance_focus: []
-    purpose: ""
-    primary_journey: ""
-    player_tasks: []
-    information:
-      must_show: []
-      useful: []
-      detail_only: []
-      may_be_empty: []
-      data_scale: unknown
-      update_cadence: unknown
-    interactions:
-      desired: []
-      host_actions: []
-      feedback: []
-      avoid: []
-    visual:
-      direction: ""
-      palette: ""
-      font_direction: ""
-      icon_direction: ""
-      density: comfortable
-      theme_mode: single
-      motion: project_matched
-    device:
-      priority: equal
-      touch: true
-      narrow_screen: true
-      long_chinese_text: true
-    carrier:
-      user_facing_goal: ""
-      agent_choice: message_surface
-    assets:
-      font_strategy: system_stack
-      icon_strategy: project_svg
-      remote_dependencies: []
-    recommendations: []
-    open_questions: []
-    locked_decisions: []
-  # 每个 surface 在 multi_file_html 模式下同时记录 app_manifest（开发清单）与 file（构建结果）。
-  # 非变量消息前端在 surface 上声明 data_route: message_capture，并补 message_contract；
-  # 变量前端继续使用 state_contract。不要为非变量卡伪造 MVU 状态树。
-  surfaces: []
-  # 每个持续表面应同时声明玩家显示消费者与模型提示词消费者，避免技术标记回流。
-  # surfaces[].prompt_channel: { mode, regex_ref, fallback_text, evidence }
-  data_sources: []
-  # state_contract 把真实状态根、当前消息作用域、刷新方式、读写者和回退值连成一条链。
-  state_contract: null
-  host_interactions: []
-  frontend_build: null
-  # super_heavy / 0层路线在这里声明整楼替换、楼层策略、聊天切换与持久化。
-  zero_layer: null
-  opening_relationship: separate
-  experience_evidence:
-    # 轻型以成熟持续状态应用为体验基准；按项目实际记录，不适用的维度可留空并在阶段总结说明理由。
-    baseline:
-      navigation: []
-      data_views: []
-      information_tools: []
-      host_actions: []
-      feedback_states: []
-      responsive_checks: []
-      theme_features: []
-      data_binding: []
-    # 高于轻型时记录相对轻型基线的实际增量；不按填写数量或代码行数定级。
-    level_advancements:
-      usability: []
-      information_architecture: []
-      interaction_depth: []
-      visual_expression: []
-      host_integration: []
-      persistence_lifecycle: []
-    primary_play_surface: false
-  lifecycle_checks: []
-  runtime: not_run
+  visual_direction: ""
 
-source_refs: []
+  carrier:
+    provider: null                  # sillytavern_static / tavern_helper_fenced_html / ejs_iframe / verified_other
+    host_version: null
+    marker: null
+    display_regex: null
+    prompt_regex: null
+    runtime_evidence: not_run
+
+  data:
+    route: null                     # mvu_message / message_capture / static
+    authoritative_paths: []
+    current_message: numeric_id
+    refresh_on: []                  # message_updated / message_swiped / remount
+    empty_state: ""
+    error_state: ""
+    preview_only_data: false
+
+  surfaces: []                      # 每项直接写用途、完整 HTML 文件名、真实数据和交互
+
+  interactions: []                  # 每项写动作、宿主 API、成功反馈、失败回退和读回
+
+  lifecycle:
+    idempotent_init: true
+    pagehide_cleanup: []
+    edit: not_run
+    swipe: not_run
+    reload: not_run
+    chat_switch: not_run
+
+  responsive:
+    narrow_screen: not_run
+    touch: not_run
+    long_chinese_text: not_run
+
+  dependencies: []

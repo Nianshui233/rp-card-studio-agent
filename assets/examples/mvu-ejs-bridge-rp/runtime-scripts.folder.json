@@ -1,0 +1,32 @@
+{
+  "type": "folder",
+  "enabled": false,
+  "name": "核验桥接运行脚本",
+  "id": "57a98c27-4cbc-430c-910b-93af69228f1e",
+  "icon": "fa-solid fa-link",
+  "color": "#67c7e8",
+  "scripts": [
+    {
+      "type": "script",
+      "enabled": false,
+      "name": "MVU变量框架",
+      "id": "84ebc93b-0f34-41c2-9a97-58de334b7405",
+      "content": "import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate@0a730cd4a9b99689d1135a49b542c780b977c24c/artifact/bundle.js';\n",
+      "info": "锁定到本次源码核对 commit 的 MagVarUpdate Loader；需要网络和 Tavern Helper。",
+      "button": { "enabled": true, "buttons": [] },
+      "data": {},
+      "export_with": { "data": true, "button": true }
+    },
+    {
+      "type": "script",
+      "enabled": false,
+      "name": "MVU到EJS只读桥",
+      "id": "33764d55-d755-4615-9be7-a82ae1cb1cd1",
+      "content": "(() => {\n  'use strict';\n  function latestMvuData() {\n    const messages = getChatMessages('0-{{lastMessageId}}');\n    for (let i = messages.length - 1; i >= 0; i--) {\n      if (messages[i]?.data?.stat_data) return _.cloneDeep(messages[i].data);\n    }\n    return null;\n  }\n  const subscription = eventOn('prompt_template_prepare', context => {\n    context.mvu = latestMvuData();\n  });\n  addEventListener('pagehide', () => subscription?.stop?.(), { once: true });\n})();\n",
+      "info": "把最近有效消息的完整 MvuData 深拷贝到 ST-Prompt-Template context.mvu；只读。",
+      "button": { "enabled": true, "buttons": [] },
+      "data": {},
+      "export_with": { "data": true, "button": true }
+    }
+  ]
+}

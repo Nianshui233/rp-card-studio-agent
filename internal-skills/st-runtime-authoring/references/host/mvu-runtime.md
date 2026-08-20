@@ -1,115 +1,98 @@
-# MVU 运行时参考
+# MagVarUpdate 运行时参考
 
-这是一份供制卡阶段使用的运行时契约摘要。它描述变量初始化、开场覆盖、直接写入、更新事件和显示/提示词分离；用户授权的开源运行时资料可以作为实现参考，但最终项目不依赖参考目录。
+基线以目标 bundle 与现场能力为准。MagVarUpdate 仓库的包版本不足以表达当前功能，交付时记录实际 URL、commit/tag 或现场构建信息。
 
-## 1. 三层状态不要混淆
+## 数据形状
 
-MVU 项目至少要区分：
-
-1. `[initvar]` 世界书条目提供的默认基线；
-2. 开场或某条消息对基线做出的覆盖/更新；
-3. 当前楼层真正保存并可由 UI 读取的变量快照。
-
-关闭的 `[initvar]` 条目也可能参与初始化，前提是目标 MVU 实现会扫描它。世界书没有导入并挂载时，不能假设这些初始值已经存在。
-
-额外问候语或开场消息中的 `<UpdateVariable>...</UpdateVariable>` 可以覆盖 `[initvar]` 的默认值。它解决的是“不同开场使用不同初态”，不是替代世界书初始化，也不是让任意聊天 `data` 自动变成变量。
-
-## 2.1 运行时读取的标准回退
-
-消息前端和卡内脚本共享一套读取顺序：
+当前楼层变量中的 MVU 数据至少包含：
 
 ```text
-await waitGlobalInitialized("Mvu")
-→ Mvu.getMvuData({ type: "message", message_id: currentMessageId ?? "latest" })
-→ 读取 stat_data
-→ 若 MVU 不存在，回退 TavernHelper.getVariables({ type: "message", message_id })
-→ 仍失败时显示空态/错误态，而不是伪造状态
+initialized_lorebooks
+stat_data
+schema
+可选 display_data / delta_data
 ```
 
-`currentMessageId` 不能缺省为 `0`；如果当前表面不是消息 iframe，应使用 `'latest'` 或明确返回不可用。`registerVariableSchema` 只是变量管理器 UI 校验，不能替代 `registerMvuSchema`、`Mvu.getMvuData` 或 `Mvu.replaceMvuData`。
-## 2. 开场创角优先走直接写入和回读
+`stat_data` 是玩家状态根。`display_data` 和 `delta_data` 是变化显示，不应作为新 UI 的唯一真值。
 
-当开场表单要把姓名、地点、身份、关系或资源写入 MVU，优先使用目标环境实际提供的全局对象和 API：
+## 初始化顺序
+
+1. 从最近有效消息变量或空数据开始；
+2. 扫描角色主书、附加书和全局启用书中名称含 `[initvar]` 的条目；
+3. 把每个条目解析结果合入 `MvuData.stat_data`；
+4. 生成/调和内部 Schema并清理 `$meta` 等标记；
+5. 第 0 楼对每个 Swipe 分别建立消息变量；
+6. 开场 `<initvar>` 存在时，用其内容替换角色主书基线，再加载其他书；
+7. 继续解析该 Swipe 中的 MVU 更新命令。
+
+因此 `[initvar]` 正文不能包含最外层 `stat_data:`。
+
+MVU 会在聊天切换时销毁旧聊天级模块并重新初始化。每个消息 Swipe 有自己的变量快照；编辑、Swipe、删除和重演必须按实际楼层重读。
+
+## 全局与唯一实例
+
+MVU 通过 Tavern Helper 的唯一脚本机制只让一个名为 `MVU变量框架` 的实例运行。交付仍应只带一个 Loader，避免不确定的优先实例和重复网络加载。
+
+MVU 将接口挂到父页面 `Mvu`，并发送 `global_Mvu_initialized`。Tavern Helper 消息 iframe调用 `waitGlobalInitialized('Mvu')` 后会取得代理。
+
+等待没有内建失败结果；项目需要自己的超时和错误态：
+
+```text
+等待 Mvu 与超时竞争
+→ 成功后再取当前楼层
+→ 超时则显示“MVU 未就绪”、允许重试，不继续写入
+```
+
+## 读取
+
+消息 iframe：
 
 ```js
-await waitGlobalInitialized('Mvu');
-
-const messageId = getCurrentMessageId();
-const current = Mvu.getMvuData({ type: 'message', message_id: messageId });
-const next = await Mvu.parseMessage(
-  "_.set('玩家.姓名', '林砚'); _.set('元信息.所在地点', '旧码头');",
-  current,
-);
-await Mvu.replaceMvuData(next, { type: 'message', message_id: messageId });
-
-const verified = Mvu.getMvuData({ type: 'message', message_id: messageId });
+const id = getCurrentMessageId();
+const data = Mvu.getMvuData({ type: 'message', message_id: id });
+const state = data.stat_data;
 ```
 
-上面的 `Mvu` 只是接口示意。在消息 iframe 中，先建立宿主能力桥：安全尝试当前窗口和父窗口，选择实际存在的 `Mvu`、`waitGlobalInitialized`、`eventOn` 和 `getCurrentMessageId`。项目加载器若声明挂载到 `window.parent.Mvu`，UI 就不能只轮询 `window.Mvu`。
+`getCurrentMessageId()` 不能在后台脚本 iframe调用。后台脚本从消息事件 payload、`getLastMessageId()` 或 `getChatMessages()` 取得明确数值楼层。
 
-实际项目必须根据目标版本确认全局对象、可写范围和消息楼层是否已存在。直接修改一个本地对象、只调用 `createChatMessages({ data: ... })`、或只把新值写进普通叙事文本，都不能代替最后的 `replace` 与回读。
+只读界面必要时可回退 `'latest'`；`'current'` 无效。关键写入必须使用明确数值 ID。
 
-若项目选择让更新块经过正常模型更新管线，则应生成真实的 `<UpdateVariable>`，并确认该消息会被目标 MVU 解析。不要同时保留一个“直接写入器”和一个“消息更新器”去竞争同一批字段。
+## 写入
 
-如果项目采用 Tavern Helper 的高层变量接口，还要明确变量作用域：全局、角色卡、脚本、聊天或消息楼层。创角通常应使用当前角色/聊天/消息范围，而不是把角色设定误写成全局变量。`getVariables` 与 `replaceVariables` 的作用域和 `script_id`/`message_id` 参数必须以目标版本的类型声明为准。
+```js
+const before = Mvu.getMvuData({ type: 'message', message_id: id });
+const next = await Mvu.parseMessage("_.set('角色.体力', 81);", before);
+if (!next) throw new Error('没有解析到 MVU 更新命令');
+await Mvu.replaceMvuData(next, { type: 'message', message_id: id });
+const verified = Mvu.getMvuData({ type: 'message', message_id: id });
+```
 
-## 3. 更新方言和旧值语义
+直接改本地对象、只改叙事正文或只写 `extra` 不算成功。
 
-常见更新命令包括：
+Tavern Helper 的 `ChatMessage.data` 映射消息变量；如果创建消息时写入的是完整合法 MvuData，它可以成为该楼快照，但仍需用 MVU API读回。不要把不完整对象伪装成快照。
 
-- `set(path, newValue)` 或 `set(path, expectedOldValue, newValue)`；
-- `insert`、`delete`、`add`、`move`。
+## 事件 payload
 
-项目应统一记录路径、值类型、旧值检查是否启用、更新原因和失败行为。数值边界、阶段转换、数组追加和对象替换不要混用一套含糊写法。
-
-## 4. 事件回调适合做确定性校正
-
-目标 MVU 实现通常会提供以下事件时机：
-
-- 变量初始化完成；
-- 一轮变量更新开始；
-- 更新命令解析完成；
-- 变量更新完成，并可拿到更新前后的数据；
-- 即将把变量写回消息前。
-
-回调适合处理确定性逻辑，例如日期跨日、数值上下限、派生字段同步和命令路径修正。回调应保持幂等，并明确谁是唯一 writer；不要在回调、额外模型和状态栏脚本里分别重复写同一个字段。
-
-## 5. 每楼快照、重演和 Swipe
-
-成熟 MVU 路线通常把变量快照附着到消息楼层，因此：
-
-- 状态栏读取当前楼层快照，而不是从 HTML 示例值猜测；
-- 编辑、Swipe、聊天切换后要重新读取对应楼层；
-- 变量重演/重算应明确起点、终点和是否影响后续楼层；
-- 删除或隐藏旧楼不应让最新状态依赖一条已经不可见的技术块。
-
-这也是为什么“只在最后一楼保存一个全局变量对象”经常会在编辑、Swipe 或重载时失真。
-
-对于较大的 MVU 前端，可把变量读取和写回封装成响应式 store：读取时校验/补齐 Schema，写回时先去除 Vue/Pinia proxy，再调用高层变量替换接口。这个模式适合复杂状态栏和角色卡前端，但不是每张卡都必须引入 Pinia/Zod。
-
-## 6. 模型上下文与玩家显示分离
-
-技术更新块和状态占位符可以通过 display/prompt 不同规则处理：
-
-- 玩家显示层隐藏完整和流式未闭合的更新块；
-- 模型提示词侧只保留 MVU 真正需要的短契约、变量上下文或历史；
-- `<StatusPlaceHolderImpl/>` 这类占位符不能泄漏进玩家界面；
-- 正则只是消费者，必须有世界书、框架或脚本生产对应标记。
-
-如果使用 EJS/提示词模板读取 `stat_data`，先判断路径是否存在，再读取数组中的实际值。变量尚未初始化时，模板不能因为直接访问深层路径而报错。
-
-## 7. 生成最小闭环
-
-一个可验收的 MVU 卡至少要能回答：
+当前事件族包括：
 
 ```text
-默认值来自哪里？
-开场创角如何覆盖默认值？
-每轮更新由谁产生？
-更新由谁解析？
-状态保存在哪一楼？
-UI 从哪里读？
-编辑、Swipe、重载和失败时怎样恢复？
+VARIABLE_INITIALIZED(variables, swipe_id)
+VARIABLE_UPDATE_STARTED(variables, ...版本相关参数)
+COMMAND_PARSED(variables, commands, message_content)
+VARIABLE_UPDATE_ENDED(variables, variables_before_update)
+BEFORE_MESSAGE_UPDATE({variables, message_content})
 ```
 
-缺一项时，先标记为未闭环，再决定是补文件、补宿主脚本、补正则还是关闭该技术路线。不要用一层新的抽象配置掩盖实际运行链缺失。
+不要依据旧教程把 `COMMAND_PARSED` 第一个参数当 commands。按目标 bundle 的类型和源码核对。
+
+事件回调适合做幂等校正，例如范围限制和日期同步；不要和状态栏按钮、额外模型同时写同一字段。
+
+## 更新与清理
+
+MVU 扫描整条消息中的合法命令，自定义外层标签只负责组织和显示清理。`<StatusPlaceHolderImpl/>` 由 MVU在需要时追加；prompt 过滤与 display 隐藏分别验证。
+
+完整更新块、流式半块、占位符、旧楼深度和额外模型模式都必须按实际协议检查。`runOnEdit` 可能把正则处理结果永久写回消息原文，不能机械开启。
+
+## 版本能力
+
+最低 Loader、工具调用、格式化输出、批量请求和角色卡配置覆盖是不同能力。现场只因 `Mvu` 存在，不能推断所有可选能力都可用。

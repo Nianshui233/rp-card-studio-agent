@@ -1,6 +1,3 @@
-schema_version: 2.0.0
-status: draft
-
 narrative:
   point_of_view: ""
   pacing: ""
@@ -12,121 +9,29 @@ narrative:
 
 opening_ui:
   enabled: false
-  # 默认按真正的浏览器前端应用开发；最终交付前再构建为一个自包含 HTML。
-  authoring_mode: multi_file_html
-  app_manifest: null
-  marker: null
-  file: null
-  render_route: regex_replace
-  render_ref: null
-  render_evidence: []
-  opening_id: null
-  # 用户选定的等级是交付下限；锁定前实际 HTML 必须通过功能面质量探针。
-  experience_level: light
-  data_density: unknown
-  presentation_model:
-    authoritative_paths: []
-    static_modules: []
-    derived_views: []
-    local_interaction_state: []
-    empty_state_policy: ""
-    unknown_state_policy: ""
-  theme_direction: ""
+  purpose: ""
+  player_journey: ""
+  carrier:
+    provider: null                  # sillytavern_static / tavern_helper_fenced_html / ejs_iframe / verified_other
+    marker: null
+    display_regex: null
+    prompt_regex: null
+  file: null                       # 最终完整自包含 HTML
+  visual_direction: ""
   device_priority: equal
-  # 只记录本阶段的开场/介绍/创角前端需求，不混入持续状态栏需求。
-  ui_requirements:
-    interview_status: draft
-    experience_axis: player_experience
-    interview_mode: create
-    retrofit_audit:
-      complete: false
-      review_rounds: 0
-      existing_surfaces: []
-      current_player_path: ""
-      strengths: []
-      pain_points: []
-      preserve: []
-      revise: []
-      remove: []
-      acceptance_focus: []
-    purpose: ""
-    primary_journey: ""
-    player_tasks: []
-    information:
-      must_show: []
-      useful: []
-      detail_only: []
-      may_be_empty: []
-      data_scale: unknown
-      update_cadence: opening_only
-    interactions:
-      desired: []
-      host_actions: []
-      feedback: []
-      avoid: []
-    visual:
-      direction: ""
-      palette: ""
-      font_direction: ""
-      icon_direction: ""
-      density: comfortable
-      theme_mode: single
-      motion: project_matched
-    device:
-      priority: equal
-      touch: true
-      narrow_screen: true
-      long_chinese_text: true
-    carrier:
-      user_facing_goal: ""
-      agent_choice: message_surface
-    assets:
-      font_strategy: system_stack
-      icon_strategy: project_svg
-      remote_dependencies: []
-    recommendations: []
-    open_questions: []
-    locked_decisions: []
-  journey: ""
   fallback: ""
   runtime: not_run
-  # compiled_frontend 路线记录源码根、构建命令、输出格式与制品哈希。
-  frontend_build: null
 
-# swipe_switch 可把介绍/创角页切到备用开场白，不与持续状态栏混为一体。
-opening_transition:
-  route: none
-  source_message: null
-  target_opening: null
-  api_ref: null
-  evidence: []
-
-# 只要开场表单会改变 MVU/EJS、状态栏或其他运行时数据，就在这里记录
-# “表单字段 → 状态路径 → 提交 → 回读”的真实桥接；不能只附加聊天楼 data。
 creation_bridge:
   enabled: false
-  content_policy: blank_user_defined
-  profile_contract: src/user-character.yaml
-  profile_output: user_entry_yaml_block
-  runtime_output: initial_state_patch
+  profile_contract: "<user> 世界书条目"
   input_fields: []
-  bindings: []
-  commit:
-    route: none
-    marker: null
-    source_file: null
-    api_ref: null
-    # worldbook_api / hybrid 可同时 upsert <user> 条目并写入运行变量。
-    worldbook_ref: null
-    entry_name: null
-    write_mode: none
-    worldbook_readback: null
-    user_entry_write: none       # none / copy_only / update_and_enable
-    runtime_write: none          # none / mvu / message_update / helper_script
-    order: [render_outputs, write_user_entry, readback_user_entry, write_runtime, readback_runtime, start_opening]
-    readback: ""
-    failure_fallback: ""
+  static_profile_bindings: []
+  runtime_bindings: []
+  submit_action: null
+  profile_readback: null
+  runtime_readback: null
+  failure_fallback: ""
 
 openings: []
 dialogue_examples: []
-source_refs: []

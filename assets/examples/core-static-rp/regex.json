@@ -1,0 +1,32 @@
+[
+  {
+    "id": "d0bd8a77-60f5-4c66-8758-f29d4544fe81",
+    "scriptName": "静态通知显示",
+    "findRegex": "/<静态通知\\s+标题=\"([^\"]*)\">([\\s\\S]*?)<\\/静态通知>/g",
+    "replaceString": "<section style=\"border:1px solid #49738a;border-radius:12px;padding:12px;background:#10212d;color:#eefaff\"><strong style=\"color:#7de3ff\">$1</strong><p style=\"margin:.5em 0 0\">$2</p></section>",
+    "trimStrings": [],
+    "placement": [2],
+    "disabled": false,
+    "markdownOnly": true,
+    "promptOnly": false,
+    "runOnEdit": false,
+    "substituteRegex": 0,
+    "minDepth": null,
+    "maxDepth": null
+  },
+  {
+    "id": "4bfc9277-855d-425b-9ad0-7d7ff3eb2413",
+    "scriptName": "静态通知提示词摘要",
+    "findRegex": "/<静态通知\\s+标题=\"([^\"]*)\">([\\s\\S]*?)<\\/静态通知>/g",
+    "replaceString": "[事件通知：$1；$2]",
+    "trimStrings": [],
+    "placement": [2],
+    "disabled": false,
+    "markdownOnly": false,
+    "promptOnly": true,
+    "runOnEdit": false,
+    "substituteRegex": 0,
+    "minDepth": null,
+    "maxDepth": null
+  }
+]
