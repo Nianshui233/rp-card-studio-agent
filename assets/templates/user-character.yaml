@@ -5,7 +5,7 @@ status: draft
 
 # 固定的是“唯一合同 + 静态/动态分层”，不是姓名、年龄、现代职业等具体字段。
 # 初始化项目后，根据题材与玩法改写 creation_fields、static_paths、dynamic_paths 和 profile。
-# 可以删除不适用字段，也可以无限扩展；Forge 只检查路径与写入闭环，不设置字段数量上限。
+# 可以删除不适用字段，也可以无限扩展；最终 QA 只检查实际路径与写入闭环，不设置字段数量上限。
 contract:
   id: user_character_v1
   mode: adaptive

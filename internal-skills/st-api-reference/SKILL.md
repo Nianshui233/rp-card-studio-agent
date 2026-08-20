@@ -19,4 +19,4 @@ description: "Private supporting module for exact SillyTavern, Tavern Helper, ST
 
 ## 证据规则
 
-类型声明、文档和源码检查只能产生 `source_checked`。真正写入、挂载、渲染和持久化仍要通过 Artifact 或 Runtime 证据升级。找不到精确签名时返回交接，不凭印象编造参数。
+类型声明、文档和源码检查只能证明接口来源已核对。真正写入、挂载、渲染和持久化仍要通过实际文件或真实运行证据确认。找不到精确签名时直接报告缺口，由拥有实现的阶段补充，不凭印象编造参数。

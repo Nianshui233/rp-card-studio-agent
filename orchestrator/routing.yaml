@@ -1,42 +1,68 @@
 schema_version: 1.0.0
 agent: rp-card-studio
+state_persistence: conversation_only
+stage_loop: orchestrator/stage-loop.md
 
-# 按当前任务直接路由，不维护固定阶段状态机。
-routes:
+stages:
+  preflight:
+    primary_skill: null
+    optional: false
+    next: positioning
   positioning:
     primary_skill: rp-project-foundation
     references: [positioning]
+    optional: false
+    next: materials
   materials:
     primary_skill: rp-project-foundation
     references: [materials]
+    optional: true
+    enable_when: existing_materials_or_retrofit
+    next: worldbuilding
   worldbuilding:
     primary_skill: rp-project-foundation
     references: [worldbuilding]
     supporting_skills: [st-worldbook-regex]
+    optional: false
+    next: character
   character:
     primary_skill: rp-cast-authoring
     supporting_skills: [st-worldbook-regex]
+    optional: false
+    next: systems
   systems:
     primary_skill: rp-experience-authoring
     references: [systems]
     supporting_skills: [st-worldbook-regex]
+    optional: true
+    next: scenes
   scenes:
     primary_skill: rp-experience-authoring
     references: [scenes]
     supporting_skills: [st-worldbook-regex]
-  narrative_opening:
-    primary_skill: rp-experience-authoring
-    references: [narrative-opening]
-    supporting_skills: [st-frontend-authoring]
+    optional: true
+    next: mvu_ejs
   mvu_ejs:
     primary_skill: st-runtime-authoring
     supporting_skills: [st-host-capabilities, st-api-reference, st-worldbook-regex]
+    optional: true
+    next: narrative_opening
+  narrative_opening:
+    primary_skill: rp-experience-authoring
+    references: [narrative-opening]
+    supporting_skills: [st-frontend-authoring, st-runtime-authoring, st-worldbook-regex]
+    optional: false
+    next: status_ui
   status_ui:
     primary_skill: st-frontend-authoring
     supporting_skills: [st-runtime-authoring, st-host-capabilities, st-api-reference, st-render-regex]
+    optional: true
+    next: qa_delivery
   qa_delivery:
     primary_skill: st-integration-qa
     supporting_skills: [st-runtime-debug, st-render-regex, st-host-capabilities, st-api-reference]
+    optional: false
+    next: null
 
 skill_paths:
   rp-project-foundation: internal-skills/rp-project-foundation/SKILL.md
