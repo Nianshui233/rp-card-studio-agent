@@ -8,12 +8,11 @@
 
 ## 这份样本验证什么
 
-1. `runtime/mvu.yaml` 与 `runtime/ejs.yaml` 是两个独立维护源。
-2. `assembly.yaml` 的酒馆助手脚本树包含 `mvu_loader` 和 `mvu_schema` 两个底座节点。
-3. 世界书条目 `relay_context` 的正文就是 EJS 模板，不要求另建 `.ejs` 文件。
-4. EJS 读取 `stat_data`，使用 `noCache: true`，输出 `<霜线上下文>...</霜线上下文>`；对应正则只在玩家显示层隐藏它。
-5. 开场页和持续页都是完整 HTML；持续页只读取状态，不另造第二套状态树。
-6. 页面按钮优先写入 SillyTavern 输入框，失败时显示可复制文本。
+1. `src/runtime/mvu/变量结构.js` 注册项目 Zod 结构，项目只启用一个 MagVarUpdate Loader。
+2. 世界书条目 `relay_context` 的正文就是 EJS 模板，不要求另建 `.ejs` 文件。
+3. EJS 读取 `stat_data`，使用 `noCache: true`，输出 `<霜线上下文>...</霜线上下文>`；对应正则只在玩家显示层隐藏它。
+4. 开场页和持续页都是完整、自包含 HTML；持续页只读取状态，不另造第二套状态树。
+5. 页面按钮优先写入 SillyTavern 输入框，失败时显示可复制文本。
 
 ## 它不保证什么
 

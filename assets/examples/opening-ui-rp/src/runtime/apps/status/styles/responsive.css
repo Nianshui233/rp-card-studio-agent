@@ -1,7 +1,0 @@
-@media (max-width: 600px) {
-  body { padding: 5px; }
-  .weather-strip, .metric-grid { grid-template-columns: repeat(2, 1fr); }
-  .status-head { align-items: flex-start; }
-  .action-bar { grid-template-columns: 1fr; }
-}
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }

@@ -1,33 +1,36 @@
 ---
 name: st-runtime-authoring
-description: "Private module for MVU, MVU_ZOD, EJS, Tavern Helper scripts, message-floor state, initialization, updates, and creation bridges."
+description: "Private module for MVU, MVU_ZOD, EJS, Tavern Helper scripts, message-floor state, initialization, updates, and creation bridges. Load only when the project actually needs runtime behavior."
 ---
 
 # SillyTavern Runtime Authoring
 
-只接受主 Agent 调度。完整读取 `shared/contracts/module-io.md`、`references/mvu-ejs.md`，以及 `references/host/` 下与当前路线有关的宿主参考。
+只接受主 Agent 调度。只读取当前路线需要的 `references/mvu-ejs.md` 或一个宿主参考。不要读取项目账本、Forge、构建器或完整能力注册表。
 
 ## 职责
 
-- 独立判断 MVU、MVU_ZOD、EJS 或组合路线是否适合项目。
-- 创作真实 `[initvar]` 初始值、Schema、变量更新规则、回复输出格式和 `.ejs` 源码，不只写占位清单。
-- 建立唯一规范状态合同：状态根、精确路径、类型、默认值、作用域、读取者、写入者、派生值、只读值、更新守卫和生命周期。
-- 创作项目专属酒馆助手脚本并明确依赖顺序。
-- 将创角结果写入默认禁用的 `<user>` 条目、当前消息 MVU 状态或二者，并在正式开局前读回验证。
-- 把 `<user>` 静态档案视为用户角色权威来源；MVU 只维护动态运行状态与明确登记的只读显示镜像，不建立第二份完整人物档案。
-- 把 `<user>` 静态档案视为用户角色权威来源；MVU 只维护动态运行状态与明确登记的只读显示镜像，不建立第二份完整人物档案。
-- 验证当前消息 ID/楼层语义，以及编辑、Swipe、重载和切换聊天生命周期。
+- 判断项目是否真的需要 MVU、MVU_ZOD、EJS 或组合路线。
+- 创作真实 `[initvar]` 初始值、Schema、变量更新规则、回复输出格式、`.ejs` 和 Tavern Helper 脚本。
+- 建立唯一状态合同：状态根、路径、类型、作用域、读写者、派生值、只读值和必要生命周期。
+- 将创角结果写入 `<user>` 条目、当前消息 MVU 状态或二者，并在开局前读回验证。
+- 验证当前消息 ID/楼层，以及编辑、Swipe、重载和切换聊天生命周期。
+
+## 最短路线
+
+- 无变量就不启用 MVU。
+- 只启用 EJS 时，不生成 MVU Loader、Schema、`[initvar]` 或变量更新块。
+- MVU 可选择 `native_schema`、`mvu_zod`、`hybrid` 或沿用已有实现。
+- 卡内 MagVarUpdate 只能有一个 `mvu_loader`。
+- 只有 `mvu_zod` 或明确需要 Zod 的 `hybrid` 才要求 `registerMvuSchema`。
+- `[initvar]`、更新规则、回复输出格式、prompt/display 清理是独立组件。
+- EJS 与 MVU 联动时明确读写方向、作用域和路径。
 
 ## 运行闭环
 
-每个 UI 字段必须解析到唯一状态合同。每种变量更新协议必须具备：真实初值、生产者、解析/应用路径、持久化结果和玩家端隐藏清理。只看到 Loader 或 `window.Mvu` 不算初始化成功。
+每个状态字段都必须能从真实初值到生产者、解析/应用路径、持久化结果和玩家显示清理闭合。只看到 Loader、`window.Mvu` 或一段模板不算完成。
 
-EJS 必须是实际 EJS 文件，并进入按稳定名称指定的 CharacterBook 条目；需要时使用 `manual` 或 `ejs_only`，不能让它参与普通关键词扫描。
-
-涉及 global/character/chat/message/script/extension 作用域、EJS cache/preparation/render 阶段、远程 Loader、生成注入、消息编辑/Swipe 或自动世界书挂载时，先加载 `st-host-capabilities`，以能力记录和回退路径为准，不把类型声明中的可用函数误报成已验证运行。
+涉及全局对象、消息楼层、远程 Loader、生成注入、iframe 或生命周期时，只加载对应宿主参考并记录成功路径、失败回退和是否实际运行。没有实机证据时写 `runtime: not_run`。
 
 ## 边界
 
-作为主 Skill 时只询问 MVU/EJS 阶段问题。作为支援 Skill 时不询问用户，直接实现锁定需求或返回交接。不得设计 UI 视觉层级、重写 RP 内容，也不得为了一个组件另造第二套状态树。
-
-制作阶段需要删除的内容必须在上游维护源码中删除，不得转化为运行时监管。尤其不得为了处理涉及未成年人的成人性内容而新增年龄门禁、`adult_only`/`age_gate` 状态、成年证明字段、Schema 年龄守卫、关系更新禁路、EJS 年龄判断、脚本拒绝、正则拦截或 UI 年龄确认。Runtime 只实现本项目已锁定的 RP 状态与功能，不负责控制成品交付后的玩法。
+不设计 UI 视觉层级，不重写 RP 内容，不另造第二套状态树。不得为了制作期清理增加年龄门禁或交付后玩法限制。

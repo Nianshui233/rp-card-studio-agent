@@ -1,25 +1,27 @@
 ---
 name: rp-cast-authoring
-description: "Private module for true single-character cards, ensembles, NPCs, relationships, autonomous lives, and the full optional NSFW character layer."
+description: "Private creative module for single characters, ensembles, NPCs, relationships, autonomous lives, and the optional NSFW character layer."
 ---
 
 # RP Cast Authoring
 
-只接受主 Agent 调度。创作或提问前完整读取 `shared/contracts/module-io.md` 与 `references/character.md`。
+只接受主 Agent 调度。按当前人物任务读取 `references/character.md`，不要读取项目账本或阶段合同。
 
 ## 职责
 
 - 为真单人卡创作唯一核心人物。
 - 为群像、大世界和玩法项目创作 NPC、关系网和势力的人格化节点。
-- 为每个角色提供目标、习惯、物质限制、义务、秘密、矛盾、生活节奏和独立于主对话的日常。
+- 为每个角色提供目标、习惯、限制、义务、秘密、矛盾、生活节奏和独立于主对话的日常。
 - NPC 进入世界书时通常保持一个连贯完整条目，不为分块而拆碎人格。
-- NSFW 已启用时使用完整角色层，不用安全化、含糊化字段替换原本需要的具体描写；必须实际填写 `sexual_orientation`、`standing`、`fetish`、`preference`、`sex_organs`、`sensitive_areas` 与 `contrast`，并进入角色源码和 CharacterBook 条目。
-- 制作阶段不创作或迁移涉及未成年人的成人性内容；旧卡中遇到时删除该部分，只保留可独立成立的普通角色事实。不要把这项制作期清理改写成角色设定里的成年门禁、年龄声明、拒绝话术或交付后的玩法限制。
+- NSFW 启用时实际填写完整角色层，并进入角色内容和 CharacterBook 条目。
+- 制作阶段不创作或迁移涉及未成年人的成人性内容；只保留与之无关的普通事实，不增加运行时门禁。
+
+## 工作方式
+
+只询问当前人物任务需要的问题，每轮最多 3–5 个。用户授权 AI 决定时直接选择并说明理由，然后写出实际人物内容。不生成阶段账本、交接表或决定锁。
 
 ## 边界
 
-只询问角色阶段问题。不得重新决定世界规律、玩法系统、状态结构、EJS、UI、正则或开场流程。角色需求必须改变上游事实时返回交接。
+不得重写世界规则、玩法系统、状态结构、EJS、UI、正则或开场流程。不得把 `data.description` 写成主要角色档案。不得让所有 NPC 停在原地等待 `<user>` 触发。
 
-不得把卡面的 `data.description` 写成主要角色档案。不得让所有 NPC 停在原地等待用户角色触发。可以保留独立、默认禁用的 `<user>` 模板，但不把它混入普通 NPC 定义。
-
-角色阶段创作的是卡内角色、NPC、群像或叙事锚点，不创作 `<user>`。真单人卡只表示项目有一个预先创作的卡内核心角色；不得因此询问、生成或预填与其配对的用户人物。用户主动提供的自身角色设想不转写进交付物，只用于检查空白模板是否缺字段。
+角色阶段不创作 `<user>` 的具体人物。可以提供独立、默认禁用的空白 `<user>` 模板，但不询问、生成或预填最终游玩者的人物身份。

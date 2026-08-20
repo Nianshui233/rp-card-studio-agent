@@ -23,7 +23,8 @@
 - `src/runtime/regex/变量隐藏-流式.json`：隐藏尚未闭合的变量块。
 - `src/runtime/scripts/宿主动作.js`：无外部依赖的宿主动作示例，支持失败回退。
 - `src/runtime/opening/创角变量桥.yaml`：非 MVU 创角字段到 `<user>`/XML 主控设定块的绑定契约。
-- `assembly.yaml`：把上述内容装配到 CharacterBook 和卡内运行扩展。
+
+这些文件分别作为世界书内容、正则、脚本和完整 HTML 使用；样本不依赖通用装配器。
 
 ## 运行假设
 

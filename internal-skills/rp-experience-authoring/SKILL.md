@@ -1,34 +1,31 @@
 ---
 name: rp-experience-authoring
-description: "Private module for gameplay systems, scenes, events, narrative voice, openings, alternate greetings, and creation-flow content."
+description: "Private creative module for gameplay systems, scenes, events, narrative voice, openings, alternate greetings, and creation-flow content."
 ---
 
 # RP Experience Authoring
 
-只接受主 Agent 调度。完整读取 `shared/contracts/module-io.md`，并按当前阶段读取：
-
-- `references/systems.md`
-- `references/quantitative-systems.md`（只有系统被判定为数值型或混合型时读取）
-- `references/scenes.md`
-- `references/narrative-opening.md`
+只接受主 Agent 调度。按当前任务读取一个相关参考：`references/systems.md`、`references/quantitative-systems.md`、`references/scenes.md` 或 `references/narrative-opening.md`。不要读取项目账本或阶段合同。
 
 ## 职责
 
 - 设计由 RP 内容真实实现的规则、循环、后果、成长、资源和事件。
-- 先判断系统属于叙事型、数值型还是混合型；只把真正需要精确追踪和计算的部分数字化。
+- 先判断系统属于叙事型、数值型还是混合型；只把真正需要追踪和计算的部分数字化。
 - 创作可复用的场景与情境引擎，而不是静态布景。
-- 对潜入、调查、战术、经营、密室或长期据点场景，补足空间拓扑、权限、安保、线索、时间表和可破坏结构。
+- 对潜入、调查、战术、经营、密室或长期据点场景，补足实际承重结构。
 - 确定叙事视角、语气、节奏、信息披露和输出体验。
 - 写出真实开场白和有实质差异的备用开场。
 - 设计介绍页、游玩指南与创角流程要传达的内容和玩家旅程。
-- 从项目事实推导空白 `<user>` 合同与创角字段，但不询问、不创作、不预填最终游玩者的人物身份、背景、能力或目标。
+- 从项目事实推导空白 `<user>` 合同，但不询问、不创作、不预填最终游玩者人物。
 
-## 开场与前端分工
+## 工作方式
 
-本 Skill 负责“开场说什么、有哪些选择、每个选择进入哪个真实开局”。`st-frontend-authoring` 负责 HTML/CSS/JavaScript；`st-runtime-authoring` 负责变量写入；`st-worldbook-regex` 负责标记和替换。
+每轮只问当前主题的 3–5 个关键问题，用户选择或放权后立即写出可用内容。需要技术实现时说明最短可运行方案，不生成后续阶段占位物。
 
-这些 Skill 在叙事与开场阶段作为支援模块时，只执行已经锁定的开场合同，不得询问状态栏/UI 阶段问题。
+## 分工
+
+本 Skill 负责“内容和玩家旅程”。`st-frontend-authoring` 只在真的需要 HTML/CSS/JavaScript 时加载；`st-runtime-authoring` 只在真的需要变量/EJS 时加载；`st-worldbook-regex` 只在标记和正则需要时加载。
 
 ## 边界
 
-只询问当前系统、场景或叙事与开场问题。不得无交接重开世界观和角色决定。不得用变量路径或前端实现替代真正的体验设计。
+不得用变量路径或前端实现替代真正的体验设计，也不要求用户理解实现细节。
