@@ -1,0 +1,27 @@
+{
+  "type": "folder",
+  "enabled": false,
+  "name": "雾港航站·运行脚本",
+  "id": "6f4c2a91-8b17-4e5d-9a30-5c8e2f7a11c4",
+  "icon": "fa-solid fa-lightbulb",
+  "color": "#7de3ff",
+  "scripts": [
+    {
+      "type": "script",
+      "enabled": false,
+      "name": "MVU变量框架",
+      "id": "9d5a3f72-1c64-48be-8f2a-7b90c4d5e6f1",
+      "content": "import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate@0a730cd4a9b99689d1135a49b542c780b977c24c/artifact/bundle.js';\n",
+      "info": "锁定到本次源码核对 commit 的 MagVarUpdate Loader；需要网络和 Tavern Helper。",
+      "button": {
+        "enabled": true,
+        "buttons": []
+      },
+      "data": {},
+      "export_with": {
+        "data": true,
+        "button": true
+      }
+    }
+  ]
+}

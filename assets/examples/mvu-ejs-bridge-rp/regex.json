@@ -2,7 +2,7 @@
   {
     "id": "79e50354-29b8-4b77-9482-6dc5a7dfe3ca",
     "scriptName": "MVU更新块显示隐藏",
-    "findRegex": "/<UpdateVariable>(?:[\\s\\S]*?<\\/UpdateVariable>|[\\s\\S]*)$/g",
+    "findRegex": "/<UpdateVariable>(?:[\\s\\S]*?<\\/UpdateVariable>|[\\s\\S]*)/g",
     "replaceString": "",
     "trimStrings": [],
     "placement": [2],

@@ -52,7 +52,8 @@ GLOBAL → SCOPED → PRESET
 
 ```text
 1 通道门：markdownOnly&&isMarkdown 或 promptOnly&&isPrompt 或（双 false 且非 markdown 非 prompt）
-  —— markdownOnly 与 promptOnly 同为 true 的规则三个条件都不满足，永远不执行
+  —— 仅 markdownOnly：只进显示通道；仅 promptOnly：只进提示词通道；
+  两者同 true：display 与 prompt 双通道都执行；双 false：只在编辑/注入等原始文本路径执行
 2 isEdit 且无 runOnEdit → 跳过
 3 depth 在 min/max 区间内（depth 为数值时才检查）
 4 placement.includes(当前placement) → 执行

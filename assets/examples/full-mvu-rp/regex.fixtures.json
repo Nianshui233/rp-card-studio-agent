@@ -1,0 +1,42 @@
+[
+  {
+    "id": "display-complete-update-and-placeholder",
+    "input": "洛檀把风灯别回腰间，指向栈桥尽头。\n<UpdateVariable>\n<Analysis>巡桥消耗体力</Analysis>\n_.add('角色.体力', -3);//巡桥消耗\n</UpdateVariable>\n\n<StatusPlaceHolderImpl/>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected_contains": "洛檀把风灯别回腰间，指向栈桥尽头。\n\n\n```html\n<!doctype html>"
+  },
+  {
+    "id": "display-streaming-half-block",
+    "input": "洛檀把风灯别回腰间，指向栈桥尽头。\n<UpdateVariable>\n<Analysis>巡桥消耗",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "洛檀把风灯别回腰间，指向栈桥尽头。\n"
+  },
+  {
+    "id": "display-floor0-greeting-marker",
+    "input": "雾从河面漫上栈桥，航站的灯一盏盏亮起来。\n<航站面板/>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected_contains": "雾从河面漫上栈桥，航站的灯一盏盏亮起来。\n```html\n<!doctype html>"
+  },
+  {
+    "id": "prompt-full-cleanup",
+    "input": "洛檀把风灯别回腰间，指向栈桥尽头。\n<UpdateVariable>\n<Analysis>巡桥消耗体力</Analysis>\n_.add('角色.体力', -3);//巡桥消耗\n</UpdateVariable>\n\n<StatusPlaceHolderImpl/>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "prompt",
+    "expected": "洛檀把风灯别回腰间，指向栈桥尽头。\n"
+  },
+  {
+    "id": "display-user-input-untouched",
+    "input": "我先去仓库领备用保险丝。\n<航站面板/>",
+    "placement": 1,
+    "depth": 0,
+    "channel": "display",
+    "expected": "我先去仓库领备用保险丝。\n<航站面板/>"
+  }
+]
