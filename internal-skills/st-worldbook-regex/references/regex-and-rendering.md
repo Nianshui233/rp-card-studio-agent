@@ -41,8 +41,10 @@ Tavern Helper 高层 `getTavernRegexes()` 返回 snake_case 和 `source/destinat
 SillyTavern Core 当前正则顺序：
 
 ```text
-GLOBAL → PRESET → SCOPED
+GLOBAL → SCOPED → PRESET
 ```
+
+来源：`engine.js` 中 `SCRIPT_TYPES = { GLOBAL: 0, PRESET: 2, SCOPED: 1 }`，`getRegexScripts()` 按 `Object.values(SCRIPT_TYPES)` 遍历；三个键均为整数键，JS 按数值升序迭代为 0→1→2。对象字面量里 PRESET 写在 SCOPED 之前的声明顺序不参与执行。
 
 角色 scoped regex 和 preset regex 还受 allowlist 控制。最终 QA 不只看规则存在，还检查：
 

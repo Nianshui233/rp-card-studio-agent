@@ -65,8 +65,10 @@ Tavern Helper iframe 中：
 SillyTavern 本体当前顺序：
 
 ```text
-GLOBAL → PRESET → SCOPED
+GLOBAL → SCOPED → PRESET
 ```
+
+来源：`SCRIPT_TYPES` 数值为 `{ GLOBAL: 0, PRESET: 2, SCOPED: 1 }`，`getRegexScripts()` 按整数键升序遍历；字面量声明顺序不是执行顺序。
 
 角色 scoped 和 preset regex 还受 allowlist 控制。检查：
 
