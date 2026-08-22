@@ -35,7 +35,9 @@ description: "Private final QA and delivery module for checking actual SillyTave
 - EJS 模板、按名调用条目、执行阶段和 MVU bridge；
 - 正则 placement/depth、prompt/display 分工、标记与 HTML 配对；
 - Tavern Helper Script/ScriptFolder JSON 结构、内容、ID、依赖、重复注册和必要卸载；`.js` 不能冒充导入文件；
-- HTML 是否自包含、是否有真实动态载体、是否读取真实数据并有空态/失败回退；
+- 开场/创角 HTML 是否完成空白输入、主动选择、校验、真实写入、分别读回、失败保留和 greeting 交接；
+- 持续消息 HTML 是否自包含、有真实动态载体、读取当前楼层/Swipe、处理刷新与清理并有空态/失败回退；
+- 两种前端同时存在时，是否分别交付独立 HTML、使用同一运行合同，并避免重复初始化和第二套状态树；
 - 交付文件是否残留绝对路径、`src/...`、`source_refs` 或需要用户拼接的本地 CSS/JS。
 
 只有确定会造成无法导入、无法运行、数据丢失或明确断链的问题才阻断交付。风格、规模和性能建议只作为非阻断说明。

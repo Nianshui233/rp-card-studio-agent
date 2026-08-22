@@ -26,7 +26,7 @@ description: "Private creative module for gameplay systems, scenes, events, narr
 
 ## 分工
 
-本 Skill 负责“内容和玩家旅程”。`st-frontend-authoring` 只在真的需要 HTML/CSS/JavaScript 时加载；`st-runtime-authoring` 只在真的需要变量/EJS 时加载；`st-worldbook-regex` 只在标记和正则需要时加载。
+本 Skill 负责“内容和玩家旅程”。`st-opening-frontend-authoring` 只在需要项目介绍、路线选择、创角、预览或进入 greeting 的一次性 HTML 时加载；`st-message-frontend-authoring` 只在需要正式游玩中的持续消息 UI 时加载；`st-runtime-authoring` 只在真的需要变量/EJS 时加载；`st-worldbook-regex` 只在标记和正则需要时加载。
 
 ## 边界
 

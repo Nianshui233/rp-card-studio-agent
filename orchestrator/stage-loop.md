@@ -14,7 +14,8 @@ preflight
 → scenes（预检启用时）
 → mvu_ejs（预检启用或后续确认需要时）
 → narrative_opening
-→ status_ui（预检启用或后续确认需要时）
+→ opening_frontend（需要介绍/路线/创角页面时）
+→ message_frontend（需要持续消息 UI 时）
 → qa_delivery
 ```
 

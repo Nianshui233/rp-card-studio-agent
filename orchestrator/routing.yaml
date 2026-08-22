@@ -51,13 +51,20 @@ stages:
   narrative_opening:
     primary_skill: rp-experience-authoring
     references: [narrative-opening]
-    supporting_skills: [st-frontend-authoring, st-runtime-authoring, st-worldbook-regex]
+    supporting_skills: [st-runtime-authoring, st-worldbook-regex]
     optional: false
-    next: status_ui
-  status_ui:
-    primary_skill: st-frontend-authoring
-    supporting_skills: [st-runtime-authoring, st-host-capabilities, st-api-reference, st-render-regex]
+    next: opening_frontend
+  opening_frontend:
+    primary_skill: st-opening-frontend-authoring
+    supporting_skills: [st-runtime-authoring, st-host-capabilities, st-api-reference, st-worldbook-regex, st-render-regex]
     optional: true
+    enable_when: opening_or_creation_frontend_requested
+    next: message_frontend
+  message_frontend:
+    primary_skill: st-message-frontend-authoring
+    supporting_skills: [st-runtime-authoring, st-host-capabilities, st-api-reference, st-worldbook-regex, st-render-regex]
+    optional: true
+    enable_when: ongoing_message_ui_requested
     next: qa_delivery
   qa_delivery:
     primary_skill: st-integration-qa
@@ -70,7 +77,8 @@ skill_paths:
   rp-cast-authoring: internal-skills/rp-cast-authoring/SKILL.md
   rp-experience-authoring: internal-skills/rp-experience-authoring/SKILL.md
   st-runtime-authoring: internal-skills/st-runtime-authoring/SKILL.md
-  st-frontend-authoring: internal-skills/st-frontend-authoring/SKILL.md
+  st-opening-frontend-authoring: internal-skills/st-opening-frontend-authoring/SKILL.md
+  st-message-frontend-authoring: internal-skills/st-message-frontend-authoring/SKILL.md
   st-worldbook-regex: internal-skills/st-worldbook-regex/SKILL.md
   st-host-capabilities: internal-skills/st-host-capabilities/SKILL.md
   st-api-reference: internal-skills/st-api-reference/SKILL.md

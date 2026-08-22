@@ -1,6 +1,7 @@
-status_ui:
+message_ui:
   enabled: false
   purpose: ""
+  ownership: ongoing_message_only
   player_priority: []
   device_priority: equal
   visual_direction: ""

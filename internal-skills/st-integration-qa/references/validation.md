@@ -86,7 +86,16 @@ minDepth/maxDepth: number|null
 - `runOnEdit` 不把 UI 源码永久写回原消息；
 - Tavern Helper 高层 snake_case 对象没有与原始 camelCase 混用。
 
-## 动态前端
+## 开场/创角前端
+
+- 正式玩家字段默认空白，快速预设默认不选且可编辑；
+- 路线选择映射到真实 greeting/开场和一致初态；
+- 稳定档案与动态初态分别写入各自权威源并读回；
+- 空输入、非默认值、重复点击、写入失败和成功交接都有证据；
+- 失败时保留输入，不把页面本地对象或聊天正文冒充写入成功；
+- 成功进入开场后不继续承担持续消息状态栏职责。
+
+## 持续消息前端
 
 - 纯 SillyTavern 动态脚本路线判定为失败；本体仅承诺静态净化 HTML；
 - Tavern Helper 路线的 `replaceString` 是完整 fenced HTML 代码块；
@@ -94,7 +103,12 @@ minDepth/maxDepth: number|null
 - iframe 实际建立后才算运行通过；
 - 捕获载荷有防 fence/textarea/script 终止的编码或改用消息 API；
 - 正式运行不回退 mock；
-- 编辑、Swipe、重载、切聊和 `pagehide` 生命周期明确。
+- 当前数值楼层、编辑、Swipe、重载、切聊和 `pagehide` 生命周期明确；
+- 不重新初始化玩家档案，也不另造一套状态树。
+
+## 前端交接
+
+两种前端同时存在时，核对开场前端写入的稳定档案和动态初态能被持续消息前端从同一权威来源读取；同一字段只有一个写入权威，重复挂载不会再次执行首次初始化。
 
 ## Tavern Helper Script
 

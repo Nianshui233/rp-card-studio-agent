@@ -19,6 +19,6 @@ description: "Private supporting module for real SillyTavern runtime reproductio
 
 ## 故障归因
 
-按第一因果错误返回 `handoff`：导入/绑定 → integration，API/版本 → st-api-reference 或 st-host-capabilities，状态/变量 → mvu_ejs，正则/标记 → st-render-regex，UI源码 → st-frontend-authoring。
+按第一因果错误返回 `handoff`：导入/绑定 → integration，API/版本 → st-api-reference 或 st-host-capabilities，状态/变量 → mvu_ejs，正则/标记 → st-render-regex，开场/创角页面与提交 → st-opening-frontend-authoring，持续消息 UI 源码与生命周期 → st-message-frontend-authoring。
 
 浏览器超时只表示观察动作超时，不代表副作用没有发生；重新读取聊天身份、消息数量、挂载数量和变量值后再下结论。
