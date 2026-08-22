@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>雾港航站·开场登记</title>
+<style>
+:root{color-scheme:dark;--ink:#edf7f5;--muted:#9db5b3;--line:#315e5b;--panel:#0d2426;--panel2:#132f31;--accent:#f1b45b;--cyan:#7dd8cf;--bad:#ff9d8e;--ok:#96dfb3}
+*{box-sizing:border-box}
+body{margin:0;padding:12px;overflow-x:hidden;background:radial-gradient(circle at 20% 0,#173d3d 0,#081719 54%,#050e10 100%);color:var(--ink);font:14px/1.55 system-ui,"Microsoft YaHei",sans-serif}
+.shell{width:100%;max-width:920px;min-width:0;margin:auto;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:#071416dd;box-shadow:0 20px 70px #0008}
+.hero{padding:22px 22px 18px;border-bottom:1px solid var(--line);background:linear-gradient(120deg,#173d3f,#0d2528 58%,#172525)}
+.kicker{letter-spacing:.16em;color:var(--accent);font-size:11px;font-weight:800}.hero h1{margin:4px 0 6px;font:700 27px/1.2 Georgia,"Microsoft YaHei",serif}.hero p{margin:0;max-width:720px;color:#c6d9d7}.steps{display:flex;gap:7px;flex-wrap:wrap;margin-top:15px}.step{border:1px solid #ffffff1c;border-radius:999px;padding:4px 9px;color:var(--muted);font-size:12px}.step.on{border-color:var(--accent);color:#ffe2b7;background:#f1b45b18}
+.main{padding:20px}.notice{border-left:3px solid var(--cyan);background:#7dd8cf10;padding:11px 13px;border-radius:0 10px 10px 0;color:#cde2df;margin-bottom:16px}.notice b{color:var(--cyan)}
+.section{display:none}.section.on{display:block}.section h2{margin:0 0 5px;font-size:20px}.lead{margin:0 0 16px;color:var(--muted)}
+.field{border:1px solid #ffffff18;border-radius:14px;background:#ffffff06;padding:14px;margin:10px 0}.field-head{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}.question{font-weight:800;font-size:15px}.recommend{color:#ffd493;font-size:12px;border:1px solid #f1b45b55;border-radius:999px;padding:2px 8px;white-space:nowrap}.why,.impact{font-size:12px;margin-top:5px;color:var(--muted)}.why b{color:#b9dbd7}.impact b{color:#f2c27a}
+input[type=text],textarea,select{width:100%;margin-top:10px;border:1px solid #4c7370;border-radius:10px;background:#0a1d1f;color:var(--ink);padding:10px 11px;font:inherit;outline:none}input:focus,textarea:focus,select:focus{border-color:var(--cyan);box-shadow:0 0 0 3px #7dd8cf18}textarea{min-height:82px;resize:vertical}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:10px}.choice{position:relative}.choice input{position:absolute;opacity:0;pointer-events:none}.choice label{display:block;height:100%;border:1px solid #416764;border-radius:12px;padding:11px;background:#0a1c1e;cursor:pointer;transition:.18s}.choice label:hover{transform:translateY(-1px);border-color:#6ea19c}.choice input:checked+label{border-color:var(--accent);background:#f1b45b12;box-shadow:0 0 0 2px #f1b45b20}.choice strong{display:block;color:#eef9f7}.choice small{display:block;margin-top:4px;color:var(--muted);line-height:1.45}.tag{display:inline-block;margin-top:7px;color:#ffd79c;font-size:11px}
+.custom{display:none}.custom.on{display:block}.summary{display:grid;grid-template-columns:1fr 1fr;gap:10px}.summary article{border:1px solid #ffffff1a;border-radius:13px;padding:13px;background:#ffffff06}.summary h3{margin:0 0 5px;color:var(--cyan);font-size:13px}.summary p{margin:0;color:#dceae8}.warning{margin-top:14px;border:1px solid #f1b45b55;border-radius:12px;padding:12px;background:#f1b45b0d;color:#f4dfbd}
+.footer{display:flex;gap:10px;align-items:center;border-top:1px solid var(--line);padding:14px 20px;background:#091a1c}.spacer{flex:1}.status{color:var(--muted);font-size:12px;min-width:0}.status.bad{color:var(--bad)}.status.ok{color:var(--ok)}button{border:1px solid #4f7774;border-radius:10px;padding:9px 14px;background:#153335;color:var(--ink);font:inherit;font-weight:700;cursor:pointer}button.primary{border-color:#d99437;background:linear-gradient(#f1b45b,#ce8430);color:#1b1207}button.ghost{background:transparent}button:disabled{opacity:.5;cursor:wait}
+.fallback{display:none;border:1px solid #a65e53;border-radius:12px;padding:13px;background:#5d201b30;color:#ffd6cf}.fallback.on{display:block}
+@media(max-width:720px){body{padding:7px}.hero,.main{padding:16px;overflow:hidden}.cards,.summary{grid-template-columns:1fr}.field-head{display:block}.recommend{display:inline-block;margin-top:6px;white-space:normal}.hero p,.lead,.notice,.field{overflow-wrap:anywhere}.footer{padding:12px 14px;flex-wrap:wrap}.status{display:none}.hero h1{font-size:23px}}
+</style>
+</head>
+<body>
+<main class="shell">
+  <header class="hero">
+    <div class="kicker">MISTPORT NORTH STATION · ONE-SHOT OPENING</div>
+    <h1>雾港航站：在雾钟响起前登记</h1>
+    <p>这是一次性的开场/创角前端。它只负责确认玩家的公开起点、选择真实 Greeting 路线，并把稳定档案与对应 Swipe 初态保存好；进入 RP 后由另一套消息前端接管。</p>
+    <div class="steps"><span class="step on" data-step="0">1 进入说明</span><span class="step" data-step="1">2 玩家起点</span><span class="step" data-step="2">3 路线与预览</span></div>
+  </header>
+
+  <div class="main">
+    <div id="fallback" class="fallback">开场协调器未启用。请先导入并启用“雾港航站·运行脚本”；也可以手动左右滑动到固定 Greeting 直接开始。</div>
+
+    <section class="section on" data-page="0">
+      <div class="notice"><b>核心体验：</b>和守站人洛檀一起维持一座会自行运转的河港航站。潮位、渡船、值班表、物资和人物日程不会等玩家准备好才变化。</div>
+      <h2>你只需要确定“别人此刻能知道的你”</h2>
+      <p class="lead">不会要求填写完整履历，也不会替你决定性格和过去。稳定档案写入唯一的 <b>&lt;user&gt;</b> 世界书条目；天气、任务和物资写入所选 Greeting Swipe 的 MVU 初态。</p>
+      <div class="field">
+        <div class="field-head"><div class="question">问题：你希望多快进入正式 RP？</div><span class="recommend">建议：两分钟内</span></div>
+        <div class="why"><b>为什么：</b>雾港最有趣的是进入现场后根据具体压力塑造人物，而不是在开局前写完一生。</div>
+        <div class="impact"><b>影响：</b>这里只保留称呼、来历、专长、行动倾向与开局路线；其他内容在对话中自然形成。</div>
+      </div>
+    </section>
+
+    <section class="section" data-page="1">
+      <h2>玩家起点</h2>
+      <p class="lead">每项都给出推荐、理由和实际影响；你仍需主动选择，页面不会静默替你定案。</p>
+
+      <div class="field">
+        <div class="field-head"><div class="question">问题：航站里的人怎么称呼你？</div><span class="recommend">建议：短称呼</span></div>
+        <div class="why"><b>为什么：</b>洛檀说话简短，称呼越自然，越容易进入来回对话。</div>
+        <div class="impact"><b>影响：</b>写入稳定玩家档案，并显示在持续消息面板；不会据此推断性别或完整身份。</div>
+        <input id="name" type="text" maxlength="16" autocomplete="off" placeholder="例如：阿岚、槐生、Rin">
+      </div>
+
+      <div class="field">
+        <div class="field-head"><div class="question">问题：别人首先会把你当成哪类来客？</div><span class="recommend">建议：流动修械师</span></div>
+        <div class="why"><b>为什么：</b>它能立刻接住灯标故障，又不会把你锁死成港务体系内部的人。</div>
+        <div class="impact"><b>影响：</b>改变 NPC 的第一印象、可自然获得的信息和解决问题的切入角度，不提供强制数值加成。</div>
+        <div class="cards">
+          <div class="choice"><input id="bg-clerk" name="background" value="clerk" type="radio"><label for="bg-clerk"><strong>港务临时抄写员</strong><small>熟悉值班表、电报和规章；更容易接触记录。</small></label></div>
+          <div class="choice"><input id="bg-deck" name="background" value="deckhand" type="radio"><label for="bg-deck"><strong>驳船学徒</strong><small>熟悉河况、绳结和船上规矩；更容易读懂水路异常。</small></label></div>
+          <div class="choice"><input id="bg-mech" name="background" value="mechanic" type="radio"><label for="bg-mech"><strong>流动修械师</strong><small>熟悉灯具和临时修补。</small><span class="tag">推荐</span></label></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-head"><div class="question">问题：你最愿意靠什么推进事情？</div><span class="recommend">建议：机械与检修</span></div>
+        <div class="why"><b>为什么：</b>第一条固定路线就是灯标异常，早期很快能看到专长如何转成具体行动。</div>
+        <div class="impact"><b>影响：</b>模型会优先提供对应领域的可观察细节；不会替你自动成功。</div>
+        <div class="cards">
+          <div class="choice"><input id="sk-repair" name="skill" value="repair" type="radio"><label for="sk-repair"><strong>机械与检修</strong><small>设备、线路、工具与故障痕迹。</small><span class="tag">推荐</span></label></div>
+          <div class="choice"><input id="sk-observe" name="skill" value="observe" type="radio"><label for="sk-observe"><strong>水路与观察</strong><small>潮位、航迹、声音和环境变化。</small></label></div>
+          <div class="choice"><input id="sk-rapport" name="skill" value="rapport" type="radio"><label for="sk-rapport"><strong>交涉与人情</strong><small>关系、消息来源与互相帮忙的代价。</small></label></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-head"><div class="question">问题：遇到不明状况时，你通常先做什么？</div><span class="recommend">建议：先观察</span></div>
+        <div class="why"><b>为什么：</b>雾港的压力会自行升级，先观察能让环境和 NPC 主动性更明显。</div>
+        <div class="impact"><b>影响：</b>改变叙事给你的第一批反馈，不会成为强制性格标签。</div>
+        <select id="approach"><option value="">请选择</option><option value="observe">先观察现场与人物反应（推荐）</option><option value="cautious">谨慎核对风险后行动</option><option value="direct">先动手解决眼前问题</option></select>
+      </div>
+    </section>
+
+    <section class="section" data-page="2">
+      <h2>选择进入雾港的方式</h2>
+      <p class="lead">固定路线会切到已经存在的 Greeting Swipe；自定义路线会重写当前开场并发送一条真实玩家消息，再触发正常 AI 回复。</p>
+
+      <div class="field">
+        <div class="field-head"><div class="question">问题：今晚最先压到你面前的事情是什么？</div><span class="recommend">建议：例行巡灯</span></div>
+        <div class="why"><b>为什么：</b>它同时覆盖场景移动、检修、物资、线索、关系与天气，是最完整又最易上手的样本路径。</div>
+        <div class="impact"><b>影响：</b>固定路线提交后不自动替你发言；自定义路线会按预览文本进入真实 user → AI 消息链。</div>
+        <div class="cards">
+          <div class="choice"><input id="rt-routine" name="route" value="routine" type="radio"><label for="rt-routine"><strong>例行巡灯</strong><small>从一项应当简单的检修开始，逐渐发现灯标异常并不只是灯丝老化。</small><span class="tag">推荐 · 固定 Greeting</span></label></div>
+          <div class="choice"><input id="rt-rescue" name="route" value="rescue" type="radio"><label for="rt-rescue"><strong>失联渡船</strong><small>末班渡船没有按时靠岸，雾钟从错误的方向传来。</small><span class="tag">固定 Greeting</span></label></div>
+          <div class="choice"><input id="rt-custom" name="route" value="custom" type="radio"><label for="rt-custom"><strong>自定义来意</strong><small>你带着明确目的来到航站；世界原有事件仍会继续。</small><span class="tag">动态真实发送链</span></label></div>
+        </div>
+        <div id="custom" class="custom"><textarea id="customGoal" maxlength="80" placeholder="例如：我在追查一封从未登记入册、却盖着港务所旧印的电报。"></textarea></div>
+      </div>
+
+      <div id="summary" class="summary" hidden>
+        <article><h3 id="sumTitle">玩家档案</h3><p id="sumProfile"></p></article>
+        <article><h3>开局路线</h3><p id="sumRoute"></p></article>
+        <article><h3>为什么这样组合</h3><p id="sumImpact"></p></article>
+        <article><h3>提交后的实际动作</h3><p id="sumProtocol"></p></article>
+      </div>
+      <div class="warning">确认后会写入唯一的 <b>&lt;user&gt;</b> 条目与目标 Swipe 初态，并等待真实保存。若聊天、Greeting、表单预览或输入框草稿在确认期间变化，旧提交会取消而不是猜测继续。</div>
+    </section>
+  </div>
+
+  <footer class="footer">
+    <button id="back" class="ghost" disabled>上一步</button>
+    <div id="status" class="status">尚未提交；所有选择只保留在本页草稿中。</div>
+    <div class="spacer"></div>
+    <button id="next" class="primary">继续</button>
+  </footer>
+</main>
+<script>
+(() => {
+  'use strict';
+  var page = 0;
+  var token = null;
+  var busy = false;
+  var q = function (selector) { return document.querySelector(selector); };
+  var qa = function (selector) { return Array.from(document.querySelectorAll(selector)); };
+
+  function api() {
+    return window.MistportOpening || (window.parent && window.parent.MistportOpening) || null;
+  }
+
+  function note(text, kind) {
+    var el = q('#status');
+    el.textContent = text;
+    el.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  function selected(name) {
+    var el = q('input[name="' + name + '"]:checked');
+    return el ? el.value : '';
+  }
+
+  function draft() {
+    return {
+      name: q('#name').value,
+      background: selected('background'),
+      skill: selected('skill'),
+      approach: q('#approach').value,
+      route: selected('route'),
+      custom_goal: q('#customGoal').value,
+    };
+  }
+
+  function validateBasics(includeRoute) {
+    var d = draft();
+    if (!d.name.trim()) throw new Error('请填写玩家称呼');
+    if (!d.background) throw new Error('请选择玩家来历');
+    if (!d.skill) throw new Error('请选择玩家专长');
+    if (!d.approach) throw new Error('请选择行事倾向');
+    if (includeRoute && !d.route) throw new Error('请选择开局路线');
+    if (includeRoute && d.route === 'custom' && d.custom_goal.trim().length < 4) throw new Error('请把自定义来意写得再具体一点');
+    return d;
+  }
+
+  function showPage(next) {
+    page = Math.max(0, Math.min(2, next));
+    qa('.section').forEach(function (el) { el.classList.toggle('on', Number(el.dataset.page) === page); });
+    qa('.step').forEach(function (el) { el.classList.toggle('on', Number(el.dataset.step) === page); });
+    q('#back').disabled = page === 0 || busy;
+    q('#next').textContent = page === 2 ? (token ? '确认并进入' : '生成预览') : '继续';
+    q('#next').disabled = busy;
+  }
+
+  function invalidatePreview() {
+    token = null;
+    q('#summary').hidden = true;
+    if (page === 2) q('#next').textContent = '生成预览';
+    note('表单已变化，需要重新生成预览。');
+  }
+
+  async function makePreview() {
+    var provider = api();
+    if (!provider) throw new Error('开场协调器未启用');
+    var result = await provider.prepare(validateBasics(true));
+    token = result.token;
+    q('#sumTitle').textContent = result.preview.title;
+    q('#sumProfile').textContent = result.preview.profile;
+    q('#sumRoute').textContent = result.preview.route;
+    q('#sumImpact').textContent = result.preview.impact;
+    q('#sumProtocol').textContent = result.preview.fixed_greeting
+      ? '切换到对应固定 Greeting，写入该 Swipe 初态并保存；不会自动替玩家发言。'
+      : '重写动态 Greeting，发送预览中的 canonical 玩家开局消息，触发正常 AI 回复并等待 MVU 楼层快照。';
+    q('#summary').hidden = false;
+    q('#next').textContent = '确认并进入';
+    note('预览已冻结。再次修改任何字段都会使本次预览失效。', 'ok');
+  }
+
+  async function doCommit() {
+    var provider = api();
+    if (!provider) throw new Error('开场协调器未启用');
+    busy = true;
+    showPage(page);
+    note('正在写入玩家档案、目标 Swipe 初态并等待保存……');
+    var result = await provider.commit(token, validateBasics(true));
+    if (document.body && document.body.isConnected) {
+      note(result.status === 'awaiting_ai' ? '玩家消息已保存，等待你手动继续生成。' : '提交完成。', result.status === 'awaiting_ai' ? 'bad' : 'ok');
+    }
+  }
+
+  q('#back').addEventListener('click', function () { if (!busy) showPage(page - 1); });
+  q('#next').addEventListener('click', async function () {
+    if (busy) return;
+    try {
+      if (page === 0) { showPage(1); return; }
+      if (page === 1) { validateBasics(false); showPage(2); return; }
+      if (!token) await makePreview();
+      else await doCommit();
+    } catch (error) {
+      busy = false;
+      showPage(page);
+      note(error.message || String(error), 'bad');
+    }
+  });
+
+  qa('input,textarea,select').forEach(function (el) {
+    el.addEventListener('input', function () {
+      if (token) invalidatePreview();
+      if (el.name === 'route') q('#custom').classList.toggle('on', selected('route') === 'custom');
+    });
+    el.addEventListener('change', function () {
+      if (token) invalidatePreview();
+      if (el.name === 'route') q('#custom').classList.toggle('on', selected('route') === 'custom');
+    });
+  });
+
+  if (!api()) {
+    q('#fallback').classList.add('on');
+    note('协调器缺失：当前只能阅读说明或手动切换固定 Greeting。', 'bad');
+  }
+  showPage(0);
+})();
+</script>
+</body>
+</html>

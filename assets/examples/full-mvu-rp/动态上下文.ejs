@@ -1,0 +1,23 @@
+@@generate_before
+@@always_enabled
+@@activate
+<%_
+const state = typeof mvu === 'object' && mvu ? mvu.stat_data : null;
+const show = value => value == null || value === '' ? '未记录' : String(value);
+const list = value => {
+  const clean = Array.isArray(value) ? value.filter(item => !(item && typeof item === 'object' && item.$arrayMeta === true)) : [];
+  return clean.length ? clean.join('、') : '暂无';
+};
+_%>
+<航站运行摘要>
+世界.区域：<%- show(state?.世界?.区域) %>
+天气与时段：<%- show(state?.世界?.天气) %>，<%- show(state?.世界?.时段) %>
+系统.路线：<%- show(state?.系统?.路线) %>
+任务.主线.名称：<%- show(state?.任务?.主线?.名称) %>；任务.主线.阶段：<%- show(state?.任务?.主线?.阶段) %>
+系统.航站安全度：<%- show(state?.系统?.航站安全度) %>
+系统.雾钟倒计时（分钟）：<%- show(state?.系统?.雾钟倒计时) %>
+关系.洛檀信任：<%- show(state?.关系?.洛檀信任) %>
+线索：<%- list(state?.线索) %>
+玩家公开起点：<%- show(state?.玩家?.称呼) %>／<%- show(state?.玩家?.来历) %>／<%- show(state?.玩家?.专长) %>
+<%- await getwi('雾港航站世界书', '航站共识简报') %>
+</航站运行摘要>

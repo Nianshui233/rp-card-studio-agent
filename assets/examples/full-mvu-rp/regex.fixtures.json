@@ -1,42 +1,90 @@
 [
   {
-    "id": "display-complete-update-and-placeholder",
-    "input": "洛檀把风灯别回腰间，指向栈桥尽头。\n<UpdateVariable>\n<Analysis>巡桥消耗体力</Analysis>\n_.add('角色.体力', -3);//巡桥消耗\n</UpdateVariable>\n\n<StatusPlaceHolderImpl/>",
+    "id": "display-complete-update-and-status",
+    "input": "洛檀合上保险丝盒。\n<UpdateVariable>\n<Analysis>检修消耗</Analysis>\n_.add('角色.体力', -3);//检修消耗\n</UpdateVariable>\n\n<StatusPlaceHolderImpl/>",
     "placement": 2,
     "depth": 0,
     "channel": "display",
-    "expected_contains": "洛檀把风灯别回腰间，指向栈桥尽头。\n\n\n```html\n<!doctype html>"
+    "expected_contains": "洛檀合上保险丝盒。\n\n\n```html\n<!doctype html>"
   },
   {
-    "id": "display-streaming-half-block",
-    "input": "洛檀把风灯别回腰间，指向栈桥尽头。\n<UpdateVariable>\n<Analysis>巡桥消耗",
+    "id": "display-streaming-update-half",
+    "input": "洛檀合上保险丝盒。\n<UpdateVariable>\n<Analysis>检修",
     "placement": 2,
     "depth": 0,
     "channel": "display",
-    "expected": "洛檀把风灯别回腰间，指向栈桥尽头。\n"
+    "expected": "洛檀合上保险丝盒。\n"
   },
   {
-    "id": "display-floor0-greeting-marker",
-    "input": "雾从河面漫上栈桥，航站的灯一盏盏亮起来。\n<航站面板/>",
+    "id": "display-opening-frontend",
+    "input": "雾贴着玻璃。\n<航站开场/>",
     "placement": 2,
     "depth": 0,
     "channel": "display",
-    "expected_contains": "雾从河面漫上栈桥，航站的灯一盏盏亮起来。\n```html\n<!doctype html>"
+    "expected_contains": "雾贴着玻璃。\n```html\n<!doctype html>"
   },
   {
-    "id": "prompt-full-cleanup",
-    "input": "洛檀把风灯别回腰间，指向栈桥尽头。\n<UpdateVariable>\n<Analysis>巡桥消耗体力</Analysis>\n_.add('角色.体力', -3);//巡桥消耗\n</UpdateVariable>\n\n<StatusPlaceHolderImpl/>",
+    "id": "display-status-frontend",
+    "input": "洛檀递来一盏灯。\n<航站面板/>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected_contains": "洛檀递来一盏灯。\n```html\n<!doctype html>"
+  },
+  {
+    "id": "display-initvar-hidden",
+    "input": "<initvar>\n世界:\n  区域: 北航站\n</initvar>\n正文",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "正文"
+  },
+  {
+    "id": "display-static-notice",
+    "input": "<航站通知 类型=\"警报\">雾钟从下游响了两次。</航站通知>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "> **航站通知 · 警报**\n>\n> 雾钟从下游响了两次。"
+  },
+  {
+    "id": "display-static-notice-half",
+    "input": "洛檀抬头。\n<航站通知 类型=\"线索\">第三盏灯",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "洛檀抬头。\n"
+  },
+  {
+    "id": "prompt-notice-keeps-semantics",
+    "input": "<航站通知 类型=\"线索\">灯罩内侧有盐霜。</航站通知>",
     "placement": 2,
     "depth": 0,
     "channel": "prompt",
-    "expected": "洛檀把风灯别回腰间，指向栈桥尽头。\n"
+    "expected": "[航站通知·线索：灯罩内侧有盐霜。]"
   },
   {
-    "id": "display-user-input-untouched",
-    "input": "我先去仓库领备用保险丝。\n<航站面板/>",
+    "id": "prompt-runtime-cleanup",
+    "input": "<initvar>\n世界:\n  区域: 北航站\n</initvar>\n正文\n<UpdateVariable>\n_.set('世界.天气', '大雾');//天气变化\n</UpdateVariable>\n<航站面板/>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "prompt",
+    "expected": "正文\n"
+  },
+  {
+    "id": "display-user-message-untouched",
+    "input": "我想先看面板。\n<航站面板/>",
     "placement": 1,
     "depth": 0,
     "channel": "display",
-    "expected": "我先去仓库领备用保险丝。\n<航站面板/>"
+    "expected": "我想先看面板。\n<航站面板/>"
+  },
+  {
+    "id": "display-similar-marker-untouched",
+    "input": "<航站面板 状态=\"旧\"/>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "<航站面板 状态=\"旧\"/>"
   }
 ]
