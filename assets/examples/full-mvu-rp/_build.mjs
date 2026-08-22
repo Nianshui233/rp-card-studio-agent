@@ -11,6 +11,8 @@ for (const bad of ['${', '{{', '`']) {
   if (page.includes(bad)) throw new Error('状态栏页面含有危险序列: ' + bad);
 }
 if (/\$\d/.test(page)) throw new Error('状态栏页面含有 $数字 捕获组引用');
+if (page.includes('Mvu.events.VARIABLE_UPDATE_ENDED')) throw new Error('状态栏不得在 VARIABLE_UPDATE_ENDED 中重读消息存储');
+if (!page.includes('await context.saveChat();')) throw new Error('状态栏写入必须显式等待 saveChat');
 // 页面内脚本语法检查
 const m = page.match(/<script>([\s\S]*?)<\/script>/);
 if (!m) throw new Error('未找到页面脚本');

@@ -121,12 +121,19 @@ button:disabled{opacity:.5;cursor:wait}
       if (!before || !before.stat_data) throw new Error('本楼没有 MVU 快照，无法写入');
       var cmd = "_.set('玩家备忘.最新', " + JSON.stringify(text) + ");//玩家手记";
       var next = await Mvu.parseMessage(cmd, before);
-      await Mvu.replaceMvuData(next, { type: 'message', message_id: messageId });
+      Mvu.replaceMvuData(next, { type: 'message', message_id: messageId });
+      var context = window.SillyTavern && typeof window.SillyTavern.getContext === 'function'
+        ? window.SillyTavern.getContext()
+        : null;
+      if (!context || typeof context.saveChat !== 'function') {
+        throw new Error('宿主缺少 saveChat，无法确认本次写入已保存');
+      }
+      await context.saveChat();
       var after = Mvu.getMvuData({ type: 'message', message_id: messageId });
       var ok = after && after.stat_data && after.stat_data.玩家备忘 && String(after.stat_data.玩家备忘.最新) === text;
-      if (!ok) throw new Error('写回后读回校验未通过');
+      if (!ok) throw new Error('保存后同楼读回校验未通过');
       render(after.stat_data);
-      note('已记入第 ' + messageId + ' 楼。');
+      note('已保存到第 ' + messageId + ' 楼。');
     } catch (error) {
       note('写入失败：' + error.message, true);
     } finally {
@@ -144,9 +151,7 @@ button:disabled{opacity:.5;cursor:wait}
         void handle;
       });
     }
-    if (typeof Mvu !== 'undefined' && Mvu && Mvu.events) {
-      stops.push(eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, function () { refresh(); }));
-    }
+
     addEventListener('pagehide', function () {
       stops.forEach(function (item) { if (item && item.stop) item.stop(); });
     }, { once: true });

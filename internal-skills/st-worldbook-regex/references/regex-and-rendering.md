@@ -104,7 +104,9 @@ SillyTavern 将 fence 变成 `<pre><code>` 后，Tavern Helper 才识别并创�
 
 ### EJS `@@iframe`
 
-由 ST-Prompt-Template 创建 iframe，是另一条 provider 路线。不要写成“SillyTavern/Tavern Helper 都会自动渲染”。
+由 ST-Prompt-Template 创建，是另一条 provider 路线。只有消息渲染调用传入具体 `msgId` 时，`@@iframe` 才会包装结果；generate-stage `getwi` 或普通世界书执行不保证建立 iframe。
+
+它不注入 Tavern Helper 裸函数，当前实现也未设置 iframe `sandbox`：页面通过 EJS context 获得 `message_id/swipe_id`，需要宿主动作时显式探测 `window.parent`，并主动清理通过 parent namespace 注册的事件。不要写成“SillyTavern/Tavern Helper 都会自动渲染”，也不要把 STPT iframe 当作 TH 消息 iframe或安全隔离页。
 
 ## 标记与生产者
 

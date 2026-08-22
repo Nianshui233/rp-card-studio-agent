@@ -44,10 +44,13 @@
 ## 技术底线
 
 - MVU 只有在确实需要跨楼层变量或精确状态时启用；卡内 MagVarUpdate 只能有一个 Loader。
-- 只有 `mvu_zod` 或明确需要 Zod 的 `hybrid` 才要求 `registerMvuSchema`。
-- EJS 只在确实需要提示词/渲染模板时启用；不把 EJS 当变量存储。
+- 只有 `mvu_zod` 或明确需要 Zod 的 `hybrid` 才要求 `registerMvuSchema`；在宿主 Ready 后注册并复用现场 `window.z`。
+- 消息变量关键写入使用明确数值楼层；`latest` 当前读写不对称，只作容错只读。
+- 写后即时读回只证明内存接受；关键提交还要等待真实宿主保存，并按需重载后读回。
+- EJS 只在确实需要提示词/渲染模板时启用；ST-Prompt-Template `1.17.8.1` 默认会处理原始消息 EJS且不开 sandbox，不需要时必须关闭 raw-message evaluation。
 - 正则必须有真实生产者；display 和 prompt 通道按实际用途分开。
-- 动态消息 UI 明确 Tavern Helper fenced HTML、EJS `@@iframe` 等真实载体；裸 HTML 正则不等于可执行 iframe。
+- 动态消息 UI 明确 Tavern Helper fenced HTML、EJS `@@iframe` 等真实载体；TH 与 STPT 使用不同的楼层、事件和清理 adapter。
+- 开场提交必须验证目标 Greeting Swipe 与 canonical `<user>`；动态自定义开局还要验证真实 user 楼、真实 AI 楼与变量初始化。`generate()` 不能冒充正常消息链。
 - UI 正式运行必须读取真实状态或真实消息载荷，不能用预览数据冒充当前状态。
 - 真实宿主没有测试时记录 `runtime: not_run`。
 - 不因条目数、角色数、变量数、HTML 长度或项目复杂度限制创作。

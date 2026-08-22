@@ -120,32 +120,39 @@ NSFW 只在首轮确认一次。启用后不再进行边界问卷或运行时门
 
 只有项目确实需要变量或模板运行时才加载对应 Skill。
 
-- MVU 可选择 `native_schema`、`mvu_zod`、`hybrid` 或沿用已有实现。
-- 卡内加载 MagVarUpdate 时只能有一个 `mvu_loader`。
-- `[initvar]`、变量结构、更新规则、回复输出格式、prompt 清理和玩家显示清理是独立组件，不能互相冒充。
-- 只有 `mvu_zod` 或明确需要 Zod 的 `hybrid` 才要求 `registerMvuSchema`。
-- EJS 是独立的 ST-Prompt-Template 路线；只启用 EJS 时不生成 MVU Loader、Schema 或 `[initvar]`。
+- MVU 可选择 `native_schema`、`mvu_zod`、`hybrid` 或沿用已有实现；卡内 MagVarUpdate 只能有一个 Loader。
+- `[initvar]`、变量结构、更新规则、回复输出格式、prompt 清理和玩家显示清理是独立组件。启用世界书中的 `[initvar]` 条目即使自身禁用仍会被扫描。
+- 只有 `mvu_zod` 或明确需要 Zod 的 `hybrid` 才要求 `registerMvuSchema`；在宿主 Ready 后注册并复用目标环境的 `window.z`。
+- EJS 是独立的 ST-Prompt-Template 路线；只启用 EJS 时不生成 MVU Loader、Schema 或 `[initvar]`。目标 STPT `1.17.8.1` 默认 `raw_message_evaluation_enabled:true`、`sandbox:false`、`autosave_enabled:false`；不需要模型/用户消息 EJS 时关闭 raw-message evaluation。
 - EJS 与 MVU 默认没有自动 bridge；联动时必须有真实脚本或模板内 API，明确读写方向、数值楼层、作用域和路径。
 - `[initvar]` 正文直接写 `stat_data` 内部结构，不再包一层 `stat_data:`；开场 `<initvar>` 与普通更新命令分开设计。
-- UI 写入变量、创角提交或消息操作后必须从同一真实存储面读回；只改页面本地对象不算成功。
+- `'latest'` 只作容错只读；Tavern Helper/MVU 当前读取时跳过 system，写入时可能写物理末楼。关键写入始终使用明确数值楼层。
+- UI 写入后从同一存储面读回；即时读回只证明 `write_accepted`，关键事务还要等待已验证的宿主保存，并按需要重载后再读回。
+- MVU 的初始化/更新结束事件是内存变换阶段，不等于消息变量已经持久化；assistant 路线通常由后续消息重渲染重建 iframe，user 路线没有同等保证，需要项目自有的 post-write 信号或显式刷新。
 
 ## 开场/创角前端
 
-开场前端只负责正式 RP 之前的一次性介绍、路线选择、空白创角、预览、真实提交、读回和进入对应开场。
+开场前端只负责正式 RP 之前的一次性介绍、路线选择、空白创角、预览、事务提交、持久化验证和进入正常 user/assistant 消息链。
 
-- 内容与字段语义来自叙事/开场阶段，状态路径与读写方式来自运行时阶段；页面不自行发明第二套合同。
+- 内容与字段语义来自叙事/开场阶段，状态路径、保存方式与读写权来自运行时阶段；页面不自行发明第二套合同。
 - 快速预设默认不选且可编辑；正式玩家字段默认空白。
-- 稳定资料写入唯一 `<user>` 权威源，动态初态写入真实项目状态，并分别读回。
-- 提交失败时保留输入并提供回退，不显示虚假成功；成功后页面完成使命，不继续充当长期状态栏。
+- 稳定资料写入唯一 canonical `<user>` 权威源；使用当前 Worldbook API按 exact name/UID 更新，重复 canonical 条目必须报冲突。
+- 动态初态写入最终选中的第 0 楼 Greeting Swipe；不能先写当前 Swipe 再切换到另一 Greeting。
+- 提交前和真正发送前重校验聊天身份、草稿 revision、0楼 Swipe/revision、页面实例和输入框；切聊天、切 Swipe、卸载或输入冲突时取消旧提交并保留草稿。
+- 切换第 0 楼 Swipe 可能立即销毁当前 iframe；需要继续事务时由后台 TH Script、父页协调器或新实例恢复，不依赖旧页面继续执行。
+- 动态创角/自定义开局最终构建真实玩家开局发言并走 ST 正常发送链；纯固定 Greeting 选择确认目标 Swipe/初态后可直接交还输入权。`generate/generateRaw` 只返回结果，直接 `createChatMessages` 也不自动生成 AI 楼。
+- 提交失败保留输入并提供回退；固定 Greeting 的成功门覆盖目标 Swipe/初态，动态自定义开局的成功门覆盖真实 user 楼、真实 AI 楼和变量初始化，之后页面完成使命。
 
 ## 持续消息前端
 
 持续消息前端只负责正式游玩中的状态、物品、关系、任务、地图、线索、行动和反馈。
 
 - 读取真实 MVU 路径或真实消息载荷，示例数据只用于显式预览。
+- 每个载体有独立 adapter：TH fenced iframe 使用 `getCurrentMessageId()`；STPT `@@iframe` 由 EJS render context 显式传 `message_id/swipe_id`；纯 SillyTavern 只承诺静态显示。
 - 使用当前数值楼层与对应 Swipe，处理编辑、消息更新、重载、切聊、重复挂载和 `pagehide` 清理。
+- STPT `@@iframe` 不注入 TH 裸绑定函数且当前无 sandbox；通过 `window.parent` 使用宿主能力时做能力探测并主动停止 namespace 事件。
 - 非 MVU 消息前端必须有真实输出合同、安全载荷、解析器、完整/流式处理和 prompt/display 分工。
-- 玩家动作必须写入真实宿主，并从同一存储面读回；不能顺便成为第二套创角或初始化流程。
+- 玩家动作必须写入明确数值楼层，等待必要保存并从同一存储面读回；不能顺便成为第二套创角或初始化流程。
 
 ## 前端共享底线
 

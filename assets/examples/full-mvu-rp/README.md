@@ -26,8 +26,8 @@
 
 - 开场即有面板：第 0 楼由开场文本中的 `<航站面板/>` 渲染；此后每楼由 MVU 自动追加的 `<StatusPlaceHolderImpl/>` 渲染；
 - 变量闭环：世界书 `[initvar]` 建立基线；模型按 `[mvu_plot] 更新规则`/`输出格式` 在回复末尾输出 `<UpdateVariable>` 命令块（带分号与 `//` 原因）；体力用 `_.add` 相对增减、物资用 `_.assign`/`_.unset`、线索列表先 `_.set('线索', [])` 再 `_.insert`；
-- 单写者示范：`玩家备忘.最新` 只由面板「记入本楼」按钮写入（`parseMessage → replaceMvuData → 同楼读回校验`），更新规则明令模型不得改写；
-- 面板生命周期：`waitGlobalInitialized('Mvu')` 带 6 秒超时、数值 `getCurrentMessageId()`、`Mvu.getMvuData({type:'message', message_id})` 显式楼层、`MESSAGE_SWIPED/UPDATED` 与 `VARIABLE_UPDATE_ENDED` 刷新、`pagehide` 清理；
+- 单写者示范：`玩家备忘.最新` 只由面板按钮写入（`parseMessage → replaceMvuData → saveChat → 同楼读回校验`），更新规则明令模型不得改写；
+- 面板生命周期：`waitGlobalInitialized('Mvu')` 带 6 秒超时、数值 `getCurrentMessageId()`、`Mvu.getMvuData({type:'message', message_id})` 显式楼层；宿主编辑/Swipe 用 `MESSAGE_UPDATED/MESSAGE_SWIPED` 重读，MVU assistant 自动更新由后续消息重渲染重建 iframe，不在 `VARIABLE_UPDATE_ENDED` 中读取旧快照；`pagehide` 主动清理；
 - 正则三件套：display 隐藏更新块（流式安全）→ display 渲染面板 fence → prompt 清理更新块与双标记；用户消息（placement 1）不受影响。
 
 ## 已知行为与限制
