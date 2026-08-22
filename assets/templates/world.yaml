@@ -1,7 +1,6 @@
 schema_version: 1.2.0
 id: world_main
 display_name: 未命名世界
-status: draft
 
 # 这是一份供 AI 实际执行 RP 的 World Bible，不是百科目录。
 # 世界先作为一个独立整体成立：即使镜头没有照到，它也有自己的生活、节奏、行动与后果。

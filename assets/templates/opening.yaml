@@ -7,31 +7,5 @@ narrative:
   information_policy: []
   reply_handoff: ""
 
-opening_ui:
-  enabled: false
-  purpose: ""
-  player_journey: ""
-  carrier:
-    provider: null                  # sillytavern_static / tavern_helper_fenced_html / ejs_iframe / verified_other
-    marker: null
-    display_regex: null
-    prompt_regex: null
-  file: null                       # 最终完整自包含 HTML
-  visual_direction: ""
-  device_priority: equal
-  fallback: ""
-  runtime: not_run
-
-creation_bridge:
-  enabled: false
-  profile_contract: "<user> 世界书条目"
-  input_fields: []
-  static_profile_bindings: []
-  runtime_bindings: []
-  submit_action: null
-  profile_readback: null
-  runtime_readback: null
-  failure_fallback: ""
-
 openings: []
 dialogue_examples: []

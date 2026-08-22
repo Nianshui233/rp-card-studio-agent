@@ -17,7 +17,7 @@ ST-Prompt-Template @@iframe
 
 完整 HTML 文件本身不保证消息中的 JavaScript 会执行。
 
-新建持续消息表面时使用 `assets/templates/message-ui.yaml`；删除不适用部分，不为模板完整制造功能。
+新建持续消息表面时直接维护最终完整 HTML 和实际正则/EJS/脚本配对，不生成 UI 需求表、实现清单、状态账本或中间 YAML 规格。
 
 ## 数据闭环
 

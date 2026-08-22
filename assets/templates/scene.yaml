@@ -1,7 +1,6 @@
 schema_version: 2.0.0
 id: scene_id
 display_name: 未命名场景
-status: draft
 
 purpose: ""
 scene_type: ""                    # 日常 / 会面 / 探索 / 经营 / 潜入 / 推理 / 战术 / 密室 / 其他

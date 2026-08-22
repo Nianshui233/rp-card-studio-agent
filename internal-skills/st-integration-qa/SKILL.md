@@ -17,7 +17,8 @@ description: "Private final QA and delivery module for checking actual SillyTave
 - 不重写已确认的 RP 内容，不创建通用中间格式，不生成源码清单或构建事务。
 - 将最终文件直接整理到一个交付目录，只包含项目实际使用的组件。
 - 为旧卡保留原始输入副本，但不把原始副本列为运行导入组件。
-- 未做真实 SillyTavern 测试时明确记录 `runtime: not_run`。
+- 未做真实 SillyTavern 测试时在最终报告中明确写 `runtime: not_run`。
+- QA 过程不生成独立检查清单、通过项账本、问题日志、修复日志或运行记录；只修改真实制品，并在对话和最终交付说明中汇总结论。
 
 ## 验收沟通
 

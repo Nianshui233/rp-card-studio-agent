@@ -57,7 +57,7 @@ description: "Private module for ongoing SillyTavern in-message frontends: statu
 - 不制作项目介绍、完整创角、开局路线选择或 greeting 跳转。
 - 不初始化第二套玩家档案或状态树；开场前端存在时只消费它已提交到真实运行合同的数据。
 - 可以提供经授权的维护动作，但不能把持续面板变成隐藏的第二创角流程。
-- 不把多文件工程、manifest、mock 或构建器作为默认交付。
+- 不生成 UI 需求表、数据路径清单、生命周期账本、中间 YAML 规格、manifest、mock 或构建器；直接维护实际 HTML 与真实运行组件。
 
 ## 交付
 

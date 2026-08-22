@@ -1,6 +1,6 @@
 # SillyTavern 运行 API 合同
 
-只登记项目实际调用的接口。每项调用都写明 `provider`、核对版本、调用表面、精确参数、返回值、持久化效果、失败表现和回退；不能把第三方接口写成 SillyTavern 本体能力。
+只核对当前实现实际调用的接口。调用代码必须能明确 `provider`、目标版本、调用表面、精确参数、返回值、持久化效果、失败表现和回退；不能把第三方接口写成 SillyTavern 本体能力。不要为这些事实创建独立 API 注册表、能力矩阵副本、接口清单或版本账本。
 
 ## 当前静态核对基线
 
@@ -123,15 +123,6 @@ SillyTavern 本体 `tavern_events.GENERATION_*` 的 payload 不同；本体 `STR
 
 主动生成时为每个动作设置唯一 `generation_id`，流式监听按 ID 过滤，单请求停止优先 `stopGenerationById(id)`。
 
-## 证据记录
+## 证据呈现
 
-每个实际接口只需在当前实现或最终报告中简短记录：
-
-```yaml
-provider: tavern_helper
-verified_version: 4.9.3
-surface: message_iframe
-api: getCurrentMessageId
-result: source_checked | runtime_pass | not_run
-fallback: 显示不可用，不猜测楼层
-```
+接口来源、目标版本和运行结果只需在实际实现附近保持可追溯，并在最终 QA 报告中简短说明关键调用属于 `source_checked`、`runtime_pass` 或 `not_run` 以及失败回退。不要生成单独的 API 合同实例、证据 YAML、调用登记表或逐接口核验日志。

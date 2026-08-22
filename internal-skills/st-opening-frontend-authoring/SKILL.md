@@ -57,7 +57,7 @@ description: "Private module for one-shot SillyTavern opening and character-crea
 - 不监听每个消息楼层的编辑、Swipe、重载和聊天切换。
 - 可以预览初始状态，但不能把开场页面作为长期状态面板继续运行。
 - 不自行发明第二套玩家档案或状态树；内容合同和运行合同不足时返回对应阶段补齐。
-- 不把多文件工程、manifest、mock 或构建器作为默认交付。
+- 不生成开场需求表、创角字段清单、提交进度、handoff 文件、中间 YAML 规格、manifest、mock 或构建器；直接维护实际 HTML 与真实运行组件。
 
 ## 交付
 

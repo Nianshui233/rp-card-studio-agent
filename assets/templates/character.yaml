@@ -1,8 +1,6 @@
 schema_version: 1.2.0
 id: character_id
 display_name: 未命名角色
-status: draft
-role: pending
 
 # 角色模板的目标是让 AI 稳定地“成为这个人”，而不是填写人物数据库。
 # 角色先拥有自己的生活、职责、关系与计划，再进入任何具体场景。

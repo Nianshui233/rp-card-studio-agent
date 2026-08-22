@@ -53,34 +53,13 @@
 → 远程 CDN/Kit（仅在用户接受远程依赖时）
 ```
 
-不要把完整 `all.css`、`all.js` 或整个图标字体库无差别装进角色卡。只保留使用到的图标、样式和必要代码，避免增加加载失败面与无意义体积。品牌图标另行记录，不把品牌标志当普通装饰。
+不要把完整 `all.css`、`all.js` 或整个图标字体库无差别装进角色卡。只保留使用到的图标、样式和必要代码，避免增加加载失败面与无意义体积。品牌图标只在实际使用时于最终交付说明中注明，不把品牌标志当普通装饰。
 
-## 3. 资产策略决策
+## 3. 资产策略落地
 
-资产选择必须同时记录：
+用户只需表达“希望更像旧报纸”“按钮要清楚”“不要外链”“可以接受联网加载”等体验偏好；Agent 直接把选择落实到实际 HTML/CSS/SVG 和回退代码中，不生成资产需求表、来源清单、许可账本或中间 YAML。
 
-```yaml
-assets:
-  font:
-    strategy: system_stack | design_reference | remote_font | local_font | embedded_subset
-    provider: ""
-    family: ""
-    weights: []
-    language_support: []
-    license: ""
-    source_ref: ""
-    fallback_stack: []
-  icons:
-    strategy: project_svg | font_awesome_svg | web_font | remote_library | css_only
-    provider: ""
-    selected: []
-    license: ""
-    source_ref: ""
-    accessibility_labels: true
-  remote_dependencies: []
-```
-
-`strategy` 是实现方向，不是用户必须理解的选项。用户只需表达“希望更像旧报纸”“按钮要清楚”“不要外链”“可以接受联网加载”等体验偏好；Agent 负责把它转换为技术路线。
+只有最终页面真实使用的远程字体、图标库或外部资源，才在最终导入说明中简短列出具体资源、版本/来源、许可、联网要求和失败回退。内嵌 SVG、系统字体和未进入成品的设计参考不另建记录文件。
 
 ## 4. 玩家端规则
 
@@ -112,11 +91,11 @@ assets:
 - 失败时显示什么；
 - 是否有系统字体或内联 SVG 回退；
 - 是否在真实 SillyTavern 中验证过；
-- 使用的具体资源、版本/来源和许可记录。
+- 使用的具体资源、版本/来源和许可。
 
 ## 7. 不增加创作上限
 
-资产策略只负责可运行性、可读性、可回退性和来源记录，不限制：
+资产策略只负责可运行性、可读性、可回退性和必要的最终来源说明，不限制：
 
 - 字体数量；
 - 图标数量；

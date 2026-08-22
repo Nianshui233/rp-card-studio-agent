@@ -1,7 +1,6 @@
 schema_version: 1.2.0
 id: user_character_template
 display_name: 用户主控设定（<user>）
-status: draft
 
 # 固定的是“唯一合同 + 静态/动态分层”，不是姓名、年龄、现代职业等具体字段。
 # 初始化项目后，根据题材与玩法改写 creation_fields、static_paths、dynamic_paths 和 profile。
