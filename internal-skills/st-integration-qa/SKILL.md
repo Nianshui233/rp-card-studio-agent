@@ -19,6 +19,12 @@ description: "Private final QA and delivery module for checking actual SillyTave
 - 为旧卡保留原始输入副本，但不把原始副本列为运行导入组件。
 - 未做真实 SillyTavern 测试时明确记录 `runtime: not_run`。
 
+## 验收沟通
+
+需要用户确认取舍时遵循 `orchestrator/interview-playbook.md`：说明发现的问题，给出推荐修复或降级方案，解释原因，并明确会影响的导入步骤、运行功能或已确认内容。不要只问“怎么处理”，也不要把语法、字段或 API 选择推给用户。
+
+优先用真实使用路径提问，例如“我建议把‘导入角色卡 → 启用 scoped regex → 新建聊天 → 点击状态按钮’作为关键验收路径，因为它覆盖本项目唯一写入动作；若不做实机测试，这部分只能标记 `runtime: not_run`。是否按此验收？”低风险且不改变创作意图的确定性修复直接执行并报告。
+
 ## 最终检查
 
 按实际存在的组件检查：

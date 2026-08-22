@@ -2,6 +2,7 @@ schema_version: 1.0.0
 agent: rp-card-studio
 state_persistence: conversation_only
 stage_loop: orchestrator/stage-loop.md
+interview_playbook: orchestrator/interview-playbook.md
 
 stages:
   preflight:
