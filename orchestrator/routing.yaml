@@ -8,6 +8,12 @@ stages:
   preflight:
     primary_skill: null
     optional: false
+    next: brainstorm
+  brainstorm:
+    primary_skill: rp-concept-brainstorm
+    references: [brainstorm]
+    optional: true
+    enable_when: brainstorm_enabled
     next: positioning
   positioning:
     primary_skill: rp-project-foundation
@@ -73,6 +79,7 @@ stages:
     next: null
 
 skill_paths:
+  rp-concept-brainstorm: internal-skills/rp-concept-brainstorm/SKILL.md
   rp-project-foundation: internal-skills/rp-project-foundation/SKILL.md
   rp-cast-authoring: internal-skills/rp-cast-authoring/SKILL.md
   rp-experience-authoring: internal-skills/rp-experience-authoring/SKILL.md

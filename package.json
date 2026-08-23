@@ -1,7 +1,7 @@
 {
   "name": "rp-card-studio-agent",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "private": true,
   "type": "module",
-  "description": "Lean SillyTavern RP authoring, QA, final inspection, and delivery agent."
+  "description": "Lean SillyTavern RP brainstorming, authoring, QA, final inspection, and delivery agent."
 }

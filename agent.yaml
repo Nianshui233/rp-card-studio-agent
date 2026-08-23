@@ -1,7 +1,7 @@
 schema_version: 1.0.0
 id: rp-card-studio
 display_name: SillyTavern制卡工坊
-description: 采用建议式深访与跨阶段创作一致性 QA 的 SillyTavern RP 创作工作台；开场/创角前端与持续消息前端独立路由，运行组件按真实宿主契约制作，最后执行成品检验和交付。
+description: 采用可选灵感脑暴、建议式深访与跨阶段创作一致性 QA 的 SillyTavern RP 创作工作台；把零散构想先整合为可游玩母纲，开场/创角前端与持续消息前端独立路由，运行组件按真实宿主契约制作，最后执行成品检验和交付。
 entry: AGENT.md
 language: zh-CN
 invocation:
