@@ -1,4 +1,4 @@
-schema_version: 1.2.0
+schema_version: 1.3.0
 id: character_id
 display_name: 未命名角色
 
@@ -65,11 +65,25 @@ psychology:
   internal_conflict: ""              # 两个重要价值之间无法轻易兼得的张力
 
 behavior:
+  # 承重角色覆盖合作/索取、冲突/拒绝、压力/失败、价值两难四类或题材等价情境。
+  # condition/reason/cost 至少一项提供额外信息；只保留真实需要的键，不重述 trigger/action。
   rules:
-    - trigger: ""
+    - scene_type: cooperation_or_request
+      trigger: ""                    # 外部可判定事件
+      action: ""                     # 第三方可观察的选择或反应
+      reason: ""                     # 追溯到 values、fears、taboos、义务或关系事实
+    - scene_type: conflict_or_refusal
+      trigger: ""
       action: ""
       condition: ""
-      reason: ""                     # 应能追溯到 values、fears、taboos、义务或关系事实
+    - scene_type: pressure_or_failure
+      trigger: ""
+      action: ""
+      cost: ""
+    - scene_type: value_dilemma
+      trigger: ""
+      action: ""
+      reason: ""
       cost: ""
   stress_response:
     - when: ""
@@ -108,9 +122,23 @@ speech:
   rules:
     - type: "structure"              # structure / forbidden / emotion_shift / addressing / custom
       content: ""
+    - type: "forbidden"
+      content: ""
+    - type: "emotion_shift"
+      content: ""
+    - type: "addressing"
+      content: ""
+  # 台词应覆盖不同关系或压力，并共同证明 style/rules；不供模型机械复读。
   quotes:
     - line: ""
-      context: ""                    # 用于证明 style/rules 在真实情境下成立，不供机械复读
+      context: "日常或初见"
+      demonstrates: []
+    - line: ""
+      context: "冲突或拒绝"
+      demonstrates: []
+    - line: ""
+      context: "压力或脆弱"
+      demonstrates: []
 
 background:
   origin: ""                         # 只保留会影响当前行为的出身信息
@@ -131,7 +159,14 @@ nsfw:
     - "敏感部位 + 反应描述"
   contrast: "性格反差描述（如：平时高冷 → 亲密时粘人且失控等）"
 
-relationships: []
+relationships:
+  - target_ref: ""                   # 已有角色使用稳定 id/ref；不要只靠可能重名的显示名
+    relation: ""
+    public_dynamic: ""
+    private_dynamic: ""
+    obligations: []
+    tensions: []
+    likely_next_action: ""
 
 knowledge:
   publicly_known: []
@@ -144,6 +179,8 @@ growth_arc:
   starting_state: ""
   pressure_points: []
   possible_changes: []
+  resistance: []                      # 与 fears、taboos、义务或既得利益对应
+  required_events: []                 # 哪些变化必须先有可观察事件依据
   must_not_change_without_event: []
 
 anti_ooc:

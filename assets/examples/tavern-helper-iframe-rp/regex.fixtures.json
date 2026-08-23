@@ -1,15 +1,23 @@
 [
   {
-    "id": "display-complete-snapshot-and-marker",
-    "input": "正文\n<航站状态>\n区域=北栈桥\n天气=小雨\n任务=核对灯标\n</航站状态>\n<航站终端/>",
+    "id": "display-complete-v1",
+    "input": "正文\n<航站状态 v=\"1\">\n{\"区域\":\"北栈桥\",\"天气\":\"小雨\",\"任务\":\"核对灯标\",\"提示\":\"外栈桥踏板松动\",\"行动\":[{\"label\":\"核对灯标\",\"text\":\"前往北栈桥核对灯标。\"}]}\n</航站状态>\n<航站终端/>",
     "placement": 2,
     "depth": 0,
     "channel": "display",
     "expected_contains": "正文\n```html\n<!doctype html>"
   },
   {
-    "id": "display-streaming-snapshot",
-    "input": "正文\n<航站状态>\n区域=北栈桥",
+    "id": "display-encoded-special-values",
+    "input": "正文\n<航站状态 v=\"1\">\n{\"区域\":\"北\\u003C栈桥\\u003E\",\"天气\":\"小雨\\\\阵风\",\"任务\":\"核对 \\\"旧灯\\\"\",\"提示\":\"包含 \\u0026、$1 与 \\u0060\\u0060\\u0060\",\"行动\":[]}\n</航站状态>\n<航站终端/>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected_contains": "正文\n```html\n<!doctype html>"
+  },
+  {
+    "id": "display-streaming-v1",
+    "input": "正文\n<航站状态 v=\"1\">\n{\"区域\":\"北栈桥\"",
     "placement": 2,
     "depth": 0,
     "channel": "display",
@@ -17,18 +25,42 @@
   },
   {
     "id": "display-closed-before-marker",
-    "input": "正文\n<航站状态>\n区域=北栈桥\n</航站状态>\n",
+    "input": "正文\n<航站状态 v=\"1\">\n{\"区域\":\"北栈桥\",\"天气\":\"小雨\",\"任务\":\"核对灯标\",\"行动\":[]}\n</航站状态>\n",
     "placement": 2,
     "depth": 0,
     "channel": "display",
     "expected": "正文\n"
   },
   {
-    "id": "prompt-preserves-snapshot",
-    "input": "正文\n<航站状态>\n区域=北栈桥\n天气=小雨\n任务=核对灯标\n</航站状态>\n<航站终端/>",
+    "id": "prompt-preserves-versioned-snapshot",
+    "input": "正文\n<航站状态 v=\"1\">\n{\"区域\":\"北栈桥\",\"天气\":\"小雨\",\"任务\":\"核对灯标\",\"提示\":\"外栈桥踏板松动\",\"行动\":[{\"label\":\"核对灯标\",\"text\":\"前往北栈桥核对灯标。\"}]}\n</航站状态>\n<航站终端/>",
     "placement": 2,
     "depth": 0,
     "channel": "prompt",
-    "expected": "正文\n<航站状态>\n区域=北栈桥\n天气=小雨\n任务=核对灯标\n</航站状态>\n"
+    "expected": "正文\n<航站状态 v=\"1\">\n{\"区域\":\"北栈桥\",\"天气\":\"小雨\",\"任务\":\"核对灯标\",\"提示\":\"外栈桥踏板松动\",\"行动\":[{\"label\":\"核对灯标\",\"text\":\"前往北栈桥核对灯标。\"}]}\n</航站状态>\n"
+  },
+  {
+    "id": "display-wrong-version-fails-closed",
+    "input": "<航站状态 v=\"2\">{\"区域\":\"旧协议\"}</航站状态>\n<航站终端/>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "<航站状态 v=\"2\">{\"区域\":\"旧协议\"}</航站状态>\n<航站终端/>"
+  },
+  {
+    "id": "display-similar-marker-untouched",
+    "input": "<航站状态旧 v=\"1\">{\"区域\":\"旧\"}</航站状态旧>\n<航站终端旧/>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "<航站状态旧 v=\"1\">{\"区域\":\"旧\"}</航站状态旧>\n<航站终端旧/>"
+  },
+  {
+    "id": "user-message-untouched",
+    "input": "<航站状态 v=\"1\">\n{\"区域\":\"北栈桥\",\"天气\":\"小雨\",\"任务\":\"核对灯标\",\"提示\":\"外栈桥踏板松动\",\"行动\":[{\"label\":\"核对灯标\",\"text\":\"前往北栈桥核对灯标。\"}]}\n</航站状态>\n<航站终端/>",
+    "placement": 1,
+    "depth": 0,
+    "channel": "display",
+    "expected": "<航站状态 v=\"1\">\n{\"区域\":\"北栈桥\",\"天气\":\"小雨\",\"任务\":\"核对灯标\",\"提示\":\"外栈桥踏板松动\",\"行动\":[{\"label\":\"核对灯标\",\"text\":\"前往北栈桥核对灯标。\"}]}\n</航站状态>\n<航站终端/>"
   }
 ]

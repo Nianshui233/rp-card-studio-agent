@@ -1,15 +1,27 @@
-schema_version: 2.0.0
+schema_version: 2.1.0
 id: system_id
 display_name: 未命名系统
 system_mode: narrative             # narrative / quantitative / hybrid；数值型或混合型再合并 quantitative-system.mixin.yaml
 
 purpose: ""
 roleplay_experience: ""
+applies_to: []                      # 玩家 / 指定角色 / 势力 / 场景 / 世界唯一 / 其他
 core_rules: []
 triggers: []
+
+resolution:
+  success: []                       # 条件充分时的正常结果
+  partial_success: []               # 推进目标但附带可继续处理的代价
+  failure: []                       # 失败、拒绝或错过窗口后的路线
+  insufficient_information: ""     # 无法判断时保持什么、怎样表现不确定性
+  repeated_action: ""              # 同一事实或同类意图重复时的处理
+  conflict_priority: []             # 多条规则、角色义务或事件冲突时的顺序
+  evaluation_order: []              # 只有顺序会改变结果时填写
+
 consequences: []
 world_and_npc_motion: []
+recovery_or_exit: []                # 恢复、逆转、收束、转移或永久后果
 exceptions: []
 anti_exploitation: []
-state_to_remember: []
-examples: []
+state_to_remember: []               # 只有后续必须读取的承重事实
+examples: []                        # 至少覆盖正常、失败/部分成功、无人介入

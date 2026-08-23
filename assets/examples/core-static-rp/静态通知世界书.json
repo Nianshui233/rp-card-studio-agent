@@ -1,0 +1,38 @@
+{
+  "entries": {
+    "0": {
+      "uid": 0,
+      "key": [],
+      "keysecondary": [],
+      "comment": "静态通知·受限纯文本输出合同",
+      "content": "[静态通知输出合同 v1]\n当正文中发生值得单独提示、且能用一段短纯文本表达的事实时，可以在正文末尾额外输出至多一次：\n<静态通知 标题=\"标题\">通知正文</静态通知>\n规则：\n- 标题 1-40 字，不得包含双引号、换行、小于号、大于号或 & 符号。\n- 正文 1-500 字，可以换行，但不得包含小于号、大于号或 & 符号。\n- 标题和正文只写纯文本，不写 Markdown 链接、HTML、内部标签、实体或事件属性。\n- 无需通知时不要输出空标记。\n- 外层标签闭合后停止本通知，不在内部附加变量命令或代码围栏。\n这是一条受限静态显示协议；需要复杂字段、列表或自由文本时不要勉强使用。",
+      "constant": true,
+      "vectorized": false,
+      "selective": false,
+      "selectiveLogic": 0,
+      "addMemo": true,
+      "order": 100,
+      "position": 0,
+      "disable": false,
+      "excludeRecursion": false,
+      "preventRecursion": true,
+      "delayUntilRecursion": 0,
+      "probability": 100,
+      "useProbability": true,
+      "depth": 4,
+      "group": "",
+      "groupOverride": false,
+      "groupWeight": 100,
+      "scanDepth": null,
+      "caseSensitive": null,
+      "matchWholeWords": null,
+      "useGroupScoring": null,
+      "automationId": "",
+      "role": null,
+      "sticky": 0,
+      "cooldown": 0,
+      "delay": 0,
+      "displayIndex": 0
+    }
+  }
+}

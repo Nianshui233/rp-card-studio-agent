@@ -5,7 +5,47 @@
     "placement": 2,
     "depth": 0,
     "channel": "display",
-    "expected": "<section style=\"border:1px solid #49738a;border-radius:12px;padding:12px;background:#10212d;color:#eefaff\"><strong style=\"color:#7de3ff\">潮位变化</strong><p style=\"margin:.5em 0 0\">东堤水位上涨半尺。</p></section>"
+    "expected": "<section style=\"border:1px solid #49738a;border-radius:12px;padding:12px;background:#10212d;color:#eefaff\"><strong style=\"color:#7de3ff\">潮位变化</strong><p style=\"margin:.5em 0 0;white-space:pre-wrap\">东堤水位上涨半尺。</p></section>"
+  },
+  {
+    "id": "display-multiline-plain-text",
+    "input": "<静态通知 标题=\"交班记录\">北灯已复亮。\n备用保险丝剩余两枚。</静态通知>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "<section style=\"border:1px solid #49738a;border-radius:12px;padding:12px;background:#10212d;color:#eefaff\"><strong style=\"color:#7de3ff\">交班记录</strong><p style=\"margin:.5em 0 0;white-space:pre-wrap\">北灯已复亮。\n备用保险丝剩余两枚。</p></section>"
+  },
+  {
+    "id": "display-streaming-half",
+    "input": "正文\n<静态通知 标题=\"潮位变化\">东堤水位",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "正文\n"
+  },
+  {
+    "id": "display-unsafe-html-fails-closed",
+    "input": "<静态通知 标题=\"潮位变化\"><img src=x onerror=alert(1)></静态通知>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "> **静态通知载荷无效**\n>\n> 本条通知未按受限纯文本协议显示。"
+  },
+  {
+    "id": "display-entity-fails-closed",
+    "input": "<静态通知 标题=\"潮位&变化\">东堤水位上涨。</静态通知>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "> **静态通知载荷无效**\n>\n> 本条通知未按受限纯文本协议显示。"
+  },
+  {
+    "id": "display-similar-marker-untouched",
+    "input": "<静态通知旧 标题=\"潮位变化\">东堤水位上涨。</静态通知旧>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "<静态通知旧 标题=\"潮位变化\">东堤水位上涨。</静态通知旧>"
   },
   {
     "id": "prompt-summary",
@@ -14,5 +54,13 @@
     "depth": 0,
     "channel": "prompt",
     "expected": "[事件通知：潮位变化；东堤水位上涨半尺。]"
+  },
+  {
+    "id": "prompt-invalid-does-not-preserve-fields",
+    "input": "<静态通知 标题=\"坏&标题\">不要沿用</静态通知>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "prompt",
+    "expected": "[事件通知载荷无效：不要沿用其中字段]"
   }
 ]

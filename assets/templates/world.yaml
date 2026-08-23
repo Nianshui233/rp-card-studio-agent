@@ -1,4 +1,4 @@
-schema_version: 1.2.0
+schema_version: 1.3.0
 id: world_main
 display_name: 未命名世界
 
@@ -23,6 +23,8 @@ setting_scope:
       role_in_rp: ""               # 这里在世界运行、冲突与日常生活中承担什么作用
       public_impression: ""        # 普通人眼中的样子
       hidden_reality: ""           # 可选；未揭示前不可直接泄露
+      special_rules: []             # 此地点独有、且会改变行动裁决的规则
+      associated_factions: []       # 使用 faction id；只填真实控制、依赖或争夺关系
   environment:
     climate_and_terrain: ""
     resource_situation: ""
@@ -66,17 +68,25 @@ world_rules:
     - id: rule_system_id
       name: "规则/力量体系名称"
       applies_to: ""
+      access_and_acquisition:        # 谁能使用、如何获得资格；不适用时删除
+        eligible: []
+        entry_requirements: []
+        acquisition_routes: []
+        loss_conditions: []
       can_do: []                     # 明确能力与典型用法
       cannot_do: []                  # 绝对做不到或被禁止的事项
       costs: []                      # 消耗、反噬、法律与关系代价
       limits: []                     # 强度、范围、频率、持续时间上限
       frequency: ""                 # 稀有度或普通人接触概率
+      tiers: []                      # 只有层级会改变能力、代价或权限时填写
       resolution:
         success: ""
         partial_success: ""
         failure: ""
         critical: ""
       edge_cases: []                 # 模糊场景与默认裁决
+      interactions: []               # 与其他系统、技术、法律或资源的明确交互
+      misconceptions: []             # 普遍误解或宣传；与真实规则分开
       priority: ""                  # 与其他规则冲突时的优先级
   default_resolution:
     method: ""                      # 无需一定掷骰，但必须能裁决结果
@@ -116,13 +126,19 @@ factions_and_society:
   factions:
     - id: faction_id
       name: "势力名称"
+      aliases: []
       public_goal: ""
       hidden_goal: ""
       methods: []
       resources: []
       territory_or_influence: ""
+      institutions: []               # 下属部门、依附机构或稳定合作组织
       internal_conflicts: []
+      behavioral_red_lines: []       # 即使有利也通常不会越过的制度或利益底线
       recruitment_and_members: ""
+      joining_routes: []
+      exit_costs: []                 # 离开、背叛或失去资格的真实后果
+      representative_character_refs: [] # 角色阶段已有角色的稳定 id/ref
       public_reputation: ""
   faction_relations:
     overall_balance: ""
@@ -244,7 +260,15 @@ change_boundaries:
   encouraged_exploration: []
   improvisation_boundary: ""
 
-cross_world_rules: null               # 仅多世界/平行维度项目改为对象
+# 仅多世界/平行维度项目把 null 改为下列对象；普通项目保持 null。
+cross_world_rules: null
+# cross_world_rules:
+#   structure: ""                    # 维度数量、层级与彼此关系
+#   travel_rules: []                  # 跨界条件、限制、代价与失败
+#   information_transfer: []          # 记忆、通讯、预言、记录如何跨界
+#   core_differences: []              # 各世界真正改变玩法的差异
+#   shared_invariants: []             # 所有世界都不能违背的统一硬规则
+#   conflict_priority: []
 
 hooks: []                              # 能直接引发行动、选择或冲突的剧情钩子
 open_questions:

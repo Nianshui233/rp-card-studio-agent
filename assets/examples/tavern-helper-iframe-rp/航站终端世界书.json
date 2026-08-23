@@ -1,0 +1,38 @@
+{
+  "entries": {
+    "0": {
+      "uid": 0,
+      "key": [],
+      "keysecondary": [],
+      "comment": "航站终端·非变量消息输出合同",
+      "content": "[航站终端非变量输出合同 v1]\n每条正式 assistant 回复先写自然 RP 正文；需要显示当楼快照时，在正文末尾输出一次且仅一次下列协议，然后停止本次技术载荷：\n<航站状态 v=\"1\">\n{\"区域\":\"当前可观察区域\",\"天气\":\"当前可观察天气\",\"任务\":\"当前可行动任务\",\"提示\":\"可选的一句当楼提示\",\"行动\":[{\"label\":\"按钮短标题\",\"text\":\"写入玩家输入框、可继续编辑的完整行动文本\"}]}\n</航站状态>\n<航站终端/>\nJSON Schema：区域、天气、任务为必填字符串；提示为可选字符串；行动为 0-8 项数组，每项必须含 label 与 text 字符串。不要输出未知字段。\n序列化：标签体内只能有一个合法 JSON object；禁止 Markdown fence、注释和尾逗号。字符串中的双引号、反斜线和换行使用标准 JSON 转义。字符串中的小于号、大于号和 & 必须写成 \\u003C、\\u003E、\\u0026，避免形成外层闭合或 HTML。\n语义：只写本楼正文已发生或可观察的事实；缺失时使用“未记录”，不得沿用未在本楼确认的旧消息值。行动只是可编辑建议，不代表玩家已经执行。\n边界：一条消息最多一个航站状态块；技术 marker 紧跟闭合标签。不要在载荷后追加第二个状态块、变量命令或代码围栏。",
+      "constant": true,
+      "vectorized": false,
+      "selective": false,
+      "selectiveLogic": 0,
+      "addMemo": true,
+      "order": 100,
+      "position": 0,
+      "disable": false,
+      "excludeRecursion": false,
+      "preventRecursion": true,
+      "delayUntilRecursion": 0,
+      "probability": 100,
+      "useProbability": true,
+      "depth": 4,
+      "group": "",
+      "groupOverride": false,
+      "groupWeight": 100,
+      "scanDepth": null,
+      "caseSensitive": null,
+      "matchWholeWords": null,
+      "useGroupScoring": null,
+      "automationId": "",
+      "role": null,
+      "sticky": 0,
+      "cooldown": 0,
+      "delay": 0,
+      "displayIndex": 0
+    }
+  }
+}

@@ -2,10 +2,16 @@
   "type": "script",
   "enabled": false,
   "name": "航站输入桥",
-  "id": "58b5b41f-efb1-44d6-a7ae-4ca854259ff7",
-  "content": "(() => {\n  'use strict';\n  const api = {\n    async setInput(text) {\n      if (typeof triggerSlash === 'function') {\n        await triggerSlash(`/setinput ${String(text)}`);\n        return;\n      }\n      const textarea = window.parent?.document?.querySelector('#send_textarea');\n      if (!textarea) throw new Error('找不到 SillyTavern 输入框');\n      textarea.value = String(text);\n      textarea.dispatchEvent(new Event('input', { bubbles: true }));\n      textarea.dispatchEvent(new Event('change', { bubbles: true }));\n    },\n  };\n  initializeGlobal('航站输入桥', api);\n  addEventListener('pagehide', () => {\n    if (window.parent?.航站输入桥 === api) delete window.parent.航站输入桥;\n  }, { once: true });\n})();\n",
-  "info": "为航站消息 iframe 提供可探测的输入框写入接口。",
-  "button": { "enabled": true, "buttons": [] },
+  "id": "8d645d1a-504c-4c2e-8768-f2d698539852",
+  "content": "(() => {\n  'use strict';\n\n  function escapeSlashText(value) {\n    return String(value)\n      .replaceAll('\\\\', '\\\\\\\\')\n      .replaceAll('|', '\\\\|')\n      .replaceAll('\\r\\n', '{{newline}}')\n      .replaceAll('\\n', '{{newline}}');\n  }\n\n  const api = {\n    async setInput(text) {\n      const value = String(text || '').trim().slice(0, 220);\n      if (!value) throw new Error('行动文本为空');\n      if (typeof triggerSlash === 'function') {\n        await triggerSlash('/setinput ' + escapeSlashText(value));\n        return;\n      }\n      const textarea = window.parent?.document?.querySelector('#send_textarea');\n      if (!textarea) throw new Error('找不到 SillyTavern 输入框');\n      textarea.value = value;\n      textarea.dispatchEvent(new Event('input', { bubbles: true }));\n      textarea.dispatchEvent(new Event('change', { bubbles: true }));\n    },\n  };\n\n  initializeGlobal('航站输入桥', api);\n  addEventListener('pagehide', () => {\n    if (window.parent?.航站输入桥 === api) delete window.parent.航站输入桥;\n  }, { once: true });\n})();\n",
+  "info": "为航站终端提供安全的输入框写入；转义 slash 管线字符，不自动发送。",
+  "button": {
+    "enabled": true,
+    "buttons": []
+  },
   "data": {},
-  "export_with": { "data": true, "button": true }
+  "export_with": {
+    "data": true,
+    "button": true
+  }
 }

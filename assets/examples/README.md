@@ -4,10 +4,10 @@
 
 | 样本 | 纯静态正则 | TH fenced iframe | MVU | STPT EJS | 一次性开场前端 | 持续消息前端 | 可导入角色/世界书 | 主要用途 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `core-static-rp` | ✓ | — | — | — | — | — | — | 无 JavaScript 的通知/卡片最小路线 |
-| `tavern-helper-iframe-rp` | — | ✓ | — | — | — | 单一非 MVU 快照 | — | 消息 marker → fenced iframe → 输入桥 |
+| `core-static-rp` | ✓ | — | — | — | — | — | 世界书 producer | 受限纯文本通知；失败关闭的静态捕获边界 |
+| `tavern-helper-iframe-rp` | — | ✓ | — | — | — | 版本化非 MVU 快照 | 世界书 + Script | producer → v1 JSON → 当前楼/Swipe → DOM 文本渲染 → 输入桥 |
 | `mvu-ejs-bridge-rp` | 清理规则 | — | ✓ | ✓ | — | — | 世界书 + ScriptFolder | MVU→EJS 只读桥最小路线 |
-| `full-mvu-rp` | ✓ 通知 | ✓ 两个独立前端 | ✓ | ✓ | ✓ 固定/动态 | ✓ 每楼快照 | ✓ 完整包 | **后续制作主参考与直接游玩样本** |
+| `full-mvu-rp` | ✓ 通知 | ✓ 两个独立前端 | ✓ | ✓ | ✓ 固定/动态 | ✓ 每楼快照 | ✓ 完整包 | **完整创作合同＋后续制作主参考＋直接游玩样本** |
 
 `full-mvu-rp` 选择一套一致的权威状态与 provider，不把互斥替代方案同时装进一个聊天：
 

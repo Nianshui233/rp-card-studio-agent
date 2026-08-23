@@ -1,11 +1,20 @@
-schema_version: 2.0.0
+schema_version: 2.1.0
 id: scene_id
 display_name: 未命名场景
+
+world_anchor:
+  location_ref: ""                 # 上游世界地点稳定 id/ref
+  parent_region_ref: ""
+  controlling_factions: []
+  contested_by: []
+  dependencies: []                  # 交通、供给、制度、天气或其他地点依赖
 
 purpose: ""
 scene_type: ""                    # 日常 / 会面 / 探索 / 经营 / 潜入 / 推理 / 战术 / 密室 / 其他
 play_focus: []
 depth_profile: ""                  # light / structured / tactical / custom；表示内容深度，不是 UI 等级
+danger_level: none                 # none / low / medium / high / lethal；只作整体锚点，具体风险仍写 risks
+danger_sources: []
 daily_life: ""
 atmosphere: []
 
@@ -43,7 +52,16 @@ access_and_security:
   alarm_triggers: []
   bypasses: []
 
-actors_and_motion: []
+actors_and_motion:
+  - actor_ref: ""                  # 已有角色优先使用稳定 id/ref；临时人群可写类型
+    role_here: ""
+    current_goal: ""
+    schedule_or_pattern: ""
+    information: []
+    negotiation_points: []
+    constraints_or_weaknesses: []
+    likely_next_action: ""
+    offscreen_action: ""
 interactions: []
 risks: []
 
@@ -73,6 +91,11 @@ local_rules:
   common_action_rulings: []
   impossible_actions: []
   edge_cases: []
+
+change_boundaries:
+  hard_facts: []                    # 不可为剧情方便临时改写
+  expandable_parts: []              # 可按 expansion_rules 即兴补全
+  disallowed_elements: []           # 会破坏世界规则、内容边界或场景用途的元素
 
 space_and_access: []                 # 兼容旧项目；新建优先使用 spatial_structure/access_and_security
 clues: []                           # 兼容旧项目；新建优先使用 clue_structure

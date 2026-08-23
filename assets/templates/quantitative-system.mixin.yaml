@@ -11,6 +11,10 @@ quantitative:
       initial: 0
       direction: bidirectional     # bidirectional / ascending / descending
       meaning: "下限含义 ↔ 上限含义"
+      threshold_transition:
+        mode: sharp                 # sharp / gradual
+        transition_width: 0        # gradual 时填写数值宽度或比例；sharp 保持 0
+        behavior_rule: ""           # 临界区如何混合相邻阈值表现
       thresholds:
         - range: [0, 29]
           label: "低位"
@@ -33,6 +37,7 @@ quantitative:
       positive: [1, 10]
       negative: [-10, -1]
     context_modifiers: []
+    context_modifier_merge_rule: "按 priority 取第一项；无匹配为 1.0" # 可改为相乘/最大影响等，但必须唯一
     repetition:
       grouping_rule: "按行为意图而非字面重复归类"
       modifiers: [1.0, 0.6, 0.3, 0.1]
@@ -43,6 +48,13 @@ quantitative:
       per_interaction: { min: -20, max: 20 }
       per_cycle: { min: -40, max: 40 }
       cycle_definition: ""
+    evaluation_order:
+      - "识别事件并按意图归类"
+      - "确定 base 与当前阈值修正"
+      - "合并情境修正并应用重复衰减"
+      - "裁剪单事件并按 multiple_events 合并"
+      - "应用周期边界与触顶/触底"
+      - "写入新值并按新阈值产生可观察后果"
   boundaries:
     ceiling:
       value: 100

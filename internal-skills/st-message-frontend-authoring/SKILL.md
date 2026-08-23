@@ -25,11 +25,13 @@ description: "Private module for ongoing SillyTavern in-message frontends: statu
 本 Skill 输出：
 
 - 一个或多个最终完整、自包含的消息 HTML 表面；
+- 非 MVU 路线的实际 producer 输出合同、版本化载荷 Schema、fixture 和 parser；
 - 每个表面的真实 provider、adapter、marker、数据源和正则/EJS 配对；
 - 当前数值楼层与 Swipe 对应的数据读取；
 - 编辑、Swipe、消息更新、重载、切聊和重复挂载行为；
 - 玩家动作、真实写入、保存、同存储面读回、反馈和失败回退；
-- 加载、空态、损坏、宿主不可用和 `pagehide` 清理。
+- 加载、空态、损坏、宿主不可用和 `pagehide` 清理；
+- 键盘、焦点、ARIA、触控、长列表、性能和调试降级。
 
 ## 持续生命周期
 
@@ -53,7 +55,7 @@ MVU 的 `VARIABLE_INITIALIZED/VARIABLE_UPDATE_ENDED` 是内存变换事件，不
 
 - TH fenced iframe：使用 `getCurrentMessageId()`、裸 TH API 与裸事件清理；
 - STPT `@@iframe`：由 EJS render context 把 `message_id/swipe_id` 写入页面，显式探测 `window.parent` 能力，所有 namespace 事件句柄主动 stop；
-- 纯 SillyTavern：只做静态展示，不承诺按钮、变量或脚本；
+- 纯 SillyTavern：只做受限静态展示，不承诺按钮、变量或脚本；捕获值直接进入 HTML 时必须有可证明的字符边界或明确允许净化后的有限 markup；
 - 其他 provider：先写明如何获得 message ID、如何读写、如何保存、如何清理，再实现页面。
 
 不能把 TH 专用 `getCurrentMessageId/eventOn` 合同泛化到所有 iframe。

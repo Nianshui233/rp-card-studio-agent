@@ -1,6 +1,6 @@
 ---
 name: st-integration-qa
-description: "Private final QA and delivery module for checking actual SillyTavern files, repairing concrete breakage, organizing only the components the project uses, and reporting import order and runtime evidence."
+description: "Private final QA and delivery module for cross-stage RP consistency, actual SillyTavern file checks, concrete repairs, used-component packaging, import order, and runtime evidence."
 ---
 
 # SillyTavern Final QA and Delivery
@@ -13,8 +13,9 @@ description: "Private final QA and delivery module for checking actual SillyTave
 ## 职责
 
 - 直接检查用户工作目录中的最终角色卡、独立世界书、正则、Tavern Helper 脚本、MVU/EJS 文件和完整 HTML。
-- 修复确定的语法错误、字段错位、路径断链、ID 冲突、标记生产者/消费者不一致和变量路径错误。
-- 不重写已确认的 RP 内容，不创建通用中间格式，不生成源码清单或构建事务。
+- 对实际存在的世界、角色、系统、场景、叙事、开场、变量初态和玩家反馈执行一次跨阶段创作一致性检查。
+- 修复确定的语法错误、字段错位、路径断链、ID 冲突、标记生产者/消费者不一致、变量路径错误和不改变创作方向的明确事实矛盾。
+- 不擅自重写已确认的 RP 方向；需要改变承重设定时返回对应创作阶段校准。不创建通用中间格式，不生成源码清单或构建事务。
 - 将最终文件直接整理到一个交付目录，只包含项目实际使用的组件。
 - 为旧卡保留原始输入副本，但不把原始副本列为运行导入组件。
 - 未做真实 SillyTavern 测试时在最终报告中明确写 `runtime: not_run`。
@@ -31,17 +32,20 @@ description: "Private final QA and delivery module for checking actual SillyTave
 按实际存在的组件检查：
 
 - JSON/YAML/JavaScript/EJS/HTML/正则语法；
+- 世界规则、人物能力与知识、系统代价、场景资源/权限、开场事实和变量初态是否互相一致；
+- 角色的价值/恐惧/底线是否有行为与压力反应证明，关键台词是否符合语言规则；
 - 角色卡和独立世界书名称、绑定目标、CharacterBook 内容；
 - MVU 初值、路线、唯一 Loader、数值楼层、事件/持久化时序、更新协议、完整/流式隐藏规则和 UI 路径；
 - EJS 模板、按名调用条目、执行阶段、raw-message/sandbox/autosave 默认态和 MVU bridge；
 - 正则 placement/depth、prompt/display 分工、标记与 HTML 配对；
 - Tavern Helper Script/ScriptFolder JSON 结构、内容、ID、依赖、重复注册和必要卸载；`.js` 不能冒充导入文件；
 - 开场/创角 HTML 是否完成空白输入、主动选择、上下文冻结、目标 Greeting Swipe、canonical `<user>`、真实写入/保存/读回、失败保留和 user→AI 正常消息链；
-- 持续消息 HTML 是否自包含、有真实动态载体、按 provider 取得当前楼层/Swipe、处理持久化后刷新与清理并有空态/失败回退；
+- 持续消息 HTML 是否自包含、有真实动态载体、按 provider 取得当前楼层/Swipe、处理持久化后刷新与清理并有空态/失败回退；非 MVU 页面还检查 producer/版本/Schema/parser/fixture 与静态捕获安全边界；
+- 交互页面是否按实际组件满足键盘、焦点、ARIA、触控、长列表、性能、主题和调试降级；
 - 两种前端同时存在时，是否分别交付独立 HTML、使用同一运行合同，并避免重复初始化和第二套状态树；
 - 交付文件是否残留绝对路径、`src/...`、`source_refs` 或需要用户拼接的本地 CSS/JS。
 
-只有确定会造成无法导入、无法运行、数据丢失或明确断链的问题才阻断交付。风格、规模和性能建议只作为非阻断说明。
+无法导入、无法运行、数据丢失、明确运行断链或会让核心 RP 合同自相矛盾的问题阻断交付。纯风格偏好、可选扩写、非承重字段数量和性能建议只作为非阻断说明。创作检查不要求模板字段填满，也不把“还能继续写”当作失败。
 
 ## 交付
 
