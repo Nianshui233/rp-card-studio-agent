@@ -44,7 +44,7 @@ function setPath(object, pathText, value) {
   cursor[parts[parts.length - 1]] = value;
 }
 
-function makeHarness({ duplicateUser = false, input = '' } = {}) {
+function makeHarness({ duplicateUser = false, input = '', noUserEntry = false, hideCreatedUserOnReadback = false, incompleteDynamicSnapshotFirst = false, incompleteMvuSnapshot = false } = {}) {
   const floor0 = {
     message_id: 0,
     role: 'assistant',
@@ -60,10 +60,12 @@ function makeHarness({ duplicateUser = false, input = '' } = {}) {
   };
   floor0.data = floor0.swipes_data[0];
   const chat = [floor0];
-  let worldbook = [
+  let worldbook = noUserEntry ? [] : [
     { uid: 2, name: '<user>', content: '尚未登记', enabled: false, strategy: { type: 'constant', keys: [] } },
   ];
   if (duplicateUser) worldbook.push({ uid: 99, name: '<user>', content: '冲突', enabled: false, strategy: { type: 'constant', keys: [] } });
+  let hideCreatedEntryForNextRead = false;
+  let dynamicMvuReads = 0;
   const listeners = new Map();
   const inputBox = { value: input };
   const emitted = [];
@@ -135,7 +137,13 @@ function makeHarness({ duplicateUser = false, input = '' } = {}) {
     getMvuData: ({ message_id }) => {
       const message = chat[Number(message_id)];
       if (!message) return null;
-      return clone(normalizedMessage(message).data);
+      const data = clone(normalizedMessage(message).data);
+      if (incompleteMvuSnapshot) return data ? { stat_data: data.stat_data } : data;
+      if (incompleteDynamicSnapshotFirst && Number(message_id) >= 2) {
+        dynamicMvuReads += 1;
+        if (dynamicMvuReads === 1) return { stat_data: data.stat_data };
+      }
+      return data;
     },
     replaceMvuData: (data, { message_id }) => {
       const message = chat[Number(message_id)];
@@ -205,10 +213,17 @@ function makeHarness({ duplicateUser = false, input = '' } = {}) {
     getChatMessages,
     setChatMessages,
     getLastMessageId: () => chat.length - 1,
-    getWorldbook: async () => clone(worldbook),
+    getWorldbook: async () => {
+      if (hideCreatedUserOnReadback && hideCreatedEntryForNextRead) {
+        hideCreatedEntryForNextRead = false;
+        return clone(worldbook.filter(entry => entry.name !== '<user>'));
+      }
+      return clone(worldbook);
+    },
     createWorldbookEntries: async (_name, entries) => {
       const created = entries.map(entry => ({ uid: Math.max(0, ...worldbook.map(item => item.uid)) + 1, enabled: false, content: '', strategy: { type: 'selective', keys: [] }, ...clone(entry) }));
       worldbook.push(...created);
+      hideCreatedEntryForNextRead = true;
       return { worldbook: clone(worldbook), new_entries: clone(created) };
     },
     updateWorldbookWith: async (_name, updater) => { worldbook = clone(await updater(clone(worldbook))); return clone(worldbook); },
@@ -247,6 +262,7 @@ function makeHarness({ duplicateUser = false, input = '' } = {}) {
     saves,
     emitted,
     listeners,
+    get dynamicMvuReads() { return dynamicMvuReads; },
   };
 }
 
@@ -269,8 +285,8 @@ async function testFixedGreeting() {
   assert(h.saves.chat >= 2);
 }
 
-async function testDynamicGreeting() {
-  const h = makeHarness();
+async function testDynamicGreetingWaitsForCompleteSnapshot() {
+  const h = makeHarness({ incompleteDynamicSnapshotFirst: true });
   const draft = { name: '槐生', background: 'clerk', skill: 'rapport', approach: 'cautious', route: 'custom', custom_goal: '追查一封盖着港务所旧印的电报' };
   const prepared = await h.opening.prepare(draft);
   const result = await h.opening.commit(prepared.token, draft);
@@ -282,6 +298,8 @@ async function testDynamicGreeting() {
   assert.match(h.chat[1].message, /【雾港航站开局】/);
   assert.equal(h.chat[2].role, 'assistant');
   assert(h.chat[2].data.stat_data);
+  assert(h.chat[2].data.schema);
+  assert.equal(h.dynamicMvuReads, 2, 'incomplete stat_data-only snapshots must not complete the dynamic chain');
   assert.equal(h.metadata.mistport_opening.committed, true);
   assert.equal(h.metadata.mistport_opening.assistant_message_id, 2);
 }
@@ -294,6 +312,23 @@ async function testDuplicateUserConflictRollsBack() {
   assert.equal(h.chat.length, 1);
   assert.equal(h.chat[0].swipe_id, 0);
   assert.equal(h.chat[0].swipes_data[0].stat_data.玩家.称呼, '待登记');
+}
+
+
+async function testNewUserEntryMustPassReadback() {
+  const h = makeHarness({ noUserEntry: true, hideCreatedUserOnReadback: true });
+  const draft = { name: 'Rin', background: 'deckhand', skill: 'observe', approach: 'direct', route: 'routine', custom_goal: '' };
+  const prepared = await h.opening.prepare(draft);
+  await assert.rejects(() => h.opening.commit(prepared.token, draft), /<user>.*读回校验失败/);
+  assert.equal(h.chat[0].swipe_id, 0, 'opening must not advance after profile readback fails');
+  assert.equal(h.worldbook.filter(entry => entry.name === '<user>').length, 0, 'failed transaction must roll back the created entry');
+}
+
+
+async function testMemoRejectsIncompleteSnapshot() {
+  const h = makeHarness({ incompleteMvuSnapshot: true });
+  await assert.rejects(() => h.runtime.writeMemo(0, '先查电报发送时刻'), /完整 MVU 快照/);
+  assert.equal(h.saves.chat, 0, '不完整快照不能被当作有效数据保存');
 }
 
 async function testInputAndMemo() {
@@ -378,6 +413,7 @@ async function testCountdownAndMetadataConsumers() {
   const statusPage = fs.readFileSync(path.join(dir, '状态栏.html'), 'utf8');
   assert.match(statusPage, /\$arrayMeta/, '消息前端必须过滤数组元数据载体');
   assert.match(statusPage, /startsWith\('\$'\)|charAt\(0\).*\$/, '消息前端必须过滤对象 $meta 键');
+  assert.match(statusPage, /!data\.schema/, '状态栏不能把缺少 schema 的部分对象当成有效 MVU 快照');
   const ejs = fs.readFileSync(path.join(dir, '动态上下文.ejs'), 'utf8');
   assert.match(ejs, /\$arrayMeta/, 'EJS 摘要必须过滤数组元数据载体');
 }
@@ -393,11 +429,13 @@ async function testEjsBridge() {
 }
 
 await testFixedGreeting();
-await testDynamicGreeting();
+await testDynamicGreetingWaitsForCompleteSnapshot();
+await testNewUserEntryMustPassReadback();
 await testDuplicateUserConflictRollsBack();
+await testMemoRejectsIncompleteSnapshot();
 await testInputAndMemo();
 await testEjsBridge();
 await testMvuPathNormalizer();
 await testCapturedVariableRegression();
 await testCountdownAndMetadataConsumers();
-console.log('runtime contract tests: 8/8');
+console.log('runtime contract tests: 10/10');

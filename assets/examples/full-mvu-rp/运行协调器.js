@@ -20,6 +20,13 @@
     return JSON.parse(JSON.stringify(value));
   }
 
+  function hasMvuSnapshot(value) {
+    return Boolean(value
+      && typeof value === 'object'
+      && value.stat_data && typeof value.stat_data === 'object' && !Array.isArray(value.stat_data)
+      && value.schema && typeof value.schema === 'object' && !Array.isArray(value.schema));
+  }
+
   function stable(value) {
     if (Array.isArray(value)) return value.map(stable);
     if (!value || typeof value !== 'object') return value;
@@ -231,14 +238,28 @@
     const content = buildProfile(draft);
     if (!before.entry) {
       if (typeof createWorldbookEntries !== 'function') fail('缺少 createWorldbookEntries');
+      if (typeof deleteWorldbookEntries !== 'function') fail('缺少 deleteWorldbookEntries，无法安全回滚新建的玩家档案');
       const created = await createWorldbookEntries(BOOK_NAME, [{
         name: PROFILE_ENTRY_NAME,
         content,
         enabled: true,
         strategy: { type: 'constant', keys: [], keys_secondary: { logic: 'and_any', keys: [] }, scan_depth: 'same_as_global' },
       }], { render: 'immediate' });
-      const entry = created.new_entries[0];
-      if (!entry) fail('创建 <user> 条目失败');
+      const entry = created.new_entries && created.new_entries[0];
+      if (!entry || entry.uid === undefined || entry.uid === null) fail('创建 <user> 条目失败：宿主未返回新条目 UID');
+      try {
+        const after = await readUserEntry();
+        if (!after.entry || after.entry.uid !== entry.uid || after.entry.content !== content || !after.entry.enabled) {
+          fail('新建 <user> 档案写入后读回校验失败');
+        }
+      } catch (error) {
+        try {
+          await deleteWorldbookEntries(BOOK_NAME, item => item.uid === entry.uid && item.name === PROFILE_ENTRY_NAME, { render: 'immediate' });
+        } catch (rollbackError) {
+          fail('新建 <user> 档案读回失败，且自动回滚失败：' + String(rollbackError.message || rollbackError));
+        }
+        throw error;
+      }
       return { mode: 'created', before: null, uid: entry.uid, content };
     }
     if (typeof updateWorldbookWith !== 'function') fail('缺少 updateWorldbookWith');
@@ -300,7 +321,7 @@
 
   async function applyDraftToData(data, draft) {
     const current = clone(data || {});
-    if (!current.stat_data) fail('目标 Greeting Swipe 尚未取得 MVU 初态');
+    if (!hasMvuSnapshot(current)) fail('目标 Greeting Swipe 尚未取得完整 MVU 快照');
     const commands = [
       "_.set('玩家.称呼', " + JSON.stringify(draft.name) + ");//开场登记",
       "_.set('玩家.来历', " + JSON.stringify(BACKGROUNDS[draft.background].label) + ");//开场登记",
@@ -318,7 +339,7 @@
       );
     }
     const next = await Mvu.parseMessage(commands.join('\n'), current);
-    if (!next || !next.stat_data) fail('MVU 未接受开场初态更新');
+    if (!hasMvuSnapshot(next)) fail('MVU 未接受完整开场初态更新');
     return next;
   }
   function dynamicGreeting(draft) {
@@ -441,7 +462,9 @@
         if (assistantMessage) {
           try {
             const data = Mvu.getMvuData({ type: 'message', message_id: assistantMessage.message_id });
-            if (data && data.stat_data) return { user: userMessage, assistant: assistantMessage };
+            if (hasMvuSnapshot(data)) {
+              return { user: userMessage, assistant: assistantMessage };
+            }
           } catch (_error) {
             // 等待 MVU 把 assistant 楼变量写入存储。
           }
@@ -538,14 +561,14 @@
     if (!value) fail('手记不能为空');
     await waitForMvu(8000);
     const before = Mvu.getMvuData({ type: 'message', message_id: id });
-    if (!before || !before.stat_data) fail('本楼没有 MVU 快照');
+    if (!hasMvuSnapshot(before)) fail('本楼没有完整 MVU 快照');
     const command = "_.set('玩家备忘.最新', " + JSON.stringify(value) + ");//玩家手记";
     const next = await Mvu.parseMessage(command, before);
-    if (!next || !next.stat_data) fail('MVU 没有接受本次手记更新');
+    if (!hasMvuSnapshot(next)) fail('MVU 没有接受完整手记快照');
     Mvu.replaceMvuData(next, { type: 'message', message_id: id });
     await saveChatVerified();
     const after = Mvu.getMvuData({ type: 'message', message_id: id });
-    if (String(after?.stat_data?.玩家备忘?.最新 || '') !== value) fail('保存后同楼读回校验失败');
+    if (!hasMvuSnapshot(after) || String(after.stat_data?.玩家备忘?.最新 || '') !== value) fail('保存后完整 MVU 快照同楼读回校验失败');
     if (typeof eventEmit === 'function') await eventEmit(POST_WRITE_EVENT, { message_id: id, path: '玩家备忘.最新' });
     return { status: 'persisted', message_id: id, text: value, stat_data: clone(after.stat_data) };
   }
@@ -601,7 +624,7 @@
     const messages = getChatMessages('0-' + Math.max(0, last));
     for (let i = messages.length - 1; i >= 0; i -= 1) {
       const data = messages[i] && messages[i].data;
-      if (data && data.stat_data && data.schema) return clone(data);
+      if (hasMvuSnapshot(data)) return clone(data);
     }
     return null;
   }

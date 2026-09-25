@@ -12,73 +12,77 @@ stages:
   brainstorm:
     primary_skill: rp-concept-brainstorm
     references: [brainstorm]
+    supporting_skills: [rp-interview-orchestration]
     optional: true
     enable_when: brainstorm_enabled
     next: positioning
   positioning:
     primary_skill: rp-project-foundation
     references: [positioning]
+    supporting_skills: [rp-interview-orchestration]
     optional: false
     next: materials
   materials:
     primary_skill: rp-project-foundation
     references: [materials]
+    supporting_skills: [rp-interview-orchestration]
     optional: true
     enable_when: existing_materials_or_retrofit
     next: worldbuilding
   worldbuilding:
     primary_skill: rp-project-foundation
     references: [worldbuilding]
-    supporting_skills: [st-worldbook-regex]
+    supporting_skills: [rp-interview-orchestration, st-worldbook-regex]
     optional: false
     next: character
   character:
     primary_skill: rp-cast-authoring
-    supporting_skills: [st-worldbook-regex]
+    supporting_skills: [rp-interview-orchestration, st-worldbook-regex]
     optional: false
     next: systems
   systems:
     primary_skill: rp-experience-authoring
     references: [systems]
-    supporting_skills: [st-worldbook-regex]
+    supporting_skills: [rp-interview-orchestration, st-worldbook-regex]
     optional: true
     next: scenes
   scenes:
     primary_skill: rp-experience-authoring
     references: [scenes]
-    supporting_skills: [st-worldbook-regex]
+    supporting_skills: [rp-interview-orchestration, st-worldbook-regex]
     optional: true
     next: mvu_ejs
   mvu_ejs:
     primary_skill: st-runtime-authoring
-    supporting_skills: [st-host-capabilities, st-api-reference, st-worldbook-regex]
+    supporting_skills: [rp-interview-orchestration, st-host-capabilities, st-api-reference, st-worldbook-regex]
     optional: true
     next: narrative_opening
   narrative_opening:
     primary_skill: rp-experience-authoring
     references: [narrative-opening]
-    supporting_skills: [st-runtime-authoring, st-worldbook-regex]
+    supporting_skills: [rp-interview-orchestration, st-runtime-authoring, st-worldbook-regex]
     optional: false
     next: opening_frontend
   opening_frontend:
     primary_skill: st-opening-frontend-authoring
-    supporting_skills: [st-runtime-authoring, st-host-capabilities, st-api-reference, st-worldbook-regex, st-render-regex]
+    supporting_skills: [rp-interview-orchestration, st-runtime-authoring, st-host-capabilities, st-api-reference, st-worldbook-regex, st-render-regex]
     optional: true
     enable_when: opening_or_creation_frontend_requested
     next: message_frontend
   message_frontend:
     primary_skill: st-message-frontend-authoring
-    supporting_skills: [st-runtime-authoring, st-host-capabilities, st-api-reference, st-worldbook-regex, st-render-regex]
+    supporting_skills: [rp-interview-orchestration, st-runtime-authoring, st-host-capabilities, st-api-reference, st-worldbook-regex, st-render-regex]
     optional: true
     enable_when: ongoing_message_ui_requested
     next: qa_delivery
   qa_delivery:
     primary_skill: st-integration-qa
-    supporting_skills: [st-runtime-debug, st-render-regex, st-host-capabilities, st-api-reference]
+    supporting_skills: [rp-interview-orchestration, st-runtime-debug, st-render-regex, st-host-capabilities, st-api-reference]
     optional: false
     next: null
 
 skill_paths:
+  rp-interview-orchestration: internal-skills/rp-interview-orchestration/SKILL.md
   rp-concept-brainstorm: internal-skills/rp-concept-brainstorm/SKILL.md
   rp-project-foundation: internal-skills/rp-project-foundation/SKILL.md
   rp-cast-authoring: internal-skills/rp-cast-authoring/SKILL.md

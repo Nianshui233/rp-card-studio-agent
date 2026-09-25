@@ -28,8 +28,19 @@ function pushType(issues, index, entry, field, type) {
   if (typeof value !== type) issues.push({ path: `${index}.${field}`, message: `${field} 必须是${type}` });
 }
 
+export const HOST_PLACEMENT_VALUES = Object.freeze([0, 1, 2, 3, 5, 6]);
+const HOST_PLACEMENTS = new Set(HOST_PLACEMENT_VALUES);
+
 export function validateRegexEntry(entry, index = 0) {
   const issues = [];
+  const warnings = [];
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+    return {
+      name: `regex-${index}`,
+      issues: [{ path: `${index}`, message: "Regex entry 必须是对象" }],
+      warnings,
+    };
+  }
   const name = valueOf(entry, "scriptName") ?? `regex-${index}`;
   pushType(issues, index, entry, "id", "string");
   pushType(issues, index, entry, "scriptName", "string");
@@ -42,6 +53,14 @@ export function validateRegexEntry(entry, index = 0) {
   const placement = entry.placement;
   if (!Array.isArray(placement) || placement.length === 0 || placement.some(item => !Number.isInteger(item))) {
     issues.push({ path: `${index}.placement`, message: "placement 必须是非空整数数组" });
+  } else {
+    const unsupported = placement.filter(item => !HOST_PLACEMENTS.has(item));
+    if (unsupported.length > 0) {
+      issues.push({ path: `${index}.placement`, message: `SillyTavern 不支持这些 placement: ${unsupported.join(", ")}` });
+    }
+    if (placement.includes(0)) {
+      warnings.push({ path: `${index}.placement`, message: "placement 0 (MD_DISPLAY) 已弃用；新规则应使用具体调用阶段" });
+    }
   }
   const trimStrings = valueOf(entry, "trimStrings");
   if (!Array.isArray(trimStrings) || trimStrings.some(item => typeof item !== "string")) {
@@ -55,7 +74,11 @@ export function validateRegexEntry(entry, index = 0) {
   }
   for (const field of ["minDepth", "maxDepth"]) {
     const value = valueOf(entry, field);
-    if (value !== null && !Number.isInteger(value)) issues.push({ path: `${index}.${field}`, message: `${field} 必须是整数或 null` });
+    if (value !== null && !Number.isInteger(value)) {
+      issues.push({ path: `${index}.${field}`, message: `${field} 必须是整数或 null` });
+    } else if (Number.isInteger(value) && value < -1) {
+      issues.push({ path: `${index}.${field}`, message: `${field} 低于宿主支持的 -1 哨兵值，会被 SillyTavern 忽略` });
+    }
   }
 
   const replacement = valueOf(entry, "replaceString");
@@ -64,7 +87,7 @@ export function validateRegexEntry(entry, index = 0) {
     issues.push({ path: `${index}.replaceString`, message: "动态 HTML 必须是 Tavern Helper 可识别的 fenced html 代码块" });
   }
 
-  return { name, issues };
+  return { name, issues, warnings };
 }
 
 export function validateRegexDocument(value) {

@@ -83,7 +83,7 @@
 
   function readState() {
     var data = Mvu.getMvuData({ type: 'message', message_id: messageId });
-    if (!data || !data.stat_data) throw new Error('本楼没有 MVU 快照');
+    if (!data || !data.stat_data || typeof data.stat_data !== 'object' || Array.isArray(data.stat_data) || !data.schema || typeof data.schema !== 'object' || Array.isArray(data.schema)) throw new Error('本楼没有完整 MVU 快照');
     return data.stat_data;
   }
 

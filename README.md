@@ -18,6 +18,7 @@
 
 | 模块 | 负责内容 |
 |---|---|
+| `rp-interview-orchestration` | 拆分决策点、控制每轮提问数、处理部分回答/授权边界并检查阶段覆盖；不代替领域创作 Skill |
 | `rp-concept-brainstorm` | 把零散或冲突的灵感整合为可游玩创作母纲，并用场景和因果压力收束 |
 | `rp-project-foundation` | 定位、材料盘点、旧卡输入保留、世界观 |
 | `rp-cast-authoring` | 角色、NPC、群像、关系和 NSFW 角色层 |
@@ -34,7 +35,7 @@
 
 ## 交互规则
 
-每个阶段可以进行多轮、多问题访谈，不设固定题数。只有零散构想时，脑暴阶段先解释现有灵感已经承诺的体验，给出首选整合方向并立即写出母纲片段，而不是让用户填写世界、角色和剧情问卷。所有创作取舍采用“问题＋建议＋为什么这样建议＋影响”：Agent 先给出结合现有材料的明确方案，再让用户接受、局部修改或授权继续决定，不把整套脑洞任务交给用户。每次回答后立即产生实际内容，并通过场景、行为、压力或失败情境校准；仍有实质缺口时继续问。详细合同见 `orchestrator/interview-playbook.md`。
+创作访谈由 `rp-interview-orchestration` 控制：每轮最多 3 个独立决定，不能用综合题压扁；部分回答只关闭对应事项；高影响决定不能因沉默或短答被静默代定。领域内容仍由阶段主 Skill 拥有。只有零散构想时，脑暴阶段先解释现有灵感已承诺的体验，给出首选整合方向并立即写出母纲片段，而不是让用户填写长问卷。所有取舍采用“问题＋建议＋为什么这样建议＋影响”，每次回答后立即推进实际内容。详细合同见 `orchestrator/interview-playbook.md` 和 `internal-skills/rp-interview-orchestration/references/stage-coverage.json`。
 
 默认使用标准深度：锚定核心、把抽象变成可观察表现、至少做一次压力/因果检查，并让用户校准已写内容。快速任务可自动轻量化；群像、长期玩法或用户指定部分可以深挖，但深挖增加的是真实情境和连锁后果，不是专业术语、百科字段或长问卷。内容足够后，在对话中给出一次阶段总结报告，再进入下一阶段。总结只概括已完成内容、关键确定项、采用理由与影响、非阻断薄弱点和下一阶段，不写入文件，也不维护访谈表、决定清单或项目管理记录。
 
@@ -73,3 +74,23 @@
 ## 运行参考
 
 宿主、MVU/EJS、前端和正则的详细参考位于对应 `internal-skills/*/references/`，只在当前任务需要时读取。`assets/examples/` 只保留经过当前静态合同核对的原创片段；真实导入与浏览器运行仍需单独报告 `runtime_pass` 或 `runtime: not_run`。
+
+
+## 本地检查
+
+在仓库根目录运行 `npm test`，会检查样例 JSON/JavaScript、Regex placement 与离线夹具、综合样例的跨文件镜像，以及仓库内回归测试。若本机有 SillyTavern 源码，可运行 `npm run check -- --host-root "D:\AI\SillyTavern"`，额外对照该源码中的 Regex placement 枚举。
+
+也可对实际交付目录做只读包检查（按项目实际传入组件）：
+
+```powershell
+node scripts/validate-rolecard-package.mjs `
+  --root "D:\RP项目\雾港航站" `
+  --card "雾港航站.json" `
+  --worldbook "雾港航站世界书.json" `
+  --regex "regex.json" `
+  --fixtures "regex.fixtures.json" `
+  --script-folder "运行脚本.folder.json" `
+  --host-root "D:\AI\SillyTavern"
+```
+
+世界书、Regex/fixtures、ScriptFolder 和 `--host-root` 按实际制品选填；提供了绑定或文件时会交叉检查，ST 源码校验只调用只读 CardValidator，不运行卡内脚本。以上是静态/合同检查，不会导入角色卡，也不会启动或修改 SillyTavern 用户数据；它们不能替代目标版本上的实际导入、生成、Swipe 和持久化验收。

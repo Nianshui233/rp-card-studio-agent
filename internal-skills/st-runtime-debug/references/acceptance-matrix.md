@@ -1,5 +1,11 @@
 # 真实宿主验收矩阵
 
+## 证据身份与关闭条件
+
+先记录：目标 SillyTavern/扩展版本、浏览器与视口、角色/聊天、当前 Swipe/消息数、导入状态，以及所有导入制品的 SHA-256。每行报告 `passed/failed/blocked/not_run` 和至少一个可观察证据；标明该证据不能证明什么。
+
+只读源码/静态包检查不是 `runtime_pass`。真实运行通过必须针对这个哈希对应的制品，在记录的真实 ST 环境完成所选路径。任何源码或打包改动都会产生新制品身份，旧证据不自动适用。用户体验是否达标留给用户确认。
+
 ```text
 Import        制品和所有运行组件存在
 Dependencies  embedded/host/remote/regional/optional/development-only 分类一致
