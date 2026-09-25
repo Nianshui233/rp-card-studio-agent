@@ -5,92 +5,374 @@
     "brainstorm": {
       "owner_skill": "rp-concept-brainstorm",
       "decisions": [
-        {"id":"repeatable-experience","trigger":"The premise does not yet establish what the player repeatedly comes to experience.","player_language":"玩一段时间后，你最希望反复获得什么感觉或满足？","policy":"ask_or_explicitly_delegate","skip_when":"The premise or prior answer clearly names the recurring experience."},
-        {"id":"player-agency","trigger":"How the player may change events or relationships is unclear.","player_language":"玩家主要是观察、协商、行动改变局势，还是混合进行？","policy":"ask_if_unknown","skip_when":"A concrete play loop already makes player agency explicit."},
-        {"id":"unwanted-direction","trigger":"A likely genre/tone drift could violate the user's intent.","player_language":"最不希望这个构想最后滑向什么方向？","policy":"ask_if_unknown","skip_when":"The user already stated a clear boundary or asked for a narrow execution task."},
-        {"id":"world-autonomy","trigger":"Ongoing play depends on what happens when the player does not intervene.","player_language":"玩家暂时不介入时，世界或重要人物会自行推进什么？","policy":"ask_if_unknown","skip_when":"The project is intentionally static, short-form, or this is already specified."}
+        {
+          "id": "repeatable-experience",
+          "trigger": "The premise does not yet establish what the player repeatedly comes to experience.",
+          "player_language": "玩一段时间后，你最希望反复获得什么感觉或满足？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "The premise or prior answer clearly names the recurring experience."
+        },
+        {
+          "id": "player-agency",
+          "trigger": "How the player may change events or relationships is unclear.",
+          "player_language": "玩家主要是观察、协商、行动改变局势，还是混合进行？",
+          "policy": "ask_if_unknown",
+          "skip_when": "A concrete play loop already makes player agency explicit."
+        },
+        {
+          "id": "unwanted-direction",
+          "trigger": "A likely genre/tone drift could violate the user's intent.",
+          "player_language": "最不希望这个构想最后滑向什么方向？",
+          "policy": "ask_if_unknown",
+          "skip_when": "The user already stated a clear boundary or asked for a narrow execution task."
+        },
+        {
+          "id": "world-autonomy",
+          "trigger": "Ongoing play depends on what happens when the player does not intervene.",
+          "player_language": "玩家暂时不介入时，世界或重要人物会自行推进什么？",
+          "policy": "ask_if_unknown",
+          "skip_when": "The project is intentionally static, short-form, or this is already specified."
+        }
       ]
     },
     "positioning": {
       "owner_skill": "rp-project-foundation",
       "decisions": [
-        {"id":"player-promise","trigger":"The intended play experience or intended audience is not explicit.","player_language":"玩家打开这张卡后，最主要应该来这里做什么、得到什么？","policy":"ask_or_explicitly_delegate","skip_when":"The request and materials already state a specific experience."},
-        {"id":"scope-boundary","trigger":"Several feature directions compete and change cost or play flow.","player_language":"这版必须包含什么，哪些可以先不做？","policy":"ask_if_unknown","skip_when":"The request is a narrow edit with fixed scope."},
-        {"id":"player-control","trigger":"The project may author player identity, actions, speech, or feelings.","player_language":"哪些内容必须由玩家亲自决定，卡不能替玩家写？","policy":"ask_or_explicitly_delegate","skip_when":"A clear player-agency contract already exists in the source."}
+        {
+          "id": "player-promise",
+          "trigger": "The intended play experience or intended audience is not explicit.",
+          "player_language": "玩家打开这张卡后，最主要应该来这里做什么、得到什么？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "The request and materials already state a specific experience."
+        },
+        {
+          "id": "scope-boundary",
+          "trigger": "Several feature directions compete and change cost or play flow.",
+          "player_language": "这版必须包含什么，哪些可以先不做？",
+          "policy": "ask_if_unknown",
+          "skip_when": "The request is a narrow edit with fixed scope."
+        },
+        {
+          "id": "player-control",
+          "trigger": "The project may author player identity, actions, speech, or feelings.",
+          "player_language": "哪些内容必须由玩家亲自决定，卡不能替玩家写？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "A clear player-agency contract already exists in the source."
+        }
       ]
     },
     "materials": {
       "owner_skill": "rp-project-foundation",
       "decisions": [
-        {"id":"source-authority","trigger":"Canon, adaptation, fanon, or user additions may conflict.","player_language":"发生冲突时，以哪一版原作/材料为准？","policy":"ask_if_unknown","skip_when":"There is one unambiguous source or a written precedence rule."},
-        {"id":"preserve-vs-rework","trigger":"Existing content can be preserved, repaired, or substantially rewritten.","player_language":"哪些内容必须原样保留，哪些可以重做？","policy":"ask_or_explicitly_delegate","skip_when":"The user explicitly requested a complete conversion or preservation policy."},
-        {"id":"known-gaps","trigger":"Missing material affects a load-bearing character, event, or rule.","player_language":"这个缺口你希望保留为未知，还是按现有证据补全？","policy":"ask_if_unknown","skip_when":"The gap is decorative or safely left open."}
+        {
+          "id": "source-authority",
+          "trigger": "Canon, adaptation, fanon, or user additions may conflict.",
+          "player_language": "发生冲突时，以哪一版原作/材料为准？",
+          "policy": "ask_if_unknown",
+          "skip_when": "There is one unambiguous source or a written precedence rule."
+        },
+        {
+          "id": "preserve-vs-rework",
+          "trigger": "Existing content can be preserved, repaired, or substantially rewritten.",
+          "player_language": "哪些内容必须原样保留，哪些可以重做？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "The user explicitly requested a complete conversion or preservation policy."
+        },
+        {
+          "id": "known-gaps",
+          "trigger": "Missing material affects a load-bearing character, event, or rule.",
+          "player_language": "这个缺口你希望保留为未知，还是按现有证据补全？",
+          "policy": "ask_if_unknown",
+          "skip_when": "The gap is decorative or safely left open."
+        }
       ]
     },
     "worldbuilding": {
       "owner_skill": "rp-project-foundation",
       "decisions": [
-        {"id":"ordinary-life","trigger":"The world is mostly described as lore but daily player-facing life is unclear.","player_language":"普通人一天里最常遇到什么，这个世界的特别之处怎样影响日常？","policy":"ask_if_unknown","skip_when":"Existing scenes already demonstrate ordinary life and its costs."},
-        {"id":"causal-boundaries","trigger":"A world rule changes what characters can do or what costs they pay.","player_language":"这条能力/制度有什么明确做不到的事，越界要付什么代价？","policy":"ask_or_explicitly_delegate","skip_when":"The rule is already bounded by examples and consequences."},
-        {"id":"unattended-motion","trigger":"Long-running play needs factions/NPCs to act without the player.","player_language":"玩家不在场时，谁会采取什么行动，多久会产生可见后果？","policy":"ask_if_unknown","skip_when":"The project is deliberately scene-contained or autonomous motion is already defined."}
+        {
+          "id": "ordinary-life",
+          "trigger": "The world is mostly described as lore but daily player-facing life is unclear.",
+          "player_language": "普通人一天里最常遇到什么，这个世界的特别之处怎样影响日常？",
+          "policy": "ask_if_unknown",
+          "skip_when": "Existing scenes already demonstrate ordinary life and its costs."
+        },
+        {
+          "id": "causal-boundaries",
+          "trigger": "A world rule changes what characters can do or what costs they pay.",
+          "player_language": "这条能力/制度有什么明确做不到的事，越界要付什么代价？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "The rule is already bounded by examples and consequences."
+        },
+        {
+          "id": "unattended-motion",
+          "trigger": "Long-running play needs factions/NPCs to act without the player.",
+          "player_language": "玩家不在场时，谁会采取什么行动，多久会产生可见后果？",
+          "policy": "ask_if_unknown",
+          "skip_when": "The project is deliberately scene-contained or autonomous motion is already defined."
+        }
       ]
     },
     "character": {
       "owner_skill": "rp-cast-authoring",
       "decisions": [
-        {"id":"character-want","trigger":"A major character lacks a concrete desire that drives current behavior.","player_language":"这个角色现在最想得到什么，为什么偏偏是现在？","policy":"ask_if_unknown","skip_when":"The source gives a clear present-tense objective."},
-        {"id":"pressure-behavior","trigger":"Personality exists as adjectives but has no observable stress response.","player_language":"被拒绝、失败或被逼到代价面前时，她会具体做什么？","policy":"ask_or_explicitly_delegate","skip_when":"Existing scene or source behavior already demonstrates this reliably."},
-        {"id":"knowledge-boundary","trigger":"Secrets, canon knowledge, or player-specific information can cause spoilers or omniscience.","player_language":"她现在明确知道什么、误以为什么、绝不能提前知道什么？","policy":"ask_if_unknown","skip_when":"Material contains a reliable knowledge boundary."},
-        {"id":"relationship-agency","trigger":"A relationship may become player-centered or change after repeated interaction.","player_language":"她会因什么行为靠近/疏远玩家，哪些底线不会因好感消失？","policy":"ask_or_explicitly_delegate","skip_when":"The character is not a recurring relationship actor or those rules are explicit."}
+        {
+          "id": "character-want",
+          "trigger": "A major character lacks a concrete desire that drives current behavior.",
+          "player_language": "这个角色现在最想得到什么，为什么偏偏是现在？",
+          "policy": "ask_if_unknown",
+          "skip_when": "The source gives a clear present-tense objective."
+        },
+        {
+          "id": "pressure-behavior",
+          "trigger": "Personality exists as adjectives but has no observable stress response.",
+          "player_language": "被拒绝、失败或被逼到代价面前时，她会具体做什么？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "Existing scene or source behavior already demonstrates this reliably."
+        },
+        {
+          "id": "knowledge-boundary",
+          "trigger": "Secrets, canon knowledge, or player-specific information can cause spoilers or omniscience.",
+          "player_language": "她现在明确知道什么、误以为什么、绝不能提前知道什么？",
+          "policy": "ask_if_unknown",
+          "skip_when": "Material contains a reliable knowledge boundary."
+        },
+        {
+          "id": "relationship-agency",
+          "trigger": "A relationship may become player-centered or change after repeated interaction.",
+          "player_language": "她会因什么行为靠近/疏远玩家，哪些底线不会因好感消失？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "The character is not a recurring relationship actor or those rules are explicit."
+        }
       ]
     },
     "systems": {
       "owner_skill": "rp-experience-authoring",
       "decisions": [
-        {"id":"choice-loop","trigger":"A system is enabled but its repeating player choice is not clear.","player_language":"玩家一轮通常要在什么选项之间取舍？","policy":"ask_or_explicitly_delegate","skip_when":"No gameplay system is requested or an existing loop is specified."},
-        {"id":"failure-cost","trigger":"Failure or refusal has no observable consequence/recovery.","player_language":"失败具体会失去什么、改变什么，还有什么办法恢复或继续？","policy":"ask_if_unknown","skip_when":"The project intentionally has no failure state and says so."},
-        {"id":"visible-feedback","trigger":"A hidden rule/value may change behavior but has no player-readable feedback contract.","player_language":"玩家怎样看出这次行动改变了局势，哪些变化只供叙事方掌握？","policy":"ask_if_unknown","skip_when":"Feedback visibility is already established by the play loop."}
+        {
+          "id": "choice-loop",
+          "trigger": "A system is enabled but its repeating player choice is not clear.",
+          "player_language": "玩家一轮通常要在什么选项之间取舍？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "No gameplay system is requested or an existing loop is specified."
+        },
+        {
+          "id": "failure-cost",
+          "trigger": "Failure or refusal has no observable consequence/recovery.",
+          "player_language": "失败具体会失去什么、改变什么，还有什么办法恢复或继续？",
+          "policy": "ask_if_unknown",
+          "skip_when": "The project intentionally has no failure state and says so."
+        },
+        {
+          "id": "visible-feedback",
+          "trigger": "A hidden rule/value may change behavior but has no player-readable feedback contract.",
+          "player_language": "玩家怎样看出这次行动改变了局势，哪些变化只供叙事方掌握？",
+          "policy": "ask_if_unknown",
+          "skip_when": "Feedback visibility is already established by the play loop."
+        }
       ]
     },
     "scenes": {
       "owner_skill": "rp-experience-authoring",
       "decisions": [
-        {"id":"scene-agency","trigger":"A scene location is described but player interaction paths are vague.","player_language":"玩家在这里能观察、进入、绕开或改变什么？","policy":"ask_if_unknown","skip_when":"The scene is a fixed transition with no meaningful choices."},
-        {"id":"scene-pressure","trigger":"Time, danger, authority, or scarce resources shape the scene.","player_language":"如果玩家拖延、拒绝或失败，现场会先发生什么？","policy":"ask_if_unknown","skip_when":"The scene is low-stakes and has no time/pressure consequence."},
-        {"id":"scene-exit","trigger":"Leaving or losing may affect future play.","player_language":"离开或失败后，留下什么后果会继续影响后续？","policy":"ask_or_explicitly_delegate","skip_when":"The scene is intentionally disposable."}
+        {
+          "id": "scene-agency",
+          "trigger": "A scene location is described but player interaction paths are vague.",
+          "player_language": "玩家在这里能观察、进入、绕开或改变什么？",
+          "policy": "ask_if_unknown",
+          "skip_when": "The scene is a fixed transition with no meaningful choices."
+        },
+        {
+          "id": "scene-pressure",
+          "trigger": "Time, danger, authority, or scarce resources shape the scene.",
+          "player_language": "如果玩家拖延、拒绝或失败，现场会先发生什么？",
+          "policy": "ask_if_unknown",
+          "skip_when": "The scene is low-stakes and has no time/pressure consequence."
+        },
+        {
+          "id": "scene-exit",
+          "trigger": "Leaving or losing may affect future play.",
+          "player_language": "离开或失败后，留下什么后果会继续影响后续？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "The scene is intentionally disposable."
+        }
       ]
     },
     "mvu_ejs": {
       "owner_skill": "st-runtime-authoring",
       "decisions": [
-        {"id":"remembered-state","trigger":"A requested mechanic may need persistence across messages or chats.","player_language":"哪些变化必须在下一轮/重开聊天后仍被记住？","policy":"ask_or_explicitly_delegate","skip_when":"No persistent state is requested."},
-        {"id":"visible-state","trigger":"The model and player may need different views of a value or update.","player_language":"玩家需要看到这个变化，还是只需要它影响后续叙事？","policy":"ask_if_unknown","skip_when":"The visibility contract is already explicit."},
-        {"id":"failure-fallback","trigger":"Remote or optional runtime capabilities may fail.","player_language":"依赖不可用时，是否优先保留普通文字游玩并关闭交互？","policy":"agent_default_if_low_risk","skip_when":"The user explicitly requested a hard dependency or project contract defines the fallback."}
+        {
+          "id": "state-ownership",
+          "trigger": "A later stage requests new displayed information or a new mechanic and it is unclear whether it is existing state, a derived view, local UI state, or new persistent state.",
+          "player_language": "这项信息只是根据现有内容展示，还是会影响后续叙事/行动、需要被记住？如果需要记住，它的初值、变化和保存范围是什么？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "The state root, derivation rule, and persistence scope are already explicit."
+        },
+        {
+          "id": "remembered-state",
+          "trigger": "A requested mechanic may need persistence across messages or chats.",
+          "player_language": "哪些变化必须在下一轮/重开聊天后仍被记住？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "No persistent state is requested."
+        },
+        {
+          "id": "visible-state",
+          "trigger": "The model and player may need different views of a value or update.",
+          "player_language": "玩家需要看到这个变化，还是只需要它影响后续叙事？",
+          "policy": "ask_if_unknown",
+          "skip_when": "The visibility contract is already explicit."
+        },
+        {
+          "id": "failure-fallback",
+          "trigger": "Remote or optional runtime capabilities may fail.",
+          "player_language": "依赖不可用时，是否优先保留普通文字游玩并关闭交互？",
+          "policy": "agent_default_if_low_risk",
+          "skip_when": "The user explicitly requested a hard dependency or project contract defines the fallback."
+        }
       ]
     },
     "narrative_opening": {
       "owner_skill": "rp-experience-authoring",
       "decisions": [
-        {"id":"why-now","trigger":"The player’s reason for entering the current situation is not concrete.","player_language":"为什么是现在来到这里，而不是更早/更晚？","policy":"ask_if_unknown","skip_when":"The player chooses a fully open-ended entry and that is explicit."},
-        {"id":"first-tension","trigger":"The opening has atmosphere but no actionable tension.","player_language":"开场后玩家最先能处理的具体问题是什么？","policy":"ask_or_explicitly_delegate","skip_when":"The project intentionally begins as free exploration."},
-        {"id":"agency-boundary","trigger":"Opening prose risks deciding player action or emotion.","player_language":"哪些开场事实可以固定，哪些行动必须留给玩家？","policy":"ask_or_explicitly_delegate","skip_when":"A clear player-agency contract already governs the opening."}
+        {
+          "id": "why-now",
+          "trigger": "The player’s reason for entering the current situation is not concrete.",
+          "player_language": "为什么是现在来到这里，而不是更早/更晚？",
+          "policy": "ask_if_unknown",
+          "skip_when": "The player chooses a fully open-ended entry and that is explicit."
+        },
+        {
+          "id": "first-tension",
+          "trigger": "The opening has atmosphere but no actionable tension.",
+          "player_language": "开场后玩家最先能处理的具体问题是什么？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "The project intentionally begins as free exploration."
+        },
+        {
+          "id": "agency-boundary",
+          "trigger": "Opening prose risks deciding player action or emotion.",
+          "player_language": "哪些开场事实可以固定，哪些行动必须留给玩家？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "A clear player-agency contract already governs the opening."
+        }
       ]
     },
     "opening_frontend": {
       "owner_skill": "st-opening-frontend-authoring",
       "decisions": [
-        {"id":"preplay-knowledge","trigger":"An opening page may explain rules or lore before play.","player_language":"进入游戏前，玩家必须先知道哪几件事？","policy":"ask_if_unknown","skip_when":"No opening UI is requested."},
-        {"id":"creation-fields","trigger":"The page collects player identity/background/route data.","player_language":"哪些资料真的需要玩家填写，哪些可以开局后再揭示？","policy":"ask_or_explicitly_delegate","skip_when":"The page is an information-only intro or inputs are already specified."},
-        {"id":"commit-and-failure","trigger":"The page writes data, changes Greeting Swipe, or starts a chat.","player_language":"提交后预期发生什么；失败时应保留草稿、回退到哪个开局？","policy":"ask_or_explicitly_delegate","skip_when":"The requested page is non-interactive and does not mutate state."}
-      ]
+        {
+          "id": "visual-direction",
+          "trigger": "The user requested an opening/creation frontend and did not provide a complete visual brief or explicitly delegate art direction.",
+          "player_language": "这个开场页希望给玩家什么第一印象？更像沉浸式世界序章、精致档案/设定集、简洁创角向导，还是你有别的方向？有喜欢/不喜欢的作品或视觉参考吗？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "The user supplied a sufficiently specific visual brief or explicitly asked the agent to freely choose the style."
+        },
+        {
+          "id": "content-selection",
+          "trigger": "The page may show premise, rules, routes, character introductions, or creation guidance and the desired amount is not explicit.",
+          "player_language": "玩家开始前最希望在页面看到哪些内容？哪些必须现在说明，哪些留到游玩中发现？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "The user supplied the exact opening content and hierarchy, or requested an information-only page with fixed copy."
+        },
+        {
+          "id": "layout-and-information",
+          "trigger": "The user has not specified how the opening content and fields should be arranged/read.",
+          "player_language": "你更喜欢先看氛围与故事、再进入选择，还是一打开就清楚看到路线和创角选项？整体偏简洁易读还是层次丰富、有明显标题和章节感？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "A complete reference layout or approved visual design already determines composition and reading hierarchy."
+        },
+        {
+          "id": "interaction-feel",
+          "trigger": "The page includes choices or form fields and the desired interaction flow is not explicit.",
+          "player_language": "创角过程希望一页完成，还是分步骤慢慢引导？你希望有预览/返回修改/跳过选项吗？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "The user supplied the exact interaction flow or requested a static, non-interactive intro."
+        },
+        {
+          "id": "state-impact",
+          "trigger": "A requested creation field is not covered by the already-confirmed player profile or initial-state contract.",
+          "player_language": "这项创角资料只是本次开局草稿，还是要成为后续会记住/影响剧情的玩家资料？玩家会怎样理解它？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "The field is already covered by a confirmed profile/state path, or is explicitly temporary and discarded after opening."
+        }
+      ],
+      "personalization_gate": {
+        "required_before_implementation": true,
+        "ask_unless_explicitly_delegated": true,
+        "rule": "先了解使用者想要的观感与个性化方向，再开始页面视觉实现；明确授权 Agent 自由设计时可代定。不得把本地偏好、个人资料或实现细节当作默认审美。"
+      }
     },
     "message_frontend": {
       "owner_skill": "st-message-frontend-authoring",
       "decisions": [
-        {"id":"glance-hierarchy","trigger":"The UI has more candidate status than can fit at a glance.","player_language":"每条消息出现时，玩家最需要一眼看到哪几项？","policy":"ask_if_unknown","skip_when":"A strict existing UI hierarchy is supplied."},
-        {"id":"action-boundary","trigger":"The UI offers buttons, actions, or direct writes.","player_language":"看完状态后玩家要做什么；按钮是填入输入框还是直接改状态/发送？","policy":"ask_or_explicitly_delegate","skip_when":"The UI is read-only."},
-        {"id":"scope-and-refresh","trigger":"Data changes across floor, swipe, edit, or chat lifecycle.","player_language":"这个状态跟随当前楼、当前 Swipe，还是整个聊天？切换/重载后应怎样变化？","policy":"ask_or_explicitly_delegate","skip_when":"The data scope and refresh contract already exist."}
-      ]
+        {
+          "id": "visual-direction",
+          "trigger": "The user requested an ongoing message frontend and did not provide a complete visual brief or explicitly delegate art direction.",
+          "player_language": "状态栏想融入作品世界，做成沉浸式终端/档案/手账，还是更清爽直观的游戏 HUD？有喜欢或明确不想要的视觉参考吗？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "The user supplied a sufficiently specific visual brief or explicitly asked the agent to freely choose the style."
+        },
+        {
+          "id": "content-selection",
+          "trigger": "The state model contains more information than can be displayed and the player-facing selection is not explicit.",
+          "player_language": "玩家每轮最想看到什么？哪些状态、任务、关系、物品或变化要常驻，哪些可以折叠、点开或只在变化时出现？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "A complete player-facing display contract is already supplied."
+        },
+        {
+          "id": "layout-and-information",
+          "trigger": "The user has not specified the visual hierarchy, density, or reading style for the ongoing panel.",
+          "player_language": "你偏好紧凑、一眼扫完的仪表盘，还是更有叙事氛围、分区卡片式的面板？最重要的信息要放在哪里、突出到什么程度？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "A reference design or approved layout already specifies hierarchy and density."
+        },
+        {
+          "id": "interaction-feel",
+          "trigger": "The panel includes actions or expandable content and the intended interaction experience is not explicit.",
+          "player_language": "看完状态后，玩家最常做哪些操作？你希望按钮只是把行动填入输入框，还是有其他明确动作？需要折叠、确认、撤销或明显的成功/失败反馈吗？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "The page is explicitly read-only or the interaction contract is fully specified."
+        },
+        {
+          "id": "scope-and-refresh",
+          "trigger": "Data changes across floor, swipe, edit, or chat lifecycle.",
+          "player_language": "这个状态跟随当前楼、当前 Swipe，还是整个聊天？切换/重载后应怎样变化？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "The data scope and refresh contract already exist."
+        },
+        {
+          "id": "state-impact",
+          "trigger": "The user requests a status-bar item that is not obviously covered by the existing state contract.",
+          "player_language": "这个内容只是展示已有信息、可以从已有状态推导，还是会影响后续叙事/行动、需要被记住？如果需要记住，它的初值和变化规则应怎样理解？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "The item is already provided by an existing state path, an explicit derivation rule, or the UI is read-only and no persistent meaning is implied."
+        }
+      ],
+      "personalization_gate": {
+        "required_before_implementation": true,
+        "ask_unless_explicitly_delegated": true,
+        "rule": "状态栏/持续消息 UI 的主题、信息呈现和操作体验是产品设计决策。先问使用者喜欢的风格与想展示/操作什么，再写视觉实现；不得以工程方便或常见组件替代用户偏好。"
+      }
     }
+  },
+  "reopen_routes": {
+    "message_frontend_existing_state": "message_frontend",
+    "message_frontend_derived_view_needs_world_scene_rule": "scenes",
+    "message_frontend_new_character_attribute_semantics": [
+      "character",
+      "mvu_ejs"
+    ],
+    "message_frontend_new_gameplay_mechanic": [
+      "systems",
+      "mvu_ejs"
+    ],
+    "message_frontend_new_persistent_state": "mvu_ejs",
+    "opening_frontend_new_player_persistent_state": "mvu_ejs",
+    "open_only_when_semantics_are_clear": true,
+    "return_scope": "Reopen only the affected owning decision(s), then resume the interrupted frontend stage; do not restart unrelated completed stages.",
+    "opening_frontend_new_persistent_player_profile": [
+      "rp-project-foundation",
+      "mvu_ejs"
+    ]
   }
 }

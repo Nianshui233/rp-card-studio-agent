@@ -12,6 +12,8 @@ description: "Private module for MVU, MVU_ZOD, EJS, Tavern Helper scripts, messa
 - 判断项目是否真的需要 MVU、MVU_ZOD、EJS 或组合路线。
 - 创作真实 `[initvar]` 初始值、Schema、变量更新规则、回复输出格式、`.ejs` 和可导入 Tavern Helper Script JSON。
 - 建立唯一状态合同：状态根、路径、类型、作用域、读写者、派生值、只读值、保存能力和必要生命周期；`[initvar]` 不包 `stat_data:` 外壳。
+- 下游 UI 请求新增游戏事实或跨消息持久状态时，MVU/EJS 阶段拥有 canonical 状态合同：先回到当前玩法/世界/角色 owning stage 确认语义，再定义路径、初值、更新者、可见性、作用域、持久化与旧聊天兼容；UI 不创建影子状态源。
+- 下游 UI 请求新增游戏事实或跨消息持久状态时，MVU/EJS 阶段拥有 canonical 状态合同：先回到当前玩法/世界/角色 owning stage 确认语义，再定义路径、初值、更新者、可见性、作用域、持久化与旧聊天兼容；UI 不创建第二权威状态。
 - 为开场提供 canonical `<user>` 条目更新、目标 Greeting Swipe 动态初态、明确数值楼层、保存与读回能力；具体事务由开场 Skill 实现。
 - 验证当前消息 ID/Swipe，以及编辑、重载、切换聊天和事件持久化时序。
 

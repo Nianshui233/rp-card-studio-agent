@@ -73,6 +73,7 @@ for (const [relative, args] of [
   ['scripts/regex/run-regex-fixtures.test.mjs', ['--test', 'scripts/regex/run-regex-fixtures.test.mjs']],
   ['scripts/validate-rolecard-package.test.mjs', ['--test', 'scripts/validate-rolecard-package.test.mjs']],
   ['tests/interview-contract.test.mjs', ['--test', 'tests/interview-contract.test.mjs']],
+  ['tests/state-impact-contract.test.mjs', ['--test', 'tests/state-impact-contract.test.mjs']],
   ['assets/examples/full-mvu-rp/runtime.contract.test.mjs', ['assets/examples/full-mvu-rp/runtime.contract.test.mjs']],
   ['assets/examples/tavern-helper-iframe-rp/payload.contract.test.mjs', ['assets/examples/tavern-helper-iframe-rp/payload.contract.test.mjs']],
   ['full-mvu-rp delivery package', [
