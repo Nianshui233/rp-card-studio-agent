@@ -71,3 +71,21 @@ test('frontend interviews elicit user-specific visual and content preferences be
   assert.match(messageRef, /个性化视觉与交互访谈（实现前必经）/);
   assert.doesNotMatch(messageRef, /不要先问颜色、框架或组件清单。先提出信息优先级/);
  });
+
+
+test('world, character, and quantitative-system authoring preserve uncertainty and hard-setting safeguards', () => {
+  const read = file => fs.readFileSync(file, 'utf8');
+  const world = read(path.join(root, 'internal-skills', 'rp-project-foundation', 'references', 'worldbuilding.md'));
+  const character = read(path.join(root, 'internal-skills', 'rp-cast-authoring', 'references', 'character.md'));
+  const quantitative = read(path.join(root, 'internal-skills', 'rp-experience-authoring', 'references', 'quantitative-systems.md'));
+  assert.match(world, /【未知】/);
+  assert.match(world, /【AI补全·可替换】/);
+  assert.match(world, /硬设定不得擅自改动|用户确认的硬设定不得擅自改动/);
+  assert.match(world, /2–3 个修改方向|2–3 个修改/);
+  assert.match(world, /文化/);
+  assert.match(character, /【AI补全·可替换】/);
+  assert.match(character, /核心动机.*恐惧.*价值|动机、恐惧、价值/);
+  assert.match(quantitative, /纯数值|纯数字/);
+  assert.match(quantitative, /正面.*负面|正面与负面/);
+  assert.match(quantitative, /运行框架无关|实现中立/);
+});
