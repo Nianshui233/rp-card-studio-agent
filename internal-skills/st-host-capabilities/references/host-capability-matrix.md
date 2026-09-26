@@ -54,7 +54,7 @@ Tavern Helper iframe 中：
 - additional books：本体角色世界书设置；
 - chat book：聊天 metadata。
 
-嵌入书存在、独立书已导入、角色已绑定是三项不同证据。MVU 的角色卡配置覆盖存于主世界书禁用条目 `[config_override]`（见 host/mvu-runtime.md）。
+嵌入书存在、独立书已导入、角色已绑定是三项不同证据。MVU 的角色卡配置覆盖存于主世界书禁用条目 `[config_override]`（见 `st-mvu-authoring/references/mvu-runtime.md`）。
 
 ### Tavern Helper
 
@@ -63,7 +63,7 @@ Tavern Helper iframe 中：
 - 旧 `getLorebookEntries/replaceLorebookEntries/...` 已 deprecated；旧 filter 对字符串使用包含匹配，不可用于 canonical 名称的精确唯一判定；
 - 当前版本重绑角色/聊天仅支持 `'current'`；完成后重新读取绑定结果。
 
-写 canonical `<user>` 条目时按新 Worldbook API 精确比较 `entry.name === '<user>'`，以 UID 更新或创建；0 个创建、1 个更新、多于 1 个停止并报告冲突。
+只有用户明确要求制作者工具或手工维护流程写 canonical `<user>` 条目时，才按新 Worldbook API 精确比较 `entry.name === '<user>'` 并以 UID 更新；开场/创角前端不得调用这些写 API。
 
 ### ST-Prompt-Template
 

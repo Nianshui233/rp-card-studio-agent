@@ -1,0 +1,53 @@
+[
+  {
+    "id": "66666666-0000-4000-8000-000000000001",
+    "scriptName": "隐藏 Greeting initvar",
+    "findRegex": "/<initvar>[\\s\\S]*?<\\/initvar>\\s*/gi",
+    "replaceString": "",
+    "trimStrings": [],
+    "placement": [
+      2
+    ],
+    "disabled": false,
+    "markdownOnly": true,
+    "promptOnly": false,
+    "runOnEdit": true,
+    "substituteRegex": 0,
+    "minDepth": null,
+    "maxDepth": null
+  },
+  {
+    "id": "66666666-0000-4000-8000-000000000002",
+    "scriptName": "隐藏 MVU 更新块（流式安全）",
+    "findRegex": "/<UpdateVariable>(?:[\\s\\S]*?<\\/UpdateVariable>|[\\s\\S]*)/g",
+    "replaceString": "",
+    "trimStrings": [],
+    "placement": [
+      2
+    ],
+    "disabled": false,
+    "markdownOnly": true,
+    "promptOnly": false,
+    "runOnEdit": true,
+    "substituteRegex": 0,
+    "minDepth": null,
+    "maxDepth": null
+  },
+  {
+    "id": "66666666-0000-4000-8000-000000000003",
+    "scriptName": "灰港状态栏",
+    "findRegex": "/<StatusPlaceHolderImpl\\s*\\/>/g",
+    "replaceString": "```html\n<!doctype html>\n<html lang=\"zh-CN\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><style>\nbody{margin:0;padding:10px;background:#101715;color:#e8f0eb;font:13px/1.5 system-ui,\"Microsoft YaHei\",sans-serif}.panel{border:1px solid #486257;border-radius:12px;padding:12px;background:#17221e}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.item{background:#ffffff08;border-radius:8px;padding:7px}.k{color:#9bb7aa;font-size:11px}.v{font-weight:700;word-break:break-word}.err{color:#ffad9e}@media(max-width:520px){.grid{grid-template-columns:1fr}}\n</style></head><body><div class=\"panel\"><div id=\"state\" class=\"grid\"><div class=\"item\"><div class=\"k\">状态</div><div class=\"v\">读取中</div></div></div></div><script>\n(async function(){'use strict';var box=document.getElementById('state');function item(k,v){var d=document.createElement('div');d.className='item';var a=document.createElement('div');a.className='k';a.textContent=k;var b=document.createElement('div');b.className='v';b.textContent=String(v==null?'未记录':v);d.append(a,b);return d}try{await waitGlobalInitialized('Mvu');var id=Number(getCurrentMessageId());var data=Mvu.getMvuData({type:'message',message_id:id});if(!data||!data.stat_data||!data.schema)throw new Error('本楼没有完整 MVU_ZOD 快照');var s=data.stat_data;box.textContent='';box.append(item('日期时间',(s.世界?.日期||'')+' '+(s.世界?.时间||'')),item('地点',s.世界?.地点),item('生命值',s.玩家?.生命值),item('体力',s.玩家?.体力),item('感染风险',s.玩家?.感染风险),item('主线',s.任务?.主线?.名称),item('阶段',s.任务?.主线?.阶段),item('可调查',(s.现场?.可调查目标||[]).join('、')||'暂无'));}catch(e){box.textContent='';var d=document.createElement('div');d.className='err';d.textContent=e.message||String(e);box.append(d)}})();\n</script></body></html>\n```",
+    "trimStrings": [],
+    "placement": [
+      2
+    ],
+    "disabled": false,
+    "markdownOnly": true,
+    "promptOnly": false,
+    "runOnEdit": true,
+    "substituteRegex": 0,
+    "minDepth": null,
+    "maxDepth": null
+  }
+]

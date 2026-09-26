@@ -1,0 +1,22 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
+import { parseMvuContract, validateMvuPackage } from '../../../scripts/mvu/validate-mvu-package.mjs';
+
+const dir = path.dirname(fileURLToPath(import.meta.url));
+const read = name => JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8'));
+const card = read('灰港避难所.json');
+const worldbook = read('灰港避难所世界书.json');
+const regex = read('regex.json');
+const scriptFolder = read('运行脚本.folder.json');
+const mvuContract = parseMvuContract(fs.readFileSync(path.join(dir, 'MVU运行合同.yaml'), 'utf8'));
+const zodSource = fs.readFileSync(path.join(dir, 'schema.js'), 'utf8');
+const report = validateMvuPackage({ card, worldbook, regex, scriptFolder, mvuContract, zodSource }, { mode: 'mvu_zod', initStrategy: 'greeting', dialect: 'json_patch' });
+assert.equal(report.ok, true, report.issues.join('\n'));
+assert.deepEqual(report.schemaKeys, ['世界', '玩家', '同伴', '任务', '现场']);
+assert.equal(report.dialect, 'json_patch');
+assert.equal(report.initStrategy, 'greeting');
+assert.equal(scriptFolder.scripts.filter(script => /MagVarUpdate/.test(script.content)).length, 1);
+assert.equal(scriptFolder.scripts.filter(script => /registerMvuSchema/.test(script.content)).length, 1);
+console.log('mvu-zod-rp contract: complete');

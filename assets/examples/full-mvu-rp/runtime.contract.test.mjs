@@ -44,7 +44,7 @@ function setPath(object, pathText, value) {
   cursor[parts[parts.length - 1]] = value;
 }
 
-function makeHarness({ duplicateUser = false, input = '', noUserEntry = false, hideCreatedUserOnReadback = false, incompleteDynamicSnapshotFirst = false, incompleteMvuSnapshot = false } = {}) {
+function makeHarness({ input = '', incompleteMvuSnapshot = false } = {}) {
   const floor0 = {
     message_id: 0,
     role: 'assistant',
@@ -60,12 +60,6 @@ function makeHarness({ duplicateUser = false, input = '', noUserEntry = false, h
   };
   floor0.data = floor0.swipes_data[0];
   const chat = [floor0];
-  let worldbook = noUserEntry ? [] : [
-    { uid: 2, name: '<user>', content: '尚未登记', enabled: false, strategy: { type: 'constant', keys: [] } },
-  ];
-  if (duplicateUser) worldbook.push({ uid: 99, name: '<user>', content: '冲突', enabled: false, strategy: { type: 'constant', keys: [] } });
-  let hideCreatedEntryForNextRead = false;
-  let dynamicMvuReads = 0;
   const listeners = new Map();
   const inputBox = { value: input };
   const emitted = [];
@@ -104,22 +98,6 @@ function makeHarness({ duplicateUser = false, input = '', noUserEntry = false, h
     });
   }
 
-  async function setChatMessages(patches) {
-    for (const patch of patches) {
-      const message = chat[patch.message_id];
-      assert(message, 'mock message must exist');
-      if (patch.swipes) message.swipes = clone(patch.swipes);
-      if (patch.swipes_data) message.swipes_data = clone(patch.swipes_data);
-      if (patch.swipes_info) message.swipes_info = clone(patch.swipes_info);
-      if (patch.swipe_id !== undefined) message.swipe_id = patch.swipe_id;
-      if (patch.message !== undefined) message.message = patch.message;
-      if (message.message_id === 0) {
-        message.message = message.swipes[message.swipe_id];
-        message.data = message.swipes_data[message.swipe_id];
-      }
-    }
-  }
-
   const contextObject = {
     chat,
     chatId: 'mock-chat.jsonl',
@@ -139,10 +117,6 @@ function makeHarness({ duplicateUser = false, input = '', noUserEntry = false, h
       if (!message) return null;
       const data = clone(normalizedMessage(message).data);
       if (incompleteMvuSnapshot) return data ? { stat_data: data.stat_data } : data;
-      if (incompleteDynamicSnapshotFirst && Number(message_id) >= 2) {
-        dynamicMvuReads += 1;
-        if (dynamicMvuReads === 1) return { stat_data: data.stat_data };
-      }
       return data;
     },
     replaceMvuData: (data, { message_id }) => {
@@ -178,17 +152,7 @@ function makeHarness({ duplicateUser = false, input = '', noUserEntry = false, h
       inputBox.value = command.slice('/setinput '.length).replaceAll('{{newline}}', '\n').replaceAll('\\|', '|').replaceAll('\\\\', '\\');
       return '';
     }
-    assert(command.startsWith('/send '), 'unexpected slash command: ' + command);
-    const suffix = ' | /trigger';
-    assert(command.endsWith(suffix));
-    const encoded = command.slice('/send '.length, -suffix.length);
-    const userText = encoded.replaceAll('{{newline}}', '\n').replaceAll('\\|', '|').replaceAll('\\\\', '\\');
-    const user = { message_id: chat.length, role: 'user', name: '玩家', message: userText, is_hidden: false, data: {}, extra: {} };
-    chat.push(user);
-    const inherited = clone(normalizedMessage(chat[0]).data);
-    const assistant = { message_id: chat.length, role: 'assistant', name: '洛檀', message: '雾港作出回应。\n<StatusPlaceHolderImpl/>', is_hidden: false, data: inherited, extra: {} };
-    chat.push(assistant);
-    return '';
+    throw new Error('unexpected slash command: ' + command);
   }
 
   const lodash = { cloneDeep: clone, set: setPath };
@@ -211,27 +175,7 @@ function makeHarness({ duplicateUser = false, input = '', noUserEntry = false, h
     clearTimeout,
     addEventListener() {},
     getChatMessages,
-    setChatMessages,
     getLastMessageId: () => chat.length - 1,
-    getWorldbook: async () => {
-      if (hideCreatedUserOnReadback && hideCreatedEntryForNextRead) {
-        hideCreatedEntryForNextRead = false;
-        return clone(worldbook.filter(entry => entry.name !== '<user>'));
-      }
-      return clone(worldbook);
-    },
-    createWorldbookEntries: async (_name, entries) => {
-      const created = entries.map(entry => ({ uid: Math.max(0, ...worldbook.map(item => item.uid)) + 1, enabled: false, content: '', strategy: { type: 'selective', keys: [] }, ...clone(entry) }));
-      worldbook.push(...created);
-      hideCreatedEntryForNextRead = true;
-      return { worldbook: clone(worldbook), new_entries: clone(created) };
-    },
-    updateWorldbookWith: async (_name, updater) => { worldbook = clone(await updater(clone(worldbook))); return clone(worldbook); },
-    deleteWorldbookEntries: async (_name, predicate) => {
-      const deleted = worldbook.filter(predicate);
-      worldbook = worldbook.filter(entry => !predicate(entry));
-      return { worldbook: clone(worldbook), deleted_entries: clone(deleted) };
-    },
     waitGlobalInitialized: async () => {},
     Mvu,
     triggerSlash,
@@ -253,77 +197,39 @@ function makeHarness({ duplicateUser = false, input = '', noUserEntry = false, h
   vm.runInNewContext(source, sandbox, { filename: '雾港航站协调器.js' });
 
   return {
-    opening: windowObject.MistportOpening,
     runtime: windowObject.MistportRuntime,
     chat,
-    get worldbook() { return worldbook; },
     inputBox,
     metadata,
     saves,
     emitted,
     listeners,
-    get dynamicMvuReads() { return dynamicMvuReads; },
   };
 }
 
-async function testFixedGreeting() {
-  const h = makeHarness();
-  const draft = { name: '阿岚', background: 'mechanic', skill: 'repair', approach: 'observe', route: 'routine', custom_goal: '' };
-  const prepared = await h.opening.prepare(draft);
-  const result = await h.opening.commit(prepared.token, draft);
-  assert.equal(result.status, 'committed');
-  assert.equal(h.chat.length, 1, '固定 Greeting 不应自动创建玩家消息');
-  assert.equal(h.chat[0].swipe_id, 1);
-  assert.equal(h.chat[0].swipes_data[1].stat_data.玩家.称呼, '阿岚');
-  assert.equal(h.chat[0].swipes_data[1].stat_data.系统.开场状态, '已提交');
-  assert.notEqual(h.chat[0].swipes_data[1].display_data.玩家.称呼, '待登记', '开场写入不能只改 stat_data');
-  const user = h.worldbook.filter(entry => entry.name === '<user>');
-  assert.equal(user.length, 1);
-  assert.equal(user[0].enabled, true);
-  assert.match(user[0].content, /流动修械师/);
-  assert.equal(h.metadata.mistport_opening.committed, true);
-  assert(h.saves.chat >= 2);
+async function testPassiveOpeningContract() {
+  const opening = fs.readFileSync(path.join(dir, '开场.html'), 'utf8');
+  const coordinator = fs.readFileSync(path.join(dir, '运行协调器.js'), 'utf8');
+  const card = JSON.parse(fs.readFileSync(path.join(dir, '雾港航站.json'), 'utf8'));
+  const worldbook = JSON.parse(fs.readFileSync(path.join(dir, '雾港航站世界书.json'), 'utf8'));
+
+  assert.match(opening, /navigator\.clipboard\.writeText/, '开场页必须优先使用 Clipboard API');
+  assert.match(opening, /document\.execCommand\('copy'\)/, '开场页必须保留手动复制兼容回退');
+  assert.match(opening, /亲手点击发送/, '开场页必须明确要求玩家自己发送');
+  assert.match(opening, /不会修改世界书/, '开场页必须公开说明不会修改世界书');
+  assert.doesNotMatch(opening, /createWorldbookEntries|updateWorldbookWith|deleteWorldbookEntries|setChatMessages|triggerSlash|MistportOpening/, '开场页不得取得持久化或自动发送能力');
+  assert.doesNotMatch(coordinator, /createWorldbookEntries|updateWorldbookWith|deleteWorldbookEntries|setChatMessages|MistportOpening|\/send /, '协调器不得替开场写世界书、切 Swipe 或自动发送');
+
+  assert.equal(card.data.alternate_greetings.length, 3, '例行、救援和自定义来意都必须有静态 Greeting');
+  for (const greeting of card.data.alternate_greetings) {
+    assert.match(greeting, /开场状态: 等待玩家登记/, '每个固定 Greeting 都应等待真实玩家登记消息');
+  }
+  assert.equal(Object.values(worldbook.entries).some(entry => entry.comment === '<user>'), false, '样本不应携带等待运行时改写的 <user> 条目');
+  const rules = Object.values(worldbook.entries).find(entry => entry.comment === '[mvu_plot] 变量更新规则').content;
+  assert.match(rules, /【雾港航站·开局登记】/, 'MVU 规则必须识别页面生成的登记 marker');
+  assert.match(rules, /玩家\.称呼.*玩家\.来历.*玩家\.专长.*玩家\.行事倾向/s, 'MVU 规则必须声明四个玩家登记路径');
+  assert.match(rules, /系统\.开场状态=已登记/, '首轮登记必须关闭等待状态');
 }
-
-async function testDynamicGreetingWaitsForCompleteSnapshot() {
-  const h = makeHarness({ incompleteDynamicSnapshotFirst: true });
-  const draft = { name: '槐生', background: 'clerk', skill: 'rapport', approach: 'cautious', route: 'custom', custom_goal: '追查一封盖着港务所旧印的电报' };
-  const prepared = await h.opening.prepare(draft);
-  const result = await h.opening.commit(prepared.token, draft);
-  assert.equal(result.status, 'committed');
-  assert.equal(h.chat[0].swipe_id, 0);
-  assert.match(h.chat[0].swipes[0], /<航站面板\/>/);
-  assert.doesNotMatch(h.chat[0].swipes[0], /<航站开场\/>/);
-  assert.equal(h.chat[1].role, 'user');
-  assert.match(h.chat[1].message, /【雾港航站开局】/);
-  assert.equal(h.chat[2].role, 'assistant');
-  assert(h.chat[2].data.stat_data);
-  assert(h.chat[2].data.schema);
-  assert.equal(h.dynamicMvuReads, 2, 'incomplete stat_data-only snapshots must not complete the dynamic chain');
-  assert.equal(h.metadata.mistport_opening.committed, true);
-  assert.equal(h.metadata.mistport_opening.assistant_message_id, 2);
-}
-
-async function testDuplicateUserConflictRollsBack() {
-  const h = makeHarness({ duplicateUser: true });
-  const draft = { name: 'Rin', background: 'deckhand', skill: 'observe', approach: 'direct', route: 'routine', custom_goal: '' };
-  const prepared = await h.opening.prepare(draft);
-  await assert.rejects(() => h.opening.commit(prepared.token, draft), /多个精确命名/);
-  assert.equal(h.chat.length, 1);
-  assert.equal(h.chat[0].swipe_id, 0);
-  assert.equal(h.chat[0].swipes_data[0].stat_data.玩家.称呼, '待登记');
-}
-
-
-async function testNewUserEntryMustPassReadback() {
-  const h = makeHarness({ noUserEntry: true, hideCreatedUserOnReadback: true });
-  const draft = { name: 'Rin', background: 'deckhand', skill: 'observe', approach: 'direct', route: 'routine', custom_goal: '' };
-  const prepared = await h.opening.prepare(draft);
-  await assert.rejects(() => h.opening.commit(prepared.token, draft), /<user>.*读回校验失败/);
-  assert.equal(h.chat[0].swipe_id, 0, 'opening must not advance after profile readback fails');
-  assert.equal(h.worldbook.filter(entry => entry.name === '<user>').length, 0, 'failed transaction must roll back the created entry');
-}
-
 
 async function testMemoRejectsIncompleteSnapshot() {
   const h = makeHarness({ incompleteMvuSnapshot: true });
@@ -425,17 +331,14 @@ async function testEjsBridge() {
   const context = {};
   await callbacks[0](context);
   assert(context.mvu && context.mvu.stat_data);
-  assert.equal(context.mistport.runtime_version, '2.0.2');
+  assert.equal(context.mistport.runtime_version, '2.1.0');
 }
 
-await testFixedGreeting();
-await testDynamicGreetingWaitsForCompleteSnapshot();
-await testNewUserEntryMustPassReadback();
-await testDuplicateUserConflictRollsBack();
+await testPassiveOpeningContract();
 await testMemoRejectsIncompleteSnapshot();
 await testInputAndMemo();
 await testEjsBridge();
 await testMvuPathNormalizer();
 await testCapturedVariableRegression();
 await testCountdownAndMetadataConsumers();
-console.log('runtime contract tests: 10/10');
+console.log('runtime contract tests: 7/7');

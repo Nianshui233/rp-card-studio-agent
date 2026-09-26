@@ -15,7 +15,7 @@ test('every user-facing creation stage has interview coverage and ownership boun
   const data = coverage();
   const routing = fs.readFileSync(routingPath, 'utf8');
   const skill = fs.readFileSync(skillPath, 'utf8');
-  const stageNames = ['brainstorm', 'positioning', 'materials', 'worldbuilding', 'character', 'systems', 'scenes', 'mvu_ejs', 'narrative_opening', 'opening_frontend', 'message_frontend'];
+  const stageNames = ['brainstorm', 'positioning', 'materials', 'worldbuilding', 'character', 'systems', 'scenes', 'mvu', 'ejs', 'runtime_bridge', 'narrative_opening', 'opening_frontend', 'message_frontend'];
   for (const name of stageNames) {
     const stage = data.stages[name];
     assert(stage, `missing interview coverage for ${name}`);

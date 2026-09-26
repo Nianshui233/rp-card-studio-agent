@@ -1,4 +1,4 @@
-schema_version: 1.0.0
+schema_version: 1.1.0
 agent: rp-card-studio
 state_persistence: conversation_only
 stage_loop: orchestrator/stage-loop.md
@@ -51,27 +51,40 @@ stages:
     references: [scenes]
     supporting_skills: [rp-interview-orchestration, st-worldbook-regex]
     optional: true
-    next: mvu_ejs
-  mvu_ejs:
-    primary_skill: st-runtime-authoring
+    next: mvu
+  mvu:
+    primary_skill: st-mvu-authoring
     supporting_skills: [rp-interview-orchestration, st-host-capabilities, st-api-reference, st-worldbook-regex]
     optional: true
+    enable_when: mvu_enabled
+    next: ejs
+  ejs:
+    primary_skill: st-ejs-authoring
+    supporting_skills: [rp-interview-orchestration, st-host-capabilities, st-api-reference, st-worldbook-regex]
+    optional: true
+    enable_when: ejs_enabled
+    next: runtime_bridge
+  runtime_bridge:
+    primary_skill: st-mvu-ejs-bridge
+    supporting_skills: [rp-interview-orchestration, st-mvu-authoring, st-ejs-authoring, st-host-capabilities, st-api-reference]
+    optional: true
+    enable_when: mvu_enabled_and_ejs_enabled_and_bridge_required
     next: narrative_opening
   narrative_opening:
     primary_skill: rp-experience-authoring
     references: [narrative-opening]
-    supporting_skills: [rp-interview-orchestration, st-runtime-authoring, st-worldbook-regex]
+    supporting_skills: [rp-interview-orchestration, st-worldbook-regex]
     optional: false
     next: opening_frontend
   opening_frontend:
     primary_skill: st-opening-frontend-authoring
-    supporting_skills: [rp-interview-orchestration, st-runtime-authoring, st-host-capabilities, st-api-reference, st-worldbook-regex, st-render-regex]
+    supporting_skills: [rp-interview-orchestration, st-host-capabilities, st-api-reference, st-worldbook-regex, st-render-regex]
     optional: true
     enable_when: opening_or_creation_frontend_requested
     next: message_frontend
   message_frontend:
     primary_skill: st-message-frontend-authoring
-    supporting_skills: [rp-interview-orchestration, st-runtime-authoring, st-host-capabilities, st-api-reference, st-worldbook-regex, st-render-regex]
+    supporting_skills: [rp-interview-orchestration, st-host-capabilities, st-api-reference, st-worldbook-regex, st-render-regex]
     optional: true
     enable_when: ongoing_message_ui_requested
     next: qa_delivery
@@ -87,7 +100,9 @@ skill_paths:
   rp-project-foundation: internal-skills/rp-project-foundation/SKILL.md
   rp-cast-authoring: internal-skills/rp-cast-authoring/SKILL.md
   rp-experience-authoring: internal-skills/rp-experience-authoring/SKILL.md
-  st-runtime-authoring: internal-skills/st-runtime-authoring/SKILL.md
+  st-mvu-authoring: internal-skills/st-mvu-authoring/SKILL.md
+  st-ejs-authoring: internal-skills/st-ejs-authoring/SKILL.md
+  st-mvu-ejs-bridge: internal-skills/st-mvu-ejs-bridge/SKILL.md
   st-opening-frontend-authoring: internal-skills/st-opening-frontend-authoring/SKILL.md
   st-message-frontend-authoring: internal-skills/st-message-frontend-authoring/SKILL.md
   st-worldbook-regex: internal-skills/st-worldbook-regex/SKILL.md

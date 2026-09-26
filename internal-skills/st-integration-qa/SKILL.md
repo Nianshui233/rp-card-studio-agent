@@ -12,7 +12,7 @@ description: "Private final QA and delivery module for cross-stage RP consistenc
 
 ## 职责
 
-- 直接检查用户工作目录中的最终角色卡、独立世界书、正则、Tavern Helper 脚本、MVU/EJS 文件和完整 HTML；存在角色卡组合时优先运行 `scripts/validate-rolecard-package.mjs`，再按实际 provider 做宿主验收。
+- 直接检查用户工作目录中的完整 canonical 世界/角色/系统/场景 YAML、最终角色卡、独立世界书、正则、Tavern Helper 脚本、MVU 文件、EJS 文件、可选 bridge 和完整 HTML；存在角色卡组合时优先运行 `scripts/validate-rolecard-package.mjs`，再按实际 provider 做宿主验收。
 - 对实际存在的世界、角色、系统、场景、叙事、开场、变量初态和玩家反馈执行一次跨阶段创作一致性检查。
 - 修复确定的语法错误、字段错位、路径断链、ID 冲突、标记生产者/消费者不一致、变量路径错误和不改变创作方向的明确事实矛盾。
 - 不擅自重写已确认的 RP 方向；需要改变承重设定时返回对应创作阶段校准。不创建通用中间格式，不生成源码清单或构建事务。
@@ -35,11 +35,12 @@ description: "Private final QA and delivery module for cross-stage RP consistenc
 - 世界规则、人物能力与知识、系统代价、场景资源/权限、开场事实和变量初态是否互相一致；
 - 角色的价值/恐惧/底线是否有行为与压力反应证明，关键台词是否符合语言规则；
 - 角色卡和独立世界书名称、绑定目标、CharacterBook 内容；
-- MVU 初值、路线、唯一 Loader、数值楼层、事件/持久化时序、更新协议、完整/流式隐藏规则和 UI 路径；
-- EJS 模板、按名调用条目、执行阶段、raw-message/sandbox/autosave 默认态和 MVU bridge；
+- canonical YAML 是否完整保留，世界书创作条目是否为连续原文切片；不得用摘要、改写或删细节替代调度；
+- MVU mode、初始化策略、唯一 Loader、初值、数值楼层、事件/持久化时序、更新协议、完整/流式隐藏规则和 UI 路径；`mvu_zod` 还必须检查 ZOD 注册脚本、逐字段规则、当前状态/路径索引和输出方言；
+- EJS 模板、按名调用条目、执行阶段和 raw-message/sandbox/autosave 默认态；若存在 MVU→EJS bridge，单独检查方向、快照选择、只读边界和失败回退；
 - 正则 placement/depth、prompt/display 分工、标记与 HTML 配对；
 - Tavern Helper Script/ScriptFolder JSON 结构、内容、ID、依赖、重复注册和必要卸载；`.js` 不能冒充导入文件；
-- 开场/创角 HTML 是否完成空白输入、主动选择、上下文冻结、目标 Greeting Swipe、canonical `<user>`、真实写入/保存/读回、失败保留和 user→AI 正常消息链；
+- 开场/创角 HTML 是否完成空白输入、主动选择、预览、剪贴板与手动复制回退、真实静态 Greeting 指引，并严格避免世界书写入、自动切 Swipe、MVU 直写和自动发送；玩家亲手发送后再检查 user→AI→首轮登记状态链；
 - 持续消息 HTML 是否自包含、有真实动态载体、按 provider 取得当前楼层/Swipe、处理持久化后刷新与清理并有空态/失败回退；非 MVU 页面还检查 producer/版本/Schema/parser/fixture 与静态捕获安全边界；
 - 交互页面是否按实际组件满足键盘、焦点、ARIA、触控、长列表、性能、主题和调试降级；
 - 两种前端同时存在时，是否分别交付独立 HTML、使用同一运行合同，并避免重复初始化和第二套状态树；

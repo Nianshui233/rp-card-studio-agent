@@ -5,7 +5,7 @@ description: "Private supporting module for exact SillyTavern, Tavern Helper, ST
 
 # SillyTavern API Reference
 
-这是版本和签名核对模块，不向用户提问，不替代运行时实现。读取 `references/api-contract.md`，并在项目声明目标版本后再确认具体 API。
+这是版本和签名核对模块，不向用户提问，不替代运行时实现。默认读取 `references/api-contract.md`；需要 Tavern Helper 运行签名时再读取 `references/tavern-helper-runtime.md`。在项目声明目标版本后再确认具体 API。
 
 ## 负责核对
 

@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { normalizeRegexDocument, validateRegexDocument } from './regex/validate-tavern-regex.mjs';
 import { runFixtures } from './regex/run-regex-fixtures.mjs';
+import { parseMvuContract, validateMvuPackage } from './mvu/validate-mvu-package.mjs';
 
 export function validateRolecardPackage(input) {
   const issues = [];
@@ -110,6 +111,10 @@ export function validateRolecardPackage(input) {
     }
   }
 
+  const mvuReport = validateMvuPackage(input, { mode: input.mvuMode, initStrategy: input.mvuInitStrategy, dialect: input.mvuDialect });
+  for (const issue of mvuReport.issues) add(issues, `MVU: ${issue}`);
+  for (const warning of mvuReport.warnings) add(warnings, `MVU: ${warning}`);
+
   if (input.hostCardValidation) {
     if (!input.hostCardValidation.valid) {
       add(issues, `目标 SillyTavern CardValidator 拒绝角色卡：${input.hostCardValidation.error || 'unknown error'}`);
@@ -133,7 +138,15 @@ function option(name) {
 async function runCli() {
   const root = path.resolve(option('--root') || process.cwd());
   const cardRelative = option('--card');
-  if (!cardRelative) throw new Error('用法: node validate-rolecard-package.mjs --root <package-dir> --card <card.json> [--worldbook <book.json> --worldbook-name <actual-name>] [--regex <regex.json> [--regex-mode additional|alternative] --fixtures <fixtures.json>] [--script-folder <folder.json>] [--host-root <SillyTavern-source>]');
+  if (!cardRelative) throw new Error('用法: node validate-rolecard-package.mjs --root <package-dir> --card <card.json> [--worldbook <book.json> --worldbook-name <actual-name>] [--regex <regex.json> [--regex-mode additional|alternative] --fixtures <fixtures.json>] [--script-folder <folder.json>] [--zod-source <schema.js>] [--mvu-contract <MVU运行合同.yaml>] [--mvu-mode none|native_schema|mvu_zod] [--mvu-init-strategy auto|worldbook|greeting] [--host-root <SillyTavern-source>]');
+  const readTextFile = relative => {
+    const resolved = path.resolve(root, relative);
+    const rel = path.relative(root, resolved);
+    if (rel.startsWith('..') || path.isAbsolute(rel)) throw new Error(`路径超出 package root: ${relative}`);
+    const bytes = fs.readFileSync(resolved);
+    artifactHashes.push({ path: relative, sha256: createHash('sha256').update(bytes).digest('hex') });
+    return bytes.toString('utf8').replace(/^\uFEFF/, '');
+  };
   const readFile = relative => {
     const resolved = path.resolve(root, relative);
     const rel = path.relative(root, resolved);
@@ -156,6 +169,19 @@ async function runCli() {
   if (fixturesPath) input.fixtures = readFile(fixturesPath);
   const scriptFolderPath = option('--script-folder');
   if (scriptFolderPath) input.scriptFolder = readFile(scriptFolderPath);
+  const zodSourcePath = option('--zod-source');
+  if (zodSourcePath) input.zodSource = readTextFile(zodSourcePath);
+  const mvuContractPath = option('--mvu-contract');
+  if (mvuContractPath) {
+    const contract = readTextFile(mvuContractPath);
+    input.mvuContract = parseMvuContract(contract);
+    input.mvuMode = input.mvuContract.mode;
+    input.mvuInitStrategy = input.mvuContract.init_strategy;
+    input.mvuDialect = input.mvuContract.update_dialect;
+    if (!input.mvuMode || !input.mvuInitStrategy || !input.mvuDialect) throw new Error('MVU运行合同缺少 mode/init_strategy/update_dialect');
+  }
+  input.mvuMode = option('--mvu-mode') || input.mvuMode || undefined;
+  input.mvuInitStrategy = option('--mvu-init-strategy') || input.mvuInitStrategy || undefined;
   const hostRoot = option('--host-root');
   if (hostRoot) {
     const validatorFile = path.join(path.resolve(hostRoot), 'src', 'validator', 'TavernCardValidator.js');

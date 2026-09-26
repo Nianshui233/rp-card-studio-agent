@@ -8,7 +8,6 @@ const openingPage = read('开场.html');
 const statusPage = read('状态栏.html');
 const coordinator = read('运行协调器.js');
 const ejsContext = read('动态上下文.ejs');
-const PROFILE_ENTRY_NAME = '<user>';
 const fence = page => '```html\n' + page + '\n```';
 
 for (const [name, page] of [['开场.html', openingPage], ['状态栏.html', statusPage]]) {
@@ -24,8 +23,13 @@ new Function(coordinator);
 if (openingPage.includes('Mvu.getMvuData') || openingPage.includes('MistportRuntime')) throw new Error('开场前端越界读取持续运行状态');
 if (statusPage.includes('MistportOpening') || statusPage.includes('custom_goal')) throw new Error('消息前端混入开场/创角职责');
 if (!statusPage.includes('$arrayMeta') || !statusPage.includes("startsWith('$')")) throw new Error('消息前端必须过滤 MVU 初始化元数据载体');
-if (!coordinator.includes("entry.name === PROFILE_ENTRY_NAME")) throw new Error('协调器缺少 canonical <user> 精确匹配');
-if (!coordinator.includes("'/send ' + escapeSlashText(text) + ' | /trigger'")) throw new Error('动态开局缺少真实 /send → /trigger 链');
+if (!openingPage.includes('navigator.clipboard.writeText') || !openingPage.includes('document.execCommand')) throw new Error('开场前端缺少剪贴板与手动复制回退');
+for (const forbidden of ['createWorldbookEntries', 'updateWorldbookWith', 'deleteWorldbookEntries', 'setChatMessages', 'triggerSlash', 'MistportOpening']) {
+  if (openingPage.includes(forbidden)) throw new Error('开场页面不得直接修改世界书、聊天楼层或自动发送: ' + forbidden);
+}
+if (/createWorldbookEntries|updateWorldbookWith|deleteWorldbookEntries|setChatMessages|MistportOpening|\/send /.test(coordinator)) {
+  throw new Error('运行协调器不得替开场修改世界书、切 Swipe 或自动发送');
+}
 if (!coordinator.includes("Mvu.replaceMvuData(next, { type: 'message', message_id: id })")) throw new Error('玩家手记缺少显式数值楼层写入');
 if (!coordinator.includes('await saveChatVerified()')) throw new Error('关键写入缺少 saveChat');
 if (coordinator.includes("message_id: 'latest'")) throw new Error('关键代码不得使用 latest 写入');
@@ -34,7 +38,7 @@ if (!ejsContext.includes('@@generate_before') || !ejsContext.includes("await get
   throw new Error('EJS 动态上下文缺少 generate-stage 与按名世界书调用');
 }
 if (!ejsContext.includes('$arrayMeta')) throw new Error('EJS 动态上下文必须过滤数组元数据载体');
-if (!coordinator.includes("Mvu.parseMessage(commands.join('\\n'), current)")) throw new Error('开场初态必须通过 Mvu.parseMessage 同步 stat/display/delta');
+if (!coordinator.includes('Mvu.parseMessage(command, before)')) throw new Error('玩家手记必须通过 Mvu.parseMessage 同步完整快照');
 if (!coordinator.includes("航站安全度: '系统.航站安全度'")) throw new Error('协调器缺少 MVU 简写路径修正');
 if (!coordinator.includes('将旧版字符串倒计时迁移为分钟数值')) throw new Error('协调器缺少旧版倒计时迁移');
 
@@ -317,7 +321,7 @@ function routeInit({ route, area, weather, phase, tide, task, stage, safety, cou
     '  洛檀信任: 0',
     '系统:',
     '  路线: ' + route,
-    '  开场状态: 已选择固定Greeting',
+    '  开场状态: 等待玩家登记',
     '  航站安全度: ' + safety,
     '  雾钟倒计时: ' + countdown,
     '  警报: ' + alert,
@@ -366,12 +370,20 @@ const rescueInit = routeInit({
   supplies: { 风灯: 2, 电池: 2, 灯油: 2, 绳索: 2, 保暖毯: 1 }, clues: ['雾钟从下游传来', '末班渡船迟到二十分钟'],
 });
 
+const customInit = routeInit({
+  route: '自定义来意', area: '北航站值班室', weather: '小雨转雾', phase: '入夜', tide: '平潮后半刻',
+  task: '听取来客说明', stage: '等待玩家发送开局登记', safety: 72, countdown: 40, alert: '灯标异常',
+  supplies: { 风灯: 1, 电池: 2, 灯油: 3, 绳索: 1 }, clues: ['北灯标连续第三晚忽明忽暗'],
+});
+
 assertMutableCollections('世界书基线', baselineInit);
 assertMutableCollections('例行巡灯初态', routineInit);
 assertMutableCollections('失联渡船初态', rescueInit);
+assertMutableCollections('自定义来意初态', customInit);
 assertNumericCountdown('世界书基线', baselineInit);
 assertNumericCountdown('例行巡灯初态', routineInit);
 assertNumericCountdown('失联渡船初态', rescueInit);
+assertNumericCountdown('自定义来意初态', customInit);
 
 const updateRules = [
   '[MVU变量更新规则]',
@@ -381,8 +393,11 @@ const updateRules = [
   "- 角色与关系路径：角色.体力、角色.当前任务、关系.洛檀信任。",
   "- 系统路径：系统.路线、系统.开场状态、系统.航站安全度、系统.雾钟倒计时、系统.警报。航站安全度必须写成 _.add('系统.航站安全度', -6);//安全风险上升；不得写成 _.add('航站安全度', -6)。",
   "- 系统.雾钟倒计时是剩余分钟数值，例如 20；耗时三分钟使用 _.add('系统.雾钟倒计时', -3);//行动耗时。不得写成带单位的 20分钟，也不得对字符串执行 _.add。",
+  "- 玩家登记路径：玩家.称呼、玩家.来历、玩家.专长、玩家.行事倾向。只从玩家亲手发送的【雾港航站·开局登记】或明确的【更正开局登记】读取。",
   "- 任务路径：任务.主线.名称、任务.主线.阶段、任务.主线.进度。",
   "- 集合路径：物资、线索。物资对象和线索数组已在 Schema 中声明为可扩展。",
+  "- 当系统.开场状态不是 已登记，且当前玩家消息以【雾港航站·开局登记】开头时，在本轮同一更新块写入四个玩家字段、系统.路线与系统.开场状态=已登记。自定义来意还要同步角色.当前任务、任务.主线.名称与任务.主线.阶段。",
+  "- 已登记后不得根据叙事猜测或改写玩家字段；只有玩家明确发送【更正开局登记】时才修改其指定字段，并保持未指定字段不变。",
   '数值增减用 _.add；文本状态用 _.set；物资新增/改量用 _.assign；耗尽并移除用 _.unset；线索列表用 _.insert 与 _.remove。每条命令以分号结束，分号后写 // 原因。',
   "- 体力保持 0-100；洛檀信任保持 -100 到 100；系统.航站安全度保持 0-100；任务.主线.进度保持 0-100。",
   "- 场景移动时更新 世界.区域；跨越栈桥、等待、检修或救援消耗了可感知时间时，同步更新 系统.雾钟倒计时。",
@@ -391,7 +406,7 @@ const updateRules = [
   "- 任务焦点发生实质变化时，同时更新 角色.当前任务 与 任务.主线.阶段，避免状态栏仍显示旧行动。",
   "- 输出 <航站通知 类型=\"警报\"> 时，同一更新块必须把 系统.警报 改成当前最紧迫威胁；威胁解除时改为 无 或下一项活动警报。",
   "- 任务阶段应描述当前可行动的现场，不写菜单；失败可以降低系统.航站安全度、消耗时间、改变关系或制造新的场外后果。",
-  "- 输出前逐条检查路径是否存在于上述清单。玩家公开档案只在开场协调器写入；模型不得擅自改写 玩家 下的字段。",
+  "- 输出前逐条检查路径是否存在于上述清单。开场页只生成可复制文本，不写世界书；玩家字段必须来自玩家实际发送的登记或更正消息。",
 ].join('\n');
 
 if (!updateRules.includes("_.add('系统.航站安全度', -6)") || !updateRules.includes("不得写成 _.add('航站安全度', -6)")) {
@@ -402,15 +417,37 @@ if (!updateRules.includes("_.add('系统.雾钟倒计时', -3)") || !updateRules
 }
 
 const outputFormat = [
-  '[回复输出合同]',
+  '[变量输出格式]',
   '先写自然 RP 正文。发生明确警报、线索、例行提醒或长期后果时，可在正文中额外输出至多一次：',
   '<航站通知 类型="例行|警报|线索|后果">一到两句可读事实；不要放 HTML、代码围栏或变量命令。</航站通知>',
-  '正文结束后另起一行，固定输出一次变量更新块：',
+  '正文结束后另起一行，固定输出一次完整变量更新块。只使用 MVU lodash 命令方言，不得混入 JSON Patch：',
   '<UpdateVariable>',
-  '<Analysis>一行内说明本轮哪些状态真正变化、为什么</Analysis>',
-  '（零条或多条 MVU lodash 命令；每条以分号结束并带 // 原因）',
+  '<Analysis>逐项核对世界、玩家、角色、关系、系统、物资、线索、任务与玩家备忘；只说明本轮真实变化和原因</Analysis>',
+  "_.set('世界.区域', '北栈桥');//玩家完成移动；",
+  "_.add('系统.雾钟倒计时', -3);//检修行动耗时；",
+  "_.assign('物资', '备用保险丝', 1);//实际取得物资；",
+  "_.insert('线索', '保险丝盒有新撬痕');//获得可复述证据；",
   '</UpdateVariable>',
+  '没有变化时保留空命令区，但仍输出 Analysis。每条命令以分号结束并带 // 原因。',
   '不要手写 <StatusPlaceHolderImpl/>；MVU 会在 assistant 消息持久追加。不要在正文中复述完整数值面板。',
+].join('\n');
+
+const variableIndex = [
+  '---',
+  '<status_current_variable>',
+  '{{format_message_variable::stat_data}}',
+  '</status_current_variable>',
+  '',
+  '【雾港航站 · stat_data 路径索引】',
+  '/世界/区域；/世界/天气；/世界/时段；/世界/潮位',
+  '/玩家/称呼；/玩家/来历；/玩家/专长；/玩家/行事倾向',
+  '/角色/体力；/角色/当前任务',
+  '/关系/洛檀信任',
+  '/系统/路线；/系统/开场状态；/系统/航站安全度；/系统/雾钟倒计时；/系统/警报',
+  '/物资/物品名（Record，使用对象键）',
+  '/线索/0（Array，插入与删除按数组语义）',
+  '/任务/主线/名称；/任务/主线/阶段；/任务/主线/进度',
+  '/玩家备忘/最新（界面单写者，模型只读）',
 ].join('\n');
 
 const narrativeRules = [
@@ -571,9 +608,9 @@ const worldbook = {
   entries: {
     0: entry(0, '[initvar] 雾港综合基线', baselineInit, { disable: true, order: 10 }),
     1: entry(1, '[config_override]', JSON.stringify({ 更新方式: '随AI输出', 兼容性: { 更新到聊天变量: false } }), { disable: true, order: 20 }),
-    2: entry(2, PROFILE_ENTRY_NAME, '[玩家稳定档案]\n尚未通过开场页登记。', { disable: true, constant: true, order: 25 }),
+    2: entry(2, '玩家档案读取规则', '[玩家档案读取规则]\n玩家公开资料以当前聊天最新 MVU 的 玩家 字段为准。开场页只生成登记文本，不修改世界书；首次登记和后续更正都必须来自玩家实际发送的消息。缺失字段保持未知，不自行补完。', { constant: true, order: 25 }),
     3: entry(3, '[mvu_plot] 变量更新规则', updateRules, { constant: true, order: 30 }),
-    4: entry(4, '[mvu_plot] 回复输出合同', outputFormat, { constant: true, order: 40 }),
+    4: entry(4, '[mvu_plot] 变量输出格式', outputFormat, { constant: true, order: 40 }),
     5: entry(5, '叙事规则', narrativeRules, { constant: true, order: 50 }),
     6: entry(6, '世界设定·雾港与航站', worldLore, { constant: true, order: 60 }),
     7: entry(7, '玩法循环与后果', systemLore, { constant: true, order: 70 }),
@@ -584,6 +621,7 @@ const worldbook = {
     12: entry(12, '路线推进', routeEvents, { key: ['例行巡灯', '失联渡船', '自定义来意', '错误方向', '旧引航灯'], order: 120 }),
     13: entry(13, '航站共识简报', commonBrief, { disable: true, order: 130 }),
     14: entry(14, 'STPT·MVU动态上下文', ejsContext, { disable: true, order: 140 }),
+    15: entry(15, '变量列表', variableIndex, { constant: true, order: 29, position: 4, depth: 0 }),
   },
 };
 
@@ -598,7 +636,7 @@ const firstMes = greeting(baselineInit, [
   '',
   '“先把别人需要知道的写清楚。”她说，“剩下的，等事情真的发生再说。”',
   '',
-  '若交互页面没有出现：请启用 Tavern Helper、导入并启用“雾港航站·运行脚本”，或手动左右滑动到固定 Greeting 直接开始。',
+  '使用下方创角页生成开局登记文本。完成后按页面指引复制，再手动左右滑动到所选 Greeting，粘贴为第一条玩家消息并发送。页面不会修改世界书或替你发送。',
   '',
   '<航站开场/>',
 ]);
@@ -627,6 +665,19 @@ const rescueGreeting = greeting(rescueInit, [
   '<航站面板/>',
 ]);
 
+
+const customGreeting = greeting(customInit, [
+  '值班室的门被河风推开一条缝。雾贴着栈桥爬进来，电报机旁的铜铃轻轻碰了一下。',
+  '',
+  '洛檀从水位尺记录上抬起眼，没有替来客安排身份或目的，只把一盏备用风灯推到桌边。',
+  '',
+  '“先说你为什么来。”她看了一眼窗外提前熄灭的北灯标，“然后我们再决定，哪件事更等不得。”',
+  '',
+  '<航站通知 类型="例行">自由来意路线已就绪；请粘贴创角页生成的登记文本作为第一条玩家消息。</航站通知>',
+  '',
+  '<航站面板/>',
+]);
+
 const card = {
   spec: 'chara_card_v3',
   spec_version: '3.0',
@@ -634,7 +685,7 @@ const card = {
     name: '洛檀｜雾港航站',
     description: '以北航站看守洛檀为核心的长期雾港 RP。玩家会在潮位、渡船、维修预算、物资和人物日程持续推进的河港中处理检修、调查、救援与关系后果。',
     personality: '洛檀沉稳、务实、记性好，尊重具体证据和愿意承担后果的人。她不围着玩家停转，不用谜语代替事实，也不会因为被拒绝就失去自己的日程与判断。',
-    scenario: '雾港北航站入夜。北灯标连续第三晚异常，末班渡船也可能偏离时刻表。玩家的公开起点由一次性开场页写入，随后从固定 Greeting 或动态真实消息链进入游戏。',
+    scenario: '雾港北航站入夜。北灯标连续第三晚异常，末班渡船也可能偏离时刻表。一次性开场页只生成可复制的玩家登记文本；玩家手动选择 Greeting 并发送第一条消息后进入游戏。',
     first_mes: firstMes,
     mes_example: [
       '<START>',
@@ -683,13 +734,13 @@ const card = {
       "_.add('系统.雾钟倒计时', -2);//记录位置并准备绳索耗时",
       '</UpdateVariable>',
     ].join('\n'),
-    creator_notes: '全功能综合样本：完整世界/角色/系统/场景创作合同，四类角色压力样例，角色卡与独立世界书，固定/动态开局，独立开场与持续消息前端，MVU、STPT EJS只读桥、Tavern Helper协调器、静态通知正则、持久化与失败回退。导入顺序见同目录 README.md。',
+    creator_notes: '全功能综合样本：完整世界/角色/系统/场景创作合同，四类角色压力样例，角色卡与独立世界书，三个固定开局，开场页复制交接，独立持续消息前端，MVU、STPT EJS只读桥、Tavern Helper运行协调器、静态通知正则与持久化校验。导入顺序见同目录 README.md。',
     system_prompt: '你负责扮演洛檀及雾港世界。保持世界自主运行、因果可观察、NPC有自己的目标与日程；用洛檀的价值、底线、知识边界、语言与压力行为裁决反应；不得替玩家决定关键行动、想法、台词或情感。严格遵守世界书中的世界、角色、系统、场景、路线推进与MVU输出合同。',
-    post_history_instructions: '继续当前可见情境，不把状态面板写进正文。只更新本轮真实变化的MVU字段；玩家档案与玩家备忘是非模型写入区。',
-    alternate_greetings: [routineGreeting, rescueGreeting],
+    post_history_instructions: '继续当前可见情境，不把状态面板写进正文。只更新本轮真实变化的MVU字段；玩家档案只在玩家实际发送开局登记或明确更正时更新，玩家备忘始终是非模型写入区。',
+    alternate_greetings: [routineGreeting, rescueGreeting, customGreeting],
     tags: ['雾港航站', 'MVU', 'EJS', '开场前端', '消息前端', '综合样本'],
     creator: 'rp-card-studio',
-    character_version: '2.1.0',
+    character_version: '2.2.0',
     extensions: {
       world: '雾港航站世界书',
       regex_scripts: rules,
@@ -727,7 +778,7 @@ const folder = {
       name: '雾港航站协调器',
       id: 'a36c0d50-0a49-49d8-bc7e-2d2c0e84a003',
       content: coordinator + '\n',
-      info: '为一次性开场与持续消息前端分别提供窄接口；负责 canonical <user>、目标 Swipe 初态、真实发送链、saveChat、同楼读回、输入仲裁、post-write 信号和 MVU→EJS 只读桥。',
+      info: '只服务持续消息前端和 MVU 运行时：负责输入仲裁、玩家手记 saveChat/同楼读回、post-write 信号、路径兼容和 MVU→EJS 只读桥。开场页不调用本脚本写世界书或发送消息。',
       button: { enabled: true, buttons: [] },
       data: {},
       export_with: { data: true, button: true },

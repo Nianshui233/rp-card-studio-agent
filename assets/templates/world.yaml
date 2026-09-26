@@ -1,3 +1,4 @@
+# canonical 创作源：完成创作后按 YAML 子树无损切入世界书；打包时不得摘要、改写或删减已确认内容。
 schema_version: 1.3.0
 id: world_main
 display_name: 未命名世界

@@ -18,7 +18,8 @@
 - 角色卡、世界书、正则或 ScriptTree 必需字段损坏；
 - 未经授权丢失旧卡未知扩展；
 - 世界书为空、绑定名不一致；
-- 声称启用的 MVU/EJS/UI 没有真实实现；
+- canonical 世界/角色/系统/场景 YAML 在世界书打包时被摘要、改写、静默遗漏或只剩压缩版；
+- 声称启用的 MVU、EJS、bridge 或 UI 没有各自的真实实现；
 - marker 没有生产者或消费者；
 - 动态 JavaScript 前端只有裸 HTML，没有可执行宿主载体；
 - 把 Tavern Helper/STPT 接口写成 Core `getContext()` 字段；
@@ -38,7 +39,7 @@
 → 系统触发、裁决、代价与恢复
 → 场景空间、权限、资源、人物日程与事件
 → 默认/备用开场及前三轮承接
-→ Greeting/MVU/EJS 初态与更新语义
+→ Greeting 与 MVU 初态/更新语义，以及独立 EJS 模板输出
 → 正文通知、状态栏和玩家可见反馈
 ```
 
@@ -52,10 +53,22 @@
 - 系统的正常、部分成功、失败/拒绝、信息不足、重复、恢复与冲突优先级可裁决；数值轴的范围、阈值、过渡、公式、合并顺序和可观察后果一致；
 - 场景归属、危险、拓扑、入口、权限、人物目标、线索、时间窗口、资源和破坏后果符合上游世界与系统；
 - 默认与备用开场的地点、人物行动、未决压力和初态一致；备用开场有实质差异但不改变角色核心人格；
-- MVU/EJS/状态栏只实现已经确定的玩法语义，不因 UI 想展示而反向虚构数值；初值、标签、阈值和正文含义一致；
+- MVU 状态、EJS 模板和状态栏分别只实现已经确定的玩法语义，不因 UI 想展示而反向虚构数值；初值、标签、阈值和正文含义一致；
 - 确定性事实矛盾直接修复；如果修复会改变用户已确认的核心体验、人物或世界方向，返回对应阶段用“问题＋建议＋为什么＋影响”校准后再继续。
 
 创作一致性检查只修改真实内容或代码，并在最终对话中简要报告；不得生成创作审计文件、检查清单、问题账本或 QA 日志。
+
+## canonical YAML 无损打包
+
+- 世界观、角色、系统、场景的 canonical YAML 可解析；
+- 已确认内容不因“节省 token”“条目太长”或“世界书应该简洁”而被删除或概括；
+- 每个创作型 `entry.content` 都能定位到源 YAML 的连续原文片段；
+- 字段名、值、顺序、列表、注释、例子、边界和失败后果保持一致；
+- 大块内容沿 YAML 子树继续拆分，通过激活元数据控制上下文；
+- 按源顺序重组同一 YAML 对应的条目后与源正文一致，或对未进入世界书而保留在角色卡字段的块有明确载体说明；
+- 世界书没有新增 canonical YAML 中不存在的摘要事实；
+- 修改先回写 YAML 源再重新打包，不存在两个互相漂移的创作权威；
+- 用户若要求压缩派生版，完整源仍存在，且两种版本的用途清楚。
 
 ## 角色卡与世界书
 
@@ -73,13 +86,32 @@ chat worldbook
 
 世界书检查条目启用、constant/关键词、position、depth、order、概率、递归和 EJS 特殊路由。普通 `getwi` 与特殊 `[GENERATE]/@@generate` 分开检查；后者考虑 `invert_enabled`。
 
-canonical `<user>` 检查：
+玩家档案与开场边界检查：
 
-- 使用 `getWorldbook/updateWorldbookWith/createWorldbookEntries` 等当前 API；
-- `entry.name === '<user>'` 精确比较；
-- 0 个创建、1 个更新、多于 1 个阻断并报告；
-- 按 UID + exact name 读回；
-- 不用 deprecated `getLorebookEntries` 的包含型字符串 filter 证明唯一性。
+- 开场 HTML、后台协调器和打包脚本中不存在 `createWorldbookEntries/updateWorldbookWith/deleteWorldbookEntries` 等运行时世界书写入；
+- 若交付 `<user>` 条目，它是默认禁用或明确静态用途的唯一模板，不宣称会被开场页自动填写；
+- 玩家公开资料由真实首条登记消息进入 MVU/聊天状态；字段名、marker、更新规则和状态栏路径一致；
+- 登记后只接受玩家明确更正，不从普通叙事猜测改写玩家档案；
+- 不用世界书读回作为开场成功证据。
+
+## MVU 路线声明
+
+每个 MVU 项目先在 `配置/MVU运行合同.yaml` 明确 `mvu_mode: native_schema | mvu_zod` 与 `mvu_init_strategy: worldbook | greeting`。不得靠文件猜测后静默降级。
+
+`mvu_zod` 缺少以下任一项即阻断：
+
+- 锁版本的唯一 MVU Loader；
+- 唯一 `registerMvuSchema` ZOD 脚本；
+- 完整 Schema 顶层根；
+- 世界书基线或所有可游玩 Greeting 的完整 initvar；
+- 逐状态根更新规则；
+- 当前 `stat_data` 注入和路径索引；
+- 单一 JSON Patch/lodash 输出方言；
+- UpdateVariable/initvar Regex 消费者；
+- 状态栏或其他真实路径消费者；
+- 导入顺序、版本和运行证据。
+
+运行 `scripts/validate-rolecard-package.mjs` 时必须传 `--mvu-mode` 与 `--mvu-init-strategy`。
 
 ## MVU
 
@@ -104,12 +136,22 @@ canonical `<user>` 检查：
 - 公共 `prepareContext` 使用 `(context, end)`；
 - runtime 使用 `evalTemplate` 正确大小写，不被滞后 `.d.ts` 的 `evaltemplate` 误导；
 - 缓存区分编译缓存和变量缓存；
-- MVU bridge 有真实脚本或模板内 API；
+- EJS 可以独立运行；不需要 MVU 数据时，不要求 bridge，也不得暗中引用 `stat_data`；
 - 模板执行阶段、变量 scope、写入权和副作用明确；
 - 检查 `raw_message_evaluation_enabled`、`sandbox`、`autosave_enabled` 的现场值；
 - 不需要消息 EJS 时关闭 raw-message evaluation；需要保存变量时显式 autosave 或 `saveVariables(true)`；
 - 特殊条目的 enable 语义按现场 `invert_enabled` 验证；
 - `@@iframe` 只在消息渲染 `msgId` 路径使用，且按无 sandbox 同源高权限页面验收。
+
+## MVU → EJS bridge（仅存在时）
+
+- MVU 与 EJS 已分别具备独立可运行合同；
+- bridge 有真实脚本，不把 EJS 自有变量冒充 MVU 快照；
+- 默认只读方向为 `完整 MvuData → cloneDeep → context.mvu → EJS 只读`；
+- 快照要求同时存在 `stat_data` 与 `schema`；
+- EJS 处理 `mvu === null`，缺失时不伪造状态；
+- 不允许 EJS 与 MVU 同时写同一字段；双向 bridge 必须逐字段证明唯一写者、保存顺序和冲突处理；
+- 切聊天、Swipe、编辑、重载和卸载不会串用旧快照或遗留监听。
 
 ## Tavern Regex
 
@@ -136,16 +178,15 @@ minDepth/maxDepth: number|null
 ## 开场/创角前端
 
 - 正式玩家字段默认空白，快速预设默认不选且可编辑；
-- 草稿按稳定聊天身份隔离并有 revision；
-- 固定路线映射到真实 0 楼 `swipe_id`；动态初态写入最终目标 Swipe；
-- 切 Swipe 可能销毁页面，后半段由协调器或新实例恢复；
-- 提交前/发送前重校验 chat、draft、0楼 revision/Swipe、输入框和页面实例；
-- 稳定档案与动态初态分别写入、保存和读回；
-- 输入框已有文本时不覆盖；发送失败保留 canonical message；
-- `generate/generateRaw` 或只插入 user 楼没有被冒充正常发送；
-- 固定 Greeting 成功门覆盖目标 Swipe/初态；动态自定义开局成功门覆盖真实 user 楼、真实 AI 楼和变量初始化；
-- 重复点击、切聊天、切 Swipe、卸载、保存失败都有证据；
-- 成功后不继续承担持续消息状态栏职责。
+- 每条路线映射到真实静态 Greeting；自定义来意也有可手动选择的自由入口；
+- 页面只生成可见、可编辑、可复制的 canonical 开局登记文本；修改字段后旧预览失效；
+- Clipboard API 成功、拒绝和手动复制回退均有明确反馈；“已复制”没有冒充“已发送/已登记”；
+- 页面、协调器和打包产物不调用世界书写入、`setChatMessages`、MVU 初态直写、`/send`/`/trigger` 或直接插入 user 楼；
+- 操作指引明确说明切哪个 Greeting、粘贴到输入框、作为新聊天第一条玩家消息亲手发送；
+- 首轮登记 marker、字段名、MVU 更新规则和状态栏路径一致；真实 user 楼、真实 AI 楼与登记后状态分别验证；
+- 首轮变量失败时保留玩家原消息并允许重新生成 AI 回复，不建议修改世界书；
+- 重复生成、复制、页面重挂载或切聊天不产生状态副作用；
+- 完成后不继续承担持续消息状态栏职责。
 
 ## 持续消息前端
 
@@ -168,7 +209,7 @@ minDepth/maxDepth: number|null
 
 ## 前端交接
 
-两种前端同时存在时，核对开场写入的 canonical `<user>` 和目标 Swipe 动态初态能被持续消息前端从同一权威来源读取；同一字段只有一个写入权威，重复挂载不会再次执行首次初始化。
+两种前端同时存在时，核对开场页生成的登记文本由玩家真实发送后，首轮运行合同把允许字段写入持续消息前端读取的同一状态路径；开场页本身不写世界书、不切 Swipe、不写 MVU，重复挂载或重复复制没有初始化副作用。
 
 ## Tavern Helper Script
 

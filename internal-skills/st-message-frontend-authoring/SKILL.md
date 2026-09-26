@@ -18,7 +18,7 @@ description: "Private module for ongoing SillyTavern in-message frontends: statu
 输入来自已经完成的内容和运行合同：
 
 - 系统、场景和角色阶段提供玩家需要观察和操作的事实；
-- `st-runtime-authoring` 提供唯一状态根、路径、作用域、读写权、保存方式和更新事件时序；
+- `st-mvu-authoring` 在项目使用 MVU 时提供唯一状态根、路径、作用域、读写权、保存方式和更新事件时序；EJS 不提供状态合同；
 - `st-worldbook-regex` / `st-render-regex` 提供 marker、载荷、prompt/display 和完整/流式路由；
 - 宿主支援 Skill 提供当前楼层、Swipe、iframe、父页能力和清理事实。
 
@@ -40,7 +40,7 @@ description: "Private module for ongoing SillyTavern in-message frontends: statu
 - 已有字段：沿用原路径和唯一权威来源。
 - 可推导项：只有确定性计算且不需保存、不改变模型后续决策时，才在视图层派生；有世界/场景/权限语义时先回对应领域阶段确认规则。
 - 临时 UI 项：如折叠、当前标签页、临时筛选，不写进 MVU。
-- 新持久状态或新玩法：暂停该项前端实现，回 `systems`/`scenes`/`character` 确认语义，回 `mvu_ejs` 确认状态根、初值、范围、唯一写者、变化事件、玩家可见性、作用域、保存和旧聊天处理，然后才接入 UI。只重开受影响的决定，完成后返回当前前端阶段。
+- 新持久状态或新玩法：暂停该项前端实现，回 `systems`/`scenes`/`character` 确认语义，回 `mvu` 确认状态根、初值、范围、唯一写者、变化事件、玩家可见性、作用域、保存和旧聊天处理，然后才接入 UI。只重开受影响的决定，完成后返回当前前端阶段。
 
 状态栏只能消费 canonical 状态或已确认派生规则；不得为让 UI 显示而创建影子状态、假值或另一套持久化。若语义尚未定，可以先搭可逆视觉占位草稿，但必须标出未接通，不得声称功能可用。
 

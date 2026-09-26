@@ -100,24 +100,9 @@ EjsTemplate.parseJSON / jsonPatch / finalization
 
 无书名形态使用当前扫描上下文的世界书，不是多级查找；关键调用显式写书名。被调用条目的 EJS 副作用可能重复执行，不把 `getwi` 当无副作用原文读取。
 
-## EJS 与 MVU bridge
+## 与外部状态系统的边界
 
-ST-Prompt-Template 不自动读取 Mvu。事件走 SillyTavern `eventSource`：
-
-```text
-eventSource.emit('prompt_template_prepare', context)
-```
-
-真实 bridge 示例顺序：
-
-```text
-prompt_template_prepare(context)
-→ getChatMessages() 找最近 stat_data 与 schema 同时存在的消息快照
-→ 深拷贝写入 context.mvu
-→ EJS 只读 mvu.stat_data
-```
-
-没有该脚本时不得在 EJS 中直接引用顶层 `stat_data`。bridge 监听在脚本卸载时显式 remove/stop。
+ST-Prompt-Template 不自动读取 MagVarUpdate。模板需要 MVU 数据时，不在本参考内临时拼接；转入 `st-mvu-ejs-bridge` 定义显式桥接。
 
 ## `@@iframe`
 

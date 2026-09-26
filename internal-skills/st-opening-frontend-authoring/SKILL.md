@@ -1,6 +1,6 @@
 ---
 name: st-opening-frontend-authoring
-description: "Private module for one-shot SillyTavern opening and character-creation frontends: project introduction, route selection, blank player setup, preview, transactional write-back, persistence verification, and handoff into the normal user/assistant message chain."
+description: "Private module for one-shot SillyTavern opening and character-creation frontends: project introduction, route selection, blank player setup, preview, clipboard handoff, manual Greeting selection, and user-controlled first-message startup."
 ---
 
 # SillyTavern Opening Frontend Authoring
@@ -8,7 +8,7 @@ description: "Private module for one-shot SillyTavern opening and character-crea
 只接受主 Agent 调度。根据当前页面按需读取：
 
 - 开场介绍、路线与页面载体：`references/opening-ui.md`
-- 创角、事务写入、持久化与正常消息链：`references/creation-flow.md`
+- 创角、剪贴板交接与手动开场：`references/creation-flow.md`
 - 字体、图标和资源策略需要时读取：`shared/frontend/ui-assets.md`
 
 不要读取持续消息前端参考，不处理每楼状态栏、背包、任务或长期消息控制中心。
@@ -17,74 +17,85 @@ description: "Private module for one-shot SillyTavern opening and character-crea
 
 输入来自已经完成的内容和运行合同：
 
-- `rp-experience-authoring`：项目介绍、路线含义、创角字段语义、默认/备用开场和 canonical 玩家开局发言；
-- `st-runtime-authoring`：唯一状态根、稳定档案目标、动态初态目标、真实保存能力和读写权；
-- `st-worldbook-regex` / `st-render-regex`：真实 marker、载体和 prompt/display 路由。
+- `rp-experience-authoring`：项目介绍、路线含义、创角字段语义、默认/备用 Greeting 和 canonical 玩家开局发言；
+- `st-mvu-authoring`：项目启用 MVU 时，首条玩家登记消息如何进入状态，以及状态栏怎样验证登记结果；EJS 不负责玩家档案持久化；
+- `st-worldbook-regex` / `st-render-regex`：真实 marker、载体和 display 路由。
 
 本 Skill 输出：
 
 - 一个最终完整、自包含的开场/创角 HTML；
-- 真实宿主载体、必要后台协调器和依赖说明；
-- 草稿隔离、表单校验、预览、提交、失败回退和防重复提交；
-- 唯一 canonical `<user>` 档案与目标 Greeting Swipe 动态初态的精确写入；
-- `write_accepted`、`persisted`、读回和失败状态；
-- 动态创角/自定义开局的真实 user 开局消息进入正常发送链，随后验证真实 AI 楼；固定 Greeting 选择可在确认目标 Swipe/初态后直接退出；
-- 固定 Greeting 路线与动态创角路线各自的提交协议。
+- 表单校验、预览、返回修改、生成开局文本、复制与手动复制回退；
+- 每条路线对应的真实 Greeting/Swipe 人类可读指引；
+- 一条由玩家亲手粘贴并发送的 canonical 开局登记文本；
+- 发送后如何确认真实 user 楼、AI 回复和玩家状态已经登记；
+- 无脚本、剪贴板被拒绝或页面重载时仍能操作的回退说明。
+
+## 硬边界：开场页不写世界书
+
+开场/创角前端是**内容生成器与操作向导**，不是数据迁移器。默认且推荐合同是：
+
+- 不调用 `createWorldbookEntries`、`updateWorldbookWith`、`deleteWorldbookEntries`；
+- 不创建、覆盖、启用或禁用 `<user>` 条目；
+- 不直接修改第 0 楼、Greeting Swipe、聊天 metadata 或 MVU；
+- 不调用 `/send`、`/trigger` 或直接插入 user 楼；
+- 不覆盖 SillyTavern 输入框。
+
+创角完成后，页面只生成并复制一段清晰、可审阅的玩家开局登记文本。玩家按指引手动切换到目标 Greeting，把文本粘贴为新聊天的第一条玩家消息并亲手发送。世界书如需静态玩家模板，只能由制作者在交付文件中预先提供，或由用户明确手工维护；开场页不得在运行时改写它。
 
 ## 后续新增开局资料与状态归属
 
-如果创角访谈中新要求的字段不在已确认的玩家档案/初态合同里，先区分它是本次页面临时草稿、已有 canonical 状态的另一种展示，还是要写入玩家长期资料/影响后续剧情的持久状态。前端不得仅为显示新字段就自行扩展一套隐藏档案或 MVU 变量。
+如果创角访谈中新要求的字段不在已确认的玩家资料/初态合同里，先区分它是本次页面临时草稿、已有 canonical 状态的另一种展示，还是需要进入长期状态/玩法的新字段。前端不得为了输出更多内容就自行扩展隐藏档案或 MVU 变量。
 
-- 临时且提交后不保留的表单值由页面草稿管理。
-- 已有字段沿用现有路径与唯一档案来源。
-- 新增会长期保留或影响游戏的玩家资料，暂停该字段实现，返回覆盖地图指定的资料/玩法 owning stage 确认语义，再回 `mvu_ejs` 确认写入位置、范围、保存和旧聊天兼容；然后回到开场页实现。
-- 只重开受影响的字段/语义，不重做整张开场设计；未确定时可留作明确标注的临时草稿，不得假装已接入持久化。
+- 临时且发送后不保留的表单值只进入页面草稿。
+- 已有持久字段写进 canonical 开局登记文本，由首轮运行合同读取。
+- 新增会长期保留或影响游戏的资料，返回 owning stage 确认语义，再回 `mvu` 定义路径、首次登记、后续更正和旧聊天兼容；然后回到开场页补充输出字段。
+- 只重开受影响字段，不重做整张页面；未确定的字段明确标记“未设定”，不得静默补全。
 
 ## 一次性生命周期
 
 ```text
-建立页面并绑定当前 chat + 0楼 revision/Swipe + draft revision
-→ 展示项目与路线
+展示项目与路线
 → 玩家主动选择/填写
-→ 预览与校验
-→ 冻结提交上下文
-→ 按路线执行事务写入与保存
-→ 重新校验聊天/草稿/输入框/0楼
-→ 固定 Greeting：确认目标 Swipe/初态后退出
-→ 动态自定义开局：走正常 user 发送链并验证真实 user/AI 楼
-→ 写 opening committed 标记
+→ 页面本地校验与预览
+→ 生成 canonical 开局登记文本
+→ 玩家点击复制；失败则选中文本并提示 Ctrl+C
+→ 告知应手动切换到哪个 Greeting
+→ 玩家把文本粘贴为新聊天第一条消息并亲手发送
+→ AI 首轮按运行合同登记状态并继续剧情
+→ 玩家从状态栏确认称呼/路线不再是“待登记”
 → 页面使命结束
 ```
 
-只改变页面局部对象、消息正文、输入框或内存变量不算全部成功。即时读回只证明内存接受；关键提交必须等待已验证的宿主保存，并按风险重载后再次读回。
+页面可以保存本地临时草稿，但不得把“已复制”当作“已发送”，也不得把“AI 已回复”当作“变量已登记”。这三种状态要用不同措辞。
 
-## 固定 Greeting 与动态开局
+## Greeting 与开局文本
 
-- 固定 Greeting 路线：切换第 0 楼 `swipe_id` 后，旧 iframe可能立即销毁。后半段事务由后台 TH Script、父页协调器或新实例确认；目标 Swipe/初态成功后可把输入权交还玩家，不强制自动发送。
-- 动态创角路线：最终构建一条 canonical 玩家开局发言，放入 ST 输入并走正常发送；不能用 `generate()`、只改 0 楼正文或直接插入 user 楼冒充正常消息链。
-- 动态初态属于选中的目标 Swipe。若需要切 Greeting，先确认目标 Swipe，再向该 Swipe 写状态；不能先写当前 Swipe 后再切换。
+- 每条可选路线都必须存在可手动选择的真实 Greeting/Swipe；自定义来意也应有一个静态的“自由来意” Greeting，不能依赖脚本临时重写第 0 楼。
+- 页面用玩家语言说明如何通过左右 Swipe 或 Greeting 菜单切换，不暴露内部数组索引作为唯一指引。
+- 生成文本至少包含：项目可识别 marker、玩家公开资料、所选路线/来意、未授权补全边界和“承接当前 Greeting”的明确要求。
+- 玩家发送后，首轮运行合同可以把登记内容写入 MVU；登记完成后不再根据叙事猜测修改玩家档案，只有玩家明确更正时才变更指定字段。
+- 开局文本必须能直接阅读和手工编辑；不把关键数据藏进不可见编码、HTML 属性或跨 iframe 内存。
 
 ## 访谈方式
 
-遵循 `rp-interview-orchestration` 和 `orchestrator/interview-playbook.md`。开场/创角页面的**主题气质、第一印象、页面内容和呈现方式是核心产品决定**，不能先按 Agent 自己的审美做完再把“改颜色吗”当作补问。开始视觉实现前，除非用户已给完整设计要求或明确说“你自由决定”，至少要了解：
+遵循 `rp-interview-orchestration` 和 `orchestrator/interview-playbook.md`。开场/创角页面的**主题气质、第一印象、页面内容和呈现方式是核心产品决定**。开始视觉实现前，除非用户已给完整要求或明确授权自由设计，至少了解：
 
-- 用户想给玩家什么第一印象；喜欢/不喜欢什么作品、UI 气质或视觉参考；
-- 想展示什么介绍、玩法、路线、角色/世界资料，哪些应当留给游玩发现；
+- 想给玩家什么第一印象；喜欢/不喜欢什么作品、UI 气质或视觉参考；
+- 想展示什么介绍、玩法、路线、角色/世界资料，哪些应留给游玩发现；
 - 喜欢简洁向导、沉浸序章、档案/设定集等哪种阅读节奏与版面层次；
-- 创角希望一页完成还是分步引导，以及预览、返回修改、跳过等体验偏好。
+- 创角希望一页完成还是分步引导，以及预览、返回修改、复制成功、复制失败和操作指引怎样呈现。
 
-可以用玩家听得懂的风格方向帮助用户表达，也欢迎用户给参考图/链接/描述；不要问 CSS、组件库、断点、API 或 iframe 等实现细节。高影响偏好未问到时，先访谈，不要静默代定；只有用户明确授权后才自由发挥，并以实际页面片段供其校准。
+不要问 CSS、框架、DOM、API、iframe 或剪贴板权限实现。用户只需要决定看到什么、感觉如何以及希望怎样完成开场。
 
-每次回答后立即修改真实 HTML 或提交协调代码，并用空白输入、非默认路线、切聊天、切 Swipe、保存失败、输入框冲突、重复点击或正常 user→AI 消息链中的至少一个情境校准；视觉校准同时检查用户选定的气质和信息层级是否落到页面。
+## 完成门槛
 
-## 边界
+至少验证：
 
-- 不编写持续状态栏、背包、地图、任务面板或每消息行动界面。
-- 不长期监听每个消息楼层；但提交期间必须监听或重校验聊天切换、0楼 Swipe/重渲染、页面卸载和草稿 revision，事务结束后清理。
-- 可以预览初始状态，但不能把开场页面作为长期状态面板继续运行。
-- 不自行发明第二套玩家档案或状态树；内容合同和运行合同不足时返回对应阶段补齐。
-- 不生成开场需求表、创角字段清单、提交进度、handoff 文件、中间 YAML 规格、manifest、mock 或构建器；直接维护实际 HTML、协调脚本与真实运行组件。
-
-## 交付
-
-最终 HTML 含完整 body、CSS 和 JavaScript，并声明 Tavern Helper fenced HTML、ST-Prompt-Template `@@iframe`、纯静态 SillyTavern 或其他已验证载体。STPT 页面需要楼层信息时由 EJS context 显式写入，不调用 `getCurrentMessageId()`。为模型提供短文本回退，不把完整页面源码送入模型上下文。没有真实宿主证据时写 `runtime: not_run`。
+- 窄屏和宽屏可完成全部表单；
+- 未填必填项不会生成旧文本；
+- 修改字段后旧预览/旧复制内容失效；
+- Clipboard API 成功路径与拒绝后的手动复制回退；
+- 页面、协调器和打包产物中不存在世界书写入、自动 `/send`、自动 Swipe 修改；
+- 每条路线都有真实静态 Greeting；
+- 玩家按指引发送登记文本后，运行合同能在首个 AI 回复中登记状态；
+- 没有真实宿主证据时只声明静态或浏览器级通过，不声明 SillyTavern runtime pass。

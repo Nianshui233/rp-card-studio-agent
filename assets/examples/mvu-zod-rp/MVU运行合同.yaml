@@ -1,0 +1,24 @@
+mvu:
+  mode: mvu_zod
+  init_strategy: greeting
+  update_dialect: json_patch
+  loader:
+    url: "https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate@0a730cd4a9b99689d1135a49b542c780b977c24c/artifact/bundle.js"
+    script_name: "MVU变量框架"
+  zod:
+    enabled: true
+    source: "schema.js"
+    script_name: "灰港避难所ZOD"
+    provider_url: "https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource@523b1f0d82d3debbc2435ec35530f02e8d388219/dist/util/mvu_zod.js"
+  required_worldbook_entries:
+    update_rules: "[mvu_update]变量更新规则"
+    variable_index: "变量列表"
+    output_format: "[mvu_update]变量输出格式"
+  consumers:
+    status_ui: true
+    ejs_bridge: false
+  acceptance:
+    target_sillytavern: "1.19.0"
+    target_tavern_helper: "待实机确认"
+    target_mvu_commit: "0a730cd4a9b99689d1135a49b542c780b977c24c"
+    runtime: not_run

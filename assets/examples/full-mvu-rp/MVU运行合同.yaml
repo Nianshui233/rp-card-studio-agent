@@ -1,0 +1,19 @@
+mvu:
+  mode: native_schema
+  init_strategy: greeting
+  update_dialect: lodash
+  loader:
+    url: "https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate@0a730cd4a9b99689d1135a49b542c780b977c24c/artifact/bundle.js"
+    script_name: "MVU变量框架"
+  zod:
+    enabled: false
+  required_worldbook_entries:
+    update_rules: "[mvu_plot] 变量更新规则"
+    variable_index: "变量列表"
+    output_format: "[mvu_plot] 变量输出格式"
+  consumers:
+    status_ui: true
+    ejs_bridge: true
+  acceptance:
+    target_sillytavern: "1.19.0"
+    runtime: not_run

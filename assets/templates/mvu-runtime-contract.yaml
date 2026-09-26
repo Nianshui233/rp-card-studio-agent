@@ -1,0 +1,25 @@
+# 真实运行配置，不是阶段进度。MVU 项目在配置/中保存一份，并与最终制品同步。
+mvu:
+  mode: mvu_zod                 # none | native_schema | mvu_zod
+  init_strategy: greeting       # greeting | worldbook
+  update_dialect: json_patch    # json_patch | lodash
+  loader:
+    url: "锁定 tag/commit 的 MagVarUpdate URL"
+    script_name: "MVU变量框架"
+  zod:
+    enabled: true
+    source: "创作源或配置中的 schema.js"
+    script_name: "项目名ZOD"
+    provider_url: "锁定 tag/commit 的 mvu_zod.js URL"
+  required_worldbook_entries:
+    update_rules: "[mvu_update]变量更新规则"
+    variable_index: "变量列表"
+    output_format: "[mvu_update]变量输出格式"
+  consumers:
+    status_ui: true
+    ejs_bridge: false
+  acceptance:
+    target_sillytavern: ""
+    target_tavern_helper: ""
+    target_mvu_commit: ""
+    runtime: not_run

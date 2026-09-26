@@ -17,6 +17,7 @@ description: "Private creative module for gameplay systems, scenes, events, narr
 - 写出真实开场白和有实质差异的备用开场。
 - 设计介绍页、游玩指南与创角流程要传达的内容和玩家旅程。
 - 从项目事实推导空白 `<user>` 合同，但不询问、不创作、不预填最终游玩者人物。
+- 系统与场景阶段维护完整 canonical YAML；最终世界书只做连续原文切片与激活调度，不删减已确认规则、演算、边界、空间、线索或后果。
 
 ## 工作方式
 
@@ -26,7 +27,7 @@ description: "Private creative module for gameplay systems, scenes, events, narr
 
 ## 分工
 
-本 Skill 负责“内容和玩家旅程”。`st-opening-frontend-authoring` 只在需要项目介绍、路线选择、创角、预览或进入 greeting 的一次性 HTML 时加载；`st-message-frontend-authoring` 只在需要正式游玩中的持续消息 UI 时加载；`st-runtime-authoring` 只在真的需要变量/EJS 时加载；`st-worldbook-regex` 只在标记和正则需要时加载。
+本 Skill 负责“内容和玩家旅程”。`st-opening-frontend-authoring` 只在需要项目介绍、路线选择、创角、预览或进入 greeting 的一次性 HTML 时加载；`st-message-frontend-authoring` 只在需要正式游玩中的持续消息 UI 时加载；`st-mvu-authoring` 只在需要跨消息持久状态时加载；`st-ejs-authoring` 只在需要动态 Prompt/模板时加载；`st-mvu-ejs-bridge` 只在两者确实要交换数据时加载；`st-worldbook-regex` 只在标记和正则需要时加载。
 
 ## 边界
 

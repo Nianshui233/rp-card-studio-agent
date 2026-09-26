@@ -4,7 +4,42 @@
 
 ## 文件整理
 
-按项目实际需要交付：角色卡 JSON、独立世界书 JSON、Tavern Regex JSON、Tavern Helper Script/ScriptFolder JSON、可选 `.js` 源码、完整 HTML、实际使用的 EJS/MVU 内容和简短导入说明。
+默认按下面的职责结构整理，已有项目采用清楚的等价结构时不强制迁移：
+
+```text
+项目名/
+├─ 创作源/
+├─ 配置/
+└─ 导入：项目名/
+   ├─ 角色卡/
+   ├─ 世界书/
+   ├─ 正则/
+   ├─ 酒馆助手脚本/
+   └─ 原始HTML/
+```
+
+- `创作源/` 只放完整 canonical YAML、用户材料保真副本和真实 RP 文本源码；
+- `配置/` 只放实际依赖、版本、导入顺序和运行/调度配置；
+- `导入：项目名/` 只放最终可导入或直接使用的制品；
+- 不创建“制作记录”“访谈记录”“阶段进度”“QA 日志”等过程目录；
+- 未启用的组件子目录可以省略，不能用空壳文件假装完整。
+
+按项目实际需要交付：完整 canonical 世界/角色/系统/场景 YAML、由其无损切片生成的独立世界书 JSON、角色卡 JSON、Tavern Regex JSON、Tavern Helper Script/ScriptFolder JSON、可选 `.js` 源码、完整 HTML、实际使用的 MVU 内容、EJS 内容和可选 bridge，以及简短导入说明。用户明确只要导入包时可不附 YAML 源文件，但生成和 QA 仍以完整源为准。
+
+## canonical YAML 与世界书
+
+先完成并校验世界观、角色、系统和场景 YAML，再生成世界书。世界书条目的 `content` 只接受源 YAML 的连续原文切片；条目元数据负责调度，不得把正文重新概括。
+
+内容过大时：
+
+```text
+完整 YAML
+→ 按 mapping/list 子树拆成更多原文块
+→ 配置 constant/关键词/position/depth/order/EJS 调用
+→ 保留所有已确认字段、解释、例子、边界和失败后果
+```
+
+用户明确要求压缩派生版时，完整 YAML 仍作为 canonical source 保留，压缩版必须标注为派生物。
 
 HTML 与正则可以分件维护，但运行规则必须包含真实载体：
 
@@ -19,7 +54,7 @@ HTML 与正则可以分件维护，但运行规则必须包含真实载体：
 3. 导入独立世界书，核对嵌入书、主书、附加书和聊天书；
 4. 导入正则并允许当前角色的 scoped regex；
 5. 导入 Tavern Helper Script JSON并启用；
-6. MVU 项目确认唯一 Loader，再启用项目 Schema/bridge；
+6. MVU 项目先确认 mode 与初始化策略；native 检查唯一 Loader，MVU_ZOD 必须同时导入唯一 Loader 与唯一 ZOD 注册脚本，再启用项目其他协调脚本；
 7. 启用 EJS 条目与所需 feature，并检查 raw-message/sandbox/autosave；
 8. 新建聊天执行实际验收。
 
@@ -32,11 +67,11 @@ HTML 与正则可以分件维护，但运行规则必须包含真实载体：
 按项目实际功能检查：
 
 - 默认/备用 Greeting 与每个 0 楼 Swipe；
-- 开场草稿隔离、空白输入、主动路线、预览、上下文冻结、切聊天/切 Swipe 对抗；
-- canonical `<user>` 精确唯一更新，目标 Greeting Swipe 动态初态写入；
-- `write_accepted` 与 `persisted` 分开记录，关键写入保存并重载后读回；
-- 动态自定义开局正常主链：真实 user 楼 → 真实 AI 楼 → 变量初始化；固定 Greeting 只需确认目标 Swipe/初态后交还输入权；
-- 输入框已有文本与自动发送失败回退；
+- 开场空白输入、主动路线、预览、修改后旧文本失效、Clipboard API 与手动复制回退；
+- 页面与协调器不存在世界书写入、自动 Swipe 修改、MVU 初态直写或 `/send` 自动发送；
+- 每条路线包含真实静态 Greeting，自定义来意也有自由入口；
+- 玩家手动切 Greeting、粘贴并亲手发送后，真实 user 楼 → 真实 AI 楼 → 首轮登记变量；
+- 登记结果由持续状态栏读取验证，首轮失败时保留玩家消息并允许重新生成 AI 回复；
 - CharacterBook 导入和绑定；
 - Regex 扩展、scoped allowlist、display/prompt；
 - TH 是否从 fenced code 建立消息 iframe；
@@ -47,7 +82,7 @@ HTML 与正则可以分件维护，但运行规则必须包含真实载体：
 - MVU 结束事件发生时 UI 不会读取旧快照；
 - EJS 生成/渲染、`await getwi`、特殊条目、真实 bridge 与默认安全设置；
 - 持续消息前端的当前楼层/Swipe、按钮、保存、同面读回与反馈；
-- 开场写入的初态被持续前端沿同一路径读取，且没有重复初始化；
+- 开场登记消息产生的持久状态被持续前端沿同一路径读取，重复挂载/复制不产生重复初始化；
 - 编辑、Swipe、删除、加载更多、重载、切聊和重复挂载；
 - 窄屏、长中文、软键盘；
 - Loader、远程 Schema、Zod 实例和断网失败态；

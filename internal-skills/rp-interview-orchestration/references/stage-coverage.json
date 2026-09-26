@@ -1,6 +1,34 @@
 {
   "schema_version": 1,
   "purpose": "Triggered decision coverage, not a questionnaire. Resolve from explicit material first; ask only when an unresolved decision changes the player-facing result.",
+  "preflight_runtime_capabilities": {
+    "display_rule": "When stage or capability choices are shown, MVU and EJS must both appear as independent multi-select options unless one is already source-resolved. Never show only MVU.",
+    "states": [
+      "enabled",
+      "disabled",
+      "unresolved"
+    ],
+    "partial_answer_rule": "Selecting or answering one capability changes only that capability. Silence about EJS never means EJS is disabled, and silence about MVU never means MVU is disabled.",
+    "options": {
+      "mvu": {
+        "player_label": "跨消息持久状态（MVU）",
+        "player_question": "是否需要让任务、关系、物品、时间地点等在后续消息中持续变化并被状态栏读取？",
+        "enable_when": "The requested experience needs persistent state, snapshots, variable updates, or MVU-backed UI.",
+        "does_not_imply": "EJS"
+      },
+      "ejs": {
+        "player_label": "动态 Prompt/世界书模板/条件渲染（EJS）",
+        "player_question": "是否需要让 Prompt、世界书内容或 STPT 页面根据当前上下文自动变化？",
+        "enable_when": "The requested experience needs dynamic templates, STPT execution, getwi, special directives, or @@iframe.",
+        "does_not_imply": "MVU"
+      },
+      "bridge": {
+        "player_label": "MVU→EJS 数据桥接",
+        "ask_when": "Only after MVU and EJS are both enabled and a real EJS dependency on MVU data exists.",
+        "default": "not_applicable"
+      }
+    }
+  },
   "stages": {
     "brainstorm": {
       "owner_skill": "rp-concept-brainstorm",
@@ -198,9 +226,16 @@
         }
       ]
     },
-    "mvu_ejs": {
-      "owner_skill": "st-runtime-authoring",
+    "mvu": {
+      "owner_skill": "st-mvu-authoring",
       "decisions": [
+        {
+          "id": "mvu-mode",
+          "trigger": "Persistent state is enabled and the implementation route has not been resolved from the state complexity or existing materials.",
+          "player_language": "这些需要记住的状态是否包含大量动态角色/物品、严格范围与枚举、自动类型校正，或多个开场初态？",
+          "policy": "resolve_from_material",
+          "skip_when": "The project already declares native_schema or mvu_zod."
+        },
         {
           "id": "state-ownership",
           "trigger": "A later stage requests new displayed information or a new mechanic and it is unclear whether it is existing state, a derived view, local UI state, or new persistent state.",
@@ -228,6 +263,58 @@
           "player_language": "依赖不可用时，是否优先保留普通文字游玩并关闭交互？",
           "policy": "agent_default_if_low_risk",
           "skip_when": "The user explicitly requested a hard dependency or project contract defines the fallback."
+        }
+      ]
+    },
+    "ejs": {
+      "owner_skill": "st-ejs-authoring",
+      "decisions": [
+        {
+          "id": "dynamic-template-purpose",
+          "trigger": "Context-dependent prompt, worldbook, render, or iframe content may be needed and the desired player-facing result is not explicit.",
+          "player_language": "哪些内容需要随着当前情境自动变化？它只需要影响 AI 看到的提示，还是玩家也要在页面里看到？",
+          "policy": "ask_if_unknown",
+          "skip_when": "The source material already defines the dynamic template output and audience, or no dynamic template is needed."
+        },
+        {
+          "id": "template-scope",
+          "trigger": "A dynamic template may need values shared globally, within one chat/message, or only during one render.",
+          "player_language": "这段动态内容需要一直保留、只在当前聊天/消息中使用，还是每次显示时临时计算即可？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "The lifetime and audience of the template result are already explicit."
+        },
+        {
+          "id": "template-fallback",
+          "trigger": "The optional template provider or a template evaluation may fail.",
+          "player_language": "动态模板不可用时，是否优先保留一份可继续游玩的普通文字版本？",
+          "policy": "agent_default_if_low_risk",
+          "skip_when": "A hard dependency or explicit fallback is already part of the project contract."
+        }
+      ]
+    },
+    "runtime_bridge": {
+      "owner_skill": "st-mvu-ejs-bridge",
+      "decisions": [
+        {
+          "id": "bridge-necessity",
+          "trigger": "Both MVU and EJS are enabled and it is unclear whether the EJS output truly needs MVU data.",
+          "player_language": "动态模板是否必须读取那些会持续变化的状态，还是两部分各自独立也能达到你想要的效果？",
+          "policy": "resolve_from_material",
+          "skip_when": "Only one system is enabled, or the data dependency is already explicit."
+        },
+        {
+          "id": "bridge-direction",
+          "trigger": "A bridge is required and the allowed data direction has not been confirmed.",
+          "player_language": "模板只需要读取状态来调整内容，还是还希望模板反过来改变状态？通常建议只读，避免两边互相覆盖。",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "The bridge is already confirmed as one-way read-only, or a field-level write contract already exists."
+        },
+        {
+          "id": "bridge-fallback",
+          "trigger": "The bridge may not find a complete state snapshot or one provider may be unavailable.",
+          "player_language": "暂时读不到状态时，动态内容应该隐藏、显示“暂无数据”，还是使用不带状态的普通版本？",
+          "policy": "ask_if_unknown",
+          "skip_when": "The project already defines a deterministic missing-state fallback."
         }
       ]
     },
@@ -284,7 +371,7 @@
         {
           "id": "interaction-feel",
           "trigger": "The page includes choices or form fields and the desired interaction flow is not explicit.",
-          "player_language": "创角过程希望一页完成，还是分步骤慢慢引导？你希望有预览/返回修改/跳过选项吗？",
+          "player_language": "创角过程希望一页完成，还是分步骤慢慢引导？你希望怎样预览、返回修改、复制开局文本，以及看到“切哪个开场、粘贴到哪里、怎么发送”的指引？",
           "policy": "ask_or_explicitly_delegate",
           "skip_when": "The user supplied the exact interaction flow or requested a static, non-interactive intro."
         },
@@ -360,19 +447,26 @@
     "message_frontend_derived_view_needs_world_scene_rule": "scenes",
     "message_frontend_new_character_attribute_semantics": [
       "character",
-      "mvu_ejs"
+      "mvu"
     ],
     "message_frontend_new_gameplay_mechanic": [
       "systems",
-      "mvu_ejs"
+      "mvu"
     ],
-    "message_frontend_new_persistent_state": "mvu_ejs",
-    "opening_frontend_new_player_persistent_state": "mvu_ejs",
+    "message_frontend_new_persistent_state": "mvu",
+    "opening_frontend_new_player_persistent_state": "mvu",
     "open_only_when_semantics_are_clear": true,
     "return_scope": "Reopen only the affected owning decision(s), then resume the interrupted frontend stage; do not restart unrelated completed stages.",
     "opening_frontend_new_persistent_player_profile": [
       "rp-project-foundation",
-      "mvu_ejs"
+      "mvu"
+    ],
+    "message_frontend_new_dynamic_template": "ejs",
+    "opening_frontend_new_dynamic_template": "ejs",
+    "ejs_needs_mvu_state": [
+      "mvu",
+      "ejs",
+      "runtime_bridge"
     ]
   }
 }

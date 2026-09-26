@@ -1,0 +1,26 @@
+# canonical MVU JSON Patch 输出合同模板。若项目选择 lodash 方言，应整份替换，禁止混用。
+变量输出格式:
+  rule:
+    - "每次回复正文结束后输出一次完整更新块"
+    - "Analysis 只分析当前回复真实发生的变化"
+    - "JSONPatch 必须是合法 JSON 数组"
+    - "所有 path 必须存在于变量路径索引或是允许新增的 Record 键"
+    - "Record 使用 replace/remove；Array 使用 insert/remove；数值增减使用 delta"
+  operations:
+    replace: "替换现有值，或为允许扩展的 Record 新增键"
+    delta: "对现有数值应用增减量"
+    insert: "向 Array 插入元素"
+    remove: "删除 Record 键或 Array 元素"
+    move: "仅在目标 provider 确认支持时使用"
+  format: |-
+    <UpdateVariable>
+    <Analysis>用不超过 80 词说明本轮需要更新哪些字段以及原因</Analysis>
+    <JSONPatch>
+    [
+      { "op": "replace", "path": "/世界/当前时间", "value": "09:10" },
+      { "op": "delta", "path": "/玩家/体力", "value": -8 },
+      { "op": "replace", "path": "/玩家/背包/止血带", "value": "x1" },
+      { "op": "insert", "path": "/现场/可调查目标/-", "value": "锁住的储物柜" }
+    ]
+    </JSONPatch>
+    </UpdateVariable>
