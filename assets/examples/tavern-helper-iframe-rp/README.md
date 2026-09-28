@@ -22,7 +22,7 @@
 → assistant 正文末尾输出 <航站状态 v="1"> JSON </航站状态> + <航站终端/>
 → display Regex 替换为完整 fenced HTML
 → SillyTavern 生成 <pre><code>
-→ Tavern Helper 4.9.3 建立消息 iframe
+→ Tavern Helper 4.11.2 建立消息 iframe
 → getCurrentMessageId() + getChatMessages(..., {include_swipes:true})
 → 读取当前 Swipe 原文
 → 取最后一个完整 v1 块
@@ -50,5 +50,5 @@ prompt 通道只删除 `<航站终端/>`，保留版本化状态语义供下一�
 4. 如需行动按钮，导入 `input-bridge.script.json` 并主动启用；
 5. 新建聊天测试完整、编辑和 Swipe 路线。
 
-- provider：SillyTavern 1.18.0 + Tavern Helper 4.9.3；
+- provider：SillyTavern 1.19.0 + Tavern Helper 4.11.2；
 - runtime：`not_run`。

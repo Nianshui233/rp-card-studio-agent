@@ -171,7 +171,7 @@ NSFW 只在首轮确认一次。启用后不再进行边界问卷或运行时门
 - MVU 初始化/更新结束事件是内存变换阶段，不等于消息变量已经持久化。
 - 只启用 MVU 时不生成 `.ejs`、STPT 特殊指令或 EJS 变量。
 - 复杂 Record/Array、严格 enum/范围/coerce、多个 Greeting 初态或用户明确要求 MVU_ZOD 时，选择 `mvu_zod` 后不得静默降级为 native；缺件必须补齐或阻断。
-- `mvu_zod` 完整制品必须同时包含：锁版本 Loader、完整 Zod Schema、`registerMvuSchema(Schema)` 可导入脚本、唯一初始化策略、逐字段更新规则、当前 stat_data 与路径索引、单一输出方言、Regex 清理、真实消费者、导入/验收说明。
+- `mvu_zod` 完整制品必须同时包含：锁版本 Loader、完整 Zod Schema、`registerMvuSchema(Schema)` 可导入脚本、唯一初始化策略、逐字段更新规则、当前 stat_data 与路径索引（静态路径或经过合同声明的完整动态注入）、单一输出方言、Regex 清理、真实消费者、导入/验收说明。
 - Zod 只校验数据，不会教 LLM 何时更新。变量更新规则、路径索引和输出格式不得被简化成几条泛化说明；Schema 每个可写状态根都必须有更新责任。
 - 每个可游玩 Greeting/Swipe 必须继承完整 `[initvar]` 基线，或携带与 Schema 顶层键一致的完整 `<initvar>`；部分覆盖禁止冒充完整初态。
 - MVU 输出只选择 JSON Patch 或 lodash 一种方言，世界书合同、Regex、fixture 和解析器必须一致。
@@ -184,14 +184,14 @@ NSFW 只在首轮确认一次。启用后不再进行边界问卷或运行时门
 - EJS 是模板执行路线，不是 MVU 存储层，也不等于“有变量”。
 - 只启用 EJS 时不生成 MagVarUpdate Loader、`[initvar]`、MVU Schema、更新块或 `Mvu.*` 调用。
 - EJS 原生 `global/local/message/cache/initial` 是 STPT 作用域，不是 MVU 的 `stat_data/schema/display_data/delta_data`。
-- 目标 STPT `1.17.8.1` 默认 `raw_message_evaluation_enabled:true`、`sandbox:false`、`autosave_enabled:false`；不需要原始消息 EJS 时关闭 raw-message evaluation。
+- 目标 STPT `1.17.9` 默认 `raw_message_evaluation_enabled:true`、`sandbox:false`、`autosave_enabled:false`；不需要原始消息 EJS 时关闭 raw-message evaluation。
 
 ## MVU → EJS 显式桥接
 
 启用 MVU 或 EJS 中任意一个都不会自动启用另一个。只有两者分别成立且 EJS 确实需要读取 MVU 状态时，才加载 `st-mvu-ejs-bridge`。
 
-- 默认方向是 `MVU 权威状态 → 深拷贝注入 context.mvu → EJS 只读`；
-- 没有 bridge 时 EJS 不得直接引用顶层 `stat_data`；
+- 默认只读方向有两种合法实现：`MVU → 当前消息 variables.stat_data → EJS getvar 只读`（shared_message_variables），或 `MVU → 深拷贝注入 context.mvu → EJS 只读`（explicit_context）；
+- 没有声明 bridge 时 EJS 不得直接引用顶层 `stat_data`；
 - 不默认允许 EJS 写回 MVU，不允许两套系统同时写同一字段；
 - bridge 必须明确快照选择、数值楼层、作用域、路径、生命周期、失败回退与版本证据。
 

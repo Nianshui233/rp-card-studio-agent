@@ -1,0 +1,11 @@
+# MVU→EJS 桥接合同
+# 只有 EJS 确实读取 MVU 时才启用；EJS 不得暗中写回同一状态树。
+bridge:
+  mode: shared_message_variables  # shared_message_variables | explicit_context
+  direction: mvu_to_ejs_readonly
+  owner: mvu
+  snapshot: current_message_variables
+  missing_snapshot: null_or_static_fallback
+  swipe_isolation: required
+  latest_fallback_for_writes: forbidden
+  runtime: not_run

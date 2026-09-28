@@ -120,8 +120,23 @@ function playableGreetings(card) { return greetingTexts(card).filter(text => !is
 function initvarBody(text) { return String(text).match(/<initvar>([\s\S]*?)<\/initvar>/i)?.[1] ?? null; }
 
 function entryText(entry) { return `${entry?.comment || ''}\n${entry?.content || ''}`; }
-function findEntry(entries, pattern) { return entries.find(entry => pattern.test(entryText(entry))); }
+function findEntry(entries, pattern) {
+  return entries
+    .filter(entry => pattern.test(entryText(entry)))
+    .sort((a, b) => entryText(b).length - entryText(a).length)[0];
+}
+
+
 function allKeysMentioned(text, keys) { return keys.filter(key => !String(text).includes(key)); }
+function hasDynamicStateInjection(text) {
+  return /format_message_variable::stat_data|<status_current_variables[\s\S]*stat_data/i.test(String(text || ''));
+}
+function hasRecordSemantics(text) {
+  return /\bRecord\b|动态键|对象键|编号或代号|数量归零|归入.*分类|键下|字典/i.test(String(text || ''));
+}
+function hasArraySemantics(text) {
+  return /\bArray\b|数组|列表|索引|末尾追加|\binsert\b|\bremove\b|\bmove\b/i.test(String(text || ''));
+}
 
 
 export function extractIndexedPaths(text) {
@@ -181,21 +196,21 @@ function compareEmbeddedExternalScripts(card, folder, issues) {
 
 export function parseMvuContract(text) {
   const result = { requiredEntries: {} };
+  const lines = String(text || '').replace(/^\uFEFF/, '').split(/\r?\n/).map(raw => raw.replace(/\s+#.*$/, ''));
+  const wrapped = lines.some(line => /^mvu:\s*$/.test(line.trim()));
+  const baseIndent = '  ';
+  const nestedIndent = `${baseIndent}  `;
   let section = null;
-  for (const raw of String(text || '').replace(/^\uFEFF/, '').split(/\r?\n/)) {
-    const line = raw.replace(/\s+#.*$/, '');
-    const rootValue = line.match(/^  (mode|init_strategy|update_dialect):\s*["']?([^"'\s]+)["']?\s*$/);
+  for (const line of lines) {
+    const rootValue = line.match(new RegExp(`^${baseIndent}(mode|init_strategy|update_dialect):\\s*["']?([^"'\\s]+)["']?\\s*$`));
     if (rootValue) { result[rootValue[1]] = rootValue[2]; section = null; continue; }
-    const sectionLine = line.match(/^  ([A-Za-z_]+):\s*$/);
-    if (sectionLine) { section = ['loader', 'zod', 'required_worldbook_entries'].includes(sectionLine[1]) ? sectionLine[1] : null; continue; }
-    const nested = line.match(/^    ([A-Za-z_]+):\s*["']?(.*?)["']?\s*$/);
+    const sectionLine = line.match(new RegExp(`^${baseIndent}(loader|zod|required_worldbook_entries|producers|consumers|acceptance):\\s*$`));
+    if (sectionLine) { section = sectionLine[1]; result[section] ||= {}; continue; }
+    const nested = line.match(new RegExp(`^${nestedIndent}([A-Za-z_]+):\\s*["']?(.*?)["']?\\s*$`));
     if (!nested || !section) continue;
     const [, key, value] = nested;
     if (section === 'required_worldbook_entries') result.requiredEntries[key] = value;
-    else {
-      result[section] ||= {};
-      result[section][key] = value;
-    }
+    else result[section][key] = value;
   }
   return result;
 }
@@ -224,6 +239,16 @@ export function validateMvuPackage(input, options = {}) {
   if (contract?.update_dialect && expectedDialect && contract.update_dialect !== expectedDialect) issues.push(`MVU运行合同 update_dialect=${contract.update_dialect} 与验证参数 ${expectedDialect} 不一致`);
 
   const scripts = dedupeByContent([...embeddedScripts(input.card), ...folderScripts(input.scriptFolder)]);
+  const directWriters = scripts.filter(script => /(?:Mvu\.replaceMvuData|updateVariablesWith|setMessageVar|setvar)\s*\(/i.test(script.content || ''));
+  if (directWriters.length) {
+    const declared = String(contract?.producers?.direct_scripts || '');
+    if (!declared.trim()) issues.push('MVU 存在 Tavern Helper 直接写入脚本，但运行合同没有声明 producers.direct_scripts');
+    for (const script of directWriters) {
+      if (declared && !declared.includes(String(script.name || ''))) issues.push(`直接写入脚本“${script.name}”未列入 producers.direct_scripts`);
+      if (/Mvu\.replaceMvuData[\s\S]{0,800}message_id\s*:\s*['"]latest['"]/i.test(script.content || '')) issues.push(`直接写入脚本“${script.name}”使用 latest 作为关键写入楼层`);
+      if (!/saveChat\s*\(/i.test(script.content || '')) issues.push(`直接写入脚本“${script.name}”没有发现 saveChat 保存与同面读回合同`);
+    }
+  }
   const loaders = scripts.filter(script => /MagVarUpdate(?:@[^/\s]+)?\/artifact\/bundle\.js/i.test(script.content || ''));
   const zodScripts = scripts.filter(script => /registerMvuSchema\s*\(/.test(script.content || ''));
   if (loaders.length !== 1) issues.push(`MVU 制品必须且只能有 1 个 Loader，实际 ${loaders.length}`);
@@ -309,15 +334,16 @@ export function validateMvuPackage(input, options = {}) {
     if ((mode === 'mvu_zod') && rulesText.length < Math.max(1000, schemaKeys.length * 120)) issues.push('MVU_ZOD 变量更新规则过于简略，未达到逐状态根指导所需的信息量');
     if ((mode === 'mvu_zod') && !/更新条件|check/i.test(rulesText)) issues.push('MVU_ZOD 变量更新规则缺少明确更新条件');
     if ((mode === 'mvu_zod') && !/不更新|禁止|只读|不得/.test(rulesText)) issues.push('MVU_ZOD 变量更新规则缺少不更新/只读边界');
-    if ((mode === 'mvu_zod') && !/Record/.test(rulesText)) issues.push('MVU_ZOD 变量更新规则缺少 Record 更新语义');
-    if ((mode === 'mvu_zod') && !/Array|数组/.test(rulesText)) issues.push('MVU_ZOD 变量更新规则缺少 Array 更新语义');
+    if ((mode === 'mvu_zod') && !hasRecordSemantics(rulesText)) issues.push('MVU_ZOD 变量更新规则缺少 Record/动态键更新语义');
+    if ((mode === 'mvu_zod') && !hasArraySemantics(rulesText)) issues.push('MVU_ZOD 变量更新规则缺少 Array/数组更新语义');
   }
   if (schemaKeys.length && indexEntry) {
     const indexText = String(indexEntry.content || '');
-    const missing = allKeysMentioned(indexText, schemaKeys);
+    const dynamicIndex = hasDynamicStateInjection(indexText);
+    const missing = dynamicIndex ? [] : allKeysMentioned(indexText, schemaKeys);
     if (missing.length) issues.push(`变量路径索引未覆盖 Schema 顶层键：${missing.join('、')}`);
-    if (!/format_message_variable::stat_data/.test(indexText)) issues.push('变量路径索引缺少当前 stat_data 注入');
-    if ((mode === 'mvu_zod') && indexText.length < Math.max(400, schemaKeys.length * 60)) issues.push('MVU_ZOD 变量路径索引过于简略');
+    if (!dynamicIndex && !/format_message_variable::stat_data/i.test(indexText)) issues.push('变量路径索引缺少当前 stat_data 注入');
+    if ((mode === 'mvu_zod') && !dynamicIndex && indexText.length < Math.max(400, schemaKeys.length * 60)) issues.push('MVU_ZOD 变量路径索引过于简略');
   }
 
   const outputText = String(outputEntry?.content || '');
@@ -329,17 +355,21 @@ export function validateMvuPackage(input, options = {}) {
   if (dialect === 'mixed') issues.push('变量输出格式混用了 JSON Patch 与 lodash 命令方言');
   if (expectedDialect && dialect !== expectedDialect) issues.push(`变量输出方言与运行合同不一致：合同 ${expectedDialect}，实际 ${dialect}`);
   if (dialect === 'json_patch' && indexEntry) {
-    const patterns = extractIndexedPaths(indexEntry.content).map(pathPattern);
-    for (const outputPath of extractOutputPaths(outputText)) {
-      if (!patterns.some(pattern => pattern.test(outputPath))) issues.push(`变量输出格式示例路径不在变量索引中：${outputPath}`);
+    const indexedPaths = extractIndexedPaths(indexEntry.content);
+    const patterns = indexedPaths.map(pathPattern);
+    if (indexedPaths.length) {
+      for (const outputPath of extractOutputPaths(outputText)) {
+        if (/^\$\{\/path\//.test(outputPath)) continue;
+        if (!patterns.some(pattern => pattern.test(outputPath))) issues.push(`变量输出格式示例路径不在变量索引中：${outputPath}`);
+      }
     }
   }
 
   const regex = dedupeRegex([...embeddedRegex(input.card), ...externalRegex(input.regex)]);
-  const findTexts = regex.map(rule => String(rule.findRegex || '')).join('\n');
-  if (!/UpdateVariable/.test(findTexts)) issues.push('Regex 缺少 <UpdateVariable> 的 display/prompt 清理消费者');
-  if ((greetingsWithInit.length || baseline) && !/initvar/i.test(findTexts)) issues.push('Regex 缺少 <initvar> 显示隐藏规则');
-  if (greetings.some(text => /<StatusPlaceHolderImpl\s*\/>/.test(text)) && !/StatusPlaceHolderImpl/.test(findTexts)) issues.push('存在状态栏占位符但 Regex 没有对应消费者');
+  const findTexts = regex.map(rule => `${String(rule.findRegex || '')}\n${String(rule.replaceString || '')}`).join('\n');
+  if (!/<\s*\(?update(?:variable)?/i.test(findTexts)) issues.push('Regex 缺少 <UpdateVariable> 的 display/prompt 清理消费者');
+  if (greetingsWithInit.length && !/initvar/i.test(findTexts)) issues.push('Greeting 含 <initvar>，但 Regex 没有对应显示隐藏规则');
+  if (greetings.some(text => /<StatusPlaceHolderImpl\s*\/>/i.test(text)) && !/statusplaceholderimpl/i.test(findTexts)) issues.push('存在状态栏占位符但 Regex 没有对应消费者');
 
   compareEmbeddedExternalWorldbook(input.card, input.worldbook, issues);
   compareEmbeddedExternalScripts(input.card, input.scriptFolder, issues);

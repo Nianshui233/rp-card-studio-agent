@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { normalizeRegexDocument, validateRegexDocument } from './regex/validate-tavern-regex.mjs';
 import { runFixtures } from './regex/run-regex-fixtures.mjs';
 import { parseMvuContract, validateMvuPackage } from './mvu/validate-mvu-package.mjs';
+import { validateEjsPackage } from './ejs/validate-ejs-package.mjs';
 
 export function validateRolecardPackage(input) {
   const issues = [];
@@ -115,6 +116,16 @@ export function validateRolecardPackage(input) {
   for (const issue of mvuReport.issues) add(issues, `MVU: ${issue}`);
   for (const warning of mvuReport.warnings) add(warnings, `MVU: ${warning}`);
 
+  if (input.ejsContract || input.ejsTemplates !== undefined || input.worldbook) {
+    const ejsReport = validateEjsPackage({
+      worldbook: input.worldbook,
+      templates: input.ejsTemplates,
+      ejsContract: input.ejsContract,
+    });
+    for (const issue of ejsReport.issues) add(issues, `EJS: ${issue}`);
+    for (const warning of ejsReport.warnings) add(warnings, `EJS: ${warning}`);
+  }
+
   if (input.hostCardValidation) {
     if (!input.hostCardValidation.valid) {
       add(issues, `目标 SillyTavern CardValidator 拒绝角色卡：${input.hostCardValidation.error || 'unknown error'}`);
@@ -135,10 +146,30 @@ function option(name) {
   return index < 0 ? null : process.argv[index + 1] || null;
 }
 
+function parseEjsContract(text) {
+  const result = {};
+  const lines = String(text || '').replace(/^\uFEFF/, '').split(/\r?\n/).map(raw => raw.replace(/\s+#.*$/, ''));
+  const baseIndent = '  ';
+  const nestedIndent = `${baseIndent}  `;
+  let section = null;
+  for (const line of lines) {
+    const sectionLine = line.match(new RegExp(`^${baseIndent}(required_templates|acceptance):\\s*$`));
+    if (sectionLine) { section = sectionLine[1]; result[section] ||= {}; continue; }
+    const root = line.match(new RegExp(`^${baseIndent}([A-Za-z_]+):\\s*["']?(.*?)["']?\\s*$`));
+    if (root && !line.match(new RegExp(`^${nestedIndent}`))) { result[root[1]] = root[2].trim(); section = null; continue; }
+    const nested = line.match(new RegExp(`^${nestedIndent}([A-Za-z_]+):\\s*["']?(.*?)["']?\\s*$`));
+    if (nested && section) result[section][nested[1]] = nested[2].trim();
+  }
+  for (const key of ['enabled','allow_write']) {
+    if (key in result) result[key] = result[key] === true || result[key] === 'true';
+  }
+  return result;
+}
+
 async function runCli() {
   const root = path.resolve(option('--root') || process.cwd());
   const cardRelative = option('--card');
-  if (!cardRelative) throw new Error('用法: node validate-rolecard-package.mjs --root <package-dir> --card <card.json> [--worldbook <book.json> --worldbook-name <actual-name>] [--regex <regex.json> [--regex-mode additional|alternative] --fixtures <fixtures.json>] [--script-folder <folder.json>] [--zod-source <schema.js>] [--mvu-contract <MVU运行合同.yaml>] [--mvu-mode none|native_schema|mvu_zod] [--mvu-init-strategy auto|worldbook|greeting] [--host-root <SillyTavern-source>]');
+  if (!cardRelative) throw new Error('用法: node validate-rolecard-package.mjs --root <package-dir> --card <card.json> [--worldbook <book.json> --worldbook-name <actual-name>] [--regex <regex.json> [--regex-mode additional|alternative] --fixtures <fixtures.json>] [--script-folder <folder.json>] [--zod-source <schema.js>] [--mvu-contract <MVU运行合同.yaml>] [--ejs-contract <EJS运行合同.yaml>] [--mvu-mode none|native_schema|mvu_zod] [--mvu-init-strategy auto|worldbook|greeting] [--host-root <SillyTavern-source>]');
   const readTextFile = relative => {
     const resolved = path.resolve(root, relative);
     const rel = path.relative(root, resolved);
@@ -171,6 +202,10 @@ async function runCli() {
   if (scriptFolderPath) input.scriptFolder = readFile(scriptFolderPath);
   const zodSourcePath = option('--zod-source');
   if (zodSourcePath) input.zodSource = readTextFile(zodSourcePath);
+  const ejsContractPath = option('--ejs-contract');
+  if (ejsContractPath) {
+    input.ejsContract = parseEjsContract(readTextFile(ejsContractPath));
+  }
   const mvuContractPath = option('--mvu-contract');
   if (mvuContractPath) {
     const contract = readTextFile(mvuContractPath);

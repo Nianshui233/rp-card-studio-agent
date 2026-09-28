@@ -37,9 +37,9 @@ description: "Private final QA and delivery module for cross-stage RP consistenc
 - 角色卡和独立世界书名称、绑定目标、CharacterBook 内容；
 - canonical YAML 是否完整保留，世界书创作条目是否为连续原文切片；不得用摘要、改写或删细节替代调度；
 - MVU mode、初始化策略、唯一 Loader、初值、数值楼层、事件/持久化时序、更新协议、完整/流式隐藏规则和 UI 路径；`mvu_zod` 还必须检查 ZOD 注册脚本、逐字段规则、当前状态/路径索引和输出方言；
-- EJS 模板、按名调用条目、执行阶段和 raw-message/sandbox/autosave 默认态；若存在 MVU→EJS bridge，单独检查方向、快照选择、只读边界和失败回退；
+- EJS 模板、按名调用条目、执行阶段和 raw-message/sandbox/autosave 默认态；若存在 MVU→EJS bridge，明确区分 `shared_message_variables` 与 `explicit_context`，单独检查方向、快照选择、只读边界和失败回退；
 - 正则 placement/depth、prompt/display 分工、标记与 HTML 配对；
-- Tavern Helper Script/ScriptFolder JSON 结构、内容、ID、依赖、重复注册和必要卸载；`.js` 不能冒充导入文件；
+- Tavern Helper Script/ScriptFolder JSON 结构、内容、ID、依赖、重复注册和必要卸载；直接调用 `Mvu.replaceMvuData`/`updateVariablesWith` 的脚本必须在 MVU 运行合同中声明，使用明确数值楼层、保存并同面读回；`.js` 不能冒充导入文件；
 - 开场/创角 HTML 是否完成空白输入、主动选择、预览、剪贴板与手动复制回退、真实静态 Greeting 指引，并严格避免世界书写入、自动切 Swipe、MVU 直写和自动发送；玩家亲手发送后再检查 user→AI→首轮登记状态链；
 - 持续消息 HTML 是否自包含、有真实动态载体、按 provider 取得当前楼层/Swipe、处理持久化后刷新与清理并有空态/失败回退；非 MVU 页面还检查 producer/版本/Schema/parser/fixture 与静态捕获安全边界；
 - 交互页面是否按实际组件满足键盘、焦点、ARIA、触控、长列表、性能、主题和调试降级；

@@ -1,0 +1,26 @@
+[
+  {
+    "id": "hide-initvar",
+    "input": "<initvar>\n世界:\n  时间: 08:00\n</initvar>\n正文",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "正文"
+  },
+  {
+    "id": "hide-update",
+    "input": "正文\n<UpdateVariable>\n<Analysis>x</Analysis>\n<JSONPatch>[]</JSONPatch>\n</UpdateVariable>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "正文\n"
+  },
+  {
+    "id": "stream-update",
+    "input": "正文\n<UpdateVariable>\n<Analysis>x",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "正文\n"
+  }
+]

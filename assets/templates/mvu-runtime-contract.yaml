@@ -15,6 +15,9 @@ mvu:
     update_rules: "[mvu_update]变量更新规则"
     variable_index: "变量列表"
     output_format: "[mvu_update]变量输出格式"
+  producers:
+    model_update: true
+    direct_scripts: ""       # 直接调用 Mvu.replaceMvuData/updateVariablesWith 的脚本名；没有则留空
   consumers:
     status_ui: true
     ejs_bridge: false

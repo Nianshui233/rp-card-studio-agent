@@ -1,0 +1,18 @@
+# EJS/ST-Prompt-Template 真实运行合同，不是访谈记录或阶段状态。
+ejs:
+  enabled: true
+  mode: worldbook_template       # prompt_template | worldbook_template | render_template
+  execution_stage: preprocessing  # preprocessing | generation | render
+  output_channel: prompt          # prompt | render | iframe
+  bridge_mode: shared_message_variables # none | shared_message_variables | explicit_context
+  direction: mvu_to_ejs_readonly
+  snapshot: current message variables for the active message/Swipe; never a latest write target
+  failure: return an empty/static section and preserve the remaining prompt
+  raw_message_evaluation_enabled: false
+  sandbox: false
+  autosave_enabled: false
+  required_templates:
+    - 动态内容总控
+  acceptance:
+    target_st_prompt_template: ""
+    runtime: not_run

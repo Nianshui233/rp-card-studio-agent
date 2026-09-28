@@ -9,7 +9,7 @@ MVU_ZOD 不是“MVU 加一个可选 Schema 文件”。一旦选择 `mvu_zod`�
 3. **可导入的 ZOD Tavern Helper Script/ScriptFolder**，导入锁版本 `mvu_zod.js`，导出 `Schema`，在宿主 Ready 后执行 `registerMvuSchema(Schema)`；
 4. **唯一初始化策略**：完整世界书 `[initvar]` 基线，或每个可游玩 Greeting/Swipe 的完整 `<initvar>`；
 5. **详细变量更新规则**：逐状态根、逐字段族说明何时更新、何时不更新、范围、频率、新增/删除/迁移和单写者；
-6. **当前状态注入与变量路径索引**：让更新模型看到真实 `stat_data`，并明确标量、Record、Array 的可写路径；
+6. **当前状态注入与变量路径索引**：让更新模型看到真实 `stat_data`，并明确标量、Record、Array 的可写路径；可以采用静态 JSON Pointer/点路径索引，也可以采用合同声明过的完整动态 `format_message_variable::stat_data` 索引；
 7. **变量输出格式**：选择并只选择一个真实方言（JSON Patch 或 MVU lodash 命令），给出合法操作与路径示例；
 8. **Regex 闭环**：隐藏 initvar、处理完整/流式更新块、prompt/display 分工，并为状态栏占位符提供真实消费者；
 9. **真实消费者**：状态栏、EJS bridge 或其他组件只能读取 Schema 中存在的路径；
@@ -74,7 +74,7 @@ Zod 只负责校验，不会教 LLM 何时改变状态。详细规则必须覆�
 </status_current_variable>
 ```
 
-并提供与 Schema 同步的路径索引。JSON Patch 使用 JSON Pointer；lodash 方言使用完整点路径。每个顶层根必须出现，Record 和 Array 路径示例必须分开。
+并提供与 Schema 同步的路径索引。JSON Patch 使用 JSON Pointer；lodash 方言使用完整点路径。每个顶层根必须出现，Record 和 Array 路径示例必须分开。若使用动态全量注入，必须写明当前 message/Swipe 作用域、缺少快照时的行为，并仍保留 Record/Array 的操作边界；不能把动态全量注入误当成 EJS 变量。
 
 ## 输出方言
 
@@ -102,7 +102,7 @@ ZOD Schema 注册脚本
 静态检查至少运行：
 
 ```powershell
-node scripts/validate-rolecard-package.mjs ... --zod-source "配置/MVU/schema.js" --mvu-contract "配置/MVU运行合同.yaml"
+node scripts/validate-rolecard-package.mjs ... --zod-source "配置/MVU/schema.js" --mvu-contract "配置/MVU运行合同.yaml" [--ejs-contract "配置/EJS运行合同.yaml"]
 python -X utf8 scripts/mvu/validate-initvar-yaml.py --card "导入：项目名/角色卡/项目名.json" --zod-script "配置/MVU/schema.js"
 ```
 

@@ -1,6 +1,6 @@
-# Tavern Helper 4.9.3 运行时参考
+# Tavern Helper / JS-Slash-Runner 4.11.2 运行时参考（本机声明）
 
-酒馆助手为角色卡提供两类 iframe：消息前端与后台脚本。它不是 SillyTavern 本体；任何依赖都要在导入说明中明确。本文核对自 `src/function/`、`src/iframe/predefine.js`、`src/util/is_frontend.ts`、`src/panel/render/`、`src/type/scripts.ts`。
+酒馆助手为角色卡提供两类 iframe：消息前端与后台脚本。它不是 SillyTavern 本体；任何依赖都要在导入说明中明确。本文核对自 `src/function/`、`src/iframe/predefine.js`、`src/util/is_frontend.ts`、`src/panel/render/`、`src/type/scripts.ts`、`@types/function/generate.d.ts`、`@types/iframe/exported.mvu.d.ts`。
 
 ## 消息前端载体
 
@@ -101,6 +101,7 @@ replaceVariables(..., {type:'message', message_id:'latest'})
 TH `iframe_events` 与本体 `tavern_events` 是不同事件族：
 
 ```text
+iframe_events.GENERATION_REQUESTED(generation_id, type, generate_config)
 iframe_events.GENERATION_STARTED(generation_id)
 iframe_events.STREAM_TOKEN_RECEIVED_FULLY(full_text, generation_id)
 iframe_events.STREAM_TOKEN_RECEIVED_INCREMENTALLY(delta, generation_id)
@@ -116,6 +117,8 @@ iframe_events.GENERATION_ENDED(text, generation_id)
 
 - 未传 `generation_id` 自动生成 uuid；同 ID 重复请求直接抛错；
 - `bindToStopButton` 默认 true；
+- 支持 `custom_api`/`proxy_preset`、`tools`/`tool_choice`、`json_schema`、`should_return_reasoning` 等 4.11.2 声明的生成选项；
+- 返回值可能是字符串，也可能是详细对象 `{content, reasoning?, reasoning_signature?, tool_calls?}`；不能无条件当字符串拼接；
 - 监听器按 generation_id 过滤，单请求停止用 `stopGenerationById(id)`；
 - **只返回生成结果，不创建 user/assistant 楼层，不自动保存到 chat**。
 
@@ -145,6 +148,12 @@ InjectionPrompt = {id, position:'in_chat'|'none', depth, role:'system'|'user'|'a
 旧 `getLorebookEntries/replaceLorebookEntries/updateLorebookEntriesWith/setLorebookEntries/createLorebookEntries/deleteLorebookEntries` 已 deprecated。旧 `getLorebookEntries` 的字符串 filter 使用包含匹配，不能拿来判断 `<user>` 等 canonical 名称是否精确唯一。
 
 `getLorebookSettings/setLorebookSettings` 直接读写 SillyTavern **全局世界书扫描设置**，会改变玩家全局配置，慎用。
+
+## 4.11.2 新增/需要显式核对的表面
+
+- 变量 scope 还包括 `script` 与 `extension`；脚本 iframe 裸变量函数可自动补当前 `script_id`，namespace 调用要显式传入。
+- 当前声明提供 `getScriptTrees/replaceScriptTrees/updateScriptTreesWith`、脚本按钮/信息管理，以及扩展安装/更新接口；这些不是角色卡运行时的默认依赖，只有项目确实需要后台维护工具时才启用。
+- `generate` 的结构化输出和工具调用结果需要逐 provider 验收；`json_schema` 只约束目标模型请求，不等于 MVU/ZOD 已经保存状态。
 
 ## Script / ScriptFolder 交付
 

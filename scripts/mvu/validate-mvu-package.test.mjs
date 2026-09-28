@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateMvuPackage } from './validate-mvu-package.mjs';
+import { parseMvuContract, validateMvuPackage } from './validate-mvu-package.mjs';
 
 const loader = {
   type: 'script', name: 'MVU', id: 'loader',
@@ -158,9 +158,110 @@ test('rejects ZOD before Loader and duplicate schema registration', () => {
 
 test('rejects JSON Patch examples that are not present in the variable path index', () => {
   const f = fixture();
+  f.worldbook.entries[1].content = '<status_current_variable>\n{{format_message_variable::stat_data}}\n</status_current_variable>\n/世界/时间\n/玩家/生命值\n/任务/阶段';
+  f.card.data.character_book.entries[1].content = f.worldbook.entries[1].content;
   f.worldbook.entries[2].content = f.worldbook.entries[2].content.replace('/任务/阶段', '/玩家/不存在');
   f.card.data.character_book.entries[2].content = f.worldbook.entries[2].content;
   const result = validateMvuPackage(f, { mode: 'mvu_zod', initStrategy: 'greeting', dialect: 'json_patch' });
   assert.match(result.issues.join(' '), /示例路径不在变量索引中：\/玩家\/不存在/);
 });
 
+
+
+test('accepts a stable worldbook-initvar and shared full-state index pattern', () => {
+  const f = fixture();
+  const initEntry = {
+    id: 10, uid: 10, comment: '[initvar]变量初始化勿开', disable: true, constant: true,
+    content: init.replace(/玩家/g, '玩家'), key: [],
+  };
+  const shortReminder = {
+    id: 11, uid: 11, comment: '[mvu_update]变量输出格式强调', content: '<UpdateVariable>... </UpdateVariable>', key: [],
+  };
+  const fullOutput = structuredClone(entries[2]);
+  fullOutput.id = 12; fullOutput.uid = 12;
+  const referenceRules = structuredClone(entries[0]);
+  referenceRules.id = 13; referenceRules.uid = 13;
+  referenceRules.content = `变量更新规则：
+世界：时间只在行动耗时或跳时时更新；地点变化后重新核对场景。
+玩家：没有伤害事实不得修改生命值；状态只能按事件改变。
+任务：阶段只在目标或现场发生实质变化时更新；重复描述不得重复结算。
+队友和 NPC 使用动态键/对象键，新增角色不得覆盖其他键；物品数量归零时移除对象键。
+列表和数组使用真实索引，insert/remove/move 只在确有变化时使用；没有变化保持原值。
+禁止模型擅自修改只读派生值。更新条件：先读取当前状态，再按本轮事实审计全部状态根。`.repeat(8);
+  const dynamicIndex = { id: 14, uid: 14, comment: '变量列表', content: '<status_current_variables>\n{{format_message_variable::stat_data}}\n</status_current_variables>', key: [] };
+  const allEntries = [initEntry, shortReminder, fullOutput, referenceRules, dynamicIndex];
+  f.card.data.first_mes = '开场\n<StatusPlaceHolderImpl/>';
+  f.card.data.alternate_greetings = [];
+  f.card.data.character_book.entries = allEntries.map(entry => ({ ...structuredClone(entry), enabled: true }));
+  f.worldbook.entries = Object.fromEntries(allEntries.map((entry, index) => [index, { ...structuredClone(entry), comment: entry.comment, key: [] }]));
+  f.mvuContract.init_strategy = 'worldbook';
+  f.card.data.extensions.tavern_helper.scripts = [structuredClone(loader), structuredClone(zod)];
+  f.scriptFolder.scripts = [structuredClone(loader), structuredClone(zod)];
+  f.regex = [
+    { id: 'lower-update', findRegex: '/<(update(?:variable)?)>[\\s\\S]*?<\\/\\1>/gi', replaceString: '', placement: [2] },
+    { id: 'status', findRegex: '<StatusPlaceHolderImpl/>', replaceString: '<div>status</div>', placement: [2] },
+  ];
+  const result = validateMvuPackage(f, { mode: 'mvu_zod', initStrategy: 'worldbook', dialect: 'json_patch' });
+  assert.equal(result.ok, true, result.issues.join('\n'));
+  assert.equal(result.initStrategy, 'worldbook');
+  assert.equal(result.dialect, 'json_patch');
+});
+
+
+test('parses the wrapped mvu runtime contract template', () => {
+  const contract = parseMvuContract(`mvu:
+  mode: mvu_zod
+  init_strategy: worldbook
+  update_dialect: json_patch
+  loader:
+    url: pinned-loader
+  zod:
+    provider_url: pinned-zod
+  required_worldbook_entries:
+    update_rules: rules
+    variable_index: index
+    output_format: output`);
+  assert.equal(contract.mode, 'mvu_zod');
+  assert.equal(contract.init_strategy, 'worldbook');
+  assert.equal(contract.update_dialect, 'json_patch');
+  assert.equal(contract.loader.url, 'pinned-loader');
+  assert.equal(contract.zod.provider_url, 'pinned-zod');
+  assert.deepEqual(contract.requiredEntries, { update_rules: 'rules', variable_index: 'index', output_format: 'output' });
+});
+
+
+test('requires explicit producer ownership for direct Tavern Helper MVU writers', () => {
+  const f = fixture();
+  const writer = {
+    type: 'script', name: '商城', id: 'writer',
+    content: `async function write() {
+      const data = Mvu.getMvuData({ type: 'message', message_id: 3 });
+      Mvu.replaceMvuData(data, { type: 'message', message_id: 3 });
+      await saveChat();
+    }`,
+  };
+  f.card.data.extensions.tavern_helper.scripts.push(writer);
+  f.scriptFolder.scripts.push(structuredClone(writer));
+  let result = validateMvuPackage(f, { mode: 'mvu_zod', initStrategy: 'greeting', dialect: 'json_patch' });
+  assert.match(result.issues.join(' '), /producers\.direct_scripts/);
+  f.mvuContract.producers = { direct_scripts: '商城' };
+  result = validateMvuPackage(f, { mode: 'mvu_zod', initStrategy: 'greeting', dialect: 'json_patch' });
+  assert.equal(result.ok, true, result.issues.join('\n'));
+});
+
+test('rejects direct writers that target latest instead of an explicit message floor', () => {
+  const f = fixture();
+  const writer = {
+    type: 'script', name: '危险写入', id: 'writer-latest',
+    content: `async function write() {
+      const data = Mvu.getMvuData({ type: 'message', message_id: 'latest' });
+      Mvu.replaceMvuData(data, { type: 'message', message_id: 'latest' });
+      await saveChat();
+    }`,
+  };
+  f.card.data.extensions.tavern_helper.scripts.push(writer);
+  f.scriptFolder.scripts.push(structuredClone(writer));
+  f.mvuContract.producers = { direct_scripts: '危险写入' };
+  const result = validateMvuPackage(f, { mode: 'mvu_zod', initStrategy: 'greeting', dialect: 'json_patch' });
+  assert.match(result.issues.join(' '), /latest/);
+});

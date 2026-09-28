@@ -24,7 +24,8 @@
 | `雾港航站.json` | V3 角色卡；默认创角页 + 三个静态剧情 Greeting；内嵌 Scoped Regex | 是 |
 | `雾港航站世界书.json` | MVU 初值/规则、输出合同、叙事、世界、人物、场景、系统与 EJS 动态上下文 | 是 |
 | `运行脚本.folder.json` | 唯一 MVU Loader + 状态栏运行协调器 | 是 |
-| `MVU运行合同.yaml` | 明确 native_schema、Greeting 初始化、lodash 方言、锁定 Loader 与必需条目 | 否（QA/维护配置） |
+| `MVU运行合同.yaml` | 明确 native_schema、Greeting 初始化、lodash 方言、锁定 Loader、直接写入脚本与必需条目 | 否（QA/维护配置） |
+| `EJS运行合同.yaml` | 明确 generate-before、explicit_context 只读 bridge、快照选择和失败回退 | 否（QA/维护配置） |
 | `regex.json` | 卡内嵌 Regex 的独立副本；与卡内版本二选一 | 可选 |
 | `开场.html` | 一次性开场/创角页面维护源码 | 否 |
 | `状态栏.html` | 持续消息前端维护源码 | 否 |
@@ -38,10 +39,10 @@
 
 下列版本是源码核对目标，不是实机通过声明：
 
-- SillyTavern 1.18.x；
-- Tavern Helper 4.9.3；
+- SillyTavern 1.19.0；
+- Tavern Helper 4.11.2；
 - MagVarUpdate beta，Loader 锁定 commit `0a730cd4a9b99689d1135a49b542c780b977c24c`；
-- ST-Prompt-Template 1.17.8.1（只用于 EJS 动态上下文）。
+- ST-Prompt-Template 1.17.9（只用于 EJS 动态上下文）。
 
 建议顺序：
 

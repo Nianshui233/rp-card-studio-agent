@@ -11,14 +11,34 @@ description: "Private integration module used only when both MagVarUpdate and ST
 
 ## 默认合同
 
-默认只允许：
+MVU→EJS 有两种合法的只读桥，必须在配置中明确选择，不能把二者混称：
+
+### `shared_message_variables`
 
 ```text
-MVU 持有权威状态
-→ bridge 选择最近完整 MvuData
+MVU 将完整快照保存到当前消息 variables.stat_data
+→ STPT getvar 从 message/cache 变量作用域读取 stat_data
+→ EJS 只读 stat_data
+```
+
+这是许多稳定卡（包括世界书中用 `getvar('stat_data...')` 的动态控制器）实际采用的路线。它不是“EJS 自动拥有 MVU”，而是两者通过 SillyTavern 消息变量存储面连接。必须明确当前消息/Swipe 的选择规则，并禁止用 `'latest'` 代替关键写入楼层。
+
+### `explicit_context`
+
+```text
+Tavern Helper/宿主桥选择最近完整 MvuData
 → 深拷贝注入 EJS context.mvu
 → EJS 只读 mvu.stat_data
 ```
+
+两种路线都必须满足：
+
+- MVU 是唯一状态权威；
+- EJS 不调用 `Mvu.replaceMvuData`；
+- 不把 EJS 变量保存回同一状态树；
+- 找不到完整快照时传 `null`/明确空态，不伪造默认状态；
+- 记录实际消息选择策略、Swipe 隔离和失败回退；
+- 没有真实宿主证据时保持 `runtime: not_run`。
 
 没有 bridge 时，EJS 不得直接引用 `stat_data`。不默认允许 EJS 写回 MVU，也不允许 EJS 与 MVU 同时成为同一字段的写者。
 

@@ -30,9 +30,9 @@ description: "Private module for MagVarUpdate state authoring: persistent state 
 
 - 唯一状态合同：根、路径、类型、初值、范围、空态、作用域、读写者、变化事件、保存和旧聊天处理；
 - `native_schema` 或 `mvu_zod` 路线选择，并写入实际项目的 `配置/MVU运行合同.yaml`；
-- `[initvar]` / Greeting `<initvar>`、更新规则、回复输出格式；
+- `[initvar]` / Greeting `<initvar>`、更新规则、回复输出格式；初始化策略必须明确是 worldbook 基线还是 Greeting 初态；
 - 必要的 Loader、Schema/注册脚本、Tavern Helper 运行脚本；`mvu_zod` 缺 ZOD 脚本时阻断，不得静默降级为 native；
-- 明确数值楼层、完整 MvuData 写入、保存与同面读回；
+- 明确数值楼层、完整 MvuData 写入、保存与同面读回；任何 Tavern Helper 直接写入脚本都必须列入运行合同的 `producers.direct_scripts`，不能把 UI 写入藏在消费者里；
 - 给开场登记和持续消息前端的稳定状态接口。
 
 ## 路线不可降级
@@ -44,8 +44,8 @@ description: "Private module for MagVarUpdate state authoring: persistent state 
 - 不生成 `.ejs`、`<% %>`、`@@generate`、`@@iframe` 或 ST-Prompt-Template 设置。
 - 不把 EJS 的 `global/local/message/cache/initial` 当成 MVU `stat_data`。
 - 不因为用户需要状态栏就自动加入 EJS。
-- 不假定 EJS 能读取 `stat_data`；两者联动必须另行进入 `st-mvu-ejs-bridge`。
-- 每个状态字段只有一个权威写者；UI 不创建影子状态树。
+- 不自动假定 EJS 能读取 `stat_data`；若通过当前消息变量或显式 context 联动，必须另行进入 `st-mvu-ejs-bridge` 并声明只读桥类型。
+- 每个状态字段只有一个权威写者；模型 Patch、按钮脚本和其他自动化写入通道必须分别声明权限；UI 不创建影子状态树。
 
 ## 完成判定
 

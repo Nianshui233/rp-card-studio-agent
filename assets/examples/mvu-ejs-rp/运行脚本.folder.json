@@ -1,0 +1,44 @@
+{
+  "type": "folder",
+  "enabled": false,
+  "name": "灰港避难所·MVU_ZOD",
+  "id": "55555555-0000-4000-8000-000000000000",
+  "icon": "fa-solid fa-shield-virus",
+  "color": "#7fc8a9",
+  "scripts": [
+    {
+      "type": "script",
+      "enabled": false,
+      "name": "MVU变量框架",
+      "id": "55555555-0000-4000-8000-000000000001",
+      "content": "import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate@0a730cd4a9b99689d1135a49b542c780b977c24c/artifact/bundle.js';\n",
+      "info": "唯一 MVU Loader，锁定 commit。",
+      "button": {
+        "enabled": true,
+        "buttons": []
+      },
+      "data": {},
+      "export_with": {
+        "data": true,
+        "button": true
+      }
+    },
+    {
+      "type": "script",
+      "enabled": false,
+      "name": "灰港避难所ZOD",
+      "id": "55555555-0000-4000-8000-000000000002",
+      "content": "import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource@523b1f0d82d3debbc2435ec35530f02e8d388219/dist/util/mvu_zod.js';\n\nconst clamp = (min, max) => value => _.clamp(value, min, max);\n\nexport const Schema = z.object({\n  世界: z.object({\n    日期: z.string().describe('YYYY-MM-DD').prefault('2026-09-26'),\n    时间: z.string().describe('HH:MM').prefault('06:30'),\n    地点: z.string().prefault('灰港公寓一层大厅'),\n    天气: z.enum(['晴', '阴', '雨', '暴雨', '雾']).prefault('雾'),\n  }).prefault({}),\n  玩家: z.object({\n    姓名: z.string().prefault('待登记'),\n    生命值: z.coerce.number().transform(clamp(0, 100)).prefault(100),\n    体力: z.coerce.number().transform(clamp(0, 100)).prefault(100),\n    感染风险: z.coerce.number().transform(clamp(0, 100)).prefault(0),\n    背包: z.record(z.string().describe('物品名'), z.string().describe('数量或状态')).prefault({}),\n  }).prefault({}),\n  同伴: z.record(z.string().describe('角色姓名'), z.object({\n    关系: z.enum(['陌生', '戒备', '合作', '信任', '亲密']).prefault('陌生'),\n    好感度: z.coerce.number().transform(clamp(-100, 100)).prefault(0),\n    当前地点: z.string().prefault('未知'),\n    当前行动: z.string().prefault(''),\n  }).prefault({})).prefault({}),\n  任务: z.object({\n    主线: z.object({\n      名称: z.string().prefault('确认楼内幸存者'),\n      阶段: z.string().prefault('封锁大厅'),\n      进度: z.coerce.number().transform(clamp(0, 100)).prefault(0),\n    }).prefault({}),\n  }).prefault({}),\n  现场: z.object({\n    敌对单位: z.array(z.string()).prefault([]),\n    可调查目标: z.array(z.string()).prefault([]),\n  }).prefault({}),\n});\n\n$(() => {\n  registerMvuSchema(Schema);\n});\n",
+      "info": "完整 MVU_ZOD Schema；必须与 initvar、更新规则、变量列表和状态栏同步。",
+      "button": {
+        "enabled": true,
+        "buttons": []
+      },
+      "data": {},
+      "export_with": {
+        "data": true,
+        "button": true
+      }
+    }
+  ]
+}

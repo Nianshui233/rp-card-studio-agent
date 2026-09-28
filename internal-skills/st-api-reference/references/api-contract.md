@@ -4,10 +4,10 @@
 
 ## 当前静态核对基线
 
-- SillyTavern Core：`1.18.0`；
-- Tavern Helper / JS-Slash-Runner：`4.9.3`；
-- ST-Prompt-Template：`1.17.8.1`；
-- MagVarUpdate：以目标 bundle 与现场能力为准，不能使用其长期不变的 `package.json` 版本号推断功能。
+- SillyTavern Core：本机源码 `1.19.0`，release 分支 HEAD `06bde939f`（2026-09-14）；
+- Tavern Helper / JS-Slash-Runner：本机声明 `4.11.2`，HEAD `519599bc`（2026-09-28）；
+- ST-Prompt-Template：本机 manifest `1.17.9`，HEAD `d6f520d`（2026-09-06）；
+- MagVarUpdate：beta bundle HEAD `b13b43b`（2026-09-26）；不能使用其长期不变的 `package.json` 版本号推断功能。
 
 版本源码核对只能证明签名来源。导入、挂载、写入、渲染和持久化仍需真实宿主证据；未运行时记录 `runtime: not_run`。
 
@@ -23,13 +23,16 @@ const context = window.SillyTavern?.getContext?.();
 
 当前 Core `getContext()` 可按项目需要读取 `chat`、`characters`、`eventSource`、`eventTypes`、`generate`、`generateQuietPrompt`、`setExtensionPrompt`、`updateMessageBlock`、`callGenericPopup`、`loadWorldInfo`、`saveWorldInfo`、`getWorldInfoPrompt`、`Popup/POPUP_TYPE/POPUP_RESULT`、`substituteParams`、`substituteParamsExtended`、`SlashCommandParser`、`tokenizers`、`chatMetadata`、`reloadCurrentChat`、`saveChat` 等现场字段。只保存需要的函数引用，不序列化整个 context。
 
-以下名称**不属于当前 Core `getContext()` 合同**：
+当前 `1.19.0` Core `getContext()` 已包含下列容易被误归类为第三方的字段：
 
-- `generateRaw`：Tavern Helper 高层函数；
-- `getWorldInfoNames`：当前 Core context 无此字段；
-- `variables.local/global`：属于 ST-Prompt-Template/EJS 或其他变量表面，不是 Core context 字段；
-- 独立 `swipe` 字段：当前 context 无此字段；
-- `writeExtensionField`：Tavern Helper 在自己的 `window.SillyTavern` 代理中额外加入，不是纯 Core 字段，且不应用它替代角色卡扩展字段的完整更新接口。
+- `generateRaw` / `generateRawData`、`generateQuietPrompt`；
+- `getWorldInfoNames`、`loadWorldInfo`、`saveWorldInfo`、`getWorldInfoPrompt`；
+- `variables.local/global`；
+- `swipe`（left/right/to/show/hide/refresh/isAllowed/state）；
+- `writeExtensionField` / `writeExtensionFieldBulk`；
+- `macros`、`messageFormatter`、`loader`、`registerFunctionTool`、`ToolManager`。
+
+这些仍然只是 Core context 字段，不代表同名的 Tavern Helper/EJS API 可互换。`event_types`、`registerSlashCommand`、`executeSlashCommands`、`registerHelper`、`registerMacro` 等同时保留兼容别名但已标记 deprecated，应优先使用新接口。
 
 本体事件使用 `eventSource.on/once/makeFirst/makeLast/removeListener/emit`。本体没有 Tavern Helper 的 `eventOn()`、`eventClearAll()` 或自动按 iframe 清理合同。
 
@@ -99,7 +102,7 @@ iframe 裸 waitGlobalInitialized('Mvu') + timeout
 ```text
 Mvu.getMvuData(option)
 Mvu.replaceMvuData(data, option)
-Mvu.parseMessage(text, oldData)
+Mvu.parseMessage(text, oldData)  // Promise<MvuData | undefined>，无有效更新时判空
 Mvu.isDuringExtraAnalysis()
 Mvu.events.*
 ```
@@ -130,11 +133,11 @@ EjsTemplate.evalTemplate(code, context = null, options = {})
 EjsTemplate.compileTemplate(content, options = {}, thisData = {})
 EjsTemplate.getSyntaxErrorInfo(code, count = 4)
 EjsTemplate.getFeatures()
-EjsTemplate.saveVariables(force?)
+EjsTemplate.saveVariables(force?) / EjsTemplate.setFeatures(features) / EjsTemplate.allVariables / EjsTemplate.initialVariables / EjsTemplate.resetFeatures / EjsTemplate.parseJSON / EjsTemplate.jsonPatch / EjsTemplate.finalization
 EjsTemplate.refreshWorldInfo()
 ```
 
-ST-Prompt-Template `1.17.8.1` 的关键默认值：
+ST-Prompt-Template `1.17.9` 的关键默认值：
 
 ```text
 raw_message_evaluation_enabled = true
@@ -148,7 +151,7 @@ autosave_enabled = false
 
 `@@iframe` 只在消息渲染路径有 `msgId` 时包装。它不注入 Tavern Helper 裸函数，但当前实现创建的是无 `sandbox` 的同源 `srcdoc` iframe，页面通常仍可通过 `window.parent` 探测父页能力；这既是可用的高权限回退，也是必须明确验收的安全边界。
 
-ST-Prompt-Template 不会自动把 MVU `stat_data` 注入为 EJS 顶层变量。任何 MVU→EJS bridge 都要有真实脚本生产者和读回证据。
+ST-Prompt-Template 不会凭空生成 MVU `stat_data` 顶层变量；如果 MVU 已把完整快照写入当前消息 variables，EJS 的 `getvar('stat_data...')` 属于 `shared_message_variables` bridge，仍需明确 message/Swipe 作用域和失败回退。显式 `context.mvu` 则属于 `explicit_context` bridge。两种路线都要有真实生产者和读回证据。
 
 当前补充 `.d.ts` 有滞后：`evalTemplate` 被误写为 `evaltemplate`，且漏少量 runtime exports。发生冲突时以目标版本 `src/modules/exports.ts` 的真实 export 为准并在实现附近注明。
 
@@ -157,6 +160,7 @@ ST-Prompt-Template 不会自动把 MVU `stat_data` 注入为 EJS 顶层变量。
 Tavern Helper 自己的生成事件：
 
 ```text
+iframe_events.GENERATION_REQUESTED(generation_id, type, generate_config)
 iframe_events.GENERATION_STARTED(generation_id)
 iframe_events.STREAM_TOKEN_RECEIVED_FULLY(full_text, generation_id)
 iframe_events.STREAM_TOKEN_RECEIVED_INCREMENTALLY(delta, generation_id)

@@ -40,7 +40,7 @@ description: "Private module for ST-Prompt-Template EJS authoring: template exec
 - 不把 EJS 变量称为 MVU 状态，不把 EJS `message` 作用域等同消息楼层 MvuData。
 - 不因为模板需要一个临时值就创建 MVU 字段。
 - 不直接引用不存在的顶层 `stat_data`。
-- 如果模板确实需要 MVU 数据，转入 `st-mvu-ejs-bridge`，不在 EJS 阶段暗中建立耦合。
+- 如果模板确实需要 MVU 数据，转入 `st-mvu-ejs-bridge`；稳定卡可以通过 `shared_message_variables` 只读 `getvar('stat_data...')`，也可以通过 `explicit_context` 只读 `mvu.stat_data`，但不能暗中写回。
 
 ## 完成判定
 

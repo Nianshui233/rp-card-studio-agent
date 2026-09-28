@@ -26,6 +26,6 @@ Tavern Regex 的 `replaceString` 不能调用通用 HTML escape。本样本因�
 
 这不是任意模型文本的通用 escape 方案。需要自由文本、列表、复杂字段或交互时，改用 Tavern Helper/STPT iframe，通过消息 API读取原文并用 `textContent` 渲染。
 
-- provider：SillyTavern Core 1.18.0；
+- provider：SillyTavern Core 1.19.0；
 - producer：`静态通知世界书.json`；
 - runtime：`not_run`。

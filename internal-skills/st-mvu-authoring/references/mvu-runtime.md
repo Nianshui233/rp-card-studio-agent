@@ -1,6 +1,6 @@
 # MagVarUpdate 运行时参考
 
-基线以目标 bundle 与现场能力为准（本文核对自 `variable_def.ts`、`function/global/index.ts`、`function/initvar/variable_init.ts`、`function/update_variables.ts` 等源码）。交付时记录实际 URL、commit/tag 或现场构建信息。
+本机参考 bundle 为 beta HEAD `b13b43b`（2026-09-26）；正式项目仍以实际锁定 URL/commit 与现场能力为准（本文核对自 `variable_def.ts`、`function/global/index.ts`、`function/initvar/variable_init.ts`、`function/update_variables.ts` 等源码）。交付时记录实际 URL、commit/tag 或现场构建信息。
 
 ## 数据形状
 
@@ -34,7 +34,7 @@ Mvu.isDuringExtraAnalysis()
 
 - `option.type` 支持 `chat / character / global / message`，默认 `'chat'`；漏写 type 会读到聊天级表；
 - 消息读写的 `message_id` 接受数值或 `'latest'`，但继承 Tavern Helper 的不对称：读 `'latest'` 跳过 system，写 `'latest'` 当前等价物理 `-1`；关键写入必须使用明确数值楼层；
-- `parseMessage` 当前实现无条件返回深拷贝副本；判断是否真的变化用 `_.isEqual` 对比新旧 `stat_data`；
+- `parseMessage` 当前返回 `Promise<MvuData | undefined>`：先克隆旧数据并执行更新；没有成功更新命令时可能返回 `undefined`，调用方必须先判空，不能直接 `replaceMvuData(undefined, ...)`；
 - `replaceMvuData` 当前委托同步 `replaceVariables`，`await` 它不代表等待磁盘保存；同楼立即读回只证明内存写入；
 - 已废弃接口不要用于新项目：`getCurrentMvuData`、`replaceCurrentMvuData`、`reloadInitVar`、`setMvuVariable`、`getMvuVariable`、`getRecordFromMvuData`。
 
@@ -132,6 +132,7 @@ BEFORE_MESSAGE_UPDATE({variables, message_content})
 
 - `COMMAND_PARSED`、`VARIABLE_UPDATE_ENDED` 适合在同一变换对象上做幂等修正；
 - `VARIABLE_INITIALIZED` 和 `VARIABLE_UPDATE_ENDED` 都不是耐久持久化完成事件；
+- 当前 bundle 的 `BEFORE_MESSAGE_UPDATE` 是 assistant 消息的稳定写前钩子，即使本轮没有实际变量变化也可能触发；监听器可修改 `message_content`，MVU 会重读当前正文并对冲突编辑发出警告，不能把旧正文缓存直接写回；
 - 消息 UI 不在这些事件里立即重读 `Mvu.getMvuData()`；
 - 自己发起的写入在保存与同楼读回后更新 UI；
 - assistant 更新随后调用 `setChatMessages(..., {refresh:'affected'})`，经 `refreshOneMessage` 发 `CHARACTER_MESSAGE_RENDERED` 并通常重建 iframe；新实例启动时读取最终值；`MESSAGE_UPDATED` 不是 MVU 保证的完成事件；

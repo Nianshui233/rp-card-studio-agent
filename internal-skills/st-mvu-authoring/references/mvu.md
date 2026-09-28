@@ -113,3 +113,5 @@ getCurrentMessageId()
 ## 与 EJS 的关系
 
 MVU 可以完全独立运行。只有项目明确需要“EJS 根据 MVU 状态生成动态 Prompt/模板”时，才进入 `st-mvu-ejs-bridge`。MVU 阶段本身不创建 EJS 文件，也不定义 STPT 变量。
+
+桥接不只有 Tavern Helper 显式注入 `context.mvu` 一种实现。若 MVU 已把完整快照保存到当前消息变量，EJS 可以在明确声明 `shared_message_variables` 后只读 `getvar('stat_data...')`；这仍然需要当前消息/Swipe 选择、空态和失败回退合同，不得把 EJS 的 `getvar` 当成独立状态源。

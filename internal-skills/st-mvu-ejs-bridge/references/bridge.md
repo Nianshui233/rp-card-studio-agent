@@ -15,23 +15,36 @@
 
 ## 推荐：MVU → EJS 只读桥
 
+稳定实现有两种，必须在运行合同中明确 `bridge_mode`：
+
+### `shared_message_variables`
+
 ```text
-Tavern Helper 后台脚本监听 prompt_template_prepare(context)
-→ 从明确聊天范围寻找最近消息
-→ 只接受 stat_data 与 schema 同时存在的完整 MvuData
+MVU 将完整状态保存到当前消息 variables.stat_data
+→ STPT getvar 从当前 message/cache 作用域读取 stat_data
+→ EJS 只读 stat_data
+```
+
+这是世界书动态控制器常用的路线。它依赖 SillyTavern 的消息变量存储面，不是 EJS 自动拥有 MVU。模板必须说明当前消息与 Swipe 的选择、缺少快照时的空态，以及不能用 `'latest'` 作为关键写入目标。
+
+### `explicit_context`
+
+```text
+Tavern Helper/宿主桥监听 prompt_template_prepare(context)
+→ 从明确聊天范围寻找最近的完整 MvuData
 → cloneDeep
 → 写入 context.mvu
 → EJS 只读 context.mvu.stat_data
 ```
 
-约束：
+两种只读桥都必须满足：
 
 - MVU 是唯一状态权威；
 - EJS 不调用 `Mvu.replaceMvuData`；
 - 不把 EJS 变量保存回同一状态树；
 - 找不到完整快照时传 `null`/明确空态，不伪造默认状态；
-- 监听器在脚本卸载时 stop/remove；
-- 记录实际消息选择策略，不能含糊使用 `'latest'` 代表关键写入楼层。
+- 显式桥监听器在脚本卸载时 stop/remove；
+- 记录实际消息选择策略、Swipe 隔离、编辑/重载行为和失败回退。
 
 ## 双向桥
 
@@ -51,13 +64,19 @@ Swipe/编辑/重载后如何重放
 
 ## EJS 使用
 
-EJS 中只读取显式注入对象，例如：
+`explicit_context` 中只读取显式注入对象：
 
 ```ejs
 <%_ const state = mvu && mvu.stat_data ? mvu.stat_data : null; _%>
 ```
 
-不得假定 STPT 自动提供 `mvu` 或顶层 `stat_data`。模板必须处理 `mvu === null`。
+`shared_message_variables` 中才允许按合同读取：
+
+```ejs
+<%_ const time = getvar('stat_data.世界.时间', { scope: 'message', defaults: null }); _%>
+```
+
+没有 bridge 合同时，不得假定 STPT 自动提供 `mvu` 或顶层 `stat_data`。模板必须处理快照缺失。
 
 ## 验收
 

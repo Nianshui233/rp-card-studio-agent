@@ -19,7 +19,7 @@ test('MVU_ZOD is a complete route, not a downgradable optional schema add-on', (
 });
 
 test('MVU_ZOD templates cover schema, runtime contract, update rules, paths, and one output dialect', () => {
-  for (const file of ['mvu-zod.schema.js', 'mvu-runtime-contract.yaml', 'mvu-update-rules.yaml', 'mvu-variable-index.md', 'mvu-output-format.yaml']) assert(exists(path.join('assets', 'templates', file)), `missing ${file}`);
+  for (const file of ['mvu-zod.schema.js', 'mvu-runtime-contract.yaml', 'mvu-update-rules.yaml', 'mvu-variable-index.md', 'mvu-output-format.yaml', 'ejs-runtime-contract.yaml', 'mvu-ejs-bridge.yaml']) assert(exists(path.join('assets', 'templates', file)), `missing ${file}`);
   assert.match(read('assets/templates/mvu-zod.schema.js'), /registerMvuSchema\(Schema\)/);
   assert.match(read('assets/templates/mvu-update-rules.yaml'), /Record[\s\S]*Array/);
   assert.match(read('assets/templates/mvu-variable-index.md'), /format_message_variable::stat_data/);
@@ -36,4 +36,22 @@ test('the repository carries an authoritative complete MVU_ZOD example', () => {
   const book = JSON.parse(read(path.join(base, '灰港避难所世界书.json')));
   const comments = Object.values(book.entries).map(entry => entry.comment);
   for (const comment of ['[mvu_update]变量更新规则', '变量列表', '[mvu_update]变量输出格式']) assert(comments.includes(comment));
+});
+
+
+test('the repository carries an MVU_ZOD plus EJS shared-message bridge sample', () => {
+  const base = path.join('assets', 'examples', 'mvu-ejs-rp');
+  for (const file of ['灰港避难所.json', '灰港避难所世界书.json', '运行脚本.folder.json', 'schema.js', 'MVU运行合同.yaml', 'EJS运行合同.yaml', 'regex.json', 'regex.fixtures.json', 'README.md']) assert(exists(path.join(base, file)), `missing ${file}`);
+  const ejs = read(path.join(base, 'EJS运行合同.yaml'));
+  assert.match(ejs, /bridge_mode: shared_message_variables/);
+  const mvu = read(path.join(base, 'MVU运行合同.yaml'));
+  assert.match(mvu, /init_strategy: worldbook/);
+  const card = JSON.parse(read(path.join(base, '灰港避难所.json')));
+  assert.doesNotMatch(card.data.first_mes, /<initvar>/i);
+  const book = JSON.parse(read(path.join(base, '灰港避难所世界书.json')));
+  const dynamic = Object.values(book.entries).find(entry => entry.comment === '动态内容总控');
+  assert(dynamic);
+  assert.match(dynamic.content, /getvar\(['"]stat_data\./);
+  assert.match(dynamic.content, /await getwi/);
+  assert.doesNotMatch(dynamic.content, /replaceMvuData|registerMvuSchema|<UpdateVariable>/i);
 });

@@ -4,9 +4,9 @@
 
 ## 静态基线
 
-- SillyTavern Core `1.18.0`；
-- Tavern Helper `4.9.3`；
-- ST-Prompt-Template `1.17.8.1`；
+- SillyTavern Core `1.19.0`（本机 release HEAD `06bde939f`）；
+- Tavern Helper / JS-Slash-Runner `4.11.2`（本机 HEAD `519599bc`）；
+- ST-Prompt-Template `1.17.9`（本机 HEAD `d6f520d`）；
 - MagVarUpdate 以目标 bundle commit/tag 或现场构建为准。
 
 静态源码核对记为 `source_checked`；真实页面中的导入、挂载、读写和耐久持久化通过才记为 `runtime_pass`。
@@ -67,7 +67,7 @@ Tavern Helper iframe 中：
 
 ### ST-Prompt-Template
 
-- `getwi`：绕过普通关键词入口，执行正则、宏和递归 EJS 后返回文本；无书名形态使用当前扫描上下文的世界书，不是多级查找；
+- `getwi`：当前签名支持 `getwi(titleOrUidOrRegex)` 或 `getwi(worldbook, titleOrUidOrRegex, data?)`；绕过普通关键词入口，执行正则、宏和递归 EJS 后返回文本；无书名形态先查当前主/扫描上下文，之后才按启用世界书做模糊回退，不是任意多级查找；稳定跨书调用显式传书名。
 - `activewi`：把条目加入原生激活流程；当前轮应在 generate-before 调用；`force` 覆盖冷却/延迟/组/向量化/预算/触发器并强制 constant，但不清理 sticky 与递归限制；
 - `@@preprocessing`：原生扫描前改内容/关键词，存在二次处理与顺序风险。
 
@@ -128,7 +128,7 @@ GLOBAL → SCOPED → PRESET
 
 ## ST-Prompt-Template 默认安全态
 
-目标版本 `1.17.8.1` 默认：
+目标版本 `1.17.9` 默认：
 
 ```text
 raw_message_evaluation_enabled = true

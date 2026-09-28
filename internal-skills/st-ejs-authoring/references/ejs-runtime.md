@@ -1,6 +1,6 @@
 # ST-Prompt-Template / EJS 运行时参考
 
-当前静态基线为 ST-Prompt-Template `1.17.8.1`（核对自 `src/modules/exports.ts`、`src/function/ejs.ts`、`src/function/variables.ts`、`src/function/worldinfo.ts`、`src/modules/handler.ts`、`src/utils/evaluate.ts`、`src/utils/iframe.ts`）。EJS 是高权限模板执行环境，不是变量存储层，也不是安全的模型代码沙盒。
+当前本机静态基线为 ST-Prompt-Template `1.17.9`（仓库 HEAD `d6f520d`，2026-09-06）（核对自 `src/modules/exports.ts`、`src/function/ejs.ts`、`src/function/variables.ts`、`src/function/worldinfo.ts`、`src/modules/handler.ts`、`src/utils/evaluate.ts`、`src/utils/iframe.ts`）。EJS 是高权限模板执行环境，不是变量存储层，也不是安全的模型代码沙盒。
 
 ## 默认设置先决条件
 
@@ -32,7 +32,7 @@ cache     当前合并视图
 initial   STATE.initialVariables
 ```
 
-合并视图按 `global → initial → local(chat) → 当前消息变量 → _trace_id/_modify_id` 覆盖合成。不会自动包含 MVU 顶层 `stat_data`。
+合并视图按 `global → initial → local(chat) → 当前消息变量 → _trace_id/_modify_id` 覆盖合成。不会凭空生成 MVU 顶层 `stat_data`；但如果 MVU 已将完整快照写入当前消息 variables，`getvar('stat_data...')` 就属于 `shared_message_variables` bridge，必须按当前 message/Swipe 合同读取。
 
 - `getvar` 选项：`{index, scope, defaults, withMsg:{role,id,swipe_id}, noCache, clone}`；`noCache:true` 重建合并视图，与模板编译缓存无关；
 - `setvar` 选项：`{index, scope, flags:'nx'|'xx'|'n'|'nxs'|'xxs', results:'old'|'new'|'fullcache', withMsg, merge, dryRun, noCache}`；默认写 message scope；
@@ -93,16 +93,16 @@ EjsTemplate.parseJSON / jsonPatch / finalization
 
 ```ejs
 <%- await getwi('书名', '条目名或正则或uid', data?) %>
-<%- await getwi('条目名', data) %>
+<%- await getwi('条目名或uid或正则', data) %>
 ```
 
-处理管线：条目内容 → DataOverride → WORLD_INFO 正则 → SillyTavern 宏 → 递归 EJS → 返回字符串。
+当前实现先在指定书/当前主书中查找；无书名形态之后才按启用世界书做模糊回退。处理管线：条目内容 → DataOverride → WORLD_INFO 正则 → SillyTavern 宏 → 递归 EJS → 返回字符串。
 
-无书名形态使用当前扫描上下文的世界书，不是多级查找；关键调用显式写书名。被调用条目的 EJS 副作用可能重复执行，不把 `getwi` 当无副作用原文读取。
+跨书或同名项目必须显式传书名和条目标识。被调用条目的 EJS 副作用可能重复执行，不把 `getwi` 当无副作用原文读取。
 
 ## 与外部状态系统的边界
 
-ST-Prompt-Template 不自动读取 MagVarUpdate。模板需要 MVU 数据时，不在本参考内临时拼接；转入 `st-mvu-ejs-bridge` 定义显式桥接。
+ST-Prompt-Template 不会自动创建或拥有 MagVarUpdate 状态。模板需要 MVU 数据时，转入 `st-mvu-ejs-bridge`：可以声明 `shared_message_variables` 后从当前消息作用域 `getvar('stat_data...')` 只读，也可以通过显式 `context.mvu` 只读；不能在模板中偷偷写回。
 
 ## `@@iframe`
 

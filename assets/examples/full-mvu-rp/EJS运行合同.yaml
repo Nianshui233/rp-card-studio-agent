@@ -1,0 +1,18 @@
+# ST-Prompt-Template EJS 真实运行合同：雾港航站动态上下文。
+ejs:
+  enabled: true
+  mode: prompt_template
+  execution_stage: generate_before
+  output_channel: prompt
+  bridge_mode: explicit_context
+  direction: mvu_to_ejs_readonly
+  snapshot: 运行协调器从当前聊天中选择最近完整 MvuData；Swipe/编辑/切聊按当前上下文隔离
+  failure: mvu=null 时输出“未记录”空态；getwi 失败不破坏剩余摘要
+  raw_message_evaluation_enabled: false
+  sandbox: false
+  autosave_enabled: false
+  required_templates:
+    - STPT·MVU动态上下文
+  acceptance:
+    target_st_prompt_template: "1.17.9"
+    runtime: not_run

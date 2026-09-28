@@ -70,10 +70,35 @@ def schema_keys(source):
     return list(dict.fromkeys(keys))
 
 
+def worldbook_entries(worldbook):
+    entries = worldbook.get('entries', []) if isinstance(worldbook, dict) else []
+    return list(entries.values()) if isinstance(entries, dict) else entries if isinstance(entries, list) else []
+
+
+def validate_yaml_roots(label, text, expected):
+    try:
+        data = yaml.safe_load(text)
+    except Exception as error:
+        return [f'{label}: invalid YAML: {error}']
+    if not isinstance(data, dict):
+        return [f'{label}: initvar root is not a mapping']
+    actual = list(data.keys())
+    missing = [key for key in expected if key not in actual]
+    extra = [key for key in actual if key not in expected]
+    failures = []
+    if missing:
+        failures.append(f'{label}: missing roots: {", ".join(missing)}')
+    if extra:
+        failures.append(f'{label}: extra roots: {", ".join(extra)}')
+    return failures
+
+
 def main():
-    parser = argparse.ArgumentParser(description='Validate all playable Greeting initvar YAML against MVU_ZOD top-level Schema roots.')
+    parser = argparse.ArgumentParser(description='Validate Greeting or worldbook [initvar] YAML against MVU_ZOD top-level Schema roots.')
     parser.add_argument('--card', required=True)
     parser.add_argument('--zod-script', required=True)
+    parser.add_argument('--worldbook')
+    parser.add_argument('--init-strategy', choices=['auto', 'greeting', 'worldbook'], default='auto')
     args = parser.parse_args()
 
     card = card_data(load_json(args.card))
@@ -83,33 +108,49 @@ def main():
         raise SystemExit('FAIL: cannot extract top-level keys from Zod Schema')
     greetings = [card.get('first_mes', ''), *(card.get('alternate_greetings') or [])]
     playable = [text for text in greetings if isinstance(text, str) and not pure_carrier(text)]
-    if not playable:
-        raise SystemExit('FAIL: no playable greetings')
+    greeting_bodies = [init_body(text) for text in playable]
+    worldbook_baseline = None
+    if args.worldbook:
+        worldbook = load_json(args.worldbook)
+        for entry in worldbook_entries(worldbook):
+            if '[initvar]' in str(entry.get('comment', '')).lower():
+                worldbook_baseline = entry.get('content', '')
+                break
+
+    strategy = args.init_strategy
+    if strategy == 'auto':
+        if playable and greeting_bodies and all(body is not None for body in greeting_bodies):
+            strategy = 'greeting'
+        elif worldbook_baseline is not None:
+            strategy = 'worldbook'
+        else:
+            strategy = 'greeting'
+
     failures = []
-    for index, greeting in enumerate(playable):
-        body = init_body(greeting)
-        if body is None:
-            failures.append(f'Greeting {index}: missing <initvar>')
-            continue
-        try:
-            data = yaml.safe_load(body)
-        except Exception as error:
-            failures.append(f'Greeting {index}: invalid YAML: {error}')
-            continue
-        if not isinstance(data, dict):
-            failures.append(f'Greeting {index}: initvar root is not a mapping')
-            continue
-        actual = list(data.keys())
-        missing = [key for key in expected if key not in actual]
-        extra = [key for key in actual if key not in expected]
-        if missing:
-            failures.append(f'Greeting {index}: missing roots: {", ".join(missing)}')
-        if extra:
-            failures.append(f'Greeting {index}: extra roots: {", ".join(extra)}')
+    if strategy == 'greeting':
+        if not playable:
+            failures.append('no playable greetings')
+        for index, body in enumerate(greeting_bodies):
+            if body is None:
+                failures.append(f'Greeting {index}: missing <initvar>')
+            else:
+                failures.extend(validate_yaml_roots(f'Greeting {index}', body, expected))
+    elif strategy == 'worldbook':
+        if worldbook_baseline is None:
+            failures.append('worldbook [initvar] entry is missing; pass --worldbook')
+        else:
+            failures.extend(validate_yaml_roots('[initvar]', worldbook_baseline, expected))
+        for index, body in enumerate(greeting_bodies):
+            if body is not None:
+                failures.extend(validate_yaml_roots(f'Greeting {index} partial initvar', body, expected))
+
     if failures:
         print('\n'.join('FAIL: ' + item for item in failures), file=sys.stderr)
         raise SystemExit(1)
-    print(f'PASS: {len(playable)} playable greetings have valid YAML and match {len(expected)} Zod roots')
+    if strategy == 'greeting':
+        print(f'PASS: {len(playable)} playable greetings have valid YAML and match {len(expected)} Zod roots')
+    else:
+        print(f'PASS: worldbook [initvar] baseline has valid YAML and matches {len(expected)} Zod roots')
 
 
 if __name__ == '__main__':

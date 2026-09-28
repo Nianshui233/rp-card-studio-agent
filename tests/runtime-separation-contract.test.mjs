@@ -28,7 +28,8 @@ test('MVU skill does not author EJS and EJS skill does not author MVU', () => {
   assert.match(ejs, /不生成 MagVarUpdate Loader/);
   assert.match(ejs, /不把 EJS 变量称为 MVU 状态/);
   assert.match(bridge, /仅当 `st-mvu-authoring` 与 `st-ejs-authoring` 已分别完成/);
-  assert.match(bridge, /默认只允许[\s\S]*MVU 持有权威状态[\s\S]*EJS 只读/);
+  assert.match(bridge, /两种合法的只读桥/);
+  assert.match(bridge, /MVU 是唯一状态权威/);
 });
 
 test('user-facing contracts describe outcomes separately instead of offering one combined option', () => {
@@ -63,3 +64,32 @@ test('preflight always exposes EJS separately and does not disable it when only 
 });
 
 
+
+
+test('bridge docs preserve the stable shared-message-variable EJS route', () => {
+  const bridge = read('internal-skills/st-mvu-ejs-bridge/SKILL.md');
+  const reference = read('internal-skills/st-mvu-ejs-bridge/references/bridge.md');
+  assert.match(bridge, /shared_message_variables/);
+  assert.match(bridge, /explicit_context/);
+  assert.match(bridge, /getvar\('stat_data/);
+  assert.match(reference, /shared_message_variables/);
+  assert.match(reference, /当前消息/);
+  assert.match(reference, /只读/);
+});
+
+
+test('API references match the refreshed local core and extension surfaces', () => {
+  const api = read('internal-skills/st-api-reference/references/api-contract.md');
+  const helper = read('internal-skills/st-api-reference/references/tavern-helper-runtime.md');
+  const ejsRuntime = read('internal-skills/st-ejs-authoring/references/ejs-runtime.md');
+  const mvuRuntime = read('internal-skills/st-mvu-authoring/references/mvu-runtime.md');
+  const host = read('internal-skills/st-host-capabilities/references/host-capability-matrix.md');
+  for (const token of ['1.19.0', 'generateRawData', 'getWorldInfoNames', 'variables.local/global', 'writeExtensionFieldBulk', 'getContext()']) assert.match(api, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  for (const token of ['4.11.2', 'GENERATION_REQUESTED', 'custom_api', 'json_schema', 'reasoning_signature', 'script', 'extension']) assert.match(helper, new RegExp(token));
+  assert.match(ejsRuntime, /1\.17\.9/);
+  assert.match(ejsRuntime, /getwi\('书名'/);
+  assert.match(mvuRuntime, /b13b43b/);
+  assert.match(mvuRuntime, /MvuData \| undefined/);
+  assert.match(host, /1\.19\.0/);
+  assert.match(host, /1\.17\.9/);
+});

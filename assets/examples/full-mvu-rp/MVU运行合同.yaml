@@ -11,6 +11,9 @@ mvu:
     update_rules: "[mvu_plot] 变量更新规则"
     variable_index: "变量列表"
     output_format: "[mvu_plot] 变量输出格式"
+  producers:
+    model_update: true
+    direct_scripts: "雾港航站协调器"
   consumers:
     status_ui: true
     ejs_bridge: true

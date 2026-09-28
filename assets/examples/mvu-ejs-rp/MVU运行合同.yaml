@@ -1,6 +1,6 @@
 mvu:
   mode: mvu_zod
-  init_strategy: greeting
+  init_strategy: worldbook
   update_dialect: json_patch
   loader:
     url: "https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate@0a730cd4a9b99689d1135a49b542c780b977c24c/artifact/bundle.js"
@@ -19,7 +19,7 @@ mvu:
     direct_scripts: ""
   consumers:
     status_ui: true
-    ejs_bridge: false
+    ejs_bridge: true
   acceptance:
     target_sillytavern: "1.19.0"
     target_tavern_helper: "待实机确认"
