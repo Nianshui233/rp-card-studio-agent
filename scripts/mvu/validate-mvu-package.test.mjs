@@ -197,7 +197,7 @@ test('accepts a stable worldbook-initvar and shared full-state index pattern', (
   const allEntries = [initEntry, shortReminder, fullOutput, referenceRules, dynamicIndex];
   f.card.data.first_mes = '开场\n<StatusPlaceHolderImpl/>';
   f.card.data.alternate_greetings = [];
-  f.worldbook.entries = Object.fromEntries(allEntries.map((entry, index) => [index, { ...structuredClone(entry), comment: entry.comment, key: [] }]));
+  f.worldbook.entries = Object.fromEntries(allEntries.map((entry, index) => [index, { ...structuredClone(entry), comment: entry.comment, key: [], position: /变量列表|mvu_update/i.test(entry.comment) ? 4 : 0, depth: /变量列表|mvu_update/i.test(entry.comment) ? 0 : 4 }]));
   f.mvuContract.init_strategy = 'worldbook';
   f.card.data.extensions.tavern_helper.scripts = [structuredClone(loader), structuredClone(zod)];
   f.scriptFolder.scripts = [structuredClone(loader), structuredClone(zod)];
@@ -228,6 +228,13 @@ test('rejects ordinary worldbook entries stacked at atDepth zero', () => {
   f.worldbook.entries[4] = { uid: 4, comment: '普通场景·地下室', content: '地下室有一扇锁住的门。', key: [], position: 4, depth: 0, constant: true };
   const result = validateMvuPackage(f, { mode: 'mvu_zod', initStrategy: 'greeting', dialect: 'json_patch' });
   assert.match(result.issues.join(' '), /普通世界\/角色\/场景条目/);
+});
+
+test('allows an explicitly requested legacy embedded CharacterBook compatibility route', () => {
+  const f = fixture();
+  f.card.data.character_book = { entries: Object.values(f.worldbook.entries).map(entry => ({ ...structuredClone(entry), keys: [] })) };
+  const result = validateMvuPackage(f, { mode: 'mvu_zod', initStrategy: 'greeting', dialect: 'json_patch', allowEmbeddedCharacterBook: true });
+  assert.equal(result.ok, true, result.issues.join('\n'));
 });
 
 test('rejects a card that embeds CharacterBook beside an independent worldbook', () => {

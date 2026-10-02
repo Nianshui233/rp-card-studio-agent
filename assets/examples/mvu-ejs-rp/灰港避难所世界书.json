@@ -142,7 +142,7 @@
       "key": [],
       "keysecondary": [],
       "comment": "动态内容总控",
-      "content": "@@preprocessing\n<%_\nconst location = getvar('stat_data.世界.地点', { scope: 'message', defaults: null });\nconst target = location === '灰港公寓一层大厅' ? '场景_灰港公寓一层大厅' : '场景_未知';\nconst scene = await getwi('灰港避难所世界书', target);\n_%>\n<% if (scene && scene.trim()) { %>\n<%- scene %>\n<% } else { %>\n当前场景没有可追加的动态设定；遵守卡内基础世界规则。\n<% } %>",
+      "content": "@@preprocessing\n<%_\nconst location = getvar('stat_data.世界.地点', { scope: 'message', defaults: null });\nconst target = location === '灰港公寓一层大厅' ? '场景_灰港公寓一层大厅' : '场景_未知';\nconst scene = await getwi('灰港避难所世界书', target);\n_%>\n<% if (scene && scene.trim()) { %>\n<%- scene %>\n<% } else { %>\n当前场景没有可追加的动态设定；遵守卡内基础世界规则。\n<% } %>\n",
       "constant": true,
       "vectorized": false,
       "selective": true,

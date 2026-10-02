@@ -9,7 +9,8 @@
 - `运行脚本.folder.json`：唯一锁定 commit 的 MVU Loader 与 ZOD 注册脚本。
 - `schema.js`：可读 ZOD Schema 源。
 - `MVU运行合同.yaml`：MVU 路线和消费者声明。
-- `EJS运行合同.yaml`：EJS 执行阶段、共享消息变量 bridge、只读方向和失败回退。\n- `动态内容.ejs`：可读的动态场景模板源；构建器把它原文放入世界书“动态内容总控”条目。
+- `EJS运行合同.yaml`：EJS 执行阶段、共享消息变量 bridge、只读方向和失败回退。
+- `动态内容.ejs`：可读的动态场景模板源；构建器把它原文放入世界书“动态内容总控”条目。
 - `regex.json` 与 `regex.fixtures.json`：变量更新和状态栏标记的离线检查。
 
 ## 关键路线

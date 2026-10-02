@@ -175,7 +175,7 @@ function validateJsonPatchExamples(text, issues) {
 }
 
 function findDialect(outputText) {
-  const jsonPatch = /<JSONPatch>|"op"\s*:\s*"(?:replace|delta|insert|remove|move)"/i.test(outputText);
+  const jsonPatch = /<JSONPatch>[\s\S]*?<\/JSONPatch>/i.test(outputText);
   const lodash = /_\.(?:set|add|assign|insert|remove|unset|delete|replace|push|pop|shift|inc|dec|toggle)\s*\(/.test(outputText);
   if (jsonPatch && lodash) return 'mixed';
   if (jsonPatch) return 'json_patch';
@@ -207,31 +207,40 @@ function validateMvuRegexBoundaries(regexes, issues) {
   }
 }
 
-function validateWorldbookRouting(entries, issues) {
+function validateWorldbookRouting(entries, issues, mode) {
   for (const entry of entries) {
     const comment = String(entry?.comment ?? entry?.name ?? '');
     const content = String(entry?.content ?? '');
     const position = Number(entry?.position);
     const depth = Number(entry?.depth);
-    if (/format_message_variable::stat_data|status_current_variables?/i.test(content)) {
-      if (position !== 4 || depth !== 0) {
-        issues.push(`变量当前状态投影条目“${comment || '未命名'}”必须使用 atDepth(position=4) depth=0，实际 position=${entry?.position} depth=${entry?.depth}`);
-      }
+    const hasKeys = Array.isArray(entry?.key) ? entry.key.length > 0 : Array.isArray(entry?.keys) ? entry.keys.length > 0 : false;
+    const sticky = Number(entry?.sticky ?? 0) > 0 || Number(entry?.effect?.sticky ?? 0) > 0;
+    const cooldown = Number(entry?.cooldown ?? 0) > 0 || Number(entry?.effect?.cooldown ?? 0) > 0;
+    const isVariableContract = /(?:\[mvu_update\]|变量列表|变量输出格式|变量更新规则)/i.test(comment);
+    const isNarrativeOrContent = /(?:\[mvu_plot\]|世界|角色|场景|叙事|动态内容)/i.test(comment);
+    const isImmediateEvent = /(?:立即|事件|event)/i.test(comment);
+
+    if (/format_message_variable::stat_data|status_current_variables?/i.test(content) && (position !== 4 || depth !== 0)) {
+      issues.push(`变量当前状态投影条目“${comment || '未命名'}”必须使用 atDepth(position=4) depth=0，实际 position=${entry?.position} depth=${entry?.depth}`);
     }
-    if (position === 4 && depth === 0 && !/(?:mvu_update|mvu_plot|变量列表|变量输出格式|变量更新规则|initvar|config_override|立即|事件|event)/i.test(comment)) {
-      const hasKeys = Array.isArray(entry?.key) ? entry.key.length > 0 : Array.isArray(entry?.keys) ? entry.keys.length > 0 : false;
-      const sticky = Number(entry?.sticky ?? 0) > 0 || Number(entry?.effect?.sticky ?? 0) > 0;
-      const cooldown = Number(entry?.cooldown ?? 0) > 0 || Number(entry?.effect?.cooldown ?? 0) > 0;
-      if (!hasKeys && !sticky && !cooldown) {
-        issues.push(`普通世界/角色/场景条目“${comment || '未命名'}”不应无条件堆在 atDepth depth=0；请按职责使用角色定义后、角色定义前或明确的 atDepth/depth 路由`);
-      }
+    if (mode === 'mvu_zod' && isVariableContract && position !== 4 && !/initvar/i.test(comment)) {
+      issues.push(`MVU_ZOD 变量合同条目“${comment || '未命名'}”必须进入 atDepth(position=4) 或明确的变量初始化路线，实际 position=${entry?.position}`);
+    }
+    if (mode === 'mvu_zod' && isNarrativeOrContent && position === 4 && depth === 0 && !isVariableContract && !isImmediateEvent) {
+      issues.push(`MVU_ZOD 普通世界/角色/场景条目“${comment || '未命名'}”不应无条件堆在 atDepth depth=0`);
+    }
+    if (position === 4 && depth === 0 && isImmediateEvent && !hasKeys && !sticky && !cooldown) {
+      issues.push(`立即事件条目“${comment || '未命名'}”位于 atDepth depth=0 但没有关键词、sticky 或 cooldown 触发边界`);
+    }
+    if (position === 4 && depth === 0 && !isVariableContract && !isImmediateEvent && !isNarrativeOrContent && !hasKeys && !sticky && !cooldown) {
+      issues.push(`普通世界/角色/场景条目“${comment || '未命名'}”不应无条件堆在 atDepth depth=0；请按职责使用角色定义后、角色定义前或明确的 atDepth/depth 路由`);
     }
   }
 }
 
-function rejectEmbeddedCharacterBook(card, worldbook, issues) {
+function rejectEmbeddedCharacterBook(card, worldbook, issues, allowEmbeddedCharacterBook = false) {
   const embedded = cardData(card)?.character_book?.entries;
-  if (Array.isArray(embedded) && embedded.length > 0 && listEntries(worldbook).length > 0) {
+  if (!allowEmbeddedCharacterBook && Array.isArray(embedded) && embedded.length > 0 && listEntries(worldbook).length > 0) {
     issues.push('独立世界书路线禁止角色卡同时嵌入 CharacterBook；否则会产生重复注入和版本漂移');
   }
 }
@@ -438,8 +447,8 @@ export function validateMvuPackage(input, options = {}) {
 
   const regex = dedupeRegex([...embeddedRegex(input.card), ...externalRegex(input.regex)]);
   validateMvuRegexBoundaries(regex, issues);
-  validateWorldbookRouting(entries, issues);
-  rejectEmbeddedCharacterBook(input.card, input.worldbook, issues);
+  validateWorldbookRouting(entries, issues, mode);
+  rejectEmbeddedCharacterBook(input.card, input.worldbook, issues, options.allowEmbeddedCharacterBook === true || input.allowEmbeddedCharacterBook === true);
   const findTexts = regex.map(rule => `${String(rule.findRegex || rule.find_regex || '')}\n${String(rule.replaceString || rule.replace_string || '')}`).join('\n');
   if (!/<\s*\(?update(?:variable)?/i.test(findTexts)) issues.push('Regex 缺少 <UpdateVariable> 的 display/prompt 清理消费者');
   if (greetingsWithInit.length && !/initvar/i.test(findTexts)) issues.push('Greeting 含 <initvar>，但 Regex 没有对应显示隐藏规则');

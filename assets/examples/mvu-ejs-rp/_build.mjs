@@ -4,9 +4,10 @@ import { fileURLToPath } from 'node:url';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const read = name => fs.readFileSync(path.join(dir, name), 'utf8').replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\n$/, '');
+const readRaw = name => fs.readFileSync(path.join(dir, name), 'utf8').replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
 const schema = read('schema.js');
 const status = read('状态栏.html');
-const dynamicContent = read('动态内容.ejs');
+const dynamicContent = readRaw('动态内容.ejs');
 const ejsContract = read('EJS运行合同.yaml');
 const runtimeContract = `mvu:
   mode: mvu_zod

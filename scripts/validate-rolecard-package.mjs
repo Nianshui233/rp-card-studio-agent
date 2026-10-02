@@ -112,7 +112,7 @@ export function validateRolecardPackage(input) {
     }
   }
 
-  const mvuReport = validateMvuPackage(input, { mode: input.mvuMode, initStrategy: input.mvuInitStrategy, dialect: input.mvuDialect });
+  const mvuReport = validateMvuPackage(input, { mode: input.mvuMode, initStrategy: input.mvuInitStrategy, dialect: input.mvuDialect, allowEmbeddedCharacterBook: input.allowEmbeddedCharacterBook === true });
   for (const issue of mvuReport.issues) add(issues, `MVU: ${issue}`);
   for (const warning of mvuReport.warnings) add(warnings, `MVU: ${warning}`);
 
@@ -169,7 +169,7 @@ function parseEjsContract(text) {
 async function runCli() {
   const root = path.resolve(option('--root') || process.cwd());
   const cardRelative = option('--card');
-  if (!cardRelative) throw new Error('用法: node validate-rolecard-package.mjs --root <package-dir> --card <card.json> [--worldbook <book.json> --worldbook-name <actual-name>] [--regex <regex.json> [--regex-mode additional|alternative] --fixtures <fixtures.json>] [--script-folder <folder.json>] [--zod-source <schema.js>] [--mvu-contract <MVU运行合同.yaml>] [--ejs-contract <EJS运行合同.yaml>] [--mvu-mode none|native_schema|mvu_zod] [--mvu-init-strategy auto|worldbook|greeting] [--host-root <SillyTavern-source>]');
+  if (!cardRelative) throw new Error('用法: node validate-rolecard-package.mjs --root <package-dir> --card <card.json> [--worldbook <book.json> --worldbook-name <actual-name>] [--regex <regex.json> [--regex-mode additional|alternative] --fixtures <fixtures.json>] [--script-folder <folder.json>] [--zod-source <schema.js>] [--mvu-contract <MVU运行合同.yaml>] [--ejs-contract <EJS运行合同.yaml>] [--mvu-mode none|native_schema|mvu_zod] [--mvu-init-strategy auto|worldbook|greeting] [--allow-embedded-character-book] [--host-root <SillyTavern-source>]');
   const readTextFile = relative => {
     const resolved = path.resolve(root, relative);
     const rel = path.relative(root, resolved);
@@ -215,6 +215,7 @@ async function runCli() {
     input.mvuDialect = input.mvuContract.update_dialect;
     if (!input.mvuMode || !input.mvuInitStrategy || !input.mvuDialect) throw new Error('MVU运行合同缺少 mode/init_strategy/update_dialect');
   }
+  input.allowEmbeddedCharacterBook = option('--allow-embedded-character-book') !== undefined;
   input.mvuMode = option('--mvu-mode') || input.mvuMode || undefined;
   input.mvuInitStrategy = option('--mvu-init-strategy') || input.mvuInitStrategy || undefined;
   const hostRoot = option('--host-root');
