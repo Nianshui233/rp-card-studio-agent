@@ -56,17 +56,15 @@ const regex = [
 
 function fixture() {
   const scripts = [structuredClone(loader), structuredClone(zod)];
-  const characterBook = entries.map(entry => ({ ...structuredClone(entry), keys: [], enabled: true }));
   return {
     card: {
       spec: 'chara_card_v3', spec_version: '3.0', data: {
         first_mes: `<initvar>\n${init}\n</initvar>\n开场\n<StatusPlaceHolderImpl/>`,
         alternate_greetings: [`<initvar>\n${init}\n</initvar>\n备用开场\n<StatusPlaceHolderImpl/>`],
-        character_book: { entries: characterBook },
         extensions: { tavern_helper: { scripts }, regex_scripts: structuredClone(regex) },
       },
     },
-    worldbook: { entries: Object.fromEntries(entries.map((entry, index) => [index, { uid: index, comment: entry.comment, content: entry.content, key: [] }])) },
+    worldbook: { entries: Object.fromEntries(entries.map((entry, index) => [index, { uid: index, comment: entry.comment, content: entry.content, key: [], position: 4, depth: 0 }])) },
     scriptFolder: { type: 'folder', scripts: structuredClone(scripts) },
     regex: structuredClone(regex),
     zodSource: zod.content,
@@ -96,7 +94,6 @@ test('rejects missing Zod registration instead of silently downgrading to native
 
 test('rejects missing rules, path index, and output format', () => {
   const f = fixture();
-  f.card.data.character_book.entries = [];
   f.worldbook.entries = {};
   const result = validateMvuPackage(f, { mode: 'mvu_zod', initStrategy: 'greeting' });
   assert.match(result.issues.join(' '), /更新规则/);
@@ -113,6 +110,7 @@ test('rejects a playable Greeting whose initvar does not cover the Schema roots'
 
 test('rejects embedded/external worldbook and script drift', () => {
   const f = fixture();
+  f.card.data.character_book = { entries: Object.values(f.worldbook.entries).map(entry => ({ ...structuredClone(entry), keys: [] })) };
   f.worldbook.entries[0].content = 'DRIFTED';
   f.scriptFolder.scripts[1].content += '\n// drift';
   const result = validateMvuPackage(f, { mode: 'mvu_zod', initStrategy: 'greeting' });
@@ -125,7 +123,6 @@ test('rejects unpinned providers and mixed update dialects', () => {
   f.card.data.extensions.tavern_helper.scripts[0].content = "import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js';";
   f.scriptFolder.scripts[0].content = f.card.data.extensions.tavern_helper.scripts[0].content;
   f.worldbook.entries[2].content += "\n_.set('世界.时间', '10:00');";
-  f.card.data.character_book.entries[2].content = f.worldbook.entries[2].content;
   const result = validateMvuPackage(f, { mode: 'mvu_zod', initStrategy: 'greeting' });
   assert.match(result.issues.join(' '), /Loader URL 未锁定/);
   assert.match(result.issues.join(' '), /混用了 JSON Patch 与 lodash/);
@@ -156,12 +153,20 @@ test('rejects ZOD before Loader and duplicate schema registration', () => {
   assert.match(result.issues.join(' '), /只能调用一次 registerMvuSchema/);
 });
 
+test('rejects malformed JSON Patch examples before package delivery', () => {
+  const f = fixture();
+  f.worldbook.entries[2].content = `<UpdateVariable>
+<Analysis>x</Analysis>
+<JSONPatch>[{"op":"delta","path":"/玩家/生命值","value":"bad"}]</JSONPatch>
+</UpdateVariable>`;
+  const result = validateMvuPackage(f, { mode: 'mvu_zod', initStrategy: 'greeting', dialect: 'json_patch' });
+  assert.match(result.issues.join(' '), /delta value 必须是 number/);
+});
+
 test('rejects JSON Patch examples that are not present in the variable path index', () => {
   const f = fixture();
   f.worldbook.entries[1].content = '<status_current_variable>\n{{format_message_variable::stat_data}}\n</status_current_variable>\n/世界/时间\n/玩家/生命值\n/任务/阶段';
-  f.card.data.character_book.entries[1].content = f.worldbook.entries[1].content;
   f.worldbook.entries[2].content = f.worldbook.entries[2].content.replace('/任务/阶段', '/玩家/不存在');
-  f.card.data.character_book.entries[2].content = f.worldbook.entries[2].content;
   const result = validateMvuPackage(f, { mode: 'mvu_zod', initStrategy: 'greeting', dialect: 'json_patch' });
   assert.match(result.issues.join(' '), /示例路径不在变量索引中：\/玩家\/不存在/);
 });
@@ -188,11 +193,10 @@ test('accepts a stable worldbook-initvar and shared full-state index pattern', (
 队友和 NPC 使用动态键/对象键，新增角色不得覆盖其他键；物品数量归零时移除对象键。
 列表和数组使用真实索引，insert/remove/move 只在确有变化时使用；没有变化保持原值。
 禁止模型擅自修改只读派生值。更新条件：先读取当前状态，再按本轮事实审计全部状态根。`.repeat(8);
-  const dynamicIndex = { id: 14, uid: 14, comment: '变量列表', content: '<status_current_variables>\n{{format_message_variable::stat_data}}\n</status_current_variables>', key: [] };
+  const dynamicIndex = { id: 14, uid: 14, comment: '变量列表', content: '<status_current_variables>\n{{format_message_variable::stat_data}}\n</status_current_variables>', key: [], position: 4, depth: 0 };
   const allEntries = [initEntry, shortReminder, fullOutput, referenceRules, dynamicIndex];
   f.card.data.first_mes = '开场\n<StatusPlaceHolderImpl/>';
   f.card.data.alternate_greetings = [];
-  f.card.data.character_book.entries = allEntries.map(entry => ({ ...structuredClone(entry), enabled: true }));
   f.worldbook.entries = Object.fromEntries(allEntries.map((entry, index) => [index, { ...structuredClone(entry), comment: entry.comment, key: [] }]));
   f.mvuContract.init_strategy = 'worldbook';
   f.card.data.extensions.tavern_helper.scripts = [structuredClone(loader), structuredClone(zod)];
@@ -207,6 +211,31 @@ test('accepts a stable worldbook-initvar and shared full-state index pattern', (
   assert.equal(result.dialect, 'json_patch');
 });
 
+
+test('rejects MVU prompt-only and edit-persistent technical Regex routes', () => {
+  const f = fixture();
+  f.regex = [
+    { id: 'prompt', scriptName: '错误提示词清理', findRegex: '/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/g', replaceString: '', placement: [2], promptOnly: true, markdownOnly: false },
+    { id: 'edit', scriptName: '错误编辑写回', findRegex: '/<initvar>[\\s\\S]*?<\\/initvar>/g', replaceString: '', placement: [2], runOnEdit: true, markdownOnly: true },
+  ];
+  const result = validateMvuPackage(f, { mode: 'mvu_zod', initStrategy: 'greeting', dialect: 'json_patch' });
+  assert.match(result.issues.join(' '), /prompt-only/);
+  assert.match(result.issues.join(' '), /runOnEdit=true/);
+});
+
+test('rejects ordinary worldbook entries stacked at atDepth zero', () => {
+  const f = fixture();
+  f.worldbook.entries[4] = { uid: 4, comment: '普通场景·地下室', content: '地下室有一扇锁住的门。', key: [], position: 4, depth: 0, constant: true };
+  const result = validateMvuPackage(f, { mode: 'mvu_zod', initStrategy: 'greeting', dialect: 'json_patch' });
+  assert.match(result.issues.join(' '), /普通世界\/角色\/场景条目/);
+});
+
+test('rejects a card that embeds CharacterBook beside an independent worldbook', () => {
+  const f = fixture();
+  f.card.data.character_book = { entries: Object.values(f.worldbook.entries).map(entry => ({ ...structuredClone(entry), keys: [] })) };
+  const result = validateMvuPackage(f, { mode: 'mvu_zod', initStrategy: 'greeting', dialect: 'json_patch' });
+  assert.match(result.issues.join(' '), /禁止角色卡同时嵌入 CharacterBook/);
+});
 
 test('parses the wrapped mvu runtime contract template', () => {
   const contract = parseMvuContract(`mvu:

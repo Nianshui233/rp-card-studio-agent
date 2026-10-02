@@ -148,21 +148,6 @@ const rules = [
     minDepth: null,
     maxDepth: null,
   },
-  {
-    id: '970fbf6e-31ba-4fc5-aa45-ae7b690a1008',
-    scriptName: '运行载荷提示词清理',
-    findRegex: '/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>\\n*|<initvar>[\\s\\S]*?<\\/initvar>\\s*|<(?:StatusPlaceHolderImpl|航站面板|航站开场)\\s*\\/>/gi',
-    replaceString: '',
-    trimStrings: [],
-    placement: [2],
-    disabled: false,
-    markdownOnly: false,
-    promptOnly: true,
-    runOnEdit: false,
-    substituteRegex: 0,
-    minDepth: null,
-    maxDepth: null,
-  },
 ];
 
 const fixtures = [
@@ -229,14 +214,6 @@ const fixtures = [
     depth: 0,
     channel: 'prompt',
     expected: '[航站通知·线索：灯罩内侧有盐霜。]',
-  },
-  {
-    id: 'prompt-runtime-cleanup',
-    input: '<initvar>\n世界:\n  区域: 北航站\n</initvar>\n正文\n<UpdateVariable>\n_.set(\'世界.天气\', \'大雾\');//天气变化\n</UpdateVariable>\n<航站面板/>',
-    placement: 2,
-    depth: 0,
-    channel: 'prompt',
-    expected: '正文\n',
   },
   {
     id: 'display-user-message-untouched',
@@ -743,7 +720,6 @@ const card = {
     character_version: '2.2.0',
     extensions: {
       world: '雾港航站世界书',
-      regex_scripts: rules,
     },
   },
 };

@@ -74,6 +74,7 @@ _.inc / _.dec / _.toggle
 ```
 
 命令以分号结束，后接 `// reason`。自定义外层标签只负责生产/清理路由，内层仍必须是 MVU 能解析的真实方言或 JSON Patch。
+`json_patch` 不是任意宿主都自动具备的格式：必须由锁定版本的 MagVarUpdate 解析，并且 `<JSONPatch>` 内只出现合同允许的 `replace/delta/insert/add/remove/move` 操作；`native_schema`/`mvu_zod` 的方言选择写在运行合同中，不能在同一项目里混用。
 
 ## 世界书路由
 

@@ -117,22 +117,5 @@
     "substituteRegex": 0,
     "minDepth": null,
     "maxDepth": null
-  },
-  {
-    "id": "970fbf6e-31ba-4fc5-aa45-ae7b690a1008",
-    "scriptName": "运行载荷提示词清理",
-    "findRegex": "/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>\\n*|<initvar>[\\s\\S]*?<\\/initvar>\\s*|<(?:StatusPlaceHolderImpl|航站面板|航站开场)\\s*\\/>/gi",
-    "replaceString": "",
-    "trimStrings": [],
-    "placement": [
-      2
-    ],
-    "disabled": false,
-    "markdownOnly": false,
-    "promptOnly": true,
-    "runOnEdit": false,
-    "substituteRegex": 0,
-    "minDepth": null,
-    "maxDepth": null
   }
 ]

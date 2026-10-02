@@ -157,6 +157,23 @@ export function extractOutputPaths(text) {
   return [...String(text || '').matchAll(/"(?:path|from|to)"\s*:\s*"([^"]+)"/g)].map(match => match[1]);
 }
 
+function validateJsonPatchExamples(text, issues) {
+  const blocks = [...String(text || '').matchAll(/<JSONPatch>\s*([\s\S]*?)\s*<\/JSONPatch>/gi)];
+  for (const match of blocks) {
+    let operations;
+    try { operations = JSON.parse(match[1]); } catch { issues.push('JSON Patch 示例不是合法 JSON 数组'); continue; }
+    if (!Array.isArray(operations)) { issues.push('JSON Patch 示例必须是数组'); continue; }
+    for (const [index, operation] of operations.entries()) {
+      if (!operation || typeof operation !== 'object' || Array.isArray(operation)) { issues.push(`JSON Patch 操作 ${index} 不是对象`); continue; }
+      if (!['replace', 'delta', 'insert', 'add', 'remove', 'move'].includes(operation.op)) issues.push(`JSON Patch 操作 ${index} 使用未知 op：${operation.op}`);
+      if (typeof operation.path !== 'string' && operation.op !== 'move') issues.push(`JSON Patch 操作 ${index} 缺少 path`);
+      if (operation.op === 'move' && (typeof operation.from !== 'string' || typeof operation.path !== 'string')) issues.push(`JSON Patch 操作 ${index} 的 move 必须同时提供 from/path`);
+      if (operation.op === 'delta' && typeof operation.value !== 'number') issues.push(`JSON Patch 操作 ${index} 的 delta value 必须是 number`);
+      if (['replace', 'delta', 'insert', 'add'].includes(operation.op) && !Object.prototype.hasOwnProperty.call(operation, 'value')) issues.push(`JSON Patch 操作 ${index} 缺少 value`);
+    }
+  }
+}
+
 function findDialect(outputText) {
   const jsonPatch = /<JSONPatch>|"op"\s*:\s*"(?:replace|delta|insert|remove|move)"/i.test(outputText);
   const lodash = /_\.(?:set|add|assign|insert|remove|unset|delete|replace|push|pop|shift|inc|dec|toggle)\s*\(/.test(outputText);
@@ -164,6 +181,59 @@ function findDialect(outputText) {
   if (jsonPatch) return 'json_patch';
   if (lodash) return 'lodash';
   return 'unknown';
+}
+
+function regexField(rule, camel, snake) {
+  return rule?.[camel] ?? rule?.[snake];
+}
+
+function validateMvuRegexBoundaries(regexes, issues) {
+  for (const rule of regexes) {
+    const find = String(rule?.findRegex ?? rule?.find_regex ?? '');
+    const replace = String(rule?.replaceString ?? rule?.replace_string ?? '');
+    const technicalMarker = /<\s*(?:UpdateVariable|initvar|StatusPlaceHolderImpl|status_current_variable)\b/i.test(`${find}\n${replace}`);
+    const promptOnly = regexField(rule, 'promptOnly', 'prompt_only') === true
+      || (rule?.destination?.prompt === true && rule?.destination?.display !== true);
+    const runOnEdit = regexField(rule, 'runOnEdit', 'run_on_edit') === true;
+    if (technicalMarker && promptOnly) {
+      issues.push(`MVU 技术载荷 Regex“${rule?.scriptName ?? rule?.script_name ?? rule?.id ?? '未命名'}”禁止默认 prompt-only；它可能在下一轮 Prompt 中删除变量合同或当前状态`);
+    }
+    if (technicalMarker && runOnEdit) {
+      issues.push(`MVU 技术载荷 Regex“${rule?.scriptName ?? rule?.script_name ?? rule?.id ?? '未命名'}”不得 runOnEdit=true；编辑保存不能把 initvar、更新块或状态占位符永久写回原消息`);
+    }
+    if (/<\s*UpdateVariable\b/i.test(find) && /\|\s*\/?\[?\\sS|\|\s*\[\\sS\]/i.test(find) && !/\$[/'"]?\s*[,)]?$/i.test(find)) {
+      issues.push(`MVU 更新块 Regex“${rule?.scriptName ?? rule?.script_name ?? rule?.id ?? '未命名'}”存在未闭合分支却没有消息末尾边界；可能吞掉更新块后的正文`);
+    }
+  }
+}
+
+function validateWorldbookRouting(entries, issues) {
+  for (const entry of entries) {
+    const comment = String(entry?.comment ?? entry?.name ?? '');
+    const content = String(entry?.content ?? '');
+    const position = Number(entry?.position);
+    const depth = Number(entry?.depth);
+    if (/format_message_variable::stat_data|status_current_variables?/i.test(content)) {
+      if (position !== 4 || depth !== 0) {
+        issues.push(`变量当前状态投影条目“${comment || '未命名'}”必须使用 atDepth(position=4) depth=0，实际 position=${entry?.position} depth=${entry?.depth}`);
+      }
+    }
+    if (position === 4 && depth === 0 && !/(?:mvu_update|mvu_plot|变量列表|变量输出格式|变量更新规则|initvar|config_override|立即|事件|event)/i.test(comment)) {
+      const hasKeys = Array.isArray(entry?.key) ? entry.key.length > 0 : Array.isArray(entry?.keys) ? entry.keys.length > 0 : false;
+      const sticky = Number(entry?.sticky ?? 0) > 0 || Number(entry?.effect?.sticky ?? 0) > 0;
+      const cooldown = Number(entry?.cooldown ?? 0) > 0 || Number(entry?.effect?.cooldown ?? 0) > 0;
+      if (!hasKeys && !sticky && !cooldown) {
+        issues.push(`普通世界/角色/场景条目“${comment || '未命名'}”不应无条件堆在 atDepth depth=0；请按职责使用角色定义后、角色定义前或明确的 atDepth/depth 路由`);
+      }
+    }
+  }
+}
+
+function rejectEmbeddedCharacterBook(card, worldbook, issues) {
+  const embedded = cardData(card)?.character_book?.entries;
+  if (Array.isArray(embedded) && embedded.length > 0 && listEntries(worldbook).length > 0) {
+    issues.push('独立世界书路线禁止角色卡同时嵌入 CharacterBook；否则会产生重复注入和版本漂移');
+  }
 }
 
 function compareEmbeddedExternalWorldbook(card, worldbook, issues) {
@@ -348,6 +418,7 @@ export function validateMvuPackage(input, options = {}) {
 
   const outputText = String(outputEntry?.content || '');
   const dialect = findDialect(outputText);
+  if (dialect === 'json_patch') validateJsonPatchExamples(outputText, issues);
   if ((mode === 'mvu_zod') && outputText.length < 500) issues.push('MVU_ZOD 变量输出格式过于简略，缺少操作和路径示例');
   if (!/<Analysis>[\s\S]*<\/Analysis>/i.test(outputText)) issues.push('变量输出格式缺少 <Analysis> 合同');
   if ((mode === 'mvu_zod') && !/变量列表|路径索引|path/i.test(outputText)) issues.push('MVU_ZOD 输出格式没有引用变量路径索引/合法 path 合同');
@@ -366,7 +437,10 @@ export function validateMvuPackage(input, options = {}) {
   }
 
   const regex = dedupeRegex([...embeddedRegex(input.card), ...externalRegex(input.regex)]);
-  const findTexts = regex.map(rule => `${String(rule.findRegex || '')}\n${String(rule.replaceString || '')}`).join('\n');
+  validateMvuRegexBoundaries(regex, issues);
+  validateWorldbookRouting(entries, issues);
+  rejectEmbeddedCharacterBook(input.card, input.worldbook, issues);
+  const findTexts = regex.map(rule => `${String(rule.findRegex || rule.find_regex || '')}\n${String(rule.replaceString || rule.replace_string || '')}`).join('\n');
   if (!/<\s*\(?update(?:variable)?/i.test(findTexts)) issues.push('Regex 缺少 <UpdateVariable> 的 display/prompt 清理消费者');
   if (greetingsWithInit.length && !/initvar/i.test(findTexts)) issues.push('Greeting 含 <initvar>，但 Regex 没有对应显示隐藏规则');
   if (greetings.some(text => /<StatusPlaceHolderImpl\s*\/>/i.test(text)) && !/statusplaceholderimpl/i.test(findTexts)) issues.push('存在状态栏占位符但 Regex 没有对应消费者');

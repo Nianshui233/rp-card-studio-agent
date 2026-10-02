@@ -21,12 +21,12 @@
 
 | 文件 | 作用 | 是否导入 |
 | --- | --- | --- |
-| `雾港航站.json` | V3 角色卡；默认创角页 + 三个静态剧情 Greeting；内嵌 Scoped Regex | 是 |
+| `雾港航站.json` | V3 角色卡；默认创角页 + 三个静态剧情 Greeting；不嵌入 Regex/ScriptFolder | 是 |
 | `雾港航站世界书.json` | MVU 初值/规则、输出合同、叙事、世界、人物、场景、系统与 EJS 动态上下文 | 是 |
 | `运行脚本.folder.json` | 唯一 MVU Loader + 状态栏运行协调器 | 是 |
 | `MVU运行合同.yaml` | 明确 native_schema、Greeting 初始化、lodash 方言、锁定 Loader、直接写入脚本与必需条目 | 否（QA/维护配置） |
 | `EJS运行合同.yaml` | 明确 generate-before、explicit_context 只读 bridge、快照选择和失败回退 | 否（QA/维护配置） |
-| `regex.json` | 卡内嵌 Regex 的独立副本；与卡内版本二选一 | 可选 |
+| `regex.json` | 独立角色 Scoped Regex；与角色卡分开导入 | 是 |
 | `开场.html` | 一次性开场/创角页面维护源码 | 否 |
 | `状态栏.html` | 持续消息前端维护源码 | 否 |
 | `运行协调器.js` | 输入仲裁、手记持久化、路径兼容和 EJS bridge | 否 |
@@ -51,7 +51,7 @@
 3. 启用 `MVU变量框架` 与 `雾港航站协调器`；不要再启用第二份 MVU Loader。
 4. 导入 `雾港航站世界书.json`。
 5. 导入 `雾港航站.json`；确认主世界书绑定为 `雾港航站世界书`。
-6. 允许角色内嵌 Scoped Regex；若改用独立 `regex.json`，二者只选一个。
+6. 导入 `regex.json` 为角色 Scoped Regex，并允许该角色运行；角色卡本身不再嵌入 Regex。
 7. 使用 ST-Prompt-Template 时，建议关闭不需要的 raw-message EJS 执行。
 8. 新建聊天，从默认开场页开始。
 
@@ -177,3 +177,6 @@ node .\_build.mjs
 - 真实 SillyTavern 导入、Clipboard 权限、玩家手动 Swipe/粘贴、首轮登记、插件联网、重载后持久化和浏览器视觉：`runtime: not_run`。
 
 没有真实宿主证据前，不把本样本描述为实机通过。
+
+
+本样品保留非 MVU 的“航站通知提示词摘要”，但不使用 prompt-only 清理 `<UpdateVariable>`、`<initvar>`、状态栏或开场载荷；MVU 技术载荷必须保留给宿主/下一轮状态链。

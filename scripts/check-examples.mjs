@@ -147,7 +147,8 @@ try {
   const scopedRegex = card.data?.extensions?.regex_scripts;
   if (card.spec !== 'chara_card_v3') fail('full-mvu-rp package', '角色卡必须是 V3');
   if (!card.data?.extensions?.world || !Object.keys(worldbook.entries || {}).length) fail('full-mvu-rp package', '角色卡主世界书绑定或世界书条目缺失');
-  if (JSON.stringify(scopedRegex) !== JSON.stringify(regex)) fail('full-mvu-rp package', '卡内 Regex 与独立 regex.json 不一致');
+  if (scopedRegex) fail('full-mvu-rp package', '独立 Regex 路线下角色卡不应再次嵌入 regex_scripts');
+  if (!Array.isArray(regex) || regex.length === 0) fail('full-mvu-rp package', '独立 regex.json 缺失或为空');
   const boundBook = path.join(full, `${card.data.extensions.world}.json`);
   if (!fs.existsSync(boundBook) || path.resolve(boundBook) !== path.resolve(path.join(full, '雾港航站世界书.json'))) fail('full-mvu-rp package', '角色卡主世界书绑定没有指向交付的同名世界书');
   const scripts = folder.scripts || [];

@@ -78,13 +78,13 @@ stages:
     next: opening_frontend
   opening_frontend:
     primary_skill: st-opening-frontend-authoring
-    supporting_skills: [rp-interview-orchestration, st-host-capabilities, st-api-reference, st-worldbook-regex, st-render-regex]
+    supporting_skills: [rp-interview-orchestration, st-host-capabilities, st-api-reference, st-worldbook-regex, st-render-regex, st-tavern-helper-engineering]
     optional: true
     enable_when: opening_or_creation_frontend_requested
     next: message_frontend
   message_frontend:
     primary_skill: st-message-frontend-authoring
-    supporting_skills: [rp-interview-orchestration, st-host-capabilities, st-api-reference, st-worldbook-regex, st-render-regex]
+    supporting_skills: [rp-interview-orchestration, st-host-capabilities, st-api-reference, st-worldbook-regex, st-render-regex, st-tavern-helper-engineering]
     optional: true
     enable_when: ongoing_message_ui_requested
     next: qa_delivery
@@ -110,4 +110,5 @@ skill_paths:
   st-api-reference: internal-skills/st-api-reference/SKILL.md
   st-runtime-debug: internal-skills/st-runtime-debug/SKILL.md
   st-render-regex: internal-skills/st-render-regex/SKILL.md
+  st-tavern-helper-engineering: internal-skills/st-tavern-helper-engineering/SKILL.md
   st-integration-qa: internal-skills/st-integration-qa/SKILL.md

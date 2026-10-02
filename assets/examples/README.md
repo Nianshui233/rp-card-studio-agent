@@ -20,3 +20,8 @@
 - 卡内 Scoped Regex 与独立 `regex.json` 是同一份规则的两种导入方式，必须二选一。
 
 所有样本都可以做静态合同核对；真实导入、网络、Markdown/DOMPurify、iframe 与浏览器生命周期仍需单独报告 `runtime_pass` 或 `runtime: not_run`。
+
+
+## 矩阵导入硬规则
+
+样品矩阵默认采用独立世界书路线：角色卡不嵌入 `CharacterBook`，世界书单独导入并绑定。卡内与独立 Regex、ScriptFolder 同时存在时只是两种交付方式，实际导入必须二选一。MVU/MVU_ZOD 样品不得使用 prompt-only 清理 `<UpdateVariable>`、`<initvar>`、`<StatusPlaceHolderImpl/>` 或当前状态投影，也不得用 `runOnEdit` 把这些技术载荷永久写回聊天。

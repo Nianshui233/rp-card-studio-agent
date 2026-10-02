@@ -29,7 +29,7 @@
     "placement": 2,
     "depth": 0,
     "channel": "prompt",
-    "expected": "正文\n"
+    "expected": "正文\n<UpdateVariable>\n_.add('角色.体力', -2);\n</UpdateVariable>"
   },
   {
     "id": "display-placeholder",
@@ -45,6 +45,6 @@
     "placement": 2,
     "depth": 0,
     "channel": "prompt",
-    "expected": "正文\n"
+    "expected": "正文\n<StatusPlaceHolderImpl/>"
   }
 ]

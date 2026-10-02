@@ -1,0 +1,11 @@
+@@preprocessing
+<%_
+const location = getvar('stat_data.世界.地点', { scope: 'message', defaults: null });
+const target = location === '灰港公寓一层大厅' ? '场景_灰港公寓一层大厅' : '场景_未知';
+const scene = await getwi('灰港避难所世界书', target);
+_%>
+<% if (scene && scene.trim()) { %>
+<%- scene %>
+<% } else { %>
+当前场景没有可追加的动态设定；遵守卡内基础世界规则。
+<% } %>

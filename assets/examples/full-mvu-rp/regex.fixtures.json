@@ -64,14 +64,6 @@
     "expected": "[航站通知·线索：灯罩内侧有盐霜。]"
   },
   {
-    "id": "prompt-runtime-cleanup",
-    "input": "<initvar>\n世界:\n  区域: 北航站\n</initvar>\n正文\n<UpdateVariable>\n_.set('世界.天气', '大雾');//天气变化\n</UpdateVariable>\n<航站面板/>",
-    "placement": 2,
-    "depth": 0,
-    "channel": "prompt",
-    "expected": "正文\n"
-  },
-  {
     "id": "display-user-message-untouched",
     "input": "我想先看面板。\n<航站面板/>",
     "placement": 1,

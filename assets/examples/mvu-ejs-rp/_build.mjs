@@ -6,9 +6,11 @@ const dir = path.dirname(fileURLToPath(import.meta.url));
 const read = name => fs.readFileSync(path.join(dir, name), 'utf8').replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\n$/, '');
 const schema = read('schema.js');
 const status = read('状态栏.html');
+const dynamicContent = read('动态内容.ejs');
+const ejsContract = read('EJS运行合同.yaml');
 const runtimeContract = `mvu:
   mode: mvu_zod
-  init_strategy: greeting
+  init_strategy: worldbook
   update_dialect: json_patch
   loader:
     url: "https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate@0a730cd4a9b99689d1135a49b542c780b977c24c/artifact/bundle.js"
@@ -22,9 +24,12 @@ const runtimeContract = `mvu:
     update_rules: "[mvu_update]变量更新规则"
     variable_index: "变量列表"
     output_format: "[mvu_update]变量输出格式"
+  producers:
+    model_update: true
+    direct_scripts: ""
   consumers:
     status_ui: true
-    ejs_bridge: false
+    ejs_bridge: true
   acceptance:
     target_sillytavern: "1.19.0"
     target_tavern_helper: "待实机确认"
@@ -43,13 +48,16 @@ const outputFormat = `变量输出格式:\n  rule:\n    - 回复正文结束后�
 function externalEntry(uid, comment, content, order) {
   return { uid, key: [], keysecondary: [], comment, content, constant: true, vectorized: false, selective: true, selectiveLogic: 0, addMemo: true, order, position: 4, disable: false, excludeRecursion: false, preventRecursion: true, delayUntilRecursion: 0, probability: 100, useProbability: true, depth: 0, group: '', groupOverride: false, groupWeight: 100, scanDepth: null, caseSensitive: null, matchWholeWords: null, useGroupScoring: false, automationId: '', role: 0, sticky: 0, cooldown: 0, delay: 0, displayIndex: uid };
 }
-function embeddedEntry(entry) { return { id: entry.uid, keys: entry.key, secondary_keys: [], comment: entry.comment, content: entry.content, constant: entry.constant, selective: true, insertion_order: entry.order, enabled: !entry.disable, position: 'after_char', use_regex: true, extensions: { position: entry.position, depth: entry.depth, role: entry.role } }; }
 
 const worldEntries = {
   0: externalEntry(0, '[mvu_update]变量更新规则', updateRules, 10),
   1: externalEntry(1, '变量列表', variableIndex, 20),
   2: externalEntry(2, '[mvu_update]变量输出格式', outputFormat, 30),
   3: { ...externalEntry(3, '[mvu_plot]叙事与世界规则', '灰港公寓与外界失联。感染者被声音吸引；NPC按自己的目标行动。不要替玩家决定想法、台词或关键动作。每轮以可观察变化收束。', 40), position: 0, depth: 4 },
+  4: { ...externalEntry(4, '动态内容总控', dynamicContent, 50), position: 0, depth: 4, constant: true, selective: true, disable: false },
+  5: { ...externalEntry(5, '场景_灰港公寓一层大厅', '场景动态补充：灰港公寓一层大厅的消防门通往封闭楼梯间；外侧大厅仍受雾气和停电影响。这里的设定只在当前地点变量匹配时注入。', 60), position: 0, depth: 4, constant: false, selective: false, key: [] },
+  6: { ...externalEntry(6, '场景_未知', '当前地点没有独立场景条目；只使用已经激活的基础世界规则，不凭空补写未确认地理细节。', 70), position: 0, depth: 4, constant: false, selective: false, key: [] },
+  7: { ...externalEntry(7, '[initvar]变量初始化勿开', initRoutine, 80), position: 0, depth: 4, constant: true, selective: true, disable: true },
 };
 const worldbook = { name: '灰港避难所世界书', entries: worldEntries };
 
@@ -59,9 +67,9 @@ const folder = { type: 'folder', enabled: false, name: '灰港避难所·MVU_ZOD
 
 const fence = html => '```html\n' + html + '\n```';
 const rules = [
-  { id: '66666666-0000-4000-8000-000000000001', scriptName: '隐藏 Greeting initvar', findRegex: '/<initvar>[\\s\\S]*?<\\/initvar>\\s*/gi', replaceString: '', trimStrings: [], placement: [2], disabled: false, markdownOnly: true, promptOnly: false, runOnEdit: true, substituteRegex: 0, minDepth: null, maxDepth: null },
-  { id: '66666666-0000-4000-8000-000000000002', scriptName: '隐藏 MVU 更新块（流式安全）', findRegex: '/<UpdateVariable>(?:[\\s\\S]*?<\\/UpdateVariable>|[\\s\\S]*)/g', replaceString: '', trimStrings: [], placement: [2], disabled: false, markdownOnly: true, promptOnly: false, runOnEdit: true, substituteRegex: 0, minDepth: null, maxDepth: null },
-  { id: '66666666-0000-4000-8000-000000000003', scriptName: '灰港状态栏', findRegex: '/<StatusPlaceHolderImpl\\s*\\/>/g', replaceString: fence(status), trimStrings: [], placement: [2], disabled: false, markdownOnly: true, promptOnly: false, runOnEdit: true, substituteRegex: 0, minDepth: null, maxDepth: null },
+  { id: '66666666-0000-4000-8000-000000000001', scriptName: '隐藏 Greeting initvar', findRegex: '/<initvar>[\\s\\S]*?<\\/initvar>\\s*/gi', replaceString: '', trimStrings: [], placement: [2], disabled: false, markdownOnly: true, promptOnly: false, runOnEdit: false, substituteRegex: 0, minDepth: null, maxDepth: null },
+  { id: '66666666-0000-4000-8000-000000000002', scriptName: '隐藏 MVU 更新块（流式安全）', findRegex: '/<UpdateVariable>(?:[\\s\\S]*?<\\/UpdateVariable>|[\\s\\S]*$)/g', replaceString: '', trimStrings: [], placement: [2], disabled: false, markdownOnly: true, promptOnly: false, runOnEdit: false, substituteRegex: 0, minDepth: null, maxDepth: null },
+  { id: '66666666-0000-4000-8000-000000000003', scriptName: '灰港状态栏', findRegex: '/<StatusPlaceHolderImpl\\s*\\/>/g', replaceString: fence(status), trimStrings: [], placement: [2], disabled: false, markdownOnly: true, promptOnly: false, runOnEdit: false, substituteRegex: 0, minDepth: null, maxDepth: null },
 ];
 const fixtures = [
   { id: 'hide-initvar', input: '<initvar>\n世界:\n  时间: 08:00\n</initvar>\n正文', placement: 2, depth: 0, channel: 'display', expected: '正文' },
@@ -69,9 +77,10 @@ const fixtures = [
   { id: 'stream-update', input: '正文\n<UpdateVariable>\n<Analysis>x', placement: 2, depth: 0, channel: 'display', expected: '正文\n' },
 ];
 
-const greeting = (init, text) => `<initvar>\n${init}\n</initvar>\n\n${text}\n\n<StatusPlaceHolderImpl/>`;
-const card = { spec: 'chara_card_v3', spec_version: '3.0', data: { name: '许岚｜灰港避难所', description: '灰港公寓在感染爆发后的第一天与外界失联。许岚试图维持封锁、确认幸存者并恢复短波联络。', personality: '许岚谨慎、直接、重视可核对事实，不替玩家做决定。', scenario: '玩家与许岚在灰港公寓中处理感染风险、物资、同伴与逐层探索。', first_mes: greeting(initRoutine, '铁链绕过大厅门把。许岚压低声音：“先确认楼里还有谁，再决定是否开门。”'), mes_example: '', creator_notes: '完整 MVU_ZOD 参考包；不使用 EJS。', system_prompt: '保持世界因果和 NPC 自主行动；严格遵守 MVU 更新规则与输出格式。', post_history_instructions: '只更新本轮真实变化；正文后输出一次 UpdateVariable。', alternate_greetings: [greeting(initRoof, '雨水扫过天台。许岚拍了拍失去电源的短波机：“备用电池可能还在楼下配电室。”')], tags: ['MVU_ZOD', '完整制品参考'], creator: 'rp-card-studio', character_version: '1.0.0', character_book: { name: '灰港避难所世界书', entries: Object.values(worldEntries).map(embeddedEntry) }, extensions: { world: '灰港避难所世界书', tavern_helper: { scripts: [loader, zodScript] }, regex_scripts: rules } } };
+const greeting = (_init, text) => `${text}\n\n<StatusPlaceHolderImpl/>`;
+const card = { spec: 'chara_card_v3', spec_version: '3.0', data: { name: '许岚｜灰港避难所', description: '灰港公寓在感染爆发后的第一天与外界失联。许岚试图维持封锁、确认幸存者并恢复短波联络。', personality: '许岚谨慎、直接、重视可核对事实，不替玩家做决定。', scenario: '玩家与许岚在灰港公寓中处理感染风险、物资、同伴与逐层探索。', first_mes: greeting(initRoutine, '铁链绕过大厅门把。许岚压低声音：“先确认楼里还有谁，再决定是否开门。”'), mes_example: '', creator_notes: 'MVU_ZOD + EJS 世界书只读桥接参考包；角色卡不嵌入 CharacterBook。', system_prompt: '保持世界因果和 NPC 自主行动；严格遵守 MVU 更新规则与输出格式。', post_history_instructions: '只更新本轮真实变化；正文后输出一次 UpdateVariable。', alternate_greetings: [greeting(initRoof, '雨水扫过天台。许岚拍了拍失去电源的短波机：“备用电池可能还在楼下配电室。”')], tags: ['MVU_ZOD', 'EJS', '只读桥接', '完整制品参考'], creator: 'rp-card-studio', character_version: '1.0.0', extensions: { world: '灰港避难所世界书' } } };
 
 for (const [name, value] of [['regex.json', rules], ['regex.fixtures.json', fixtures], ['灰港避难所世界书.json', worldbook], ['灰港避难所.json', card], ['运行脚本.folder.json', folder]]) fs.writeFileSync(path.join(dir, name), JSON.stringify(value, null, 2) + '\n');
 fs.writeFileSync(path.join(dir, 'MVU运行合同.yaml'), runtimeContract, 'utf8');
-console.log('built mvu-zod-rp');
+fs.writeFileSync(path.join(dir, 'EJS运行合同.yaml'), ejsContract + '\n', 'utf8');
+console.log('built mvu-ejs-rp');

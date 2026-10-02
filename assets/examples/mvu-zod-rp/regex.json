@@ -11,7 +11,7 @@
     "disabled": false,
     "markdownOnly": true,
     "promptOnly": false,
-    "runOnEdit": true,
+    "runOnEdit": false,
     "substituteRegex": 0,
     "minDepth": null,
     "maxDepth": null
@@ -19,7 +19,7 @@
   {
     "id": "66666666-0000-4000-8000-000000000002",
     "scriptName": "隐藏 MVU 更新块（流式安全）",
-    "findRegex": "/<UpdateVariable>(?:[\\s\\S]*?<\\/UpdateVariable>|[\\s\\S]*)/g",
+    "findRegex": "/<UpdateVariable>(?:[\\s\\S]*?<\\/UpdateVariable>|[\\s\\S]*$)/g",
     "replaceString": "",
     "trimStrings": [],
     "placement": [
@@ -28,7 +28,7 @@
     "disabled": false,
     "markdownOnly": true,
     "promptOnly": false,
-    "runOnEdit": true,
+    "runOnEdit": false,
     "substituteRegex": 0,
     "minDepth": null,
     "maxDepth": null
@@ -37,7 +37,7 @@
     "id": "66666666-0000-4000-8000-000000000003",
     "scriptName": "灰港状态栏",
     "findRegex": "/<StatusPlaceHolderImpl\\s*\\/>/g",
-    "replaceString": "```html\n<!doctype html>\n<html lang=\"zh-CN\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><style>\nbody{margin:0;padding:10px;background:#101715;color:#e8f0eb;font:13px/1.5 system-ui,\"Microsoft YaHei\",sans-serif}.panel{border:1px solid #486257;border-radius:12px;padding:12px;background:#17221e}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.item{background:#ffffff08;border-radius:8px;padding:7px}.k{color:#9bb7aa;font-size:11px}.v{font-weight:700;word-break:break-word}.err{color:#ffad9e}@media(max-width:520px){.grid{grid-template-columns:1fr}}\n</style></head><body><div class=\"panel\"><div id=\"state\" class=\"grid\"><div class=\"item\"><div class=\"k\">状态</div><div class=\"v\">读取中</div></div></div></div><script>\n(async function(){'use strict';var box=document.getElementById('state');function item(k,v){var d=document.createElement('div');d.className='item';var a=document.createElement('div');a.className='k';a.textContent=k;var b=document.createElement('div');b.className='v';b.textContent=String(v==null?'未记录':v);d.append(a,b);return d}try{await waitGlobalInitialized('Mvu');var id=Number(getCurrentMessageId());var data=Mvu.getMvuData({type:'message',message_id:id});if(!data||!data.stat_data||!data.schema)throw new Error('本楼没有完整 MVU_ZOD 快照');var s=data.stat_data;box.textContent='';box.append(item('日期时间',(s.世界?.日期||'')+' '+(s.世界?.时间||'')),item('地点',s.世界?.地点),item('生命值',s.玩家?.生命值),item('体力',s.玩家?.体力),item('感染风险',s.玩家?.感染风险),item('主线',s.任务?.主线?.名称),item('阶段',s.任务?.主线?.阶段),item('可调查',(s.现场?.可调查目标||[]).join('、')||'暂无'));}catch(e){box.textContent='';var d=document.createElement('div');d.className='err';d.textContent=e.message||String(e);box.append(d)}})();\n</script></body></html>\n```",
+    "replaceString": "```html\n<!doctype html>\n<html lang=\"zh-CN\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n<style>\nbody{margin:0;padding:10px;background:#101715;color:#e8f0eb;font:13px/1.5 system-ui,\"Microsoft YaHei\",sans-serif}.panel{border:1px solid #486257;border-radius:12px;padding:12px;background:#17221e}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.item{background:#ffffff08;border-radius:8px;padding:7px}.k{color:#9bb7aa;font-size:11px}.v{font-weight:700;word-break:break-word}.status{margin-top:9px;color:#9bb7aa}.err{color:#ffad9e}@media(max-width:520px){.grid{grid-template-columns:1fr}}\n</style>\n</head>\n<body>\n<div class=\"panel\"><div id=\"state\" class=\"grid\"><div class=\"item\"><div class=\"k\">状态</div><div class=\"v\">读取中</div></div></div><div id=\"status\" class=\"status\" role=\"status\" aria-live=\"polite\">正在连接当前消息楼层……</div></div>\n<script>\n(async function(){\n  'use strict';\n  const box=document.getElementById('state');\n  const status=document.getElementById('status');\n  const stops=[];\n  let timer=null;\n  let messageId=null;\n  const timeout=ms=>new Promise((_,reject)=>setTimeout(()=>reject(new Error('MVU 初始化超时')),ms));\n  const item=(k,v)=>{const d=document.createElement('div');d.className='item';const a=document.createElement('div');a.className='k';a.textContent=k;const b=document.createElement('div');b.className='v';b.textContent=String(v==null?'未记录':v);d.append(a,b);return d};\n  function read(){const data=Mvu.getMvuData({type:'message',message_id:messageId});if(!data||!data.stat_data||!data.schema)throw new Error('本楼没有完整 MVU_ZOD 快照');return data.stat_data}\n  function render(s){box.textContent='';box.append(item('日期时间',(s.世界?.日期||'')+' '+(s.世界?.时间||'')),item('地点',s.世界?.地点),item('生命值',s.玩家?.生命值),item('体力',s.玩家?.体力),item('感染风险',s.玩家?.感染风险),item('主线',s.任务?.主线?.名称),item('阶段',s.任务?.主线?.阶段),item('可调查',(s.现场?.可调查目标||[]).join('、')||'暂无'));status.textContent='已读取第 '+messageId+' 楼当前快照';status.className='status'}\n  async function refresh(){try{render(read())}catch(e){status.textContent='读取失败：'+(e.message||String(e));status.className='status err'}}\n  function listen(name){if(typeof eventOn!=='function'||!name)return;const stop=eventOn(name,id=>{if(messageId===null||Number(id)===messageId)refresh()});if(stop&&typeof stop.stop==='function')stops.push(stop)}\n  try{\n    if(typeof getCurrentMessageId!=='function')throw new Error('当前不是 Tavern Helper 消息 iframe');\n    if(typeof waitGlobalInitialized!=='function')throw new Error('缺少 waitGlobalInitialized');\n    messageId=Number(getCurrentMessageId());\n    if(!Number.isInteger(messageId)||messageId<0)throw new Error('无法取得数值消息楼层');\n    await Promise.race([waitGlobalInitialized('Mvu'),timeout(8000)]);\n    await refresh();\n    if(typeof tavern_events==='object'){listen(tavern_events.MESSAGE_UPDATED);listen(tavern_events.MESSAGE_SWIPED)}\n    timer=setInterval(refresh,2000);\n  }catch(e){status.textContent='面板不可用：'+(e.message||String(e));status.className='status err'}\n  addEventListener('pagehide',()=>{if(timer)clearInterval(timer);stops.forEach(stop=>stop.stop());},{once:true});\n})();\n</script>\n</body>\n</html>\n```",
     "trimStrings": [],
     "placement": [
       2
@@ -45,7 +45,7 @@
     "disabled": false,
     "markdownOnly": true,
     "promptOnly": false,
-    "runOnEdit": true,
+    "runOnEdit": false,
     "substituteRegex": 0,
     "minDepth": null,
     "maxDepth": null

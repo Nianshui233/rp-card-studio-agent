@@ -91,6 +91,22 @@ _.toggle
 
 `parseMessage(text, oldData)` 会触发与正常更新相同的变换事件，但它只返回新副本；调用者仍负责把结果写入明确数值楼层、等待必要保存并读回。
 
+### JSON Patch 与 lodash 方言
+
+当前 MagVarUpdate bundle 的 JSON Patch 路线会把 `<JSONPatch>...</JSONPatch>` 中的合法数组转换为 MVU 命令。支持的项目合同操作包括：
+
+```text
+replace → set
+delta   → add
+insert/add → insert
+remove  → delete
+move    → move
+```
+
+`native_schema` 与 `mvu_zod` 都必须以目标 Loader 的实际版本为准；项目只能选择一种输出方言。若合同选择 `json_patch`，世界书、示例、Regex、fixture 和真实模型输出都必须使用 `<JSONPatch>`，不得混入 `_.set`；若合同选择 `lodash`，则必须输出带分号的 `_.set/_.add/...` 命令。静态出现标签不等于目标 bundle 已经解析，必须把锁定 Loader 和实际版本写入运行合同，并在真实宿主或等价 parser 回放中验收。
+
+JSON Pointer 路径中的 `~0`、`~1` 转义、Record 对象键、Array 的 `-` 追加和 Schema 调和都属于运行时语义；不能只用字符串正则判断“看起来像 JSON Patch”。
+
 ## 更新与持久化时序
 
 生成后处理消息时：

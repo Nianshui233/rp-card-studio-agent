@@ -6,7 +6,7 @@
 - MVU 原生内部 Schema，由 `[initvar]` 与 `$meta` 生成；
 - 一个 Tavern Helper bridge，监听 `prompt_template_prepare`，把最近有效消息的完整 MvuData 深拷贝到 `context.mvu`；
 - ST-Prompt-Template 世界书条目读取 `mvu.stat_data`，并用 `await getwi('核验桥接示例','桥接简报')`；
-- “随 AI 输出”模式使用标准 `<UpdateVariable>` lodash 命令和对应 prompt/display 清理；本样例不声明已适配额外模型解析。
+- “随 AI 输出”模式使用标准 `<UpdateVariable>` lodash 命令；本样例只在 display 通道隐藏技术载荷，不使用 prompt-only 清理；本样例不声明已适配额外模型解析。
 
 导入：
 

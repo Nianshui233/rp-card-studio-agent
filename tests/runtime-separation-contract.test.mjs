@@ -93,3 +93,15 @@ test('API references match the refreshed local core and extension surfaces', () 
   assert.match(host, /1\.19\.0/);
   assert.match(host, /1\.17\.9/);
 });
+
+
+test('Tavern Helper engineering surface is routed separately from message semantics', () => {
+  const routing = read('orchestrator/routing.yaml');
+  const skill = read('internal-skills/st-tavern-helper-engineering/SKILL.md');
+  assert.match(routing, /st-tavern-helper-engineering/);
+  assert.match(skill, /createScriptIdDiv/);
+  assert.match(skill, /createScriptIdIframe/);
+  assert.match(skill, /mountStreamingMessages/);
+  assert.match(skill, /pagehide/);
+  assert.match(skill, /DOMContentLoaded.*唯一入口/);
+});

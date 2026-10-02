@@ -4,7 +4,7 @@
 
 ## 必需组件
 
-- `灰港避难所.json`：V3 角色卡；两个可游玩 Greeting 都有完整 `<initvar>`；嵌入 Regex、CharacterBook 和两项 Tavern Helper 脚本。
+- `灰港避难所.json`：V3 角色卡；两个可游玩 Greeting 都有完整 `<initvar>`；Regex 与 Tavern Helper ScriptFolder 独立交付；世界书独立交付并绑定，角色卡不嵌入 CharacterBook。
 - `灰港避难所世界书.json`：详细变量更新规则、当前状态与路径索引、JSON Patch 输出格式、叙事规则。
 - `运行脚本.folder.json`：唯一锁定 commit 的 MagVarUpdate Loader + 完整 ZOD 注册脚本。
 - `schema.js`：可读 Zod Schema 源；与 ScriptFolder 中 ZOD 内容一致。

@@ -111,6 +111,22 @@ iframe_events.GENERATION_ENDED(text, generation_id)
 
 定时器、MutationObserver、父页 DOM 监听、音频、自建 Promise 和外部库订阅仍由项目在 `pagehide` 清理。
 
+
+## Tavern Helper 源工程表面
+
+与 `tavern_helper_template` 的 `@types` 和 `util` 对照时，必须保留以下边界：
+
+- 消息前端使用 `index.html + index.ts`，HTML 只放静态 body/挂载点；本地脚本和样式由 webpack/TypeScript 导入，不在 HTML 中手写 `<script>`、`<link>` 或空 `src=""`；
+- 后台脚本中的 `$()` 默认作用于父页面；父页面 DOM 挂载使用 `createScriptIdDiv()`，隔离组件使用 `createScriptIdIframe()`，父页/iframe 样式使用 `teleportStyle()` 并在 `pagehide` 销毁；
+- `getCurrentMessageId()` 只属于消息 iframe；脚本 iframe 不能把它当成当前楼层 API；
+- `defineMvuDataStore()` 是模板提供的 Pinia/Zod 响应式适配器，包含轮询、解析和变量同步语义。直接 `Mvu.getMvuData()` 只读一次的 HTML 不能冒充等价的持续状态栏；
+- 真正流式消息使用 `mountStreamingMessages()`/等价的楼层接管路线；流式半块 Regex 只负责显示隐藏，不提供流式前端生命周期；
+- 脚本设置、按钮和父页面组件要分别使用 `appendInexistentScriptButtons`、`getButtonEvent`、`getVariables({type:'script'})`、`teleportStyle` 等接口，不能用消息 iframe 的 API 代替。
+
+## 宏边界
+
+默认只把 `{{user}}`、必要时的 `{{char}}`、已确认的 `{{format_message_variable::stat_data}}` 和 Regex 专用 `{{match}}` 视为允许载体。`{{random::...}}` 不得承担状态或路由逻辑；其他宏必须核对替换时机、作用域、display/prompt 通道和写回行为后再使用。
+
 ## 生成与注入
 
 `generate/generateRaw`：
