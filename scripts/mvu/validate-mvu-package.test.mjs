@@ -223,6 +223,13 @@ test('rejects MVU prompt-only and edit-persistent technical Regex routes', () =>
   assert.match(result.issues.join(' '), /runOnEdit=true/);
 });
 
+test('rejects worldbook inclusion groups by default', () => {
+  const f = fixture();
+  f.worldbook.entries[0].group = 'MVU';
+  const result = validateMvuPackage(f, { mode: 'mvu_zod', initStrategy: 'greeting', dialect: 'json_patch' });
+  assert.match(result.issues.join(' '), /包含组/);
+});
+
 test('rejects ordinary worldbook entries stacked at atDepth zero', () => {
   const f = fixture();
   f.worldbook.entries[4] = { uid: 4, comment: '普通场景·地下室', content: '地下室有一扇锁住的门。', key: [], position: 4, depth: 0, constant: true };

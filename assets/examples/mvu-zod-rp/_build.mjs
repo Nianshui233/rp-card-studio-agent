@@ -54,7 +54,7 @@ const worldEntries = {
   2: externalEntry(2, '[mvu_update]变量输出格式', outputFormat, 9980),
   3: { ...externalEntry(3, '[mvu_plot]叙事与世界规则', '灰港公寓与外界失联。感染者被声音吸引；NPC按自己的目标行动。不要替玩家决定想法、台词或关键动作。每轮以可观察变化收束。', 40), position: 0, depth: 4 },
 };
-for (const uid of [0, 1, 2]) worldEntries[uid].ignoreBudget = true;
+for (const uid of [0, 1, 2]) worldEntries[uid].extensions = { ignore_budget: true };
 const worldbook = { name: '灰港避难所世界书', entries: worldEntries };
 
 const loader = { type: 'script', enabled: false, name: 'MVU变量框架', id: '55555555-0000-4000-8000-000000000001', content: "import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate@0a730cd4a9b99689d1135a49b542c780b977c24c/artifact/bundle.js';\n", info: '唯一 MVU Loader，锁定 commit。', button: { enabled: true, buttons: [] }, data: {}, export_with: { data: true, button: true } };

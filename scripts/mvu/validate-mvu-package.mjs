@@ -207,6 +207,17 @@ function validateMvuRegexBoundaries(regexes, issues) {
   }
 }
 
+function validateWorldbookGroups(entries, issues) {
+  for (const entry of entries) {
+    const group = String(entry?.group ?? entry?.extensions?.group ?? '').trim();
+    const groupOverride = entry?.groupOverride === true || entry?.extensions?.group_override === true;
+    const groupScoring = entry?.useGroupScoring === true || entry?.extensions?.use_group_scoring === true;
+    if (group || groupOverride || groupScoring) {
+      issues.push(`世界书条目“${entry?.comment || '未命名'}”启用了包含组/组评分；默认 RP 制品必须禁用 group、groupOverride 和 useGroupScoring`);
+    }
+  }
+}
+
 function validateWorldbookRouting(entries, issues, mode) {
   for (const entry of entries) {
     const comment = String(entry?.comment ?? entry?.name ?? '');
@@ -246,7 +257,7 @@ function validateMvuBudgetPriority(entries, issues, mode) {
   const ordinary = ordered.filter(entry => !/(?:\[mvu_update\]|变量列表|变量输出格式|变量更新规则|initvar|EJS|mvu_plot)/i.test(String(entry?.comment ?? '')));
   const maxOrdinaryOrder = ordinary.length ? Math.max(...ordinary.map(entry => Number(entry.order))) : -Infinity;
   for (const entry of protocol) {
-    const ignoresBudget = entry.ignoreBudget === true || entry.ignore_budget === true;
+    const ignoresBudget = entry.ignoreBudget === true || entry.ignore_budget === true || entry.extensions?.ignore_budget === true;
     if (!ignoresBudget && Number(entry.order) <= maxOrdinaryOrder) {
       issues.push(`MVU_ZOD 条目“${entry.comment || '未命名'}”的 order=${entry.order} 不高于普通世界/角色/场景最高 order=${maxOrdinaryOrder}；预算截断时可能先丢失变量合同`);
     }
@@ -462,6 +473,7 @@ export function validateMvuPackage(input, options = {}) {
 
   const regex = dedupeRegex([...embeddedRegex(input.card), ...externalRegex(input.regex)]);
   validateMvuRegexBoundaries(regex, issues);
+  validateWorldbookGroups(entries, issues);
   validateWorldbookRouting(entries, issues, mode);
   validateMvuBudgetPriority(entries, issues, mode);
   rejectEmbeddedCharacterBook(input.card, input.worldbook, issues, options.allowEmbeddedCharacterBook === true || input.allowEmbeddedCharacterBook === true);

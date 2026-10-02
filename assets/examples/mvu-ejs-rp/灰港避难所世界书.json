@@ -34,7 +34,9 @@
       "cooldown": 0,
       "delay": 0,
       "displayIndex": 0,
-      "ignoreBudget": true
+      "extensions": {
+        "ignore_budget": true
+      }
     },
     "1": {
       "uid": 1,
@@ -69,7 +71,9 @@
       "cooldown": 0,
       "delay": 0,
       "displayIndex": 1,
-      "ignoreBudget": true
+      "extensions": {
+        "ignore_budget": true
+      }
     },
     "2": {
       "uid": 2,
@@ -104,7 +108,9 @@
       "cooldown": 0,
       "delay": 0,
       "displayIndex": 2,
-      "ignoreBudget": true
+      "extensions": {
+        "ignore_budget": true
+      }
     },
     "3": {
       "uid": 3,

@@ -60,7 +60,7 @@ const worldEntries = {
   6: { ...externalEntry(6, '场景_未知', '当前地点没有独立场景条目；只使用已经激活的基础世界规则，不凭空补写未确认地理细节。', 70), position: 0, depth: 4, constant: false, selective: false, key: [] },
   7: { ...externalEntry(7, '[initvar]变量初始化勿开', initRoutine, 80), position: 0, depth: 4, constant: true, selective: true, disable: true },
 };
-for (const uid of [0, 1, 2]) worldEntries[uid].ignoreBudget = true;
+for (const uid of [0, 1, 2]) worldEntries[uid].extensions = { ignore_budget: true };
 const worldbook = { name: '灰港避难所世界书', entries: worldEntries };
 
 const loader = { type: 'script', enabled: false, name: 'MVU变量框架', id: '55555555-0000-4000-8000-000000000001', content: "import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate@0a730cd4a9b99689d1135a49b542c780b977c24c/artifact/bundle.js';\n", info: '唯一 MVU Loader，锁定 commit。', button: { enabled: true, buttons: [] }, data: {}, export_with: { data: true, button: true } };
