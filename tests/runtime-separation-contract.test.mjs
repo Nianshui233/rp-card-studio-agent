@@ -105,3 +105,13 @@ test('Tavern Helper engineering surface is routed separately from message semant
   assert.match(skill, /pagehide/);
   assert.match(skill, /DOMContentLoaded.*唯一入口/);
 });
+
+
+test('runtime debugging follows the human tutorial evidence order', () => {
+  const runtime = read('internal-skills/st-runtime-debug/SKILL.md');
+  const matrix = read('internal-skills/st-runtime-debug/references/acceptance-matrix.md');
+  for (const token of ['变量管理器', '日志查看器/Console', 'Prompt 查看器', '原始 assistant 回复', '保存与重载']) assert.match(runtime, new RegExp(token));
+  assert.match(runtime, /制作阶段可以暂时关闭提示词模板和酒馆助手宏/);
+  assert.match(matrix, /原始世界书文本/);
+  assert.match(matrix, /宏替换后的最终 Prompt/);
+});

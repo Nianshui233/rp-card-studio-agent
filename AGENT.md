@@ -179,6 +179,8 @@ NSFW 只在首轮确认一次。启用后不再进行边界问卷或运行时门
 - MVU 技术载荷 Regex（`<UpdateVariable>`、`<initvar>`、`<StatusPlaceHolderImpl/>`、当前状态投影）默认只作用于 display，禁止 prompt-only 和 `runOnEdit=true`；非 MVU 的纯文本通知可以在有明确语义保留合同后使用 prompt-only。
 - 世界书路由必须按职责验证：变量状态投影/变量合同通常使用明确的 atDepth/depth 0；普通世界、角色、场景不得无条件全部堆在 atDepth/depth 0；立即事件必须有明确关键词或 sticky/cooldown 语义。
 - MVU_ZOD 包级检查必须传 `--mvu-contract 配置/MVU运行合同.yaml` 与 `--zod-source`；缺 ZOD、规则、路径索引、输出格式或 initvar 覆盖时阻断交付。
+- 变量卡实机排错必须按“变量管理器 → 日志/Console → Prompt 查看器 → 原始 assistant 回复 → 状态栏 → 保存重载”的证据顺序进行；制作阶段可关闭模板/宏查看原始文本，测试阶段再开启并核对替换后的 Prompt，不能把两个阶段混为一谈。
+- 允许中途新增 Record 实体时，优先为对象字段提供 `prefault`/“待初始化”容错，并在更新规则中要求后续补齐；不得因为模型漏字段就让整批新实体静默失败。
 
 ## 宏使用边界
 

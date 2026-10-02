@@ -42,6 +42,33 @@ source_checked → static_pass → browser_pass → runtime_pass → human_accep
 6. 检查编辑、Swipe、重载、聊天切换、重复挂载和监听清理；
 7. 检查窄屏、长中文、空态、错误态和失败回退。
 
+## 教程式故障定位顺序
+
+遇到“变量没更新、Prompt 看不到变量、状态栏不变”时，不先猜用户操作，也不先重写 Regex。按真实证据顺序检查：
+
+```text
+1. 变量管理器：消息楼层是否存在完整 stat_data/schema
+2. 日志查看器/Console：Loader、ZOD 注册、初始化、更新解析是否报错
+3. Prompt 查看器：变量列表、更新规则、输出格式、当前状态投影是否真的进入后端请求
+4. 原始 assistant 回复：是否有完整 UpdateVariable/JSONPatch，是否错误使用 Patch/只输出占位符
+5. 状态栏：变量已更新但 UI 是否只是没有重读、没有重建或 Swipe 错位
+6. 保存与重载：同一 message_id/Swipe 是否能读回，是否只是内存写入成功
+```
+
+制作阶段可以暂时关闭提示词模板和酒馆助手宏，以查看原始世界书/卡内文本；实机测试阶段再开启它们，检查宏替换后的最终 Prompt。两种观察结果必须分开记录，不能把“原始文本中有宏”误判成“模型已经收到替换值”。关闭/开启开关本身也不是运行证据。
+
+常见错误归因：
+
+- 没有 `stat_data`：先查 Loader、启用世界书和 `[initvar]`/Greeting 初态；
+- 没有 ZOD 注册成功：查 ScriptFolder 顺序、远程 provider、宿主 Ready 和重复 Loader；
+- 初始化失败：查 YAML 顶层、Schema 顶层、类型、enum、`stat_data` 外层和缺失默认值；
+- 有 `UpdateVariable` 但无变量变化：查 JSONPatch/lodash 方言、路径、Schema 调和和真实 Loader 解析；
+- 回复没有 `UpdateVariable`：先检查后端 Prompt 是否包含输出合同和当前状态，再检查模型/预设注意力；
+- 变量管理器已更新但状态栏不变：查 message_id、Swipe、消息重渲染、前端轮询/事件和 `pagehide`；
+- 上轮变化本轮重复：查状态投影是否进入 Prompt、是否有玩家前端操作日志、是否有多个 producer 写同一字段。
+
+每个结论都要指出直接证据和不能证明的部分；不能用“看起来像正常”替代变量管理器、Prompt 查看器或原始回复证据。
+
 ## 故障归因
 
 按第一因果错误返回 `handoff`：导入/绑定 → integration，API/版本 → st-api-reference 或 st-host-capabilities，状态/变量 → mvu；动态模板 → ejs；MVU 与 EJS 数据交换 → runtime_bridge；正则/标记 → st-render-regex，开场/创角页面与提交 → st-opening-frontend-authoring，持续消息 UI 源码与生命周期 → st-message-frontend-authoring。
