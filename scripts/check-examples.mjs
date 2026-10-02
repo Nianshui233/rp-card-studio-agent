@@ -78,6 +78,7 @@ for (const [relative, args] of [
   ['tests/interview-contract.test.mjs', ['--test', 'tests/interview-contract.test.mjs']],
   ['tests/state-impact-contract.test.mjs', ['--test', 'tests/state-impact-contract.test.mjs']],
   ['tests/runtime-separation-contract.test.mjs', ['--test', 'tests/runtime-separation-contract.test.mjs']],
+  ['tests/player-neutrality-capability-contract.test.mjs', ['--test', 'tests/player-neutrality-capability-contract.test.mjs']],
   ['tests/mvu-zod-contract.test.mjs', ['--test', 'tests/mvu-zod-contract.test.mjs']],
   ['tests/lossless-authoring-contract.test.mjs', ['--test', 'tests/lossless-authoring-contract.test.mjs']],
   ['tests/project-structure-contract.test.mjs', ['--test', 'tests/project-structure-contract.test.mjs']],

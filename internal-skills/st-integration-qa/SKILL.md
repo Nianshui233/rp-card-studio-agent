@@ -1,52 +1,86 @@
 ---
 name: st-integration-qa
-description: "Private final QA and delivery module for cross-stage RP consistency, actual SillyTavern file checks, concrete repairs, used-component packaging, import order, and runtime evidence."
+description: "Private final QA and delivery module for cross-stage RP consistency, player-neutral main-control isolation, experience-led message frontend families, actual SillyTavern checks, and runtime evidence."
 ---
 
 # SillyTavern Final QA and Delivery
 
-只接受主 Agent 调度。不要读取项目账本、Forge 文档、Schema、装配清单或构建状态。按实际组件选择性读取：
+只接受主 Agent 调度。不要读取项目账本、Forge 文档、装配清单或构建状态。按实际组件选择性读取：
 
-- 常规最终检查：`references/validation.md`
-- SillyTavern 导入与宿主验收：`references/integration.md`
+- 常规最终检查：`references/validation.md`；
+- SillyTavern 导入与宿主验收：`references/integration.md`。
 
 ## 职责
 
-- 直接检查用户工作目录中的完整 canonical 世界/角色/系统/场景 YAML、最终角色卡、独立世界书、正则、Tavern Helper 脚本、MVU 文件、EJS 文件、可选 bridge 和完整 HTML；存在角色卡组合时优先运行 `scripts/validate-rolecard-package.mjs`，再按实际 provider 做宿主验收。
-- 对实际存在的世界、角色、系统、场景、叙事、开场、变量初态和玩家反馈执行一次跨阶段创作一致性检查。
-- 修复确定的语法错误、字段错位、路径断链、ID 冲突、标记生产者/消费者不一致、变量路径错误和不改变创作方向的明确事实矛盾。
-- 不擅自重写已确认的 RP 方向；需要改变承重设定时返回对应创作阶段校准。不创建通用中间格式，不生成源码清单或构建事务。
-- 将最终文件直接整理到一个交付目录，只包含项目实际使用的组件。
-- 为旧卡保留原始输入副本，但不把原始副本列为运行导入组件。
-- 未做真实 SillyTavern 测试时在最终报告中明确写 `runtime: not_run`；静态检查、合同模拟、SillyTavern 源码 CardValidator 或 Regex placement 对照都不能升级为 `runtime_pass`。
+- 直接检查用户工作目录中的完整 canonical 世界/角色/系统/场景 YAML、最终角色卡、独立世界书、正则、Tavern Helper 脚本、MVU/mvu.zod 文件、EJS 文件、可选 bridge 和完整 HTML；存在角色卡组合时优先运行 `scripts/validate-rolecard-package.mjs`，再按实际 provider 做宿主验收；
+- 对实际存在的世界、角色、系统、场景、叙事、开场、主控入口、变量初态和玩家反馈执行跨阶段一致性检查；
+- 修复确定的语法错误、字段错位、路径断链、ID 冲突、标记生产者/消费者不一致、变量路径错误和不改变创作方向的明确事实矛盾；
+- 检查世界核心、用户主控资料、固定主控预设和当前活动主控是否分层；
+- 检查开场和消息前端是否从作品体验与真实玩法出发，而不是退化成通用表单或变量 Dashboard；
+- 将最终文件直接整理到交付目录，只包含项目实际使用的组件；
+- 未做真实 SillyTavern 测试时在最终报告中明确写 `runtime: not_run`；静态检查、合同模拟、SillyTavern 源码 CardValidator 或 Regex placement 对照都不能升级为 `runtime_pass`；
 - QA 过程不生成独立检查清单、通过项账本、问题日志、修复日志或运行记录；只修改真实制品，并在对话和最终交付说明中汇总结论。
 
 ## 验收沟通
 
-需要用户确认取舍时遵循 `orchestrator/interview-playbook.md`：说明发现的问题，给出推荐修复或降级方案，解释原因，并明确会影响的导入步骤、运行功能或已确认内容。不要只问“怎么处理”，也不要把语法、字段或 API 选择推给用户。
+需要用户确认取舍时，说明发现的问题，给出推荐修复或降级方案，解释会影响什么。不要把正则字段、API、Schema、载体或文件拆分推给小白，也不要在用户已经明确选择 MVU、mvu.zod、EJS 或交互能力后擅自关闭。
 
-优先用真实使用路径提问，例如“我建议把‘导入角色卡 → 启用 scoped regex → 新建聊天 → 点击状态按钮’作为关键验收路径，因为它覆盖本项目唯一写入动作；若不做实机测试，这部分只能标记 `runtime: not_run`。是否按此验收？”低风险且不改变创作意图的确定性修复直接执行并报告。
+技术能力采用独立确认：
 
-## 最终检查
+- MVU：跨消息持久状态；
+- mvu.zod：变量结构、类型、范围和归一化校验；
+- EJS：动态 Prompt/世界书/页面模板；
+- 酒馆助手交互：用户点击后的行动、查看或经授权的资料维护。
+
+每项都核对“用户选择 → 实际文件/运行合同 → 宿主行为”，不能以“为了稳定”作为无证据的静默降级理由。若确有宿主限制，清楚说明保留能力的实现路线和降级路线，不伪装两者等价。
+
+## 世界核心与主控隔离检查
+
+除非用户明确选择固定主角路线，默认必须通过以下检查：
+
+- 没有任何 `<user>`/主控资料时，世界、NPC、势力、场景和无人介入事件仍能运行；
+- 世界核心不包含外部主控的姓名、身份、过去、固定关系或默认行为；
+- NPC 与固定角色/势力的关系可以存在，但 NPC 与外部主控的朋友、恋人、仇人、旧识关系不能被静默写死；
+- 用户自定义主控资料属于用户维护/导入范围，不成为世界书核心事实；
+- 固定主控预设单独存放，可关闭、替换或改用自定义主控；
+- 以两个反例测试关系归属：主控 A 是某 NPC 的朋友，主控 B 是仇人；关闭 A、启用 B 后，NPC 基础条目和世界规则不被改写；
+- 多份主控没有当前活动标记时，系统显示未选择而不是合并或猜测；
+- 当前活动主控切换后，个人物品、知识、关系和状态不污染其他主控；
+- 状态栏没有主控时仍能显示世界状态，不编造“默认玩家”。
+
+## 前端体验与家族检查
+
+按项目实际使用的页面检查：
+
+- 开场第一条开场白是否只有纯净 `<opening_remarks>`（或约定 marker），并由实际正则替换成完整开场页；
+- 开场页是否先体现作品入口体验，而不是默认套用项目说明、路线卡、表单、预览、复制的通用流程；
+- 是否清楚区分开放世界、固定主控预设和自定义主控；资料交接是否走用户自己维护/导入，不直接发聊天；
+- 持续前端是否按需形成状态、选项、检定、情报、日志、地图、物品等家族，还是无理由堆成一个万能面板；
+- 每个表面是否有真实用途、作品内媒介、输入协议、输出结果和失败回退；
+- 前端是否把变量转译成玩家需要理解和执行的内容，而不是把所有 YAML 路径原样展示；
+- 前端交互是否产生真实的下一轮行动、明确写入或本地查看结果，且不创建第二套状态树；
+- 没有活动主控时，空态明确且不伪造资料；切换主控、编辑、Swipe、重载和切聊后数据是否重新读取；
+- 交互页面是否按实际组件满足键盘、焦点、ARIA、触控、长列表、性能、主题和调试降级。
+
+## 运行合同与宿主检查
 
 按实际存在的组件检查：
 
 - JSON/YAML/JavaScript/EJS/HTML/正则语法；
-- 世界规则、人物能力与知识、系统代价、场景资源/权限、开场事实和变量初态是否互相一致；
-- 角色的价值/恐惧/底线是否有行为与压力反应证明，关键台词是否符合语言规则；
+- 世界规则、人物能力与知识、系统代价、场景资源/权限、开场事实、主控边界和变量初态是否一致；
 - 角色卡和独立世界书名称、绑定目标、CharacterBook 内容；
-- canonical YAML 是否完整保留，世界书创作条目是否为连续原文切片；不得用摘要、改写或删细节替代调度；
-- MVU mode、初始化策略、唯一 Loader、初值、数值楼层、事件/持久化时序、更新协议、完整/流式隐藏规则和 UI 路径；`mvu_zod` 还必须检查 ZOD 注册脚本、逐字段规则、当前状态/路径索引和输出方言；
-- EJS 模板、按名调用条目、执行阶段和 raw-message/sandbox/autosave 默认态；若存在 MVU→EJS bridge，明确区分 `shared_message_variables` 与 `explicit_context`，单独检查方向、快照选择、只读边界和失败回退；
-- 正则 placement/depth、prompt/display 分工、标记与 HTML 配对；
-- Tavern Helper Script/ScriptFolder JSON 结构、内容、ID、依赖、重复注册和必要卸载；直接调用 `Mvu.replaceMvuData`/`updateVariablesWith` 的脚本必须在 MVU 运行合同中声明，使用明确数值楼层、保存并同面读回；`.js` 不能冒充导入文件；
-- 开场/创角 HTML 是否完成空白输入、主动选择、预览、剪贴板与手动复制回退、真实静态 Greeting 指引，并严格避免世界书写入、自动切 Swipe、MVU 直写和自动发送；玩家亲手发送后再检查 user→AI→首轮登记状态链；
-- 持续消息 HTML 是否自包含、有真实动态载体、按 provider 取得当前楼层/Swipe、处理持久化后刷新与清理并有空态/失败回退；非 MVU 页面还检查 producer/版本/Schema/parser/fixture 与静态捕获安全边界；
-- 交互页面是否按实际组件满足键盘、焦点、ARIA、触控、长列表、性能、主题和调试降级；
-- 两种前端同时存在时，是否分别交付独立 HTML、使用同一运行合同，并避免重复初始化和第二套状态树；
+- canonical YAML 是否完整保留，世界书创作条目是否为连续原文切片，不得用摘要/改写/删细节替代调度；
+- MVU mode、初始化策略、唯一 Loader、初值、数值楼层、事件/持久化时序、更新协议、完整/流式隐藏规则和 UI 路径；
+- mvu.zod 注册脚本、逐字段类型/范围规则、当前状态/路径索引、归一化、错误回退和输出方言；
+- EJS 模板、按名调用条目、执行阶段、作用域和 raw-message/sandbox/autosave 默认态；若存在 MVU→EJS bridge，明确方向、快照选择、只读边界和失败回退；
+- 正则 placement/depth、prompt/display 分工、纯净开场 marker、消息表面 marker 与 HTML 配对；
+- Tavern Helper Script/ScriptFolder JSON 结构、内容、ID、依赖、重复注册、卸载和资料维护权限；直接调用 `Mvu.replaceMvuData`/`updateVariablesWith` 的脚本必须在 MVU 合同中声明，使用明确数值楼层、保存并同面读回；`.js` 不能冒充导入文件；
+- 开场/创角 HTML 是否支持空白、主动选择、预览、剪贴板与手动复制回退、真实静态 Greeting 指引、用户自己维护/导入主控资料，并严格避免世界书静默写入、自动切 Swipe、MVU 直写和自动发送；
+- 持续消息 HTML 是否自包含、有真实动态载体、按 provider 取得当前楼层/Swipe、处理持久化后刷新与清理并有空态/无主控/失败回退；非 MVU 页面还检查 producer/版本/Schema/parser/fixture 与静态捕获安全边界；
+- 用户选中的 MVU、mvu.zod、EJS 和交互能力是否全部有实际实现；未实现、阻断或仅静态降级必须明确报告；
 - 交付文件是否残留绝对路径、`src/...`、`source_refs` 或需要用户拼接的本地 CSS/JS。
 
-无法导入、无法运行、数据丢失、明确运行断链或会让核心 RP 合同自相矛盾的问题阻断交付。没有真实宿主证据时，阻断的是“已验收/可直接导入”的声明；可以交付静态检查通过的草稿，但必须显式标注未验收路径与版本边界。纯风格偏好、可选扩写、非承重字段数量和性能建议只作为非阻断说明。创作检查不要求模板字段填满，也不把“还能继续写”当作失败。
+无法导入、无法运行、数据丢失、明确运行断链或会让核心 RP 合同自相矛盾的问题阻断交付。没有真实宿主证据时，阻断的是“已验收/可直接导入”的声明；可以交付静态检查通过的草稿，但必须显式标注未验收路径与版本边界。纯风格偏好、可选扩写、非承重字段数量和性能建议只作为非阻断说明。
 
 ## 交付
 
@@ -54,7 +88,10 @@ description: "Private final QA and delivery module for cross-stage RP consistenc
 
 1. 项目包绝对路径；
 2. 实际组件和导入顺序；
-3. 每个 marker、正则、完整 HTML 与实际 provider/载体的配对；
-4. 已通过的文件检查和真实宿主检查；
-5. `runtime: not_run` 项；
-6. 远程/宿主依赖与已知限制。
+3. 真实的主控维护/导入路线（手动或明确启用的独立助手）；
+4. 每个 marker、正则、完整 HTML 与实际 provider/载体的配对；
+5. 前端家族中实际启用的表面及其用途；
+6. 用户选择的 MVU、mvu.zod、EJS、bridge 和交互能力的实现/限制；
+7. 已通过的文件检查和真实宿主检查；
+8. `runtime: not_run` 项；
+9. 远程/宿主依赖与已知限制。

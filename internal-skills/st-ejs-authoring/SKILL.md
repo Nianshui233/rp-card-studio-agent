@@ -25,6 +25,18 @@ description: "Private module for ST-Prompt-Template EJS authoring: template exec
 
 仅需要跨消息状态、数值、任务进度或状态栏数据时，不启用本 Skill；那属于 `st-mvu-authoring`。
 
+## 用户可见的能力选择合同
+
+EJS 是否启用必须与 MVU 分开询问。先用功能语言说明，再标注技术名：
+
+```text
+根据当前时间、地点、任务、关系或其他状态动态改变提示词、世界书或页面内容（EJS）
+```
+
+用户明确选择 EJS 后，必须制作真实的 EJS 模板、执行阶段、作用域、输出去向、失败回退和宿主设置；不得因为模板复杂、担心运行风险或想缩短交付而静默改成静态文本。用户没有提到 EJS 时保持 `unresolved`，不能自动当作 disabled；只有用户明确说不要动态模板，或项目事实证明完全不需要，才能关闭。
+
+EJS 的启用不表示 MVU 自动启用，也不表示 EJS 可以写入玩家档案、主控关系或 MVU 状态。若 EJS 确实需要读取 MVU，必须显式进入 `st-mvu-ejs-bridge`，并保留 MVU 的唯一状态权威。
+
 ## 输出
 
 - `.ejs` 或世界书内 EJS 模板；

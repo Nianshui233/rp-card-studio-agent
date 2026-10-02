@@ -6,6 +6,16 @@ description: "Private module for Tavern Helper source projects: message/front-en
 
 这是 Tavern Helper 的工程层支援模块，不替代 MVU、EJS、世界书或正则语义合同。需要制作、审查或修复 Tavern Helper 前端/脚本源项目时启用。
 
+## 用户可见的能力选择合同
+
+是否需要酒馆助手前端/交互也是可以明确选择的能力，不得因为实现复杂而默默退回纯静态 HTML。先用功能语言询问：
+
+```text
+是否需要玩家点击界面查看详情、选择行动、修改允许的状态或使用商城/任务/地图等功能（Tavern Helper 交互）？
+```
+
+用户选择“需要”后，必须明确 producer、宿主表面、写入权限、保存/读回和失败回退；若只能提供静态显示，必须报告具体缺失能力，不能把静态页面冒充为可交互前端。交互权限不等于玩家身份授权：Tavern Helper 不得因此创建默认主控、覆盖 `<user>` 模板或固定 NPC 对外部主控的关系。
+
 ## 先确定运行表面
 
 Tavern Helper 至少有三种不同表面，不能混写：

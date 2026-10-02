@@ -2,13 +2,13 @@
   "schema_version": 1,
   "purpose": "Triggered decision coverage, not a questionnaire. Resolve from explicit material first; ask only when an unresolved decision changes the player-facing result.",
   "preflight_runtime_capabilities": {
-    "display_rule": "When stage or capability choices are shown, MVU and EJS must both appear as independent multi-select options unless one is already source-resolved. Never show only MVU.",
+    "display_rule": "首轮能力选择必须同时展示 MVU、MVU_ZOD、EJS，以及需要交互时的 Tavern Helper；它们是独立可多选项。先用功能语言说明，再附技术名称。不能只显示 MVU，也不能由执行 Agent 以安全、复杂或省事为由静默关闭已选择能力。",
     "states": [
       "enabled",
       "disabled",
       "unresolved"
     ],
-    "partial_answer_rule": "Selecting or answering one capability changes only that capability. Silence about EJS never means EJS is disabled, and silence about MVU never means MVU is disabled.",
+    "partial_answer_rule": "选择一项只改变该项；沉默不等于 disabled。用户明确选择的能力具有约束力；未明确选择的能力保持 unresolved，Agent 可给出推荐但不能偷偷关闭。 Silence about EJS never means EJS is disabled; silence about MVU never means MVU is disabled.",
     "options": {
       "mvu": {
         "player_label": "跨消息持久状态（MVU）",
@@ -26,6 +26,19 @@
         "player_label": "MVU→EJS 数据桥接",
         "ask_when": "Only after MVU and EJS are both enabled and a real EJS dependency on MVU data exists.",
         "default": "not_applicable"
+      },
+      "mvu_zod": {
+        "player_label": "变量结构校验与纠错（MVU_ZOD）",
+        "player_question": "是否需要检查变量的类型、范围、枚举和缺失字段，减少 AI 把数字、对象或列表写错？",
+        "enable_when": "MVU state is nested, multi-entity, UI-writable, schema-sensitive, or the user explicitly requests MVU_ZOD.",
+        "requires": "mvu",
+        "does_not_imply": "EJS"
+      },
+      "tavern_helper": {
+        "player_label": "可交互消息界面/酒馆助手（Tavern Helper）",
+        "player_question": "是否需要玩家点击界面查看详情、选择行动、修改允许的状态或使用商城/任务/地图等功能？",
+        "enable_when": "The requested experience needs interactive message UI, host actions, MVU-backed controls, or Tavern Helper APIs.",
+        "does_not_imply": "MVU or EJS"
       }
     }
   },
@@ -230,11 +243,25 @@
       "owner_skill": "st-mvu-authoring",
       "decisions": [
         {
+          "id": "mvu-mode-explicit",
+          "trigger": "The project may need cross-message state and the user has not explicitly selected or rejected MVU.",
+          "player_language": "是否要让时间、地点、物品、任务和关系在下一轮对话中继续保留并变化（MVU）？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "The user explicitly enabled/disabled MVU or the existing package already proves the choice."
+        },
+        {
+          "id": "mvu-zod-mode",
+          "trigger": "MVU is enabled and the user has not explicitly selected or rejected structure validation.",
+          "player_language": "是否要额外检查变量类型、范围、枚举和缺失字段，减少 AI 更新错误（MVU_ZOD）？我会根据角色数量、物品/关系结构和前端写入需求给出推荐。",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "MVU is disabled, or the user/package explicitly declares mvu_zod or native_schema."
+        },
+        {
           "id": "mvu-mode",
-          "trigger": "Persistent state is enabled and the implementation route has not been resolved from the state complexity or existing materials.",
+          "trigger": "Persistent state is enabled and the user has not explicitly selected or rejected the MVU implementation route, while the state complexity or existing materials may affect the recommendation.",
           "player_language": "这些需要记住的状态是否包含大量动态角色/物品、严格范围与枚举、自动类型校正，或多个开场初态？",
-          "policy": "resolve_from_material",
-          "skip_when": "The project already declares native_schema or mvu_zod."
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "The user explicitly enabled/disabled MVU or the project already declares native_schema/mvu_zod."
         },
         {
           "id": "state-ownership",
@@ -269,6 +296,13 @@
     "ejs": {
       "owner_skill": "st-ejs-authoring",
       "decisions": [
+        {
+          "id": "ejs-mode-explicit",
+          "trigger": "The project may need dynamic prompts, worldbook templates, or conditional rendering and the user has not explicitly selected or rejected EJS.",
+          "player_language": "是否需要让提示词、世界书内容或页面根据当前情境自动变化（EJS）？它和 MVU 是两项独立能力。",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "The user explicitly enabled/disabled EJS or the source proves no dynamic template is needed."
+        },
         {
           "id": "dynamic-template-purpose",
           "trigger": "Context-dependent prompt, worldbook, render, or iframe content may be needed and the desired player-facing result is not explicit.",
@@ -381,6 +415,13 @@
           "player_language": "这项创角资料只是本次开局草稿，还是要成为后续会记住/影响剧情的玩家资料？玩家会怎样理解它？",
           "policy": "ask_or_explicitly_delegate",
           "skip_when": "The field is already covered by a confirmed profile/state path, or is explicitly temporary and discarded after opening."
+        },
+        {
+          "id": "host-interaction",
+          "trigger": "The frontend may need to perform a host action beyond local display and the user has not chosen whether the page should be interactive.",
+          "player_language": "玩家是否需要点击界面查看详情、选择行动、修改允许的状态或使用商城/任务/地图等功能？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "The page is explicitly read-only, or the user has already selected/declined Tavern Helper interaction."
         }
       ],
       "personalization_gate": {
@@ -433,6 +474,13 @@
           "player_language": "这个内容只是展示已有信息、可以从已有状态推导，还是会影响后续叙事/行动、需要被记住？如果需要记住，它的初值和变化规则应怎样理解？",
           "policy": "ask_or_explicitly_delegate",
           "skip_when": "The item is already provided by an existing state path, an explicit derivation rule, or the UI is read-only and no persistent meaning is implied."
+        },
+        {
+          "id": "host-interaction",
+          "trigger": "The frontend may need to perform a host action beyond local display and the user has not chosen whether the page should be interactive.",
+          "player_language": "玩家是否需要点击界面查看详情、选择行动、修改允许的状态或使用商城/任务/地图等功能？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "The page is explicitly read-only, or the user has already selected/declined Tavern Helper interaction."
         }
       ],
       "personalization_gate": {
@@ -457,16 +505,16 @@
     "opening_frontend_new_player_persistent_state": "mvu",
     "open_only_when_semantics_are_clear": true,
     "return_scope": "Reopen only the affected owning decision(s), then resume the interrupted frontend stage; do not restart unrelated completed stages.",
-    "opening_frontend_new_persistent_player_profile": [
-      "rp-project-foundation",
-      "mvu"
-    ],
     "message_frontend_new_dynamic_template": "ejs",
     "opening_frontend_new_dynamic_template": "ejs",
     "ejs_needs_mvu_state": [
       "mvu",
       "ejs",
       "runtime_bridge"
+    ],
+    "opening_frontend_new_external_controller_profile": [
+      "rp-project-foundation",
+      "mvu"
     ]
   }
 }

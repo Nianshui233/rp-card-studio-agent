@@ -9,6 +9,12 @@ description: "Private integration module used only when both MagVarUpdate and ST
 
 读取 `references/bridge.md`。
 
+## 能力选择与不可静默降级
+
+bridge 不是把 MVU 和 EJS 合并成一套系统，也不是执行 Agent 为了省事可以隐藏掉的可选捷径。只有用户分别选择 MVU、EJS，且实际体验需要 EJS 读取 MVU 时，才启用；一旦判定确实需要，必须在运行合同和交付说明中明确写出桥接类型、方向、快照和失败回退。不能因为 bridge 有实现成本就把 EJS 改成静态模板，或让 EJS 偷读顶层 `stat_data`。
+
+如果用户选择了 MVU 和 EJS，但当前功能不需要交换数据，应明确报告“已分别启用，当前无 bridge”；如果需要交换数据，应明确报告“已启用只读 bridge”。bridge 也不获得定义玩家身份、选择单一主控或写死 NPC 外部关系的权限。
+
 ## 默认合同
 
 MVU→EJS 有两种合法的只读桥，必须在配置中明确选择，不能把二者混称：
