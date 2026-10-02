@@ -9,12 +9,12 @@
 ```text
 initialized_lorebooks: Record<string, any[]>
 stat_data: StatData
-schema: ObjectSchemaNode
+schema: ObjectSchemaNode | "没有用别管这个"
 ```
 
 可选：`display_data`、`delta_data`（当前源码已标注 deprecated，只作变化展示，不作为新 UI 真值）。`stat_data.$internal` 是更新过程中的临时引用，更新结束被清除。
 
-有效性判定要求 `stat_data` 与 `schema` 同时存在。桥接脚本寻找“最近有效 MVU 快照”时按这两个键判定，不能只查 `stat_data`。
+有效性判定要求 `stat_data` 与 `schema` 同时存在，但 `schema` 的运行时形状取决于路线：native_schema 通常是对象；当前 MVU_ZOD bundle 可能把旧 schema 元数据保留为字符串标记 `"没有用别管这个"`。桥接脚本寻找“最近有效 MVU 快照”时必须接受这两种已核对形状，不能把 ZOD 标记字符串误判成缺少快照，也不能只查 `stat_data`。
 
 `stat_data` 值支持 `ValueWithDescription`：`[值, "原因"]` 二元组，更新写第一个元素、保留第二个；display/delta 记录 `"旧->新 (原因)"`。
 

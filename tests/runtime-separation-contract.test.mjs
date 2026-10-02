@@ -115,3 +115,14 @@ test('runtime debugging follows the human tutorial evidence order', () => {
   assert.match(matrix, /原始世界书文本/);
   assert.match(matrix, /宏替换后的最终 Prompt/);
 });
+
+
+test('MVU_ZOD bridge accepts the current schema marker shape', () => {
+  const runtime = read('internal-skills/st-mvu-authoring/references/mvu-runtime.md');
+  const bridge = read('internal-skills/st-mvu-ejs-bridge/references/bridge.md');
+  const agent = read('AGENT.md');
+  assert.match(runtime, /schema: ObjectSchemaNode \| "没有用别管这个"/);
+  assert.match(runtime, /不能把 ZOD 标记字符串误判成缺少快照/);
+  assert.match(bridge, /没有用别管这个/);
+  assert.match(agent, /schema: "没有用别管这个"/);
+});

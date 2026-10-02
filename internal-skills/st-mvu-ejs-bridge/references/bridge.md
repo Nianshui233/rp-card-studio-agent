@@ -42,7 +42,7 @@ Tavern Helper/宿主桥监听 prompt_template_prepare(context)
 - MVU 是唯一状态权威；
 - EJS 不调用 `Mvu.replaceMvuData`；
 - 不把 EJS 变量保存回同一状态树；
-- 找不到完整快照时传 `null`/明确空态，不伪造默认状态；
+- 找不到完整快照时传 `null`/明确空态，不伪造默认状态； `schema` 在 native_schema 中通常是对象，当前 MVU_ZOD bundle 也可能使用字符串标记 `没有用别管这个`，不能因其不是对象就误判快照缺失；
 - 显式桥监听器在脚本卸载时 stop/remove；
 - 记录实际消息选择策略、Swipe 隔离、编辑/重载行为和失败回退。
 
