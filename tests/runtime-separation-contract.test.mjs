@@ -126,3 +126,12 @@ test('MVU_ZOD bridge accepts the current schema marker shape', () => {
   assert.match(bridge, /没有用别管这个/);
   assert.match(agent, /schema: "没有用别管这个"/);
 });
+
+
+test('worldbook docs distinguish activation from budget priority', () => {
+  const ref = read('internal-skills/st-worldbook-regex/references/regex-and-rendering.md');
+  const agent = read('AGENT.md');
+  assert.match(ref, /Order 是高值优先/);
+  assert.match(ref, /constant=true.*预算/);
+  assert.match(agent, /constant=true` 不等于绕过预算/);
+});

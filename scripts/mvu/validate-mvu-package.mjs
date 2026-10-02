@@ -238,6 +238,21 @@ function validateWorldbookRouting(entries, issues, mode) {
   }
 }
 
+function validateMvuBudgetPriority(entries, issues, mode) {
+  if (mode !== 'mvu_zod') return;
+  const ordered = entries.filter(entry => Number.isFinite(Number(entry?.order)));
+  if (!ordered.length) return;
+  const protocol = ordered.filter(entry => /(?:\[mvu_update\]|变量列表|变量输出格式|变量更新规则)/i.test(String(entry?.comment ?? '')));
+  const ordinary = ordered.filter(entry => !/(?:\[mvu_update\]|变量列表|变量输出格式|变量更新规则|initvar|EJS|mvu_plot)/i.test(String(entry?.comment ?? '')));
+  const maxOrdinaryOrder = ordinary.length ? Math.max(...ordinary.map(entry => Number(entry.order))) : -Infinity;
+  for (const entry of protocol) {
+    const ignoresBudget = entry.ignoreBudget === true || entry.ignore_budget === true;
+    if (!ignoresBudget && Number(entry.order) <= maxOrdinaryOrder) {
+      issues.push(`MVU_ZOD 条目“${entry.comment || '未命名'}”的 order=${entry.order} 不高于普通世界/角色/场景最高 order=${maxOrdinaryOrder}；预算截断时可能先丢失变量合同`);
+    }
+  }
+}
+
 function rejectEmbeddedCharacterBook(card, worldbook, issues, allowEmbeddedCharacterBook = false) {
   const embedded = cardData(card)?.character_book?.entries;
   if (!allowEmbeddedCharacterBook && Array.isArray(embedded) && embedded.length > 0 && listEntries(worldbook).length > 0) {
@@ -448,6 +463,7 @@ export function validateMvuPackage(input, options = {}) {
   const regex = dedupeRegex([...embeddedRegex(input.card), ...externalRegex(input.regex)]);
   validateMvuRegexBoundaries(regex, issues);
   validateWorldbookRouting(entries, issues, mode);
+  validateMvuBudgetPriority(entries, issues, mode);
   rejectEmbeddedCharacterBook(input.card, input.worldbook, issues, options.allowEmbeddedCharacterBook === true || input.allowEmbeddedCharacterBook === true);
   const findTexts = regex.map(rule => `${String(rule.findRegex || rule.find_regex || '')}\n${String(rule.replaceString || rule.replace_string || '')}`).join('\n');
   if (!/<\s*\(?update(?:variable)?/i.test(findTexts)) issues.push('Regex 缺少 <UpdateVariable> 的 display/prompt 清理消费者');

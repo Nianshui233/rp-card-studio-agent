@@ -155,3 +155,15 @@ SillyTavern 编辑保存时会以 `isEdit:true` 运行允许的正则，再把�
 - 不应命中的相似文本。
 
 离线测试只能证明 JavaScript 替换语义。Markdown、DOMPurify、allowlist、真实 iframe 和生命周期必须在 SillyTavern 验证。
+
+
+## 当前宿主的世界书预算与 Order 优先级：Order 是高值优先
+
+SillyTavern 当前扫描会按条目 `order` 从高到低参与概率/预算处理；世界书预算达到上限后，后续普通条目可能不再进入 Prompt。大型卡必须把模型运行合同和当前状态投影视为承重条目：
+
+- 变量更新规则、变量列表、变量输出格式和必要的格式强调使用高于普通世界/角色/场景的 `order`；
+- 需要跨预算保留时显式使用宿主支持的 `ignoreBudget`，但仍要确认总上下文不会超限；
+- 不能只看到世界书已绑定就断言变量合同已进入 Prompt；必须在 Prompt 查看器中逐条搜索；
+- `constant=true` 只表示进入激活候选，不绕过预算截断。
+
+当 Prompt 里只剩短的格式强调、而详细规则/变量列表消失时，优先检查世界书 Order、预算和当前上下文长度，不要先归因于 Regex 或用户操作。

@@ -51,15 +51,16 @@ function externalEntry(uid, comment, content, order) {
 }
 
 const worldEntries = {
-  0: externalEntry(0, '[mvu_update]变量更新规则', updateRules, 10),
-  1: externalEntry(1, '变量列表', variableIndex, 20),
-  2: externalEntry(2, '[mvu_update]变量输出格式', outputFormat, 30),
+  0: externalEntry(0, '[mvu_update]变量更新规则', updateRules, 10000),
+  1: externalEntry(1, '变量列表', variableIndex, 9990),
+  2: externalEntry(2, '[mvu_update]变量输出格式', outputFormat, 9980),
   3: { ...externalEntry(3, '[mvu_plot]叙事与世界规则', '灰港公寓与外界失联。感染者被声音吸引；NPC按自己的目标行动。不要替玩家决定想法、台词或关键动作。每轮以可观察变化收束。', 40), position: 0, depth: 4 },
   4: { ...externalEntry(4, '动态内容总控', dynamicContent, 50), position: 0, depth: 4, constant: true, selective: true, disable: false },
   5: { ...externalEntry(5, '场景_灰港公寓一层大厅', '场景动态补充：灰港公寓一层大厅的消防门通往封闭楼梯间；外侧大厅仍受雾气和停电影响。这里的设定只在当前地点变量匹配时注入。', 60), position: 0, depth: 4, constant: false, selective: false, key: [] },
   6: { ...externalEntry(6, '场景_未知', '当前地点没有独立场景条目；只使用已经激活的基础世界规则，不凭空补写未确认地理细节。', 70), position: 0, depth: 4, constant: false, selective: false, key: [] },
   7: { ...externalEntry(7, '[initvar]变量初始化勿开', initRoutine, 80), position: 0, depth: 4, constant: true, selective: true, disable: true },
 };
+for (const uid of [0, 1, 2]) worldEntries[uid].ignoreBudget = true;
 const worldbook = { name: '灰港避难所世界书', entries: worldEntries };
 
 const loader = { type: 'script', enabled: false, name: 'MVU变量框架', id: '55555555-0000-4000-8000-000000000001', content: "import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate@0a730cd4a9b99689d1135a49b542c780b977c24c/artifact/bundle.js';\n", info: '唯一 MVU Loader，锁定 commit。', button: { enabled: true, buttons: [] }, data: {}, export_with: { data: true, button: true } };
