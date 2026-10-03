@@ -76,6 +76,7 @@ for (const [relative, args] of [
   ['scripts/ejs/validate-ejs-package.test.mjs', ['--test', 'scripts/ejs/validate-ejs-package.test.mjs']],
   ['scripts/mvu/validate-initvar-yaml.test.mjs', ['--test', 'scripts/mvu/validate-initvar-yaml.test.mjs']],
   ['tests/interview-contract.test.mjs', ['--test', 'tests/interview-contract.test.mjs']],
+  ['tests/frontend-graphics-contract.test.mjs', ['--test', 'tests/frontend-graphics-contract.test.mjs']],
   ['tests/state-impact-contract.test.mjs', ['--test', 'tests/state-impact-contract.test.mjs']],
   ['tests/runtime-separation-contract.test.mjs', ['--test', 'tests/runtime-separation-contract.test.mjs']],
   ['tests/player-neutrality-capability-contract.test.mjs', ['--test', 'tests/player-neutrality-capability-contract.test.mjs']],

@@ -55,13 +55,13 @@ test('frontend interviews elicit user-specific visual and content preferences be
     assert.equal(stage.personalization_gate?.required_before_implementation, true, `${name} must gate visual implementation on elicited preferences or explicit delegation`);
     assert(stage.personalization_gate?.ask_unless_explicitly_delegated, `${name} must not silently choose the look and feel`);
     const ids = new Set(stage.decisions.map(item => item.id));
-    for (const requiredId of ['visual-direction', 'layout-and-information', 'interaction-feel']) {
+    for (const requiredId of ['visual-direction', 'layout-and-information', 'interaction-feel', 'graphical-expression']) {
       assert(ids.has(requiredId), `${name} must ask about ${requiredId}`);
     }
-    const personalization = stage.decisions.filter(item => ['visual-direction', 'layout-and-information', 'interaction-feel'].includes(item.id));
+    const personalization = stage.decisions.filter(item => ['visual-direction', 'layout-and-information', 'interaction-feel', 'graphical-expression'].includes(item.id));
     for (const item of personalization) {
       assert(['ask_or_explicitly_delegate', 'ask_if_unknown'].includes(item.policy), `${name}.${item.id} must ask, not silently default`);
-      assert.doesNotMatch(item.player_language, /CSS|iframe|API|breakpoint|React|DOM|变量|Schema/);
+      assert.doesNotMatch(item.player_language, /CSS|SVG|viewBox|\bpath\b|iframe|API|breakpoint|React|DOM|变量|Schema/);
     }
   }
   assert.match(controller, /主题气质.*高影响创作决定/s);
@@ -70,7 +70,11 @@ test('frontend interviews elicit user-specific visual and content preferences be
   assert.match(messageSkill, /视觉风格、排版偏好、要展示的信息和交互感受是第一优先级/);
   assert.match(messageRef, /个性化视觉与交互访谈（实现前必经）/);
   assert.doesNotMatch(messageRef, /不要先问颜色、框架或组件清单。先提出信息优先级/);
- });
+  assert.match(openingSkill, /图形化表达是体验选择/);
+  assert.match(openingRef, /图形化入口与 SVG/);
+  assert.match(messageSkill, /图形化表达与真实数据/);
+  assert.match(messageRef, /图形化信息表达/);
+});
 
 
 test('world, character, and quantitative-system authoring preserve uncertainty and hard-setting safeguards', () => {

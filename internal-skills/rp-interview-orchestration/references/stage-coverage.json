@@ -403,8 +403,15 @@
           "skip_when": "A complete reference layout or approved visual design already determines composition and reading hierarchy."
         },
         {
+          "id": "graphical-expression",
+          "trigger": "The frontend may benefit from maps, routes, badges, instruments, relationships, or other graphical presentation and the user has not said whether they want it.",
+          "player_language": "这个入口里，哪些内容你希望用文字阅读，哪些想看成地图、路线图、徽章、仪表、印章或作品专属图形？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "The user supplied a sufficiently specific graphical presentation brief, or the page is explicitly text-only. Explicit delegation of visual design also resolves this choice without another question."
+        },
+        {
           "id": "interaction-feel",
-          "trigger": "The page includes choices or form fields and the desired interaction flow is not explicit.",
+          "trigger": "The page includes choices, form fields, or graphical controls and the desired interaction flow is not explicit.",
           "player_language": "创角过程希望一页完成，还是分步骤慢慢引导？你希望怎样预览、返回修改、复制开局文本，以及看到“切哪个开场、粘贴到哪里、怎么发送”的指引？",
           "policy": "ask_or_explicitly_delegate",
           "skip_when": "The user supplied the exact interaction flow or requested a static, non-interactive intro."
@@ -453,6 +460,13 @@
           "player_language": "你偏好紧凑、一眼扫完的仪表盘，还是更有叙事氛围、分区卡片式的面板？最重要的信息要放在哪里、突出到什么程度？",
           "policy": "ask_or_explicitly_delegate",
           "skip_when": "A reference design or approved layout already specifies hierarchy and density."
+        },
+        {
+          "id": "graphical-expression",
+          "trigger": "The frontend may benefit from maps, routes, badges, instruments, relationships, or other graphical presentation and the user has not said whether they want it.",
+          "player_language": "游玩时，哪些信息希望用文字或列表阅读，哪些想看成地图、路线图、徽章、仪表、关系图或其他作品专属图形？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "The user supplied a sufficiently specific graphical presentation brief, or the message surface is explicitly text/list-only. Explicit delegation of visual design also resolves this choice without another question."
         },
         {
           "id": "interaction-feel",
