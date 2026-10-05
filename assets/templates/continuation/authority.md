@@ -10,6 +10,10 @@ mvu: unresolved
 mvu_zod: unresolved
 ejs: unresolved
 bridge: unresolved
+materials: absent
+research: not_required
+research_trigger: null
+network_policy: public_sources_only
 updated: YYYY-MM-DD
 next_gate: 完成预检并确定本轮范围
 ---

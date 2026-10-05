@@ -13,6 +13,12 @@ stages:
     primary_skill: rp-project-continuation
     supporting_skills: []
     optional: false
+    next: materials
+  materials:
+    primary_skill: rp-materials-research
+    supporting_skills: [rp-project-foundation, rp-interview-orchestration]
+    optional: true
+    enable_when: source_material_present_or_external_research_required
     next: brainstorm
   brainstorm:
     primary_skill: rp-concept-brainstorm
@@ -26,13 +32,6 @@ stages:
     references: [positioning]
     supporting_skills: [rp-interview-orchestration]
     optional: false
-    next: materials
-  materials:
-    primary_skill: rp-project-foundation
-    references: [materials]
-    supporting_skills: [rp-interview-orchestration]
-    optional: true
-    enable_when: existing_materials_or_retrofit
     next: worldbuilding
   worldbuilding:
     primary_skill: rp-project-foundation
@@ -101,6 +100,7 @@ stages:
 
 skill_paths:
   rp-project-continuation: internal-skills/rp-project-continuation/SKILL.md
+  rp-materials-research: internal-skills/rp-materials-research/SKILL.md
   rp-interview-orchestration: internal-skills/rp-interview-orchestration/SKILL.md
   rp-concept-brainstorm: internal-skills/rp-concept-brainstorm/SKILL.md
   rp-project-foundation: internal-skills/rp-project-foundation/SKILL.md

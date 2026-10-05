@@ -65,9 +65,11 @@ export function validateContinuation(rootValue) {
     try {
       const value = JSON.parse(read(files[name]));
       if (value.projectId && authorityMeta.project_id && value.projectId !== authorityMeta.project_id) issues.push(`${name} 的 projectId 与 authority.md 不一致`);
-      if (name === 'materials.json' && value.schema !== 'rp-card-studio/materials/v1') issues.push('materials.json schema 无效');
+      if (name === 'materials.json' && value.schema !== 'rp-card-studio/materials/v2') issues.push('materials.json schema 无效');
       if (name === 'acceptance.json' && value.schema !== 'rp-card-studio/acceptance/v1') issues.push('acceptance.json schema 无效');
-      if (name === 'materials.json' && (!Array.isArray(value.materials) || !Array.isArray(value.claims) || !Array.isArray(value.entries))) issues.push('materials.json 必须包含 materials、claims、entries 数组');
+      if (name === 'materials.json' && (!value.processing || !value.research || !Array.isArray(value.sources) || !Array.isArray(value.facts) || !Array.isArray(value.researchQuestions) || !Array.isArray(value.conflicts) || !value.synthesis || typeof value.synthesis !== 'object')) issues.push('materials.json 必须包含 processing、research、sources、facts、researchQuestions、conflicts 和 synthesis');
+      if (name === 'materials.json' && value.processing && !['absent', 'received', 'organizing', 'organized', 'user_review_needed', 'accepted', 'explicitly_skipped'].includes(value.processing.status)) issues.push(`materials processing 状态无效：${value.processing.status}`);
+      if (name === 'materials.json' && value.research && !['not_required', 'required', 'active', 'complete', 'blocked', 'skipped'].includes(value.research.status)) issues.push(`materials research 状态无效：${value.research.status}`);
       if (name === 'acceptance.json' && (!Array.isArray(value.items) || !value.summary || typeof value.summary !== 'object')) issues.push('acceptance.json 必须包含 items 数组和 summary 对象');
     } catch (error) { issues.push(`${name} 不是合法 JSON：${error.message}`); }
   }

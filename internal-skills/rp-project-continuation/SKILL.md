@@ -101,7 +101,7 @@ next_gate: 一道具体可观察的门
 
 ## 材料和验收
 
-`materials.json` 维护：材料片段 → 设定声明 → 目标条目/组件 → 证据的关系。抽取不等于确认；推断必须标明来源和状态。
+`materials.json` 使用 `rp-card-studio/materials/v2`，维护任意规模原始资料的来源、整理状态、事实、制卡候选、冲突、研究问题和外部研究状态。原始资料只要进入当前创作/制卡任务，`processing.status` 不得保持 `absent`；资料大小只改变 `processing.mode`（`single-pass`、`chunked`、`batched`）。外部作品、现实事实、版本或改编线依赖默认把 `research.status` 设为 `required`，主动研究完成、受阻或用户关闭时分别记录 `complete`、`blocked` 或 `skipped` 及原因。抽取不等于确认；推断必须标明来源和状态。
 
 `acceptance.json` 的证据门分开记录：`source`、`automated`、`offline-artifact`、`browser`、`real-sillytavern`、`human`、`release`。自动化不能填写 `driver-accepted`。证据绑定当前制品、环境、步骤、预期、限制和文件哈希。
 

@@ -12,7 +12,8 @@ test('continuation is a mandatory project-aware stage before creative stages', (
   assert.match(routing, /state_persistence: project_files_and_conversation/);
   assert.match(routing, /^  continuation:\r?$/m);
   assert.match(routing, /primary_skill: rp-project-continuation/);
-  assert.match(routing, /next: brainstorm/);
+  assert.match(routing, /continuation:[\s\S]*next: materials/);
+  assert.match(routing, /materials:[\s\S]*primary_skill: rp-materials-research/);
 });
 
 test('continuation contracts define authority, NEXT, materials, acceptance, and board', () => {

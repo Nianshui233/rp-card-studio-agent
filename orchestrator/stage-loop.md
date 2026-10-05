@@ -7,9 +7,9 @@
 ```text
 preflight
 → continuation（读取/初始化项目权威、NEXT、材料和验收文件，并展示当前对话进度画板）
+→ materials（有任何用户资料，或检测到外部事实/作品/版本研究需求时；资料规模只影响分批方式）
 → brainstorm（预检启用时）
 → positioning（先关闭创作归属模式分流）
-→ materials（有材料、旧卡或转换时）
 → worldbuilding
 → character
 → systems（预检启用时）
@@ -119,9 +119,9 @@ MVU、MVU_ZOD、EJS 分别维护 `enabled`、`disabled`、`unresolved`；用户�
 
 ## 进入与返回
 
-- 新建完整项目在预检启用脑暴时从 `brainstorm` 开始，否则从 `positioning` 开始。
-- 旧卡修改、审查或转换在定位后先经过 `materials`。
-- 继续项目时读取 `.rp-card/authority.md`、`.rp-card/NEXT.md`、材料索引、验收记录、现有文件和 Git/worktree，判断当前尚未完成的最早相关阶段；不重新询问已经确认的设置。
+- 新建完整项目在预检检测到用户资料或外部研究需求时先进入 `materials`，否则跳过该阶段；脑暴是否启用再按预检决定。
+- 旧卡修改、审查或转换在 `materials` 中先保留原始副本、整理来源并盘点组件，再进入定位。
+- 继续项目时读取 `.rp-card/authority.md`、`.rp-card/NEXT.md`、材料索引、验收记录、现有文件和 Git/worktree，先检查材料处理/研究状态，再判断当前尚未完成的最早相关阶段；不重新询问已经确认的设置。
 - 用户明确只修改某个组件、只审查或只处理 UI 时，可以直接进入该组件所属阶段；完成后更新受影响的权威、验收和 NEXT，只执行相关 QA 与交付，不强迫补做无关阶段。
 - 后续实现发现前置内容确实不足时，临时返回拥有该内容的阶段，补完后回到原阶段；不重跑其他已完成内容。
 

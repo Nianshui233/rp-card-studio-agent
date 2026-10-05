@@ -64,9 +64,9 @@ $rp-card-studio
 ```text
 预检
 → 项目续接与进度画板
+→ 原始资料整理 / 主动外部研究（有任何资料或外部事实依赖时）
 → 灵感脑暴（可选）
 → 项目定位
-→ 材料整理（有旧卡或现成材料时）
 → 世界观
 → 角色
 → 系统（可选）
@@ -86,7 +86,7 @@ $rp-card-studio
 .rp-card/
 ├─ authority.md       # 已确认、待决定、暂缓、运行能力和当前范围
 ├─ NEXT.md            # 当前从哪里继续、下一道门是什么
-├─ materials.json     # 材料片段、设定声明和目标条目来源
+├─ materials.json     # 任意规模原始资料的整理结果、来源、冲突和研究状态
 └─ acceptance.json    # 静态、浏览器、真实 ST 和人工验收证据
 ```
 
@@ -178,6 +178,7 @@ scripts/                 开发、续接和检查脚本
 - [`agent.yaml`](agent.yaml)：Agent 元数据与入口配置；
 - [`orchestrator/`](orchestrator/)：阶段循环与访谈协作规则；
 - [`internal-skills/rp-project-continuation/`](internal-skills/rp-project-continuation/)：项目权威、续接和当前对话进度画板规则；
+- [`internal-skills/rp-materials-research/`](internal-skills/rp-materials-research/)：任意规模原始资料整理和主动外部研究规则；
 - [`assets/examples/`](assets/examples/)：经过当前静态合同核对的原创示例；
 - [`package.json`](package.json)：项目元数据与检查入口。
 
