@@ -1,0 +1,15 @@
+{
+  "schema": "rp-card-studio/acceptance/v1",
+  "projectId": "replace-me",
+  "revision": 0,
+  "items": [],
+  "summary": {
+    "source": "not_run",
+    "automated": "not_run",
+    "offline-artifact": "not_run",
+    "browser": "not_run",
+    "real-sillytavern": "not_run",
+    "human": "not_run",
+    "release": "not_run"
+  }
+}

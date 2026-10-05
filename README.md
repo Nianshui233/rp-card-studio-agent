@@ -62,19 +62,35 @@ $rp-card-studio
 完整项目通常沿着下面的路径推进；不相关的阶段会跳过，定向任务可以直接进入对应阶段：
 
 ```text
-灵感脑暴（可选）
+预检
+→ 项目续接与进度画板
+→ 灵感脑暴（可选）
 → 项目定位
 → 材料整理（有旧卡或现成材料时）
 → 世界观
 → 角色
 → 系统（可选）
 → 场景（可选）
-→ MVU / EJS（可选）
+→ MVU 持久状态（可选）
+→ EJS 动态模板（可选）
+→ MVU→EJS bridge（需要时）
 → 叙事与开场
 → 开场 / 创角前端（可选）
 → 持续消息前端（可选）
 → QA 与交付
 ```
+
+长期项目会在项目目录维护 `.rp-card/`：
+
+```text
+.rp-card/
+├─ authority.md       # 已确认、待决定、暂缓、运行能力和当前范围
+├─ NEXT.md            # 当前从哪里继续、下一道门是什么
+├─ materials.json     # 材料片段、设定声明和目标条目来源
+└─ acceptance.json    # 静态、浏览器、真实 ST 和人工验收证据
+```
+
+每次真实推进后，当前对话都会刷新一份进度画板，显示：已完成、进行中、待决定、暂缓、阻断/待实测和下一道门。`.rp-card/NEXT.md` 用于跨会话恢复，当前对话画板是它的实时投影。项目状态文件不进入最终 SillyTavern 导入包，也不保存完整聊天记录。
 
 每个阶段都遵循：
 
@@ -85,7 +101,7 @@ $rp-card-studio
 5. 用具体场景、行为、压力或失败情境校准承重事实；
 6. 在内容足够支持下一阶段后，给出阶段总结并继续推进。
 
-Agent 不会把整套空白问卷丢给用户，也不会为了流程完整制造项目管理文件、访谈账本、决定日志或过程清单。
+Agent 不会把整套空白问卷丢给用户，也不会保存完整聊天过程或无意义的过程碎片；但会维护影响后续创作、运行、交付和验收的最小项目状态。
 
 ## 创作自由与边界
 
@@ -93,7 +109,7 @@ Agent 不会把整套空白问卷丢给用户，也不会为了流程完整制�
 
 你可以根据项目需要决定：
 
-- 是否启用 NSFW、系统、场景、MVU/EJS、开场页或持续消息 UI；
+- 是否启用 NSFW、系统、场景、MVU 持久状态、EJS 动态模板、可选 MVU→EJS bridge、开场页或持续消息 UI；
 - 页面采用什么氛围、信息层级、布局和交互方式；
 - 世界书、变量、脚本和正则分别承担什么职责；
 - 是从零开始、继续旧项目、转换格式、定向修改，还是只做审查与 QA。
@@ -120,7 +136,7 @@ Agent 不会把整套空白问卷丢给用户，也不会为了流程完整制�
 - 实际使用的 Regex；
 - Tavern Helper Script / ScriptFolder，可选附带 `.js` 源码；
 - 完整、自包含的 HTML；
-- 实际使用的 MVU / EJS 文件；
+- 实际使用的 MVU 文件、EJS 文件和可选 bridge 文件；
 - 简短导入说明和 QA 结果。
 
 最终检查沿着：
@@ -146,10 +162,10 @@ Agent 不会把整套空白问卷丢给用户，也不会为了流程完整制�
 AGENT.md                 Agent 的主规则与创作合同
 agent.yaml               Agent 元数据、入口和路由配置
 orchestrator/            阶段循环、路由和访谈规则
-internal-skills/         按需加载的创作与 SillyTavern 技术能力
-assets/                  经过静态合同核对的原创示例和资源
+internal-skills/         按需加载的创作、续接和 SillyTavern 技术能力
+assets/                  经过静态合同核对的原创示例、资源和续接模板
 shared/                  共享的校验、模板或运行辅助内容
-scripts/                 开发和检查脚本
+scripts/                 开发、续接和检查脚本
 ```
 
 这些目录是实现参考，不是用户项目的默认交付结构。制作过程只应落盘真实 RP 内容、实际运行代码/配置、原始输入保真副本、可导入制品和最终确实需要的导入说明。
@@ -161,7 +177,7 @@ scripts/                 开发和检查脚本
 - [`AGENT.md`](AGENT.md)：创作、路由、阶段和交付的主规则；
 - [`agent.yaml`](agent.yaml)：Agent 元数据与入口配置；
 - [`orchestrator/`](orchestrator/)：阶段循环与访谈协作规则；
-- [`internal-skills/`](internal-skills/)：按需加载的创作、界面和 SillyTavern 技术参考；
+- [`internal-skills/rp-project-continuation/`](internal-skills/rp-project-continuation/)：项目权威、续接和当前对话进度画板规则；
 - [`assets/examples/`](assets/examples/)：经过当前静态合同核对的原创示例；
 - [`package.json`](package.json)：项目元数据与检查入口。
 

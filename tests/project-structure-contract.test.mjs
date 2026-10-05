@@ -22,12 +22,17 @@ test('default project layout separates creative sources, real configuration, and
   }
 });
 
-test('process logs are not treated as normal project artifacts', () => {
+test('project state keeps continuation separate from creative sources and import artifacts', () => {
   const agent = read('AGENT.md');
   const integration = read('internal-skills/st-integration-qa/references/integration.md');
-  assert.match(agent, /不得要求[\s\S]*访谈记录[\s\S]*QA 日志/);
-  assert.match(integration, /不创建“制作记录”“访谈记录”“阶段进度”“QA 日志”/);
-  assert.match(agent, /只创建项目实际使用的子目录/);
+  for (const text of [agent, integration]) {
+    assert.match(text, /\.rp-card\//);
+    assert.match(text, /authority\.md/);
+    assert.match(text, /NEXT\.md/);
+    assert.match(text, /materials\.json/);
+    assert.match(text, /acceptance\.json/);
+    assert.match(text, /不进入最终 SillyTavern 导入包/);
+  }
 });
 
 test('canonical YAML stays in creative sources while import-ready files are grouped by component', () => {

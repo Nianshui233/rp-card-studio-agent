@@ -40,7 +40,7 @@ test('user-facing contracts describe outcomes separately instead of offering one
   assert.match(agent, /动态 Prompt.*模板/);
   assert.match(loop, /是否需要让任务、关系、物品、时间地点等在后续消息中持续变化/);
   assert.match(loop, /是否需要让 Prompt、世界书内容或 STPT 页面根据当前上下文自动变化/);
-  assert.match(readme, /MVU 持久状态、EJS 动态模板、可选 MVU→EJS bridge/);
+  assert.match(readme, /MVU 持久状态[\s\S]*EJS 动态模板[\s\S]*可选 MVU→EJS bridge/);
   assert.doesNotMatch(agent, /MVU\/EJS/);
   assert.doesNotMatch(readme, /MVU\/EJS/);
 });

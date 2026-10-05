@@ -8,6 +8,11 @@
 
 ```text
 项目名/
+├─ .rp-card/
+│  ├─ authority.md
+│  ├─ NEXT.md
+│  ├─ materials.json
+│  └─ acceptance.json
 ├─ 创作源/
 ├─ 配置/
 └─ 导入：项目名/
@@ -18,10 +23,10 @@
    └─ 原始HTML/
 ```
 
+- `.rp-card/` 只放项目权威、当前续接、材料来源索引和验收证据，不进入最终 SillyTavern 导入包；
 - `创作源/` 只放完整 canonical YAML、用户材料保真副本和真实 RP 文本源码；
 - `配置/` 只放实际依赖、版本、导入顺序和运行/调度配置；
 - `导入：项目名/` 只放最终可导入或直接使用的制品；
-- 不创建“制作记录”“访谈记录”“阶段进度”“QA 日志”等过程目录；
 - 未启用的组件子目录可以省略，不能用空壳文件假装完整。
 
 按项目实际需要交付：完整 canonical 世界/角色/系统/场景 YAML、由其无损切片生成的独立世界书 JSON、角色卡 JSON、Tavern Regex JSON、Tavern Helper Script/ScriptFolder JSON、可选 `.js` 源码、完整 HTML、实际使用的 MVU 内容、EJS 内容和可选 bridge，以及简短导入说明。用户明确只要导入包时可不附 YAML 源文件，但生成和 QA 仍以完整源为准。

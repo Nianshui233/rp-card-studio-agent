@@ -5,7 +5,7 @@ description: "Private final QA and delivery module for cross-stage RP consistenc
 
 # SillyTavern Final QA and Delivery
 
-只接受主 Agent 调度。不要读取项目账本、Forge 文档、装配清单或构建状态。按实际组件选择性读取：
+只接受主 Agent 调度。读取项目 `.rp-card/authority.md`、`.rp-card/NEXT.md`、`.rp-card/materials.json` 和 `.rp-card/acceptance.json`，再按实际组件选择性读取：
 
 - 常规最终检查：`references/validation.md`；
 - SillyTavern 导入与宿主验收：`references/integration.md`。
@@ -18,8 +18,10 @@ description: "Private final QA and delivery module for cross-stage RP consistenc
 - 检查世界核心、用户主控资料、固定主控预设和当前活动主控是否分层；
 - 检查开场和消息前端是否从作品体验与真实玩法出发，而不是退化成通用表单或变量 Dashboard；
 - 将最终文件直接整理到交付目录，只包含项目实际使用的组件；
-- 未做真实 SillyTavern 测试时在最终报告中明确写 `runtime: not_run`；静态检查、合同模拟、SillyTavern 源码 CardValidator 或 Regex placement 对照都不能升级为 `runtime_pass`；
-- QA 过程不生成独立检查清单、通过项账本、问题日志、修复日志或运行记录；只修改真实制品，并在对话和最终交付说明中汇总结论。
+- 将每项 QA 结果、证据、环境、限制和下一道门写入 `.rp-card/acceptance.json`，同步更新 `.rp-card/NEXT.md`；
+- 每次 QA 推进后在当前对话刷新进度画板；
+- 未做真实 SillyTavern 测试时在最终报告和 acceptance 中明确写 `runtime: not_run`；静态检查、合同模拟、SillyTavern 源码 CardValidator 或 Regex placement 对照都不能升级为 `runtime_pass`；
+- QA 不保存完整检查过程或重复问题原文，只保存可复核的发现、证据和交接状态。
 
 ## 验收沟通
 

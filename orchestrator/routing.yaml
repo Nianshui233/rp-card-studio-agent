@@ -1,12 +1,17 @@
 schema_version: 1.1.0
 agent: rp-card-studio
-state_persistence: conversation_only
+state_persistence: project_files_and_conversation
 stage_loop: orchestrator/stage-loop.md
 interview_playbook: orchestrator/interview-playbook.md
 
 stages:
   preflight:
     primary_skill: null
+    optional: false
+    next: continuation
+  continuation:
+    primary_skill: rp-project-continuation
+    supporting_skills: []
     optional: false
     next: brainstorm
   brainstorm:
@@ -95,6 +100,7 @@ stages:
     next: null
 
 skill_paths:
+  rp-project-continuation: internal-skills/rp-project-continuation/SKILL.md
   rp-interview-orchestration: internal-skills/rp-interview-orchestration/SKILL.md
   rp-concept-brainstorm: internal-skills/rp-concept-brainstorm/SKILL.md
   rp-project-foundation: internal-skills/rp-project-foundation/SKILL.md
