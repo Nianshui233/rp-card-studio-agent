@@ -34,5 +34,8 @@ test('renders a current-dialogue progress board from authority and NEXT', () => 
   const board = renderProgressBoard(root);
   assert.match(board, /示例项目/);
   assert.match(board, /世界观已完成/);
+  assert.match(board, /```text/);
+  assert.match(board, /【RP 项目进度画板】/);
   assert.match(board, /默认 Greeting/);
+  assert.doesNotMatch(board, /┌|└|│/);
 });

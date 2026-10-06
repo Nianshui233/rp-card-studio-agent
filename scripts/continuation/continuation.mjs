@@ -108,22 +108,30 @@ export function renderProgressBoard(rootValue) {
   const nextGate = lines('下一道门');
   const row = (mark, value) => `${mark} ${value || '暂无'}`;
   return [
-    '┌─ RP 项目进度画板 ─────────────────────┐',
-    `│ 项目：${meta.title || '未命名'}   阶段：${meta.current_stage || '未确定'} │`,
-    `│ 范围：${section(next, '本轮不扩大') ? '按 NEXT.md 当前范围' : '待确认'}                  │`,
-    '├─ 已完成 ──────────────────────────────┤',
-    ...(completed.length ? completed.map(value => `│ ${row('✓', value).padEnd(37, ' ')}│`) : ['│ ✓ 暂无已完成事项                      │']),
-    '├─ 进行中 ──────────────────────────────┤',
-    ...(doing.length ? doing.map(value => `│ ${row('→', value).padEnd(37, ' ')}│`) : ['│ → 暂无进行中事项                      │']),
-    '├─ 待决定 ──────────────────────────────┤',
-    ...(open.length ? open.map(value => `│ ${row('?', value.replace(/^[-*]\s+/, '')).padEnd(37, ' ')}│`) : ['│ ? 暂无待决定事项                      │']),
-    '├─ 暂缓 ────────────────────────────────┤',
-    ...(parked.length ? parked.map(value => `│ ${row('·', value).padEnd(37, ' ')}│`) : ['│ · 暂无暂缓事项                         │']),
-    '├─ 阻断/待实测 ─────────────────────────┤',
-    ...(blocked.length ? blocked.map(value => `│ ${row('!', value).padEnd(37, ' ')}│`) : ['│ ! 暂无阻断或待实测事项                │']),
-    '├─ 下一道门 ────────────────────────────┤',
-    ...(nextGate.length ? nextGate.map(value => `│ ${row('⇒', value).padEnd(37, ' ')}│`) : ['│ ⇒ 尚未定义                             │']),
-    '└───────────────────────────────────────┘'
+    '```text',
+    '【RP 项目进度画板】',
+    `项目：${meta.title || '未命名'}`,
+    `阶段：${meta.current_stage || '未确定'}`,
+    `范围：${section(next, '本轮不扩大') ? '按 NEXT.md 当前范围' : '待确认'}`,
+    '',
+    '已完成',
+    ...(completed.length ? completed.map(value => `- ${row('✓', value)}`) : ['- ✓ 暂无已完成事项']),
+    '',
+    '进行中',
+    ...(doing.length ? doing.map(value => `- ${row('→', value)}`) : ['- → 暂无进行中事项']),
+    '',
+    '待决定',
+    ...(open.length ? open.map(value => `- ${row('?', value.replace(/^[-*]\s+/, ''))}`) : ['- ? 暂无待决定事项']),
+    '',
+    '暂缓',
+    ...(parked.length ? parked.map(value => `- ${row('·', value)}`) : ['- · 暂无暂缓事项']),
+    '',
+    '阻断/待实测',
+    ...(blocked.length ? blocked.map(value => `- ${row('!', value)}`) : ['- ! 暂无阻断或待实测事项']),
+    '',
+    '下一道门',
+    ...(nextGate.length ? nextGate.map(value => `- ${row('⇒', value)}`) : ['- ⇒ 尚未定义']),
+    '```'
   ].join('\n');
 }
 

@@ -25,6 +25,8 @@ test('continuation contracts define authority, NEXT, materials, acceptance, and 
   for (const token of ['已确认创作事实', '待决定事项', '当前风险', '下一道门']) assert.match(template, new RegExp(token));
   for (const token of ['当前阶段', '本轮不扩大', '下一次续接指令']) assert.match(next, new RegExp(token));
   assert.match(board, /RP 项目进度画板/);
+  assert.match(board, /fenced code block|代码块/);
+  assert.doesNotMatch(board, /┌─ RP 项目进度画板/);
 });
 
 test('old conversation-only and anti-state rules are removed', () => {
