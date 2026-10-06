@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { STAGES } from '../scripts/continuation/stage-ledger.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
@@ -40,4 +41,25 @@ test('old conversation-only and anti-state rules are removed', () => {
   }
   assert.match(agent, /\.rp-card\/authority\.md/);
   assert.match(loop, /当前对话进度画板/);
+});
+
+
+test('portable authorization policy is loaded and preserves existing stage contracts', () => {
+  const loop = read('orchestrator/stage-loop.md');
+  const policy = read('orchestrator/stage-authorization.md');
+  const continuation = read('internal-skills/rp-project-continuation/SKILL.md');
+  for (const file of ['AGENT.md', 'SKILL.md', 'orchestrator/stage-loop.md', 'internal-skills/rp-project-continuation/SKILL.md', 'internal-skills/rp-interview-orchestration/SKILL.md']) assert.match(read(file), /stage-authorization\.md/);
+  assert.match(loop, /待交接/);
+  assert.doesNotMatch(loop, /→ 进入下一个启用阶段/);
+  assert.match(loop, /玩家中立性与主控切换 QA/);
+  assert.match(loop, /预检/);
+  assert.match(continuation, /materials\/v2/);
+  assert.match(continuation, /sourceAuthenticity/);
+  for (const word of ['entryEvidence', 'userEvidence', 'authorizations', 'decisions', 'responseTo', 'migrationRequired', '真实用户', '结束本轮', '不是宿主']) assert.ok(policy.includes(word), word);
+});
+test('ledger stage list exactly matches routing stage ids', () => {
+  const routing = read('orchestrator/routing.yaml');
+  const body = routing.split('stages:\n')[1].split('\nskill_paths:')[0];
+  const ids = [...body.matchAll(/^  (\w+):\s*$/gm)].map(match => match[1]);
+  assert.deepEqual(STAGES, ids);
 });

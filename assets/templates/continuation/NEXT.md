@@ -1,5 +1,5 @@
 ---
-schema: rp-card-studio/next/v1
+schema: rp-card-studio/next/v2
 project_id: replace-me
 authority_revision: 0
 updated: YYYY-MM-DD
@@ -28,11 +28,13 @@ updated: YYYY-MM-DD
 ## 本轮不扩大
 
 - 不提前创建未确认的世界、角色、系统或运行组件。
+- 不把 Agent 提案登记为用户确认。
+- 已写完、测试通过不等于用户接受或后续阶段许可。
 
 ## 下一道门
 
-完成预检并写入第一批真实项目事实。
+完成预检并写入第一批真实项目事实；阶段成果提交后转为待交接，结束本轮等待用户。
 
 ## 下一次续接指令
 
-继续本项目，从 `.rp-card/NEXT.md` 的“下一道门”开始；先读取 `authority.md`、材料索引、验收记录和当前源文件。
+先读取 authority 的阶段账本、材料索引、验收记录和当前源文件，并核对真实用户来源与范围。NEXT 只是指针，不是授权；待交接时只报告并等待用户，不自行执行“下一道门”。v1 旧账本没有依据的确认仅保留为草稿，不自动升级。

@@ -1,11 +1,11 @@
 ---
 name: rp-interview-orchestration
-description: "Private cross-stage interview controller for RP creation. Use whenever an authoring stage needs user decisions: split independent decisions, prevent omnibus questions and silent high-impact assumptions, adapt follow-ups to partial answers, and confirm stage coverage without creating project ledgers. Does not own RP content or technical implementation."
+description: "Private cross-stage interview controller for RP creation. Use whenever an authoring stage needs user decisions: split independent decisions, prevent omnibus questions and silent high-impact assumptions, adapt follow-ups to partial answers, and confirm stage coverage using the shared project ledger without creating duplicate interview logs. Does not own RP content or technical implementation."
 ---
 
 # RP Interview Orchestration
 
-只负责访谈控制，不替代当前阶段的创作 Skill。先读取 `references/stage-coverage.json` 中当前阶段的覆盖地图，再结合用户材料、历史回答和阶段 Skill 的内容形成**已解决 / 待确认 / 可默认 / 明确跳过**的决策集合。这个集合只保留在当前对话，不另存项目状态文件。
+只负责访谈控制，不替代当前阶段的创作 Skill。先读取 `references/stage-coverage.json` 中当前阶段的覆盖地图，再结合用户材料、历史回答和阶段 Skill 的内容形成**已解决 / 待确认 / 可默认 / 明确跳过**的决策集合。访谈问题集合只保留在当前对话，不另建访谈记录；真实决定及授权依据由 rp-project-continuation 更新共享 authority 阶段账本。必须遵守 orchestrator/stage-authorization.md。
 
 ## 决策闭环
 
@@ -16,6 +16,8 @@ description: "Private cross-stage interview controller for RP creation. Use when
 - `delegated`：用户明确授权 Agent 对该项作决定；立即采用一致方案，不重复追问；
 - `explicit_skip`：用户明确不做此能力/内容，或覆盖地图的 skip 条件成立；
 - `tentative`：为了先产出草稿而采用的可逆临时假设。它不是确认，不能关闭承重项。
+
+delegated 必须引用真实阶段授权，范围和阶段一致；“本阶段放权”内的选择自主完成，但不把它登记为 user_confirmed。proposed/unresolved 保留开放，不能以 Agent 自己的账本制造用户确认。
 
 高影响创作决定（核心体验、人物自主性/底线、玩家控制权、重要后果、开场路线/写入行为等）不得静默记为 `delegated`。用户没答、含糊答或只答了复合问题中的一部分时，保留为待确认。
 
@@ -106,6 +108,8 @@ description: "Private cross-stage interview controller for RP creation. Use when
 - 若用户明确要先看草稿/暂不回答，则交付为可逆草稿，并简短指出它尚未定案的具体影响。
 
 不得仅因为“已经问过一个大问题”“已经写了很多内容”或“Agent 能猜出合理答案”就宣布阶段完整。阶段摘要只报告已确定事项、Agent 受权代定事项、明确跳过项和尚未关闭的承重选择，不生成访谈记录文件。
+
+阶段内容足够时只提交成果，progress=awaiting_handoff、review=pending，授权改 expired；阶段报告之后结束本轮，不进入下一阶段。用户否决使受影响决定重开并撤销相关验收，不能保留“全部完成/已接受”的错误状态。
 
 ## 边界
 

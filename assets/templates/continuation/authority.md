@@ -1,5 +1,5 @@
 ---
-schema: rp-card-studio/authority/v1
+schema: rp-card-studio/authority/v2
 project_id: replace-me
 title: 待命名项目
 status: candidate
@@ -24,16 +24,196 @@ next_gate: 完成预检并确定本轮范围
 - 本轮范围：
 - 明确排除：
 
+## 阶段账本
+
+```json
+{
+  "schema": "rp-card-studio/stage-ledger/v1",
+  "stages": [
+    {
+      "id": "preflight",
+      "enabled": "enabled",
+      "progress": "in_progress",
+      "review": "not_reviewed",
+      "entryEvidence": null,
+      "acceptanceEvidence": null,
+      "handoff": null,
+      "reason": null
+    },
+    {
+      "id": "continuation",
+      "enabled": "enabled",
+      "progress": "not_started",
+      "review": "not_reviewed",
+      "entryEvidence": null,
+      "acceptanceEvidence": null,
+      "handoff": null,
+      "reason": null
+    },
+    {
+      "id": "materials",
+      "enabled": "unresolved",
+      "progress": "not_started",
+      "review": "not_reviewed",
+      "entryEvidence": null,
+      "acceptanceEvidence": null,
+      "handoff": null,
+      "reason": null
+    },
+    {
+      "id": "brainstorm",
+      "enabled": "unresolved",
+      "progress": "not_started",
+      "review": "not_reviewed",
+      "entryEvidence": null,
+      "acceptanceEvidence": null,
+      "handoff": null,
+      "reason": null
+    },
+    {
+      "id": "positioning",
+      "enabled": "enabled",
+      "progress": "not_started",
+      "review": "not_reviewed",
+      "entryEvidence": null,
+      "acceptanceEvidence": null,
+      "handoff": null,
+      "reason": null
+    },
+    {
+      "id": "worldbuilding",
+      "enabled": "enabled",
+      "progress": "not_started",
+      "review": "not_reviewed",
+      "entryEvidence": null,
+      "acceptanceEvidence": null,
+      "handoff": null,
+      "reason": null
+    },
+    {
+      "id": "character",
+      "enabled": "enabled",
+      "progress": "not_started",
+      "review": "not_reviewed",
+      "entryEvidence": null,
+      "acceptanceEvidence": null,
+      "handoff": null,
+      "reason": null
+    },
+    {
+      "id": "systems",
+      "enabled": "unresolved",
+      "progress": "not_started",
+      "review": "not_reviewed",
+      "entryEvidence": null,
+      "acceptanceEvidence": null,
+      "handoff": null,
+      "reason": null
+    },
+    {
+      "id": "scenes",
+      "enabled": "unresolved",
+      "progress": "not_started",
+      "review": "not_reviewed",
+      "entryEvidence": null,
+      "acceptanceEvidence": null,
+      "handoff": null,
+      "reason": null
+    },
+    {
+      "id": "mvu",
+      "enabled": "unresolved",
+      "progress": "not_started",
+      "review": "not_reviewed",
+      "entryEvidence": null,
+      "acceptanceEvidence": null,
+      "handoff": null,
+      "reason": null
+    },
+    {
+      "id": "ejs",
+      "enabled": "unresolved",
+      "progress": "not_started",
+      "review": "not_reviewed",
+      "entryEvidence": null,
+      "acceptanceEvidence": null,
+      "handoff": null,
+      "reason": null
+    },
+    {
+      "id": "runtime_bridge",
+      "enabled": "unresolved",
+      "progress": "not_started",
+      "review": "not_reviewed",
+      "entryEvidence": null,
+      "acceptanceEvidence": null,
+      "handoff": null,
+      "reason": null
+    },
+    {
+      "id": "narrative_opening",
+      "enabled": "enabled",
+      "progress": "not_started",
+      "review": "not_reviewed",
+      "entryEvidence": null,
+      "acceptanceEvidence": null,
+      "handoff": null,
+      "reason": null
+    },
+    {
+      "id": "opening_frontend",
+      "enabled": "unresolved",
+      "progress": "not_started",
+      "review": "not_reviewed",
+      "entryEvidence": null,
+      "acceptanceEvidence": null,
+      "handoff": null,
+      "reason": null
+    },
+    {
+      "id": "message_frontend",
+      "enabled": "unresolved",
+      "progress": "not_started",
+      "review": "not_reviewed",
+      "entryEvidence": null,
+      "acceptanceEvidence": null,
+      "handoff": null,
+      "reason": null
+    },
+    {
+      "id": "qa_delivery",
+      "enabled": "enabled",
+      "progress": "not_started",
+      "review": "not_reviewed",
+      "entryEvidence": null,
+      "acceptanceEvidence": null,
+      "handoff": null,
+      "reason": null
+    }
+  ],
+  "userEvidence": [],
+  "authorizations": [],
+  "decisions": []
+}
+```
+
+## 当前授权
+
+派生视图：当前 preflight 仅允许预检与状态初始化；无放权记录。后续阶段未获执行许可。不得在此另写生效授权。
+
+## 授权与决定记录
+
+以阶段账本 JSON 的 userEvidence、authorizations、decisions 为唯一结构化来源。每条用户来源记录包含原话与消息定位；引用真实来源不是来源真实性已验证。
+
 ## 已确认创作事实
 
-- [DEC-001] 待确认。
+- 暂无。
 
 ## 已确认运行能力
 
-- [CAP-001] `mvu`: unresolved
-- [CAP-002] `mvu_zod`: unresolved
-- [CAP-003] `ejs`: unresolved
-- [CAP-004] `bridge`: unresolved
+- 暂无。
+
+能力开关 unresolved 不是已确认；决定摘要只能逐字投影 DEC/CAP 记录。
 
 ## 待决定事项
 
@@ -73,21 +253,7 @@ next_gate: 完成预检并确定本轮范围
 
 ## 已完成阶段
 
-- [ ] preflight
-- [ ] brainstorm
-- [ ] positioning
-- [ ] materials
-- [ ] worldbuilding
-- [ ] character
-- [ ] systems
-- [ ] scenes
-- [ ] mvu
-- [ ] ejs
-- [ ] runtime_bridge
-- [ ] narrative_opening
-- [ ] opening_frontend
-- [ ] message_frontend
-- [ ] qa_delivery
+仅作为阶段账本的派生视图，不手工勾选。初始暂无已关闭阶段；待交接不是已关闭。
 
 ## 当前风险
 

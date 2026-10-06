@@ -1,7 +1,9 @@
-schema_version: 1.1.0
+schema_version: 1.2.0
 agent: rp-card-studio
 state_persistence: project_files_and_conversation
 stage_loop: orchestrator/stage-loop.md
+# next 字段是建议顺序，不是执行授权；阶段交接后等待真实用户新消息。
+stage_authorization: orchestrator/stage-authorization.md
 interview_playbook: orchestrator/interview-playbook.md
 
 stages:
