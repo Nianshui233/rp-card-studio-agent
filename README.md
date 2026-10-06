@@ -42,6 +42,28 @@ $rp-card-studio
 
 本 Agent 使用**显式调用**，不会自动接管普通对话。
 
+### 在 DeepSeek Harness 中安装
+
+仓库自带 `dsh` 适配层（`.dsh/`），它把本 Agent 注册成一套 profile bundle，创作合同仍是根目录的 `AGENT.md`、`orchestrator/` 与 `internal-skills/`。安装只需一条命令：
+
+```bash
+node .dsh/install.mjs            # 默认 profile 取 $DSH_PROFILE，否则 web
+```
+
+脚本会构建 bundle（输出到 `.dsh/build/`，不入库）、在目标 profile 的 `package.json` 里登记 `link:` 依赖，并把 `@local/dsh-rp-card-studio` 追加进该 profile 的 `dsh.profile.bundles`；重复执行结果不变。生成物里所有路径都写成 `!!js dshHomePath(...)`，由 `dsh` 在加载时按 `$DSH_HOME` 解析，所以换机器、换用户名、换盘符都不需要改文件。
+
+安装后重启 `dsh web`，新会话即按本 Agent 的合同工作（已运行的会话沿用它启动时注册的 persona）。适配层不影响 Codex、Claude Code 等其它 harness：它们继续读 `AGENT.md`、`agent.yaml`、`internal-skills/`，不读 `.dsh/`。
+
+改动适配层或更新仓库后：
+
+```bash
+npm run dsh:build     # 重新构建 bundle
+npm run test:dsh      # 适配合同用例
+npm run dsh:verify    # 结构检查 + 真实加载检查
+```
+
+`dsh:verify` 的结论区分 `verified`（已确认 dsh 真实展开本 bundle）、`structural-only`（本机没有 dsh，真实加载未验证）与 `failed`。细节见 [`.dsh/README.md`](.dsh/README.md)。
+
 ## 它负责什么
 
 | 能力 | 说明 |
@@ -172,6 +194,7 @@ internal-skills/         按需加载的创作、续接和 SillyTavern 技术能
 assets/                  经过静态合同核对的原创示例、资源和续接模板
 shared/                  共享的校验、模板或运行辅助内容
 scripts/                 开发、续接和检查脚本
+.dsh/                    DeepSeek Harness 适配层（构建、安装、校验），其它 harness 不读取
 ```
 
 这些目录是实现参考，不是用户项目的默认交付结构。制作过程只应落盘真实 RP 内容、实际运行代码/配置、原始输入保真副本、可导入制品和最终确实需要的导入说明。
@@ -186,6 +209,7 @@ scripts/                 开发、续接和检查脚本
 - [`internal-skills/rp-project-continuation/`](internal-skills/rp-project-continuation/)：项目权威、续接和当前对话进度画板规则；
 - [`internal-skills/rp-materials-research/`](internal-skills/rp-materials-research/)：任意规模原始资料整理和主动外部研究规则；
 - [`assets/examples/`](assets/examples/)：经过当前静态合同核对的原创示例；
+- [`.dsh/`](.dsh/)：DeepSeek Harness 适配层（`build.mjs` / `install.mjs` / `verify.mjs` / 适配合同用例）；
 - [`package.json`](package.json)：项目元数据与检查入口。
 
 ---

@@ -1,0 +1,145 @@
+# @local/dsh-rp-card-studio — SillyTavern 制卡工坊的 DSH agent preset 模板。
+#
+# 本文件由 `.dsh/build.mjs` 生成最终清单：正文段落（DSH 运行环境前言 + AGENT.md 全文）
+# 会被填入下面 `prefix` 的块标量，其余内容保持逐字不变。
+#
+# 生成物由 `dsh-<profile>` 的 `package.json`（dsh.profile.bundles）引用，
+# 加载顺序在 profile 自身的 cordis.patch.yml 之前。路径全部通过 `dshHomePath()`
+# 在加载时解析，因此换机器、换 $DSH_HOME 都不需要改本文件。
+- insert:
+    - id: preset-rp-card-studio
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: rp-card-studio
+        name: SillyTavern制卡工坊
+        description: 精简的 SillyTavern RP 角色卡创作工作台：先整理用户资料并按需做公开来源研究，再做脑暴、定位、世界观、角色、系统、场景、开场，以及 MVU、MVU_ZOD、EJS、正则、酒馆助手脚本与消息内前端，最后做成品 QA 与交付；长期项目用 .rp-card/ 续接并显示当前对话进度画板。默认玩家中立的开放世界，运行能力由用户逐项确认。
+        order: 20
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+__PERSONA__
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+            config:
+              maxBytes: 65536
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+            config:
+              customSkillDirs:
+                - !!js dshHomePath('workspace', 'rp-card-studio-agent', 'internal-skills')
+                - !!js dshHomePath('presets', 'rp-card-studio', 'skills')
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
+          - id: tool-bash
+            name: '@deepseek-ai/dsh-tool-bash'
+            disabled: !!js process.platform === 'win32'
+          - id: tool-pwsh
+            name: '@deepseek-ai/dsh-tool-pwsh'
+            disabled: !!js process.platform !== 'win32'
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+            config:
+              sampleOverCapGlobResults: false
+          - id: tool-jobs
+            name: '@deepseek-ai/dsh-tool-jobs'
+          - id: command-goal
+            name: '@deepseek-ai/dsh-command-goal'
+          - id: tool-goal
+            name: '@deepseek-ai/dsh-tool-goal'
+          - id: planning
+            name: cordis:group
+            group: true
+            isolate:
+              planMode: true
+            config:
+              - id: plan-mode
+                name: '@deepseek-ai/dsh-plan-mode'
+                config:
+                  section: |-
+                    你处于计划模式。这一轮不要写入、修改或生成任何作品文件、配置或目录内容：先把方案讲清楚，等用户批准后再执行；调研只用只读读取、检索与静态检查。方案要决策完备：目标与验收口径、要落盘的制品清单、世界/角色/系统/场景/开场/变量/正则/脚本/前端的职责分工、需要用户确认的创作取舍、失败与回退路径，以及哪些检查只能在真实 SillyTavern 宿主里做（没有证据就标 runtime: not_run）。准备就绪后用 exit_plan_mode 提交完整计划，并让它成为该轮唯一且最后的工具调用。
+          - id: compaction
+            name: cordis:group
+            group: true
+            isolate:
+              compaction: true
+              toolResultPruner: true
+            config:
+              - id: compaction-basic
+                name: '@deepseek-ai/dsh-compaction-basic'
+              - id: command-compact
+                name: '@deepseek-ai/dsh-command-compact'
+              - id: tool-result-pruner
+                name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+                config:
+                  thresholdChars: 8192
+                  headChars: 4096
+                  tailChars: 1024
+          - id: delegation
+            name: cordis:group
+            group: true
+            isolate:
+              workflowEngine: true
+            config:
+              - id: tool-subagent-control
+                name: '@deepseek-ai/dsh-tool-subagent-control'
+              - id: tool-subagent-list-agents
+                name: '@deepseek-ai/dsh-tool-subagent-control/list-agents'
+              - id: tool-subagent
+                name: '@deepseek-ai/dsh-tool-subagent'
+                config:
+                  provider: spawn
+                  toolName: subagent
+                  modelSelectionSettings: true
+                  backgroundMode: continuable
+              - id: tool-subagent-fork
+                name: '@deepseek-ai/dsh-tool-subagent'
+                config:
+                  provider: fork
+                  toolName: subagent_fork
+                  modelSelectionSettings: true
+                  backgroundMode: continuable
+              - id: tool-subagent-codex
+                name: '@deepseek-ai/dsh-tool-subagent'
+                disabled: true
+                config:
+                  provider: codex
+                  toolName: subagent_codex
+                  backgroundMode: one-shot
+                  maxDepth: provider-managed
+              - id: tool-subagent-claude-code
+                name: '@deepseek-ai/dsh-tool-subagent'
+                disabled: true
+                config:
+                  provider: claude-code
+                  toolName: subagent_claude_code
+                  backgroundMode: one-shot
+                  maxDepth: provider-managed
+              - id: workflow-ptc
+                name: '@deepseek-ai/dsh-workflow-ptc'
+                config:
+                  provider: spawn
+              - id: tool-workflow
+                name: '@deepseek-ai/dsh-tool-workflow'
+              - id: tool-ralph
+                name: '@deepseek-ai/dsh-tool-ralph'
+                disabled: true
+                config:
+                  subagentProvider: spawn
+                  maxRounds: 64
+          - id: tool-ask-user
+            name: '@deepseek-ai/dsh-tool-ask-user'
+          - id: tool-todo
+            name: '@deepseek-ai/dsh-tool-todo'
+            config:
+              allowParallelInProgress: true
+          - id: tool-web
+            name: '@deepseek-ai/dsh-tool-web'
+            config:
+              fetch: true
+              searchTimeoutMs: 60000
+          - id: present
+            name: '@deepseek-ai/dsh-tool-present'
