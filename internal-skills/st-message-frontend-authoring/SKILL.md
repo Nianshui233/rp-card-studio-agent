@@ -125,6 +125,19 @@ description: "Private module for experience-led SillyTavern message frontend fam
 
 前端渲染只依赖真实的状态载荷：如果 provider 已返回当前消息的 `stat_data`，`schema` 即使存在也可能是对象或字符串，不能用 `typeof schema === "object"` 作为唯一可用性门禁。完整 MvuData/桥接校验与玩家界面渲染是两件事；provider 报告没有快照时显示干净空态，不伪造数据，也不把内部 API 错误直接展示给玩家。
 
+## iframe 画布与宿主背景
+
+fenced HTML 通常运行在宿主消息创建的 iframe/消息内画布中。页面必须先区分三层：宿主消息背景、iframe 文档的 `html/body` 画布、页面自己的内容容器；截图中出现的黑色区域往往不是 `border`，而是 `body` 背景加上 `.app` 的 `max-width`、`margin:auto` 或 `padding` 留白。
+
+默认规则：
+
+- `html, body` 使用透明背景和 `margin:0`，让宿主消息背景透出；
+- 需要不透明主题底时，给明确的全幅 surface 设计，而不是让 body 黑色背景偶然包住窄内容；
+- 内容容器可使用 `max-width` 保持阅读宽度，但两侧空白必须显示宿主背景，不得形成突兀黑边；
+- 不用 `overflow:hidden`、固定高度或伪全屏背景掩盖 iframe 高度/留白问题；
+- 在模拟父页面中分别检查宽屏、窄屏、短内容、长内容和底部滚动边缘；截图审查要记录“黑色区域属于宿主、iframe 画布还是内容 surface”。
+
+
 ## 持续生命周期
 
 ```text

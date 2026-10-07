@@ -44,3 +44,17 @@ test('state writes require evidence and cannot be inferred from a copied form fi
   assert.match(mvu, /用户明确声明/);
   assert.match(mvu, /样本默认值/);
 });
+
+
+test('iframe frontends treat the host canvas separately from the content surface', () => {
+  const contract = read('orchestrator/artifact-purity.md');
+  const agent = read('AGENT.md');
+  const opening = read('internal-skills/st-opening-frontend-authoring/SKILL.md');
+  const message = read('internal-skills/st-message-frontend-authoring/SKILL.md');
+  for (const text of [contract, agent, opening, message]) {
+    assert.match(text, /宿主消息背景/);
+    assert.match(text, /透明/);
+    assert.match(text, /黑边/);
+    assert.match(text, /模拟父页面|模拟父容器/);
+  }
+});
