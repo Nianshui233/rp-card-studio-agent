@@ -26,50 +26,32 @@ test('MVU_ZOD templates cover schema, runtime contract, update rules, paths, and
   assert.match(read('assets/templates/mvu-output-format.yaml'), /<JSONPatch>/);
 });
 
-test('the repository carries an authoritative complete MVU_ZOD example', () => {
-  const base = path.join('assets', 'examples', 'mvu-zod-rp');
-  for (const file of ['灰港避难所.json', '灰港避难所世界书.json', '运行脚本.folder.json', 'schema.js', 'MVU运行合同.yaml', 'regex.json', 'regex.fixtures.json', '状态栏.html', 'README.md']) assert(exists(path.join(base, file)), `missing ${file}`);
-  const card = JSON.parse(read(path.join(base, '灰港避难所.json')));
-  assert.equal(Boolean(card.data.character_book), false, 'MVU_ZOD 样品必须使用独立世界书路线');
+test('the repository carries one authoritative complete MVU_ZOD sample with explanatory guidance', () => {
+  const base = path.join('assets', 'examples', 'wo-fei-wo-rp');
+  for (const file of ['我，非我.重构版.json', '我，非我.世界书.json', '运行脚本.folder.json', 'schema.js', 'MVU运行合同.yaml', 'regex.json', 'regex.fixtures.json', '消息状态栏.html', 'README.md', 'AGENT_GUIDE.md']) assert(exists(path.join(base, file)), `missing ${file}`);
+  const card = JSON.parse(read(path.join(base, '我，非我.重构版.json')));
+  assert.equal(Boolean(card.data.character_book), false, '样品必须使用独立世界书路线');
+  assert.equal(Object.hasOwn(card.data.extensions, 'regex_scripts'), false, '独立 Regex 样品不能保留空的卡内 Regex 路径');
   const contract = read(path.join(base, 'MVU运行合同.yaml'));
   assert.match(contract, /mode: mvu_zod/);
-  assert.match(contract, /init_strategy: greeting/);
+  assert.match(contract, /init_strategy: worldbook/);
   assert.match(contract, /update_dialect: json_patch/);
-  const book = JSON.parse(read(path.join(base, '灰港避难所世界书.json')));
+  const book = JSON.parse(read(path.join(base, '我，非我.世界书.json')));
   const comments = Object.values(book.entries).map(entry => entry.comment);
   for (const comment of ['[mvu_update]变量更新规则', '变量列表', '[mvu_update]变量输出格式']) assert(comments.includes(comment));
-});
-
-
-test('the repository carries an MVU_ZOD plus EJS shared-message bridge sample', () => {
-  const base = path.join('assets', 'examples', 'mvu-ejs-rp');
-  for (const file of ['灰港避难所.json', '灰港避难所世界书.json', '运行脚本.folder.json', 'schema.js', 'MVU运行合同.yaml', 'EJS运行合同.yaml', 'regex.json', 'regex.fixtures.json', 'README.md']) assert(exists(path.join(base, file)), `missing ${file}`);
-  const ejs = read(path.join(base, 'EJS运行合同.yaml'));
-  assert.match(ejs, /bridge_mode: shared_message_variables/);
-  const mvu = read(path.join(base, 'MVU运行合同.yaml'));
-  assert.match(mvu, /init_strategy: worldbook/);
-  const card = JSON.parse(read(path.join(base, '灰港避难所.json')));
-  assert.equal(Boolean(card.data.character_book), false, 'EJS 样品必须使用独立世界书路线');
-  assert.doesNotMatch(card.data.first_mes, /<initvar>/i);
-  const book = JSON.parse(read(path.join(base, '灰港避难所世界书.json')));
-  const dynamic = Object.values(book.entries).find(entry => entry.comment === '动态内容总控');
-  assert(dynamic);
-  assert.match(dynamic.content, /getvar\(['"]stat_data\./);
-  assert.match(dynamic.content, /await getwi/);
-  assert.doesNotMatch(dynamic.content, /replaceMvuData|registerMvuSchema|<UpdateVariable>/i);
+  assert.match(read(path.join(base, 'README.md')), /原始卡是语义金标准/);
+  assert.match(read(path.join(base, 'AGENT_GUIDE.md')), /自由发挥/);
 });
 
 test('technical MVU Regex stays display-only and does not persist on edit', () => {
-  for (const dir of ['mvu-zod-rp', 'mvu-ejs-rp', 'mvu-ejs-bridge-rp', 'full-mvu-rp']) {
-    const file = path.join('assets', 'examples', dir, 'regex.json');
-    const rules = JSON.parse(read(file));
-    for (const rule of rules) {
-      const text = `${rule.findRegex || ''}
-${rule.replaceString || ''}`;
-      const technical = /<\s*(?:UpdateVariable|initvar|StatusPlaceHolderImpl|status_current_variable)\b/i.test(text);
-      if (!technical) continue;
-      assert.notEqual(rule.promptOnly, true, `${dir}/${rule.scriptName} must not be prompt-only`);
-      assert.notEqual(rule.runOnEdit, true, `${dir}/${rule.scriptName} must not run on edit`);
-    }
+  const dir = 'wo-fei-wo-rp';
+  const file = path.join('assets', 'examples', dir, 'regex.json');
+  const rules = JSON.parse(read(file));
+  for (const rule of rules) {
+    const text = `${rule.findRegex || ''}\n${rule.replaceString || ''}`;
+    const technical = /<\s*(?:UpdateVariable|initvar|StatusPlaceHolderImpl|status_current_variable)\b/i.test(text);
+    if (!technical) continue;
+    assert.notEqual(rule.promptOnly, true, `${dir}/${rule.scriptName} must not be prompt-only`);
+    assert.notEqual(rule.runOnEdit, true, `${dir}/${rule.scriptName} must not run on edit`);
   }
 });

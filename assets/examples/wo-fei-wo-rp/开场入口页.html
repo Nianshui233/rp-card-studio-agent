@@ -1,0 +1,1443 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>《我，非我》幸存者登记档案</title>
+<style>
+  :root{
+    --bg-primary:#0a0a0c;
+    --bg-secondary:#111116;
+    --bg-card:#16161c;
+    --bg-elevated:#1c1c23;
+    --accent-red:#c0392b;
+    --accent-red-soft:rgba(192,57,43,.14);
+    --accent-red-line:rgba(192,57,43,.42);
+    --accent-amber:#d9a441;
+    --accent-amber-soft:rgba(217,164,65,.12);
+    --text-primary:#e9e6e2;
+    --text-secondary:#a9a49d;
+    --text-muted:#6d6862;
+    --border:#2a2a32;
+    --border-dark:#1b1b21;
+    --ok:#6f9f6a;
+    --font-mono:ui-monospace,SFMono-Regular,"Cascadia Mono",Consolas,"Noto Sans Mono CJK SC",monospace;
+    --font-body:system-ui,-apple-system,"Segoe UI","Noto Sans CJK SC","Microsoft YaHei",sans-serif;
+    --radius:3px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg-primary);
+    color:var(--text-primary);
+    font:15px/1.68 var(--font-body);
+    padding-top:101px;
+    -webkit-text-size-adjust:100%;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;
+    background:
+      repeating-linear-gradient(0deg,rgba(255,255,255,.012) 0 1px,transparent 1px 3px),
+      radial-gradient(1100px 620px at 50% -110px,rgba(192,57,43,.10),transparent 70%);
+  }
+  .topbar{
+    position:fixed;top:0;left:0;right:0;height:53px;z-index:100;
+    display:flex;align-items:center;gap:12px;padding:0 16px;
+    background:rgba(10,10,12,.96);
+    border-bottom:1px solid var(--border);
+  }
+  .topbar .brand{font-family:var(--font-mono);letter-spacing:.16em;font-size:13px;color:var(--text-primary);white-space:nowrap}
+  .topbar .brand em{font-style:normal;color:var(--accent-red)}
+  .topbar .sub{font-family:var(--font-mono);font-size:10px;letter-spacing:.22em;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .topbar .spacer{flex:1 1 auto}
+  .topbar .stamp{width:26px;height:26px;flex:0 0 26px;opacity:.9}
+  .progress-bar{
+    position:fixed;top:53px;left:0;right:0;z-index:99;
+    background:var(--bg-secondary);border-bottom:1px solid var(--border);
+    overflow-x:auto;scrollbar-width:none;
+  }
+  .progress-bar::-webkit-scrollbar{display:none}
+  .progress-steps{display:flex;min-width:max-content}
+  .pstep{
+    flex:1 1 auto;min-width:104px;padding:9px 8px;border:0;border-bottom:2px solid transparent;
+    background:transparent;color:inherit;font:inherit;cursor:pointer;text-align:center;user-select:none;
+  }
+  .pstep .num{display:block;font-family:var(--font-mono);font-size:10px;letter-spacing:.2em;color:var(--text-muted);margin-bottom:2px}
+  .pstep .lbl{font-size:12px;color:var(--text-secondary);white-space:nowrap}
+  .pstep:hover{background:var(--accent-red-soft)}
+  .pstep.is-on{border-bottom-color:var(--accent-red);background:var(--accent-red-soft)}
+  .pstep.is-on .num{color:var(--accent-red)}
+  .pstep.is-on .lbl{color:var(--text-primary)}
+  .pstep.is-done .num{color:var(--accent-amber)}
+  .layout{
+    position:relative;z-index:1;max-width:1420px;margin:0 auto;padding:22px 18px 90px;
+    display:flex;gap:22px;align-items:flex-start;
+  }
+  .steps{flex:1 1 auto;min-width:0}
+  .step{display:none;border:1px solid var(--border);background:var(--bg-card);border-radius:var(--radius);padding:22px}
+  .step.is-on{display:block}
+  .step-head{display:flex;align-items:baseline;gap:10px;margin:0 0 6px;flex-wrap:wrap}
+  .step-head h2{font-size:19px;margin:0;letter-spacing:.02em}
+  .step-head .kicker{font-family:var(--font-mono);font-size:10px;letter-spacing:.2em;color:var(--accent-red)}
+  .lead{color:var(--text-secondary);margin:0 0 18px;font-size:13.5px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));gap:16px 18px}
+  .field{display:flex;flex-direction:column;gap:6px;min-width:0}
+  .field.wide{grid-column:1/-1}
+  .flabel{font-size:13px;color:var(--text-secondary);letter-spacing:.02em}
+  .flabel .req{color:var(--accent-red);margin-left:4px}
+  .flabel .tip{color:var(--text-muted);font-size:11.5px;margin-left:6px}
+  input[type=text],select,textarea{
+    width:100%;background:var(--bg-elevated);color:var(--text-primary);
+    border:1px solid var(--border);border-radius:var(--radius);
+    padding:9px 10px;font:14px/1.55 var(--font-body);
+  }
+  input[type=text]:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent-red-line);box-shadow:0 0 0 2px var(--accent-red-soft)}
+  input::placeholder,textarea::placeholder{color:var(--text-muted)}
+  textarea{resize:vertical;min-height:76px}
+  select{cursor:pointer}
+  .custom[hidden]{display:none}
+  .radios{display:flex;flex-wrap:wrap;gap:8px}
+  .radio{
+    display:inline-flex;align-items:center;gap:7px;padding:7px 11px;
+    border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-elevated);
+    font-size:13px;color:var(--text-secondary);cursor:pointer;
+  }
+  .radio input{accent-color:var(--accent-red);margin:0}
+  .radio:has(input:checked){border-color:var(--accent-red-line);background:var(--accent-red-soft);color:var(--text-primary)}
+  .hint{margin:2px 0 0;font-size:12px;color:var(--text-muted)}
+  fieldset{border:0;margin:0;padding:0;min-width:0}
+  fieldset[hidden]{display:none}
+  .subhead{
+    margin:22px 0 12px;padding-top:14px;border-top:1px dashed var(--border);
+    font-family:var(--font-mono);font-size:11px;letter-spacing:.2em;color:var(--accent-amber);
+  }
+  .prologue h3{margin:26px 0 10px;font-size:15px;color:var(--text-primary)}
+  .prologue h3 .ico{margin-right:8px}
+  .prologue p{color:var(--text-secondary);margin:0 0 12px;font-size:14px}
+  .prologue p strong{color:var(--text-primary)}
+  .plist{margin:0 0 14px;padding-left:18px;color:var(--text-secondary);font-size:14px}
+  .plist li{margin-bottom:7px}
+  .plist li b{color:var(--text-primary)}
+  .quote{
+    margin:0 0 20px;padding:14px 16px;border-left:2px solid var(--accent-red);
+    background:linear-gradient(90deg,var(--accent-red-soft),transparent);
+    color:var(--text-secondary);font-size:14px;
+  }
+  .quote .en{display:block;font-family:var(--font-mono);font-size:10.5px;letter-spacing:.2em;color:var(--text-muted);margin-bottom:8px}
+  .factions{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin:0 0 8px}
+  .faction{border:1px solid var(--border);background:var(--bg-elevated);border-radius:var(--radius);padding:13px}
+  .faction .fname{font-size:13.5px;color:var(--text-primary);margin:0 0 6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .faction .fdesc{margin:0;font-size:12.5px;color:var(--text-secondary)}
+  .layer{display:inline-block;font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;padding:1px 6px;border-radius:2px;border:1px solid var(--border)}
+  .layer.open{color:var(--ok);border-color:rgba(111,159,106,.4)}
+  .layer.rumor{color:var(--accent-amber);border-color:var(--accent-amber-soft)}
+  .rumorbox{
+    border:1px dashed var(--accent-amber);border-left:3px solid var(--accent-amber);
+    background:var(--accent-amber-soft);border-radius:var(--radius);padding:13px 15px 4px;margin:0 0 18px;
+  }
+  .rumorbox .rumor-note{margin:0 0 10px;font-size:12.5px;color:var(--text-muted)}
+  .rumorbox .plist{margin-bottom:8px}
+  .rumorbox .plist li b{color:var(--accent-amber)}
+  .rumorbox .rumor-tail{margin:0 0 11px;font-size:12.5px;color:var(--text-muted)}
+  .routes{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+  .route-card{display:block;cursor:pointer;position:relative}
+  .route-card input{position:absolute;opacity:0;pointer-events:none}
+  .route-inner{
+    display:flex;flex-direction:column;gap:8px;height:100%;
+    border:1px solid var(--border);background:var(--bg-elevated);border-radius:var(--radius);
+    padding:14px;transition:border-color .18s ease,background .18s ease;
+  }
+  .route-card:hover .route-inner{border-color:var(--accent-red-line)}
+  .route-card:has(input:checked) .route-inner{border-color:var(--accent-red);background:var(--accent-red-soft)}
+  .route-svg{display:block;width:100%;max-width:132px}
+  .route-name{font-size:14px;color:var(--text-primary);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .badge{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;color:var(--accent-amber);border:1px solid var(--accent-amber-soft);padding:1px 6px;border-radius:2px}
+  .route-desc{margin:0;font-size:12.5px;color:var(--text-secondary)}
+  .route-pick{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.12em;color:var(--accent-red);opacity:0}
+  .route-card:has(input:checked) .route-pick{opacity:1}
+  .notice{border:1px solid var(--border);border-left:2px solid var(--accent-amber);background:var(--bg-elevated);border-radius:var(--radius);padding:12px 14px;margin:0 0 16px;font-size:13px;color:var(--text-secondary)}
+  .notice.red{border-left-color:var(--accent-red)}
+  .notice h4{margin:0 0 6px;font-size:13px;color:var(--text-primary)}
+  .notice ol,.notice ul{margin:6px 0 0;padding-left:20px}
+  .notice li{margin-bottom:5px}
+  .notice code{font-family:var(--font-mono);font-size:12px;color:var(--text-primary);background:var(--bg-card);border:1px solid var(--border);padding:1px 5px;border-radius:2px}
+  .step-nav{display:flex;gap:10px;align-items:center;margin-top:22px;flex-wrap:wrap}
+  .step-nav .pos{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;color:var(--text-muted)}
+  .btn{
+    appearance:none;border:1px solid var(--border);background:var(--bg-elevated);color:var(--text-primary);
+    padding:9px 15px;border-radius:var(--radius);font:13.5px/1.4 var(--font-body);cursor:pointer;
+  }
+  .btn:hover{border-color:var(--accent-red-line)}
+  .btn.primary{background:var(--accent-red);border-color:var(--accent-red);color:#fff}
+  .btn.primary:hover{background:#a83226}
+  .btn.ghost{background:transparent}
+  .preview{
+    position:sticky;top:112px;flex:0 0 348px;width:348px;
+    border:1px solid var(--border);background:var(--bg-card);border-radius:var(--radius);
+    padding:14px;display:flex;flex-direction:column;gap:10px;
+  }
+  .preview-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+  .preview-title{font-family:var(--font-mono);font-size:11px;letter-spacing:.18em;color:var(--accent-amber)}
+  .preview-state{font-size:11px;color:var(--text-muted)}
+  #preview{min-height:300px;height:44vh;font-family:var(--font-mono);font-size:12.5px;line-height:1.6}
+  .preview-actions{display:flex;gap:8px}
+  .preview-actions .btn{flex:1 1 auto}
+  .preview-note{margin:0;font-size:11.5px;color:var(--text-muted)}
+  .preview-toggle{display:none}
+  .toast{
+    position:fixed;left:50%;bottom:26px;transform:translate(-50%,14px);z-index:200;
+    max-width:min(92vw,520px);padding:11px 16px;border-radius:var(--radius);
+    background:var(--bg-elevated);border:1px solid var(--border);border-left:2px solid var(--accent-amber);
+    color:var(--text-primary);font-size:13px;opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease;
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  .toast.ok{border-left-color:var(--ok)}
+  .toast.err{border-left-color:var(--accent-red)}
+  .foot{max-width:1420px;margin:0 auto;padding:0 18px 40px;color:var(--text-muted);font-size:11.5px;position:relative;z-index:1}
+  @media (max-width:1079px){
+    .layout{padding-bottom:120px}
+    .preview{
+      position:fixed;left:0;right:0;bottom:0;top:auto;width:auto;flex:none;
+      max-height:76vh;overflow:auto;border-radius:0;border-left:0;border-right:0;
+      transform:translateY(102%);transition:transform .22s ease;z-index:120;
+    }
+    .preview.open{transform:translateY(0)}
+    #preview{height:34vh;min-height:180px}
+    .preview-toggle{
+      display:block;position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:130;
+      border:1px solid var(--accent-red-line);background:var(--accent-red);color:#fff;
+      padding:10px 18px;border-radius:999px;font:13px/1.4 var(--font-body);cursor:pointer;
+      box-shadow:0 6px 22px rgba(0,0,0,.5);
+    }
+    .step{padding:16px 14px}
+  }
+  @media (max-width:560px){
+    .topbar .sub{display:none}
+    .grid{grid-template-columns:1fr}
+    .step-head h2{font-size:17px}
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <span class="brand">我<em>，</em>非我</span>
+  <span class="sub">I, NOT I — SURVIVOR REGISTRY</span>
+  <span class="spacer"></span>
+  <svg class="stamp" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+    <circle cx="60" cy="60" r="54" fill="none" stroke="#c0392b" stroke-width="3" opacity="0.85"></circle>
+    <circle cx="60" cy="60" r="45" fill="none" stroke="#d9a441" stroke-width="1" opacity="0.6"></circle>
+    <path d="M60 24 L68 52 L96 60 L68 68 L60 96 L52 68 L24 60 L52 52 Z" fill="#c0392b" opacity="0.75"></path>
+    <path d="M60 40 L64 56 L80 60 L64 64 L60 80 L56 64 L40 60 L56 56 Z" fill="#0a0a0c" opacity="0.85"></path>
+  </svg>
+</header>
+
+<nav class="progress-bar" aria-label="登记步骤">
+  <div class="progress-steps" id="progressSteps">
+    <button type="button" class="pstep is-on" data-goto="0"><span class="num">序章</span><span class="lbl">世界观</span></button>
+    <button type="button" class="pstep" data-goto="1"><span class="num">STEP 01</span><span class="lbl">基础身份</span></button>
+    <button type="button" class="pstep" data-goto="2"><span class="num">STEP 02</span><span class="lbl">生存背景</span></button>
+    <button type="button" class="pstep" data-goto="3"><span class="num">STEP 03</span><span class="lbl">阵营归属</span></button>
+    <button type="button" class="pstep" data-goto="4"><span class="num">STEP 04</span><span class="lbl">觉醒设定</span></button>
+    <button type="button" class="pstep" data-goto="5"><span class="num">STEP 05</span><span class="lbl">性格与信念</span></button>
+    <button type="button" class="pstep" data-goto="6"><span class="num">STEP 06</span><span class="lbl">装备与外观</span></button>
+    <button type="button" class="pstep" data-goto="7"><span class="num">STEP 07</span><span class="lbl">补充设定</span></button>
+    <button type="button" class="pstep" data-goto="8"><span class="num">STEP 08</span><span class="lbl">开局与交接</span></button>
+    <button type="button" class="pstep" data-goto="9"><span class="num">FINAL</span><span class="lbl">角色总览</span></button>
+  </div>
+</nav>
+
+<div class="layout">
+  <main class="steps">
+
+    <section class="step is-on" id="step-0">
+      <div class="step-head"><span class="kicker">序章</span><h2>你醒来的时候，世界已经换了一套规矩</h2></div>
+      <div class="prologue">
+        <blockquote class="quote">
+          <span class="en">I, NOT I — APOCALYPSE PROTOCOL</span>
+          当文明的灯火逐一熄灭，你会发现——最可怕的不是外面的怪物，而是你开始变成另一个自己。
+        </blockquote>
+
+        <h3><span class="ico">🌍</span>世界崩塌</h3>
+        <p>一场没有预警的全球性灾难在几天之内摧毁了现代文明的一切根基。一种来源不明的感染把人变成了没有意识的攻击者。政府停摆、军队各自为政、电力与通讯接连断掉。曾经灯火通明的城市成了死寂的废墟迷宫，高速公路变成锈迹斑斑的金属坟场。</p>
+        <p><strong>你所认知的世界已经结束。但故事才刚刚开始。</strong></p>
+
+        <h3><span class="ico">🧬</span>感染法则（末日里人人都知道的那部分）</h3>
+        <ul class="plist">
+          <li><b>伤口碰到感染者的体液就会感染</b>——被咬、被抓伤后沾上血就够。没有人见过治愈的例子，也没有人见过逆转的例子。</li>
+          <li><b>被咬之后几乎没有例外</b>：发热、黑色纹路从伤口往外蔓延、意识模糊，最后变成行尸。这个过程通常只有几个小时，快的话两三个小时就开始发作。</li>
+          <li><b>摧毁脑干是唯一可靠的击杀方式。</b>火有效，但在室内用火等于把自己关进炉子；打穿身体没用，打不进脑子只是让它更愤怒。</li>
+          <li><b>声音和光会把它们引过来。</b>它们在噪音和亮处聚集——所以幸存者之间最常压低的一句话是「别出声」。</li>
+          <li><b>不是所有行尸都一样。</b>有的迟缓成群，有的快得能追上奔跑的人，还有极少数已经看不出人形。越往深处走，越不该用第一次看到的那个去推断下一个。</li>
+          <li><b>动物也会被感染。</b>野外的狗、狼、牛都不再安全；离开城市不等于离开危险。</li>
+        </ul>
+
+        <h3><span class="ico">⚡</span>觉醒者（你听说过的那些说法）</h3>
+        <ul class="plist">
+          <li>极少数人在末日的极端处境里获得了超出常人的能力，幸存者叫他们「<b>觉醒者</b>」。有人说这是恩赐，有人说这是另一种感染。</li>
+          <li>这些能力各不相同：有人变得更快更硬，有人能感觉到看不见的东西，也有人能做到用常理说不通的事。具体能做什么，得看那个人自己。</li>
+          <li>能力不是免费的：用过之后人会虚弱、会留下痕迹，而且<b>使用能力会引来行尸</b>——这是最要命的一条。</li>
+          <li>所以大多数据点的规矩里都有同一句：<b>不许在据点内使用能力</b>。觉醒者的身份本身就是风险：有人把你当救世主，有人把你当成比行尸更该处理的东西；受了伤的觉醒者尤其要小心。</li>
+        </ul>
+
+        <h3><span class="ico">⚔️</span>你可能会遇到的四方</h3>
+        <div class="factions">
+          <div class="faction">
+            <p class="fname">🎖 军方残余 <span class="layer open">公开</span></p>
+            <p class="fdesc">指挥链断了之后各自为政的军事力量。有人在设卡、发口粮、维持隔离区；也有人在执行让人不敢细问的命令。秩序的维护者，或者暴君——取决于你碰上的是哪一个。</p>
+          </div>
+          <div class="faction">
+            <p class="fname">🏠 幸存者据点 <span class="layer open">公开</span></p>
+            <p class="fdesc">从互助的避难所到弱肉强食的掠夺帮派，形态各异。每个据点都是一座孤岛，自己定规矩；收不收来历不明的人，由他们说了算。</p>
+          </div>
+          <div class="faction">
+            <p class="fname">📡 觉醒者的联络渠道 <span class="layer rumor">传闻</span></p>
+            <p class="fdesc">有觉醒者说，某个短波频段上有人在交换情报、通报落脚点；也有人说那只是绝望里的传说。没人愿意在据点里公开谈论它。</p>
+          </div>
+          <div class="faction">
+            <p class="fname">❓ 那家公司 <span class="layer rumor">传闻</span></p>
+            <p class="fdesc">有人说这场灾难和一家公司在做的东西有关。没有人拿得出证据，愿意谈这件事的人也不多——他们通常活得不长，或者活得很小心。</p>
+          </div>
+        </div>
+
+        <h3><span class="ico">📜</span>已经发生的事</h3>
+        <ul class="plist">
+          <li><b>大感染爆发</b>：几天内扩散到多个大洲，医院、机场、车站成了最早的沦陷区。</li>
+          <li><b>交通与通讯崩溃</b>：互联网断了、电网停了，剩下的人被切成一座座孤岛。</li>
+          <li><b>秩序由据点接管</b>：谁掌握武力和物资，谁定规矩；旧的阶层塌了，新的分野刚刚开始。</li>
+          <li><b>有人开始觉醒</b>，也有人开始害怕觉醒者。</li>
+          <li><b>野外确认不再安全</b>：感染动物出现之后，逃出城市的人发现自己只是换了种死法。</li>
+        </ul>
+
+        <!--rumor:start-->
+        <h3><span class="ico">🗣</span>据点里传的那些话</h3>
+        <div class="rumorbox">
+          <p class="rumor-note">下面这些是路上和据点里能听到的说法，不是确认过的事实。它们可能有一条是真的，也可能全都是有人在吓人。</p>
+          <ul class="plist rumor-list">
+            <li><b>能力分几类、有没有高下</b>：有人说觉醒者的能力能归成六类——躯体强化、感知扩展、念动力、生体干涉、环境操控、精神渗透；还有人给它们排了等级，最弱的一档叫「萌芽」，再往上是什么样，说这话的人也讲不清。真见过高位的人，通常没机会回来讲。</li>
+            <li><b>觉醒者被感染之后</b>：有一种说法是，被感染的觉醒者会变成「启示堕落体」——能力还在，人已经没了。传说这种东西出现的地方，整片区域都会被清空。</li>
+            <li><b>「净化协议」</b>：从军事隔离区逃出来的人说，有些设施还在执行一份叫这个名字的命令——把感染区连同里面的人一起抹平。没人见过那份文件，但炮声是真的。</li>
+            <li><b>那一次泄漏</b>：关于这一切是怎么开始的，最常被提起的版本是——一家跨国生物公司的秘密项目出了事。公司名字有人听过（「阿尔戈斯」？），也有人咬定那是编出来吓人的。</li>
+            <li><b>最早的觉醒者</b>：爆发后没多久就出现了第一批，没人知道他们是怎么来的，也没人说得清他们后来去了哪。</li>
+            <li><b>被感染的动物不止一种</b>：有人说远不止猫狗，哺乳动物可能都有份。这话在据点里属于让人睡不着的那类。</li>
+          </ul>
+          <p class="rumor-tail">信多少，你自己决定——到了外面，能验证的只有你自己碰上什么。</p>
+        </div>
+        <!--rumor:end-->
+
+        <h3><span class="ico">💀</span>你要面对的不是一道选择题</h3>
+        <p>生存还是道德、信任还是背叛、力量还是代价、秩序还是自由——这些不会以选项的形式出现在你面前，而会以具体的人、具体的时刻出现。同伴被咬了你怎么办？陌生人递过来半瓶水，你接不接？为了活着，你愿意变成什么样子？</p>
+        <p>世界不会因为你还没到场就停下：你不介入的地方，事情照样往前走，而且往往往坏的方向走。</p>
+      </div>
+      <div class="step-nav">
+        <span class="pos">序章 / 共 10 步</span>
+        <span style="flex:1 1 auto"></span>
+        <button type="button" class="btn primary" data-goto="1">开始登记 →</button>
+      </div>
+    </section>
+
+    <section class="step" id="step-1">
+      <div class="step-head"><span class="kicker">STEP 01</span><h2>基础身份</h2></div>
+      <p class="lead">你是谁？在末日来临之前，你过着怎样的生活？只填你想填的，留白的地方就保持未定。</p>
+      <div class="grid">
+        <div class="field">
+          <label class="flabel" for="f-name">角色姓名<span class="req">*</span><span class="tip">别人怎么叫你</span></label>
+          <input type="text" id="f-name" placeholder="例：周野">
+        </div>
+        <div class="field">
+          <label class="flabel" for="f-age">年龄</label>
+          <select id="f-age">
+            <option value="">— 选择年龄段 —</option>
+            <option value="16-20（少年）">16-20（少年）</option>
+            <option value="21-30（青年）">21-30（青年）</option>
+            <option value="31-40（壮年）">31-40（壮年）</option>
+            <option value="41-55（中年）">41-55（中年）</option>
+            <option value="56+（老年）">56+（老年）</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-age-custom" placeholder="自己写年龄，例：二十七" hidden>
+        </div>
+        <div class="field">
+          <label class="flabel" for="f-gender">性别</label>
+          <select id="f-gender">
+            <option value="">— 选择 —</option>
+            <option value="男">男</option>
+            <option value="女">女</option>
+            <option value="性别模糊/不明">性别模糊/不明</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-gender-custom" placeholder="自己写" hidden>
+        </div>
+        <div class="field">
+          <label class="flabel" for="f-nationality">国籍/民族</label>
+          <select id="f-nationality">
+            <option value="">— 选择 —</option>
+            <option value="中国">中国</option>
+            <option value="日本">日本</option>
+            <option value="韩国">韩国</option>
+            <option value="美国">美国</option>
+            <option value="英国">英国</option>
+            <option value="俄罗斯">俄罗斯</option>
+            <option value="德国">德国</option>
+            <option value="法国">法国</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-nationality-custom" placeholder="自己写" hidden>
+        </div>
+        <div class="field wide">
+          <label class="flabel" for="f-occupation">末日前职业<span class="tip">决定你的基础技能倾向</span></label>
+          <select id="f-occupation">
+            <option value="">— 选择末日前职业 —</option>
+            <option value="军人/退役军人">军人/退役军人</option>
+            <option value="警察/执法人员">警察/执法人员</option>
+            <option value="医生/护士">医生/护士</option>
+            <option value="工程师/技术人员">工程师/技术人员</option>
+            <option value="教师/学者">教师/学者</option>
+            <option value="学生">学生</option>
+            <option value="建筑工人/体力劳动者">建筑工人/体力劳动者</option>
+            <option value="猎人/户外向导">猎人/户外向导</option>
+            <option value="厨师/餐饮业">厨师/餐饮业</option>
+            <option value="程序员/IT从业者">程序员/IT从业者</option>
+            <option value="记者/媒体人">记者/媒体人</option>
+            <option value="商人/企业管理">商人/企业管理</option>
+            <option value="艺术家/音乐家">艺术家/音乐家</option>
+            <option value="无业/流浪者">无业/流浪者</option>
+            <option value="罪犯/黑道成员">罪犯/黑道成员</option>
+            <option value="消防员/急救人员">消防员/急救人员</option>
+            <option value="科研人员">科研人员</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-occupation-custom" placeholder="自己写职业" hidden>
+        </div>
+        <div class="field wide">
+          <label class="flabel" for="f-template">角色定位<span class="tip">你在末日里的位置，只影响开局处境，不影响别人对你的态度</span></label>
+          <select id="f-template">
+            <option value="">— 选择角色定位 —</option>
+            <option value="普通幸存者 —— 在废墟中寻找出路的普通人">普通幸存者 —— 在废墟中寻找出路的普通人</option>
+            <option value="新觉醒者 —— 刚获得能力，还不了解自己的力量">新觉醒者 —— 刚获得能力，还不了解自己的力量</option>
+            <option value="流浪觉醒者 —— 独行于废墟，对能力已有一定掌控">流浪觉醒者 —— 独行于废墟，对能力已有一定掌控</option>
+            <option value="据点成员 —— 属于某个幸存者社群，有组织归属">据点成员 —— 属于某个幸存者社群，有组织归属</option>
+            <option value="逃兵 —— 从军方隔离区逃出，带着秘密或创伤">逃兵 —— 从军方隔离区逃出，带着秘密或创伤</option>
+            <option value="知道得比大多数人多的人 —— 手上有些碎片般的真相">知道得比大多数人多的人 —— 手上有些碎片般的真相</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-template-custom" placeholder="自己写定位" hidden>
+        </div>
+      </div>
+      <div class="step-nav">
+        <button type="button" class="btn ghost" data-goto="0">← 返回序章</button>
+        <span class="pos">STEP 01 / 10</span>
+        <span style="flex:1 1 auto"></span>
+        <button type="button" class="btn primary" data-goto="2">下一步：生存背景 →</button>
+      </div>
+    </section>
+
+    <section class="step" id="step-2">
+      <div class="step-head"><span class="kicker">STEP 02</span><h2>生存背景</h2></div>
+      <p class="lead">爆发那天你在哪儿，又是怎么活到现在的。这一组会直接进你的来历与开局状态。</p>
+      <div class="grid">
+        <div class="field">
+          <label class="flabel" for="f-location">爆发时所在地区</label>
+          <select id="f-location">
+            <option value="">— 选择起始地区 —</option>
+            <option value="华南沿海城市（珠三角）—— 距最早的爆发点最近">华南沿海城市（珠三角）—— 距最早的爆发点最近</option>
+            <option value="华东大城市（长三角）">华东大城市（长三角）</option>
+            <option value="华北/内陆城市">华北/内陆城市</option>
+            <option value="东南亚城市">东南亚城市</option>
+            <option value="东亚其他城市（东京/首尔等）">东亚其他城市（东京/首尔等）</option>
+            <option value="欧洲城市">欧洲城市</option>
+            <option value="北美城市">北美城市</option>
+            <option value="偏远乡村/山区 —— 感染到达较晚">偏远乡村/山区 —— 感染到达较晚</option>
+            <option value="军事基地/设施">军事基地/设施</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-location-custom" placeholder="自己写地区" hidden>
+        </div>
+        <div class="field">
+          <label class="flabel" for="f-environment">当前所处环境</label>
+          <select id="f-environment">
+            <option value="">— 选择当前环境 —</option>
+            <option value="城市废墟（独自流浪）">城市废墟（独自流浪）</option>
+            <option value="城市废墟（小队行动）">城市废墟（小队行动）</option>
+            <option value="幸存者据点内">幸存者据点内</option>
+            <option value="军方隔离区内">军方隔离区内</option>
+            <option value="郊野/森林/山区">郊野/森林/山区</option>
+            <option value="被围困的建筑中">被围困的建筑中</option>
+            <option value="公路/在途中">公路/在途中</option>
+            <option value="地下设施（地铁/防空洞）">地下设施（地铁/防空洞）</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-environment-custom" placeholder="自己写环境" hidden>
+        </div>
+        <div class="field wide">
+          <label class="flabel" for="f-survival">生存经历<span class="tip">你怎么活到今天的</span></label>
+          <select id="f-survival">
+            <option value="">— 选择生存经历 —</option>
+            <option value="独自逃亡，靠机智和运气活到现在">独自逃亡，靠机智和运气活到现在</option>
+            <option value="曾属于一个团体，团体覆灭后独自生存">曾属于一个团体，团体覆灭后独自生存</option>
+            <option value="一直躲藏在安全的地方，尽量避免冲突">一直躲藏在安全的地方，尽量避免冲突</option>
+            <option value="积极战斗，已经杀死过很多行尸">积极战斗，已经杀死过很多行尸</option>
+            <option value="靠专业技能（医疗/工程等）换来的庇护">靠专业技能（医疗/工程等）换来的庇护</option>
+            <option value="靠交易和交涉在各势力之间游走">靠交易和交涉在各势力之间游走</option>
+            <option value="被迫做过不光彩的事才活下来">被迫做过不光彩的事才活下来</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-survival-custom" placeholder="自己写经历" hidden>
+        </div>
+        <div class="field">
+          <label class="flabel" for="f-health">身体状况<span class="tip">会写进状态的伤势</span></label>
+          <select id="f-health">
+            <option value="">— 选择身体状况 —</option>
+            <option value="健康（运气好，没受过大伤）">健康（运气好，没受过大伤）</option>
+            <option value="轻伤（有还没愈合的小伤）">轻伤（有还没愈合的小伤）</option>
+            <option value="旧伤（已愈合但留有后遗症）">旧伤（已愈合但留有后遗症）</option>
+            <option value="慢性问题（需要药物维持）">慢性问题（需要药物维持）</option>
+            <option value="营养不良/脱水">营养不良/脱水</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-health-custom" placeholder="自己写" hidden>
+        </div>
+        <div class="field">
+          <label class="flabel" for="f-mental">精神状态<span class="tip">会写进状态的精神值</span></label>
+          <select id="f-mental">
+            <option value="">— 选择精神状态 —</option>
+            <option value="坚韧（压力下仍保持理性）">坚韧（压力下仍保持理性）</option>
+            <option value="紧绷（随时警惕，容易失眠）">紧绷（随时警惕，容易失眠）</option>
+            <option value="麻木（见过太多，情感已经钝化）">麻木（见过太多，情感已经钝化）</option>
+            <option value="焦虑（对未来充满恐惧和不确定）">焦虑（对未来充满恐惧和不确定）</option>
+            <option value="偏执（很难信任任何人）">偏执（很难信任任何人）</option>
+            <option value="乐观（仍然相信事情会好起来）">乐观（仍然相信事情会好起来）</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-mental-custom" placeholder="自己写" hidden>
+        </div>
+      </div>
+      <div class="step-nav">
+        <button type="button" class="btn ghost" data-goto="1">← 上一步</button>
+        <span class="pos">STEP 02 / 10</span>
+        <span style="flex:1 1 auto"></span>
+        <button type="button" class="btn primary" data-goto="3">下一步：阵营归属 →</button>
+      </div>
+    </section>
+
+    <section class="step" id="step-3">
+      <div class="step-head"><span class="kicker">STEP 03</span><h2>阵营归属</h2></div>
+      <p class="lead">你属于谁，或者谁都不属于。选了势力，世界才知道该用什么态度看你——不知道你是谁的地方，也不会把你当自己人。</p>
+      <div class="notice">
+        <h4>关于势力</h4>
+        填了势力只会登记「你是他们的人」这一条事实：立场、关注度都从最低处开始。你在里面的位置、别人认不认你，都要靠后面玩出来。
+      </div>
+      <div class="grid">
+        <div class="field wide">
+          <span class="flabel">所属势力</span>
+          <div class="radios">
+            <label class="radio"><input type="radio" name="f-faction" value="无所属（独行者）" checked><span>无所属（独行者）</span></label>
+            <label class="radio"><input type="radio" name="f-faction" value="幸存者社群成员"><span>幸存者社群成员</span></label>
+            <label class="radio"><input type="radio" name="f-faction" value="军方隔离区编制"><span>军方隔离区编制</span></label>
+            <label class="radio"><input type="radio" name="f-faction" value="觉醒者网络成员"><span>觉醒者网络成员</span></label>
+            <label class="radio"><input type="radio" name="f-faction" value="掠夺者帮派"><span>掠夺者帮派</span></label>
+            <label class="radio"><input type="radio" name="f-faction" value="__custom__"><span>✎ 自定义</span></label>
+          </div>
+          <input type="text" class="custom" id="f-faction-custom" placeholder="自己写势力名" hidden>
+        </div>
+        <div class="field">
+          <label class="flabel" for="f-faction-relation">你在其中的位置</label>
+          <select id="f-faction-relation">
+            <option value="">— 选择关系 —</option>
+            <option value="忠诚成员（完全认同所属势力）">忠诚成员（完全认同所属势力）</option>
+            <option value="务实合作（为了生存而加入）">务实合作（为了生存而加入）</option>
+            <option value="边缘人物（在势力中不受重视）">边缘人物（在势力中不受重视）</option>
+            <option value="暗中质疑（对势力的做法有异议）">暗中质疑（对势力的做法有异议）</option>
+            <option value="准备脱离（正在寻找离开的机会）">准备脱离（正在寻找离开的机会）</option>
+            <option value="不适用（独行者）">不适用（独行者）</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="flabel" for="f-faction-attitude">对其他势力的态度<span class="tip">只影响你自己的判断方式</span></label>
+          <textarea id="f-faction-attitude" placeholder="例：信不过军方，但会跟他们换弹药；对觉醒者没什么成见。"></textarea>
+        </div>
+      </div>
+      <div class="step-nav">
+        <button type="button" class="btn ghost" data-goto="2">← 上一步</button>
+        <span class="pos">STEP 03 / 10</span>
+        <span style="flex:1 1 auto"></span>
+        <button type="button" class="btn primary" data-goto="4">下一步：觉醒设定 →</button>
+      </div>
+    </section>
+
+    <section class="step" id="step-4">
+      <div class="step-head"><span class="kicker">STEP 04</span><h2>觉醒设定</h2></div>
+      <p class="lead">你可以是普通人，也可以开局就已经觉醒——能力是挣来的，也可以是醒来就在手上的。这一点由你决定。</p>
+      <div class="grid">
+        <div class="field wide">
+          <span class="flabel">觉醒状态</span>
+          <div class="radios">
+            <label class="radio"><input type="radio" name="f-awakened" value="未觉醒" checked><span>未觉醒（普通人）</span></label>
+            <label class="radio"><input type="radio" name="f-awakened" value="已觉醒"><span>已觉醒</span></label>
+          </div>
+          <p class="hint">常人在游玩中也可能觉醒；选「已觉醒」表示你开局就带着能力，也带着随之而来的麻烦。</p>
+        </div>
+      </div>
+      <fieldset id="awaken-block" hidden>
+        <p class="subhead">觉醒者专用</p>
+        <div class="grid">
+          <div class="field">
+            <label class="flabel" for="f-awaken-path">觉醒路径<span class="tip">你是怎么得到能力的</span></label>
+            <select id="f-awaken-path">
+              <option value="">— 选择觉醒路径 —</option>
+              <option value="濒死觉醒 —— 经历真正的生死极限后觉醒">濒死觉醒 —— 经历真正的生死极限后觉醒</option>
+              <option value="感染觉醒 —— 扛过了感染转化（极度罕见）">感染觉醒 —— 扛过了感染转化（极度罕见）</option>
+              <option value="极限崩溃觉醒 —— 精神遭受毁灭性打击后觉醒">极限崩溃觉醒 —— 精神遭受毁灭性打击后觉醒</option>
+              <option value="人工诱导觉醒 —— 药物与极端实验强制触发">人工诱导觉醒 —— 药物与极端实验强制触发</option>
+              <option value="__custom__">✎ 自定义</option>
+            </select>
+            <input type="text" class="custom" id="f-awaken-path-custom" placeholder="自己写" hidden>
+          </div>
+          <div class="field">
+            <label class="flabel" for="f-ability-type">能力类别</label>
+            <select id="f-ability-type">
+              <option value="">— 选择能力类别 —</option>
+              <option value="Ⅰ 躯体强化">Ⅰ 躯体强化 —— 超常力量、速度、耐久、加速愈合</option>
+              <option value="Ⅱ 感知扩展">Ⅱ 感知扩展 —— 超远距离感知、透视、预感危险</option>
+              <option value="Ⅲ 念动力">Ⅲ 念动力 —— 以意念移动物体、制造力场</option>
+              <option value="Ⅳ 生体干涉">Ⅳ 生体干涉 —— 影响他人生理状态、加速愈合</option>
+              <option value="Ⅴ 环境操控">Ⅴ 环境操控 —— 操控温度、电流、火焰、气流</option>
+              <option value="Ⅵ 精神渗透">Ⅵ 精神渗透 —— 读取思维、情绪影响、幻觉注入</option>
+              <option value="__custom__">✎ 自定义</option>
+            </select>
+            <input type="text" class="custom" id="f-ability-type-custom" placeholder="自己写" hidden>
+          </div>
+          <div class="field">
+            <label class="flabel" for="f-ability-level">能力等级</label>
+            <select id="f-ability-level">
+              <option value="">— 选择 —</option>
+              <option value="Lv.1 萌芽">Lv.1 萌芽 —— 刚摸到边，能力时灵时不灵</option>
+              <option value="Lv.2 显现">Lv.2 显现 —— 能稳定使用，遇到压力会走形</option>
+              <option value="Lv.3 支配">Lv.3 支配 —— 熟练掌控，在这一带已经算人物</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="flabel" for="f-expose">身份是否公开<span class="tip">决定了谁在盯着你</span></label>
+            <select id="f-expose">
+              <option value="">— 选择 —</option>
+              <option value="没有向任何人说过">没有向任何人说过</option>
+              <option value="只有一两个人私下知道">只有一两个人私下知道</option>
+              <option value="据点或小队里已经有人知道">据点或小队里已经有人知道</option>
+              <option value="已经传开了">已经传开了</option>
+            </select>
+          </div>
+          <div class="field wide">
+            <label class="flabel" for="f-ability-manifest">能力表现<span class="tip">用起来是什么样子</span></label>
+            <textarea id="f-ability-manifest" placeholder="例：能把两米内的碎玻璃停住半秒；用完之后手指会不受控制地发抖。"></textarea>
+          </div>
+          <div class="field">
+            <label class="flabel" for="f-awaken-cost">觉醒代价</label>
+            <select id="f-awaken-cost">
+              <option value="">— 选择觉醒代价 —</option>
+              <option value="身体永久创伤（慢性疼痛/器官损伤/感官减退）">身体永久创伤（慢性疼痛/器官损伤/感官减退）</option>
+              <option value="部分异变（皮肤纹路/瞳色异常/体温偏低）">部分异变（皮肤纹路/瞳色异常/体温偏低）</option>
+              <option value="精神不稳定（PTSD/解离/情感钝化）">精神不稳定（PTSD/解离/情感钝化）</option>
+              <option value="药物依赖（需要持续用药维持稳定）">药物依赖（需要持续用药维持稳定）</option>
+              <option value="社会排斥（被当成半感染者）">社会排斥（被当成半感染者）</option>
+              <option value="__custom__">✎ 自定义</option>
+            </select>
+            <input type="text" class="custom" id="f-awaken-cost-custom" placeholder="自己写" hidden>
+          </div>
+          <div class="field">
+            <label class="flabel" for="f-backlash">反噬表现<span class="tip">用过头之后会发生什么</span></label>
+            <textarea id="f-backlash" placeholder="例：鼻腔出血、耳鸣，严重时会有几分钟听不见任何声音。"></textarea>
+          </div>
+        </div>
+      </fieldset>
+      <div class="step-nav">
+        <button type="button" class="btn ghost" data-goto="3">← 上一步</button>
+        <span class="pos">STEP 04 / 10</span>
+        <span style="flex:1 1 auto"></span>
+        <button type="button" class="btn primary" data-goto="5">下一步：性格与信念 →</button>
+      </div>
+    </section>
+
+    <section class="step" id="step-5">
+      <div class="step-head"><span class="kicker">STEP 05</span><h2>性格与信念</h2></div>
+      <p class="lead">世界不会看你的设定，只会看你做了什么。但这里写下的东西，会决定别人第一次见你时听到什么语气。</p>
+      <div class="grid">
+        <div class="field wide">
+          <span class="flabel">道德光谱</span>
+          <div class="radios">
+            <label class="radio"><input type="radio" name="f-moral" value="利他型" checked><span>利他型</span></label>
+            <label class="radio"><input type="radio" name="f-moral" value="务实型"><span>务实型</span></label>
+            <label class="radio"><input type="radio" name="f-moral" value="自利型"><span>自利型</span></label>
+            <label class="radio"><input type="radio" name="f-moral" value="掠夺型"><span>掠夺型</span></label>
+            <label class="radio"><input type="radio" name="f-moral" value="__custom__"><span>✎ 自定义</span></label>
+          </div>
+          <input type="text" class="custom" id="f-moral-custom" placeholder="自己写" hidden>
+        </div>
+        <div class="field">
+          <label class="flabel" for="f-personality1">主要性格</label>
+          <select id="f-personality1">
+            <option value="">— 主要性格 —</option>
+            <option value="冷静理性">冷静理性</option>
+            <option value="热血冲动">热血冲动</option>
+            <option value="沉默寡言">沉默寡言</option>
+            <option value="外向健谈">外向健谈</option>
+            <option value="谨慎多疑">谨慎多疑</option>
+            <option value="勇猛果断">勇猛果断</option>
+            <option value="温和包容">温和包容</option>
+            <option value="阴沉内敛">阴沉内敛</option>
+            <option value="幽默乐观">幽默乐观</option>
+            <option value="偏执固执">偏执固执</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-personality1-custom" placeholder="自己写" hidden>
+        </div>
+        <div class="field">
+          <label class="flabel" for="f-personality2">次要性格</label>
+          <select id="f-personality2">
+            <option value="">— 可选 —</option>
+            <option value="善于观察">善于观察</option>
+            <option value="情感丰富">情感丰富</option>
+            <option value="冷漠疏离">冷漠疏离</option>
+            <option value="忠诚可靠">忠诚可靠</option>
+            <option value="狡猾善变">狡猾善变</option>
+            <option value="正义感强">正义感强</option>
+            <option value="自我怀疑">自我怀疑</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-personality2-custom" placeholder="自己写" hidden>
+        </div>
+        <div class="field">
+          <label class="flabel" for="f-habit">显著癖好</label>
+          <select id="f-habit">
+            <option value="">— 可选 —</option>
+            <option value="总是检查弹药余量">总是检查弹药余量</option>
+            <option value="紧张时会转笔或转刀">紧张时会转笔或转刀</option>
+            <option value="习惯性地先看所有出口">习惯性地先看所有出口</option>
+            <option value="收集末日前的旧物品">收集末日前的旧物品</option>
+            <option value="自言自语">自言自语</option>
+            <option value="睡觉时手必须握着武器">睡觉时手必须握着武器</option>
+            <option value="随身带着某个人的遗物">随身带着某个人的遗物</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-habit-custom" placeholder="自己写" hidden>
+        </div>
+        <div class="field">
+          <label class="flabel" for="f-creed">个人信条</label>
+          <select id="f-creed">
+            <option value="">— 选择信条 —</option>
+            <option value="活着就有希望">活着就有希望</option>
+            <option value="保护能保护的人">保护能保护的人</option>
+            <option value="不信任何人，只靠自己">不信任何人，只靠自己</option>
+            <option value="弱者没有选择的权利">弱者没有选择的权利</option>
+            <option value="找到真相，终结这一切">找到真相，终结这一切</option>
+            <option value="活着就是对末日最好的报复">活着就是对末日最好的报复</option>
+            <option value="变强，不惜一切代价">变强，不惜一切代价</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-creed-custom" placeholder="自己写" hidden>
+        </div>
+        <div class="field">
+          <label class="flabel" for="f-goal1">首要目标<span class="tip">会写进状态的当前目标</span></label>
+          <select id="f-goal1">
+            <option value="">— 首要目标 —</option>
+            <option value="寻找失散的亲人或爱人">寻找失散的亲人或爱人</option>
+            <option value="找到安全的庇护所">找到安全的庇护所</option>
+            <option value="调查这一切的真正起因">调查这一切的真正起因</option>
+            <option value="建立或保护一个社群">建立或保护一个社群</option>
+            <option value="复仇">复仇</option>
+            <option value="弄明白自己身上的能力">弄明白自己身上的能力</option>
+            <option value="积累权力和资源">积累权力和资源</option>
+            <option value="赎罪，弥补过去的事">赎罪，弥补过去的事</option>
+            <option value="单纯地活下去">单纯地活下去</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-goal1-custom" placeholder="自己写" hidden>
+        </div>
+        <div class="field">
+          <label class="flabel" for="f-goal2">次要目标</label>
+          <select id="f-goal2">
+            <option value="">— 次要目标 —</option>
+            <option value="寻找失散的亲人或爱人">寻找失散的亲人或爱人</option>
+            <option value="收集有价值的物资和信息">收集有价值的物资和信息</option>
+            <option value="学习新技能，提高生存能力">学习新技能，提高生存能力</option>
+            <option value="找到可以信任的同伴">找到可以信任的同伴</option>
+            <option value="记录末日里发生的事">记录末日里发生的事</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-goal2-custom" placeholder="自己写" hidden>
+        </div>
+      </div>
+      <div class="step-nav">
+        <button type="button" class="btn ghost" data-goto="4">← 上一步</button>
+        <span class="pos">STEP 05 / 10</span>
+        <span style="flex:1 1 auto"></span>
+        <button type="button" class="btn primary" data-goto="6">下一步：装备与外观 →</button>
+      </div>
+    </section>
+
+    <section class="step" id="step-6">
+      <div class="step-head"><span class="kicker">STEP 06</span><h2>装备与外观</h2></div>
+      <p class="lead">你手上有什么，看起来像什么。武器、防护与随身物品会逐项写进你的状态；写了数量的消耗品按数量登记。</p>
+      <div class="notice">
+        <h4>关于装备</h4>
+        「无武器」「几乎无防护」这类选项表示你什么都没有，不会写进状态。资源不是凭空来的：开局带的东西，用一点少一点。
+      </div>
+      <div class="grid">
+        <div class="field">
+          <label class="flabel" for="f-weapon1">主要武器</label>
+          <select id="f-weapon1">
+            <option value="">— 选择主要武器 —</option>
+            <option value="消防斧">消防斧</option>
+            <option value="棒球棍（改装钉棒）">棒球棍（改装钉棒）</option>
+            <option value="开山刀/砍刀">开山刀/砍刀</option>
+            <option value="撬棍">撬棍</option>
+            <option value="军用匕首">军用匕首</option>
+            <option value="消音手枪">消音手枪</option>
+            <option value="十字弩">十字弩</option>
+            <option value="复合弓">复合弓</option>
+            <option value="手枪">手枪</option>
+            <option value="霰弹枪">霰弹枪</option>
+            <option value="突击步枪">突击步枪</option>
+            <option value="狙击步枪">狙击步枪</option>
+            <option value="无武器（赤手空拳）">无武器（赤手空拳）</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-weapon1-custom" placeholder="自己写" hidden>
+        </div>
+        <div class="field">
+          <label class="flabel" for="f-weapon2">副武器</label>
+          <select id="f-weapon2">
+            <option value="">— 选择副武器 —</option>
+            <option value="小刀/匕首">小刀/匕首</option>
+            <option value="手枪">手枪</option>
+            <option value="棍棒/管道">棍棒/管道</option>
+            <option value="燃烧瓶">燃烧瓶</option>
+            <option value="手雷（少量）">手雷（少量）</option>
+            <option value="无">无</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-weapon2-custom" placeholder="自己写" hidden>
+        </div>
+        <div class="field">
+          <label class="flabel" for="f-armor">防护装备</label>
+          <select id="f-armor">
+            <option value="">— 选择防护装备 —</option>
+            <option value="多层厚衣物（临时防护）">多层厚衣物（临时防护）</option>
+            <option value="皮革夹克与自制护甲">皮革夹克与自制护甲</option>
+            <option value="防刺背心">防刺背心</option>
+            <option value="军用防弹衣">军用防弹衣</option>
+            <option value="几乎无防护">几乎无防护</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-armor-custom" placeholder="自己写" hidden>
+        </div>
+        <div class="field">
+          <label class="flabel" for="f-item">随身物品<span class="tip">会不会登记，看它是不是实物</span></label>
+          <select id="f-item">
+            <option value="">— 选择 —</option>
+            <option value="基础急救包">基础急救包</option>
+            <option value="短波无线电">短波无线电</option>
+            <option value="望远镜">望远镜</option>
+            <option value="打火机和火种">打火机和火种</option>
+            <option value="地图（手绘标注）">地图（手绘标注）</option>
+            <option value="一本旧照片（私人物品）">一本旧照片（私人物品）</option>
+            <option value="手电筒">手电筒</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-item-custom" placeholder="自己写随身物品" hidden>
+        </div>
+        <div class="field wide">
+          <label class="flabel" for="f-item-note">随身消耗品（数量）<span class="tip">写了数字的才会登记成物资</span></label>
+          <textarea id="f-item-note" placeholder="例：三天口粮、两个弹匣、半瓶净水。只写名称不写数量的话，状态里不会凭空多出这些东西。"></textarea>
+        </div>
+        <div class="field">
+          <label class="flabel" for="f-appearance">外貌描述</label>
+          <select id="f-appearance">
+            <option value="">— 选择体型 —</option>
+            <option value="高大健壮">高大健壮</option>
+            <option value="中等身材，精瘦结实">中等身材，精瘦结实</option>
+            <option value="矮小但灵活">矮小但灵活</option>
+            <option value="纤细瘦弱">纤细瘦弱</option>
+            <option value="魁梧壮硕">魁梧壮硕</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-appearance-custom" placeholder="也可以自己写一段外貌" hidden>
+        </div>
+        <div class="field">
+          <label class="flabel" for="f-feature">显著特征</label>
+          <select id="f-feature">
+            <option value="">— 选择 —</option>
+            <option value="面部有一道长疤">面部有一道长疤</option>
+            <option value="手臂或躯干有烧伤痕迹">手臂或躯干有烧伤痕迹</option>
+            <option value="瞳孔颜色异常">瞳孔颜色异常</option>
+            <option value="皮肤上有黑色纹路">皮肤上有黑色纹路</option>
+            <option value="断指/截肢">断指/截肢</option>
+            <option value="末日前的纹身">末日前的纹身</option>
+            <option value="没有特别显著的特征">没有特别显著的特征</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-feature-custom" placeholder="自己写" hidden>
+        </div>
+        <div class="field">
+          <label class="flabel" for="f-title">称号/绰号</label>
+          <select id="f-title">
+            <option value="">— 选择或不选 —</option>
+            <option value="没有特别称号">没有特别称号</option>
+            <option value="以末日前职业被称呼">以末日前职业被称呼</option>
+            <option value="以外貌特征被称呼">以外貌特征被称呼</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-title-custom" placeholder="自己写" hidden>
+        </div>
+      </div>
+      <div class="step-nav">
+        <button type="button" class="btn ghost" data-goto="5">← 上一步</button>
+        <span class="pos">STEP 06 / 10</span>
+        <span style="flex:1 1 auto"></span>
+        <button type="button" class="btn primary" data-goto="7">下一步：补充设定 →</button>
+      </div>
+    </section>
+
+    <section class="step" id="step-7">
+      <div class="step-head"><span class="kicker">STEP 07</span><h2>补充设定</h2></div>
+      <p class="lead">这一组是留给你的位置。写下的东西不会被别人自动知道——秘密只有在你让它露出来的时候才会露出来。</p>
+      <div class="grid">
+        <div class="field wide">
+          <label class="flabel" for="f-backstory">背景故事<span class="tip">爆发前你是什么人，那几天你是怎么过来的</span></label>
+          <textarea id="f-backstory" placeholder="若干行就够。写你愿意让故事回头用到的那部分。"></textarea>
+        </div>
+        <div class="field">
+          <label class="flabel" for="f-relation">重要关系人<span class="tip">不会自动变成同行者</span></label>
+          <select id="f-relation">
+            <option value="">— 选择 —</option>
+            <option value="正在寻找失散的家人">正在寻找失散的家人</option>
+            <option value="失去了所有亲人，独自一人">失去了所有亲人，独自一人</option>
+            <option value="有一个信任的同伴一起行动">有一个信任的同伴一起行动</option>
+            <option value="有一个需要保护的人（孩子/伤员）">有一个需要保护的人（孩子/伤员）</option>
+            <option value="有一个仇人还活着">有一个仇人还活着</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-relation-custom" placeholder="自己写" hidden>
+        </div>
+        <div class="field">
+          <label class="flabel" for="f-secret">角色秘密</label>
+          <select id="f-secret">
+            <option value="">— 选择 —</option>
+            <option value="曾经为了活命抛弃过同伴">曾经为了活命抛弃过同伴</option>
+            <option value="隐瞒了自己的觉醒者身份">隐瞒了自己的觉醒者身份</option>
+            <option value="知道一些说不清来源的信息">知道一些说不清来源的信息</option>
+            <option value="杀死过没有感染的人">杀死过没有感染的人</option>
+            <option value="末日前就犯下过罪行">末日前就犯下过罪行</option>
+            <option value="没有特别的秘密">没有特别的秘密</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-secret-custom" placeholder="自己写" hidden>
+        </div>
+        <div class="field">
+          <label class="flabel" for="f-fear">最恐惧的事</label>
+          <select id="f-fear">
+            <option value="">— 选择 —</option>
+            <option value="被感染，变成那种东西">被感染，变成那种东西</option>
+            <option value="失去仅存的同伴">失去仅存的同伴</option>
+            <option value="黑暗和封闭的空间">黑暗和封闭的空间</option>
+            <option value="失去人性，变成怪物">失去人性，变成怪物</option>
+            <option value="能力失控，伤到无辜的人">能力失控，伤到无辜的人</option>
+            <option value="重蹈过去的错误">重蹈过去的错误</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-fear-custom" placeholder="自己写" hidden>
+        </div>
+        <div class="field">
+          <label class="flabel" for="f-skill">特殊技能</label>
+          <select id="f-skill">
+            <option value="">— 选择 —</option>
+            <option value="急救/医疗基础">急救/医疗基础</option>
+            <option value="射击训练">射击训练</option>
+            <option value="格斗/近战技巧">格斗/近战技巧</option>
+            <option value="机械维修/工程">机械维修/工程</option>
+            <option value="潜行/跟踪">潜行/跟踪</option>
+            <option value="烹饪/食物保存">烹饪/食物保存</option>
+            <option value="无线电通讯操作">无线电通讯操作</option>
+            <option value="驾驶（多种载具）">驾驶（多种载具）</option>
+            <option value="野外生存/追踪">野外生存/追踪</option>
+            <option value="谈判/说服">谈判/说服</option>
+            <option value="__custom__">✎ 自定义</option>
+          </select>
+          <input type="text" class="custom" id="f-skill-custom" placeholder="自己写" hidden>
+        </div>
+        <div class="field wide">
+          <label class="flabel" for="f-notes">附加备注<span class="tip">别的表填不下的东西</span></label>
+          <textarea id="f-notes" placeholder="例：左手不方便；怕狗；随身带着一副旧扑克。"></textarea>
+        </div>
+      </div>
+      <div class="step-nav">
+        <button type="button" class="btn ghost" data-goto="6">← 上一步</button>
+        <span class="pos">STEP 07 / 10</span>
+        <span style="flex:1 1 auto"></span>
+        <button type="button" class="btn primary" data-goto="8">下一步：开局与交接 →</button>
+      </div>
+    </section>
+
+    <section class="step" id="step-8">
+      <div class="step-head"><span class="kicker">STEP 08</span><h2>开局与交接</h2></div>
+      <p class="lead">选一条你要从哪儿进场，再写下你认识谁、这一次想做什么。最后一步会把这些合成一段可以交给世界的文字。</p>
+
+      <p class="subhead">选择开场</p>
+      <div class="routes" id="route-group">
+        <label class="route-card">
+          <input type="radio" name="f-route" value="op_road" data-name="城外公路（推荐起点）" checked>
+          <span class="route-inner">
+            <svg class="route-svg" viewBox="0 0 96 74" aria-hidden="true" focusable="false" role="presentation">
+              <rect x="1" y="1" width="94" height="72" fill="#101014" stroke="#c0392b" stroke-width="1" opacity="0.5"></rect>
+              <path d="M8 66 L88 8" stroke="#4a4a52" stroke-width="6" opacity="0.8"></path>
+              <path d="M8 66 L88 8" stroke="#d9a441" stroke-width="1" stroke-dasharray="7 7" opacity="0.75"></path>
+              <path d="M22 26 L30 26 L30 19 L22 19 Z" fill="#c0392b" opacity="0.7"></path>
+              <circle cx="66" cy="34" r="4" fill="#d9a441" opacity="0.8"></circle>
+              <circle cx="52" cy="48" r="2" fill="#6d6862"></circle>
+              <circle cx="74" cy="48" r="2" fill="#6d6862"></circle>
+            </svg>
+            <span class="route-name">城外公路（推荐起点）<span class="badge">推荐</span></span>
+            <p class="route-desc">物资线索和人留下的痕迹最多，时间压力最清楚——天黑之前，尾灯的光会替你吸引别的东西。</p>
+            <span class="route-pick">✓ 已选择</span>
+          </span>
+        </label>
+        <label class="route-card">
+          <input type="radio" name="f-route" value="op_market" data-name="商业区夜搜">
+          <span class="route-inner">
+            <svg class="route-svg" viewBox="0 0 96 74" aria-hidden="true" focusable="false" role="presentation">
+              <rect x="1" y="1" width="94" height="72" fill="#101014" stroke="#c0392b" stroke-width="1" opacity="0.5"></rect>
+              <rect x="10" y="12" width="76" height="50" fill="none" stroke="#4a4a52" stroke-width="1.5"></rect>
+              <path d="M10 30 H86 M10 44 H86 M36 12 V62 M60 12 V62" stroke="#3a3a42" stroke-width="1.5"></path>
+              <path d="M14 62 L24 50 L34 62" fill="none" stroke="#c0392b" stroke-width="1.5" opacity="0.8"></path>
+              <circle cx="70" cy="22" r="3" fill="#d9a441" opacity="0.85"></circle>
+            </svg>
+            <span class="route-name">商业区夜搜</span>
+            <p class="route-desc">物资密度最高，声音风险也最大：翻找本身就是一次暴露，而掩体很少。</p>
+            <span class="route-pick">✓ 已选择</span>
+          </span>
+        </label>
+        <label class="route-card">
+          <input type="radio" name="f-route" value="op_hospital" data-name="医疗设施">
+          <span class="route-inner">
+            <svg class="route-svg" viewBox="0 0 96 74" aria-hidden="true" focusable="false" role="presentation">
+              <rect x="1" y="1" width="94" height="72" fill="#101014" stroke="#c0392b" stroke-width="1" opacity="0.5"></rect>
+              <rect x="26" y="12" width="44" height="50" fill="none" stroke="#4a4a52" stroke-width="1.5"></rect>
+              <path d="M48 24 V50 M34 37 H62" stroke="#c0392b" stroke-width="5" opacity="0.85"></path>
+              <path d="M4 62 H92" stroke="#3a3a42" stroke-width="1.5"></path>
+              <circle cx="40" cy="55" r="2" fill="#6d6862"></circle>
+              <circle cx="56" cy="55" r="2" fill="#6d6862"></circle>
+            </svg>
+            <span class="route-name">医疗设施</span>
+            <p class="route-desc">目标最明确——药品和器械都在里面；风险也最高，爆发初期这里收治过最多的伤员。</p>
+            <span class="route-pick">✓ 已选择</span>
+          </span>
+        </label>
+        <label class="route-card">
+          <input type="radio" name="f-route" value="op_field" data-name="郊野夜行">
+          <span class="route-inner">
+            <svg class="route-svg" viewBox="0 0 96 74" aria-hidden="true" focusable="false" role="presentation">
+              <rect x="1" y="1" width="94" height="72" fill="#101014" stroke="#c0392b" stroke-width="1" opacity="0.5"></rect>
+              <path d="M4 62 L28 34 L46 54 L66 26 L92 62" fill="none" stroke="#4a4a52" stroke-width="2"></path>
+              <path d="M14 62 V40 M22 62 V46" stroke="#d9a441" stroke-width="1.5" opacity="0.7"></path>
+              <circle cx="70" cy="18" r="6" fill="#d9a441" opacity="0.35"></circle>
+              <path d="M60 60 c4 -3 8 -3 12 0" fill="none" stroke="#6d6862" stroke-width="1.5"></path>
+            </svg>
+            <span class="route-name">郊野夜行</span>
+            <p class="route-desc">人的威胁最少，感染动物和天气才是主要敌人；节奏最慢，适合先扎稳脚再往外走。</p>
+            <span class="route-pick">✓ 已选择</span>
+          </span>
+        </label>
+      </div>
+      <p class="hint" style="margin-top:10px">第 0 楼默认显示的是登记页本身，不是剧情。挑好的这一条要在聊天里手动滑到它，才会成为你的开场。</p>
+
+      <p class="subhead">你认识谁、这次想做什么</p>
+      <div class="grid">
+        <div class="field wide">
+          <label class="flabel" for="f-known">已经认识的人或势力<span class="tip">写具体称呼才会被登记成相识</span></label>
+          <textarea id="f-known" placeholder="例：认识一个叫老陈的修理工，在城东的加油站待过；跟本地军方的一个班长打过照面。没有就留空。"></textarea>
+          <p class="hint">只会记下「你们认识」这件事，不会替你决定对方喜不喜欢你、欠不欠你人情。</p>
+        </div>
+        <div class="field wide">
+          <label class="flabel" for="f-intent">这一次从哪儿进场、想做什么</label>
+          <textarea id="f-intent" placeholder="例：刚从城南绕出来，想在入夜前找到能过夜的地方，顺便摸清楚这片还有没有活人。"></textarea>
+        </div>
+        <div class="field wide">
+          <label class="radio" style="width:100%"><input type="checkbox" id="f-amend"><span>这是一份更正：我上次已经登记过，这次只改上面写了的部分</span></label>
+        </div>
+      </div>
+
+      <div class="step-nav">
+        <button type="button" class="btn ghost" data-goto="7">← 上一步</button>
+        <span class="pos">STEP 08 / 10</span>
+        <span style="flex:1 1 auto"></span>
+        <button type="button" class="btn primary" data-goto="9">下一步：角色总览 →</button>
+      </div>
+    </section>
+
+    <section class="step" id="step-9">
+      <div class="step-head"><span class="kicker">FINAL</span><h2>角色总览与交接</h2></div>
+      <p class="lead">右边（窄屏是下方面板）就是你的资料块。它只包含你写下的内容——没写的部分保持未定，世界不会替你补。</p>
+
+      <div class="notice">
+        <h4>先复制，再离开这一页</h4>
+        这一页不做本地草稿：<b>刷新或关掉它，你填的东西就没了</b>。填完先点「复制资料块」。
+      </div>
+
+      <div class="grid">
+        <div class="field wide">
+          <span class="flabel">你的资料块</span>
+          <div class="radios">
+            <button type="button" class="btn" id="btn-refresh-2">刷新预览</button>
+            <button type="button" class="btn primary copy-trigger">复制资料块</button>
+          </div>
+          <p class="hint">预览面板里的文字可以直接改；改过之后要点「刷新预览」才会用表单重新生成。</p>
+        </div>
+      </div>
+
+      <p class="subhead">复制之后怎么做</p>
+      <div class="notice">
+        <h4>交接五步</h4>
+        <ol>
+          <li>点「复制资料块」，把这段文字拿到手。</li>
+          <li>如果你想让它在整局里都生效：把这份资料保存到你使用的主控资料中。（也可以跳过这一步。）</li>
+          <li>回到聊天，把第 0 楼<b>向右滑动</b>，选你刚才挑的那条开场。</li>
+          <li>把复制的资料块<b>亲手发送</b>出去——它是你的第一条消息，不是系统替你发的。</li>
+          <li>下一次回复之后，如果状态栏里的主控一栏还是「待登记」，<b>不要手动补写剧情状态</b>：保留你的资料消息，重新生成一次回复就行。</li>
+        </ol>
+      </div>
+      <div class="notice">
+        <h4>不登记也能开始</h4>
+        你也可以什么都不填，直接滑到你想要的那条开场开始玩。世界在你自我介绍之前不会替你安排身份；等你需要的时候再回来登记，也来得及。
+      </div>
+      <div class="notice red">
+        <h4>这一页不会做的事</h4>
+        <ul>
+          <li>不替你保存主控资料，不替你修改聊天内容，也不替你发送消息。</li>
+          <li>不替你切换开场、不替你发消息、不碰你的输入框。</li>
+          <li>不读写状态栏里的数据，也不进剧情——它只是一张登记用的纸。</li>
+          <li>「复制成功」不等于「资料已经生效」：真正生效要靠你亲手发出资料，或保存到你自己的主控资料中。</li>
+        </ul>
+      </div>
+
+      <div class="step-nav">
+        <button type="button" class="btn ghost" data-goto="8">← 上一步</button>
+        <span class="pos">FINAL / 10</span>
+        <span style="flex:1 1 auto"></span>
+        <button type="button" class="btn primary copy-trigger">复制资料块</button>
+      </div>
+    </section>
+
+  </main>
+
+  <aside class="preview" id="previewPanel">
+    <div class="preview-head">
+      <span class="preview-title">资料块预览</span>
+      <span class="preview-state" id="previewState" aria-live="polite">跟着表单实时生成</span>
+    </div>
+    <textarea id="preview" spellcheck="false" aria-label="资料块预览，可以直接修改"></textarea>
+    <div class="preview-actions">
+      <button type="button" class="btn" id="btn-refresh">刷新预览</button>
+      <button type="button" class="btn primary copy-trigger">复制资料块</button>
+    </div>
+    <p class="preview-note">这段文字是你要交出去的全部内容：只有你写的东西，没有替你补的部分。世界核心、NPC 设定和其他主控的资料都不在这里面。</p>
+  </aside>
+</div>
+
+<button type="button" class="preview-toggle" id="btn-preview-toggle" aria-expanded="false" aria-controls="previewPanel">资料块预览</button>
+<div class="toast" id="toast" role="status"></div>
+<p class="foot">《我，非我》· 幸存者登记档案 —— 这一页只在开始之前出现一次。世界不会因为你在读它就等你。</p>
+
+<script>
+(function () {
+  'use strict';
+
+  var TOTAL = 10;
+  var BLOCK_TITLE = '【我，非我·主控资料】';
+  var BLOCK_TITLE_AMEND = '【我，非我·主控资料更正】';
+  var FOOTER = '以上只代表本份主控资料，不改变世界核心、NPC 基础设定或其他主控资料。未填写内容保持未设定；请不要替我补写过去、关系、台词或下一步行动。';
+  var AWAKEN_IDS = ['f-awaken-path', 'f-ability-type', 'f-ability-level', 'f-ability-manifest', 'f-awaken-cost', 'f-backlash', 'f-expose'];
+
+  var GROUPS = [
+    ['基础身份', [['称呼', 'f-name'], ['年龄', 'f-age'], ['性别', 'f-gender'], ['国籍/民族', 'f-nationality'], ['末日前职业', 'f-occupation'], ['角色定位', 'f-template']]],
+    ['生存背景', [['爆发时所在地区', 'f-location'], ['当前所处环境', 'f-environment'], ['生存经历', 'f-survival'], ['身体状况', 'f-health'], ['精神状态', 'f-mental']]],
+    ['阵营归属', [['所属势力', 'f-faction'], ['与势力关系', 'f-faction-relation'], ['对其他势力态度', 'f-faction-attitude']]],
+    ['觉醒设定', [['觉醒状态', 'f-awakened'], ['觉醒路径', 'f-awaken-path'], ['能力类别', 'f-ability-type'], ['能力等级', 'f-ability-level'], ['能力表现', 'f-ability-manifest'], ['觉醒代价', 'f-awaken-cost'], ['反噬表现', 'f-backlash'], ['身份是否公开', 'f-expose']]],
+    ['性格与信念', [['道德光谱', 'f-moral'], ['主要性格', 'f-personality1'], ['次要性格', 'f-personality2'], ['显著癖好', 'f-habit'], ['个人信条', 'f-creed'], ['首要目标', 'f-goal1'], ['次要目标', 'f-goal2']]],
+    ['装备与外观', [['主要武器', 'f-weapon1'], ['副武器', 'f-weapon2'], ['防护装备', 'f-armor'], ['随身物品', 'f-item'], ['随身消耗品', 'f-item-note'], ['外貌描述', 'f-appearance'], ['显著特征', 'f-feature'], ['称号或绰号', 'f-title']]],
+    ['补充设定', [['背景故事', 'f-backstory'], ['重要关系人', 'f-relation'], ['角色秘密', 'f-secret'], ['最恐惧的事', 'f-fear'], ['特殊技能', 'f-skill'], ['附加备注', 'f-notes']]],
+    ['开局与交接', [['出场路线', 'f-route'], ['已经认识的人或势力', 'f-known'], ['本次来意', 'f-intent']]]
+  ];
+
+  var byId = function (id) { return document.getElementById(id); };
+  var preview = byId('preview');
+  var previewState = byId('previewState');
+  var toastEl = byId('toast');
+  var toastTimer = null;
+  var manualEdit = false;
+
+  function toast(message, kind) {
+    toastEl.textContent = message;
+    toastEl.className = 'toast show' + (kind ? ' ' + kind : '');
+    if (toastTimer) { clearTimeout(toastTimer); }
+    toastTimer = setTimeout(function () { toastEl.className = 'toast' + (kind ? ' ' + kind : ''); }, 3200);
+  }
+
+  function radioValue(name) {
+    var list = document.getElementsByName(name);
+    for (var i = 0; i < list.length; i += 1) {
+      if (list[i].checked) { return list[i].value; }
+    }
+    return '';
+  }
+
+  function textValue(id) {
+    var el = byId(id);
+    if (!el) { return ''; }
+    return String(el.value || '').trim();
+  }
+
+  function value(id) {
+    var el = byId(id);
+    if (!el) { return ''; }
+    if (el.tagName === 'SELECT') {
+      if (el.value === '__custom__') {
+        var custom = byId(id + '-custom');
+        return custom ? String(custom.value || '').trim() : '';
+      }
+      return el.value;
+    }
+    if (el.type === 'checkbox') { return el.checked ? '是' : ''; }
+    return String(el.value || '').trim();
+  }
+
+  function routeName() {
+    var list = document.getElementsByName('f-route');
+    for (var i = 0; i < list.length; i += 1) {
+      if (list[i].checked) { return list[i].getAttribute('data-name') || list[i].value; }
+    }
+    return '';
+  }
+
+  function pushIfFilled(body, label, id, awakened) {
+    if (AWAKEN_IDS.indexOf(id) >= 0 && awakened !== '已觉醒') { return; }
+    if (id === 'f-awakened') {
+      body.push([label, awakened || '未觉醒']);
+      return;
+    }
+    if (id === 'f-route') {
+      var pick = routeName();
+      if (pick) { body.push([label, pick]); }
+      return;
+    }
+    if (id === 'f-faction' || id === 'f-moral') {
+      var chosen = radioValue(id);
+      if (chosen === '__custom__') {
+        var customText = textValue(id + '-custom');
+        if (customText) { body.push([label, customText]); }
+        return;
+      }
+      if (id === 'f-faction' && chosen === '无所属（独行者）') { return; }
+      if (chosen) { body.push([label, chosen]); }
+      return;
+    }
+    var text = value(id);
+    if (text) { body.push([label, text]); }
+  }
+
+  function buildBlock() {
+    var amended = byId('f-amend');
+    var lines = [amended && amended.checked ? BLOCK_TITLE_AMEND : BLOCK_TITLE];
+    var awakened = radioValue('f-awakened');
+    var filled = 0;
+    for (var g = 0; g < GROUPS.length; g += 1) {
+      var fields = GROUPS[g][1];
+      var body = [];
+      for (var f = 0; f < fields.length; f += 1) {
+        pushIfFilled(body, fields[f][0], fields[f][1], awakened);
+      }
+      if (body.length === 0) { continue; }
+      lines.push('');
+      lines.push('〔' + GROUPS[g][0] + '〕');
+      for (var b = 0; b < body.length; b += 1) {
+        lines.push(body[b][0] + '：' + body[b][1]);
+        filled += 1;
+      }
+    }
+    lines.push('');
+    lines.push(FOOTER);
+    return { text: lines.join('\n'), filled: filled };
+  }
+
+  function refreshPreview(fromFields) {
+    var built = buildBlock();
+    preview.value = built.text;
+    manualEdit = false;
+    previewState.textContent = (fromFields ? '已同步 · ' : '') + '填了 ' + built.filled + ' 项';
+  }
+
+  function showStep(index) {
+    if (index < 0 || index >= TOTAL) { return; }
+    for (var i = 0; i < TOTAL; i += 1) {
+      var panel = byId('step-' + i);
+      if (panel) { panel.className = i === index ? 'step is-on' : 'step'; }
+    }
+    var steps = document.querySelectorAll('.pstep');
+    for (var s = 0; s < steps.length; s += 1) {
+      var target = parseInt(steps[s].getAttribute('data-goto'), 10);
+      steps[s].className = 'pstep' + (target === index ? ' is-on' : (target < index ? ' is-done' : ''));
+    }
+    var active = document.querySelector('.pstep.is-on');
+    if (active && active.scrollIntoView) { active.scrollIntoView(false); }
+    window.scrollTo(0, 0);
+    if (index === 9) { refreshPreview(false); }
+  }
+
+  function syncCustomVisibility() {
+    var selects = document.querySelectorAll('select[id^="f-"]');
+    for (var i = 0; i < selects.length; i += 1) {
+      var sel = selects[i];
+      var custom = byId(sel.id + '-custom');
+      if (!custom) { continue; }
+      if (sel.value === '__custom__') { custom.hidden = false; }
+      else { custom.hidden = true; custom.value = ''; }
+    }
+    var customRadios = ['f-faction', 'f-moral'];
+    for (var r = 0; r < customRadios.length; r += 1) {
+      var box = byId(customRadios[r] + '-custom');
+      if (!box) { continue; }
+      if (radioValue(customRadios[r]) === '__custom__') { box.hidden = false; }
+      else { box.hidden = true; box.value = ''; }
+    }
+  }
+
+  function syncConditionalBlocks() {
+    var block = byId('awaken-block');
+    if (block) { block.hidden = radioValue('f-awakened') !== '已觉醒'; }
+    var relation = byId('f-faction-relation');
+    var faction = radioValue('f-faction');
+    if (relation) {
+      var off = faction === '无所属（独行者）' || faction === '';
+      relation.disabled = off;
+      if (off) { relation.value = ''; }
+    }
+  }
+
+  function onFieldChange() {
+    syncCustomVisibility();
+    syncConditionalBlocks();
+    if (manualEdit) {
+      previewState.textContent = '预览里有你手改的内容 · 点「刷新预览」';
+      return;
+    }
+    refreshPreview(true);
+  }
+
+  function fallbackCopy(text, done) {
+    var box = document.createElement('textarea');
+    box.value = text;
+    box.style.position = 'fixed';
+    box.style.left = '-9999px';
+    box.style.top = '0';
+    document.body.appendChild(box);
+    box.focus();
+    box.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (error) { ok = false; }
+    document.body.removeChild(box);
+    if (ok) { done(); return true; }
+    preview.focus();
+    preview.setSelectionRange(0, preview.value.length);
+    return false;
+  }
+
+  function copyBlock() {
+    var text = preview.value;
+    if (!text.replace(/\s/g, '')) {
+      toast('资料块还是空的：至少写一个称呼，或者直接滑到你想要的那条开场。', 'err');
+      return;
+    }
+    var succeed = function () {
+      toast('资料块已复制。它还没有交给世界——下一步是你亲手把它发出去。', 'ok');
+      previewState.textContent = '已复制到剪贴板';
+    };
+    var failed = function () {
+      toast('浏览器拦住了自动复制：已经帮你选中全文，请按 Ctrl+C（手机上长按选择复制）。', 'err');
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(succeed, function () {
+        if (!fallbackCopy(text, succeed)) { failed(); }
+      });
+      return;
+    }
+    if (!fallbackCopy(text, succeed)) { failed(); }
+  }
+
+  function findGoto(node) {
+    while (node && node !== document.body) {
+      if (node.getAttribute && node.getAttribute('data-goto') !== null) {
+        return parseInt(node.getAttribute('data-goto'), 10);
+      }
+      node = node.parentNode;
+    }
+    return null;
+  }
+
+  document.addEventListener('click', function (event) {
+    var goto = findGoto(event.target);
+    if (goto !== null && !isNaN(goto)) { showStep(goto); }
+  });
+
+  document.addEventListener('input', function (event) {
+    if (event.target === preview) {
+      manualEdit = true;
+      previewState.textContent = '你手改过预览 · 点「刷新预览」才会重新生成';
+      return;
+    }
+    onFieldChange();
+  });
+
+  document.addEventListener('change', function (event) {
+    if (event.target === preview) { return; }
+    onFieldChange();
+  });
+
+  var refreshButtons = [byId('btn-refresh'), byId('btn-refresh-2')];
+  for (var i = 0; i < refreshButtons.length; i += 1) {
+    if (refreshButtons[i]) {
+      refreshButtons[i].addEventListener('click', function () {
+        refreshPreview(false);
+        toast('预览已按表单重新生成。', 'ok');
+      });
+    }
+  }
+
+  var copyButtons = document.querySelectorAll('.copy-trigger');
+  for (var c = 0; c < copyButtons.length; c += 1) {
+    copyButtons[c].addEventListener('click', copyBlock);
+  }
+
+  var toggle = byId('btn-preview-toggle');
+  if (toggle) {
+    toggle.addEventListener('click', function () {
+      var panel = byId('previewPanel');
+      var open = panel.className.indexOf('open') >= 0;
+      panel.className = open ? 'preview' : 'preview open';
+      toggle.setAttribute('aria-expanded', open ? 'false' : 'true');
+      toggle.textContent = open ? '资料块预览' : '收起资料块';
+    });
+  }
+
+  window.addEventListener('beforeunload', function (event) {
+    var body = preview.value.split(FOOTER)[0];
+    if (!body.replace(BLOCK_TITLE, '').replace(BLOCK_TITLE_AMEND, '').replace(/〔[^〕]*〕/g, '').replace(/\s/g, '')) { return; }
+    event.preventDefault();
+    event.returnValue = '';
+    return '';
+  });
+
+  syncCustomVisibility();
+  syncConditionalBlocks();
+  refreshPreview(false);
+})();
+</script>
+</body>
+</html>

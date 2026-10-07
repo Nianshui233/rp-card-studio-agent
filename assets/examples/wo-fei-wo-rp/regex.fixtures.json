@@ -1,0 +1,114 @@
+[
+  {
+    "id": "hide-update-complete",
+    "input": "她把门带上，楼道里只剩下雨声。\n<UpdateVariable>\n<Analysis>时段推进到黄昏，体力 -8。</Analysis>\n<JSONPatch>\n[{ \"op\": \"replace\", \"path\": \"/世界/时段\", \"value\": \"黄昏\" }]\n</JSONPatch>\n</UpdateVariable>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "她把门带上，楼道里只剩下雨声。\n"
+  },
+  {
+    "id": "hide-update-streaming",
+    "input": "她把门带上。\n<UpdateVariable>\n<Analysis>时段推进",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "她把门带上。\n"
+  },
+  {
+    "id": "hide-initvar",
+    "input": "<initvar>\n世界:\n  时段: 白天\n</initvar>\n开场正文",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "开场正文"
+  },
+  {
+    "id": "status-bar-fenced-html",
+    "input": "正文结束。\n<StatusPlaceHolderImpl/>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected_contains": "```html"
+  },
+  {
+    "id": "status-bar-content",
+    "input": "正文结束。\n<StatusPlaceHolderImpl/>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected_contains": "当楼状态"
+  },
+  {
+    "id": "status-bar-keeps-surrounding-text",
+    "input": "她把门带上。\n<StatusPlaceHolderImpl/>\n后面这行也必须留着。",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected_contains": "后面这行也必须留着。"
+  },
+  {
+    "id": "status-bar-after-update-block",
+    "input": "她把门带上，楼道里只剩下雨声。\n<UpdateVariable>\n<Analysis>时段推进到黄昏，体力 -8。</Analysis>\n<JSONPatch>\n[{ \"op\": \"replace\", \"path\": \"/世界/时段\", \"value\": \"黄昏\" }]\n</JSONPatch>\n</UpdateVariable>\n<StatusPlaceHolderImpl/>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected_contains": "```html"
+  },
+  {
+    "id": "status-bar-marker-untouched-in-prompt",
+    "input": "上一轮正文。\n<StatusPlaceHolderImpl/>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "prompt",
+    "expected": "上一轮正文。\n<StatusPlaceHolderImpl/>"
+  },
+  {
+    "id": "plain-text-untouched",
+    "input": "没有任何技术载荷的一轮正文。\n她抬头看了一眼天色。",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "没有任何技术载荷的一轮正文。\n她抬头看了一眼天色。"
+  },
+  {
+    "id": "opening-page-fenced-html",
+    "input": "<我非我开场/>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected_contains": "```html"
+  },
+  {
+    "id": "opening-page-content",
+    "input": "<我非我开场/>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected_contains": "幸存者登记档案"
+  },
+  {
+    "id": "opening-page-keeps-surrounding-text",
+    "input": "第一楼只有标记：\n<我非我开场/>\n后面这行也必须留着。",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected_contains": "后面这行也必须留着。"
+  },
+  {
+    "id": "opening-page-marker-prompt-side",
+    "input": "<我非我开场/>",
+    "placement": 2,
+    "depth": 0,
+    "channel": "prompt",
+    "expected": "（我，非我·进入作品前的登记页）"
+  },
+  {
+    "id": "opening-page-real-greeting-untouched",
+    "input": "路灯在两百米外，光是斜的。翻倒的厢式货车横在路面上，尾灯还亮着。",
+    "placement": 2,
+    "depth": 0,
+    "channel": "display",
+    "expected": "路灯在两百米外，光是斜的。翻倒的厢式货车横在路面上，尾灯还亮着。"
+  }
+]

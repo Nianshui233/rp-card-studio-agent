@@ -8,35 +8,35 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const script = path.join(root, 'scripts', 'mvu', 'validate-initvar-yaml.py');
-const cardPath = path.join(root, 'assets', 'examples', 'mvu-zod-rp', '灰港避难所.json');
-const schemaPath = path.join(root, 'assets', 'examples', 'mvu-zod-rp', 'schema.js');
+const base = path.join(root, 'assets', 'examples', 'wo-fei-wo-rp');
+const cardPath = path.join(base, '我，非我.重构版.json');
+const worldbookPath = path.join(base, '我，非我.世界书.json');
+const schemaPath = path.join(base, 'schema.js');
 
-function run(card, worldbook) {
-  const args = ['-X', 'utf8', script, '--card', card, '--zod-script', schemaPath];
-  if (worldbook) args.push('--worldbook', worldbook, '--init-strategy', 'worldbook');
+function run(card, worldbook = worldbookPath) {
+  const args = ['-X', 'utf8', script, '--card', card, '--zod-script', schemaPath, '--worldbook', worldbook, '--init-strategy', 'worldbook'];
   return spawnSync('python', args, { encoding: 'utf8' });
 }
 
-test('accepts every playable Greeting in the complete MVU_ZOD example', () => {
+test('accepts the worldbook baseline used by the complete sample', () => {
   const result = run(cardPath);
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.match(result.stdout, /2 playable greetings/);
+  assert.match(result.stdout, /worldbook/);
 });
 
-test('rejects a Greeting with invalid or incomplete initvar YAML', () => {
+test('rejects a partial Greeting initvar that does not cover the sample Schema roots', () => {
   const card = JSON.parse(fs.readFileSync(cardPath, 'utf8'));
-  card.data.alternate_greetings[0] = '<initvar>\n世界:\n  时间: [broken\n</initvar>\n坏开场';
+  card.data.alternate_greetings[0] = '<initvar>\n世界:\n  日期: 爆发初期\n</initvar>\n坏开场';
   const temp = path.join(os.tmpdir(), `rp-card-studio-bad-init-${process.pid}.json`);
   fs.writeFileSync(temp, JSON.stringify(card), 'utf8');
   try {
     const result = run(temp);
     assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /invalid YAML|missing roots/);
+    assert.match(result.stderr, /missing roots/);
   } finally {
     fs.rmSync(temp, { force: true });
   }
 });
-
 
 test('accepts a disabled worldbook initvar baseline without forcing Greeting initvar', () => {
   const card = JSON.parse(fs.readFileSync(cardPath, 'utf8'));
@@ -44,10 +44,10 @@ test('accepts a disabled worldbook initvar baseline without forcing Greeting ini
   card.data.alternate_greetings = [];
   const tempCard = path.join(os.tmpdir(), `rp-card-studio-worldbook-card-${process.pid}.json`);
   const tempBook = path.join(os.tmpdir(), `rp-card-studio-worldbook-${process.pid}.json`);
-  const init = `<initvar>\n${card.data.first_mes}\n</initvar>`;
-  const original = JSON.parse(fs.readFileSync(cardPath, 'utf8')).data.first_mes.match(/<initvar>([\s\S]*?)<\/initvar>/i)[1];
+  const book = JSON.parse(fs.readFileSync(worldbookPath, 'utf8'));
+  const baseline = Object.values(book.entries).find(entry => /\[initvar\]/i.test(entry.comment));
   fs.writeFileSync(tempCard, JSON.stringify(card), 'utf8');
-  fs.writeFileSync(tempBook, JSON.stringify({ entries: { 0: { comment: '[initvar]变量初始化勿开', content: original, disable: true } } }), 'utf8');
+  fs.writeFileSync(tempBook, JSON.stringify({ entries: { 0: { comment: '[initvar]样品基线', content: baseline.content, disable: true } } }), 'utf8');
   try {
     const result = run(tempCard, tempBook);
     assert.equal(result.status, 0, result.stderr || result.stdout);

@@ -146,7 +146,7 @@ export function extractIndexedPaths(text) {
 export function pathPattern(indexedPath) {
   const placeholders = new Set(['角色姓名', '物品名', '物品名称', '技能名称', '区域名称', '防御措施名称', '载具名称', '改装方案名', '装备名称', '势力名称', '情报键名', '频道号', '地点编号', '丧尸命名']);
   const parts = indexedPath.split('/').slice(1).map(part => {
-    if (part === '0') return '(?:\d+|-)';
+    if (part === '0') return '(?:\\d+|-)';
     if (placeholders.has(part)) return '[^/]+';
     return part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   });

@@ -80,7 +80,6 @@ for (const [relative, args] of [
   ['tests/state-impact-contract.test.mjs', ['--test', 'tests/state-impact-contract.test.mjs']],
   ['tests/runtime-separation-contract.test.mjs', ['--test', 'tests/runtime-separation-contract.test.mjs']],
   ['tests/player-neutrality-capability-contract.test.mjs', ['--test', 'tests/player-neutrality-capability-contract.test.mjs']],
-  ['tests/mvu-zod-contract.test.mjs', ['--test', 'tests/mvu-zod-contract.test.mjs']],
   ['tests/lossless-authoring-contract.test.mjs', ['--test', 'tests/lossless-authoring-contract.test.mjs']],
   ['scripts/materials/validate-materials.test.mjs', ['--test', 'scripts/materials/validate-materials.test.mjs']],
   ['tests/materials-research-contract.test.mjs', ['--test', 'tests/materials-research-contract.test.mjs']],
@@ -89,53 +88,23 @@ for (const [relative, args] of [
   ['tests/artifact-purity-contract.test.mjs', ['--test', 'tests/artifact-purity-contract.test.mjs']],
   ['tests/project-structure-contract.test.mjs', ['--test', 'tests/project-structure-contract.test.mjs']],
   ['scripts/worldbook/split-yaml-lossless.test.mjs', ['--test', 'scripts/worldbook/split-yaml-lossless.test.mjs']],
-  ['assets/examples/full-mvu-rp/runtime.contract.test.mjs', ['assets/examples/full-mvu-rp/runtime.contract.test.mjs']],
-  ['assets/examples/mvu-zod-rp/runtime.contract.test.mjs', ['assets/examples/mvu-zod-rp/runtime.contract.test.mjs']],
-  ['assets/examples/mvu-ejs-rp/runtime.contract.test.mjs', ['assets/examples/mvu-ejs-rp/runtime.contract.test.mjs']],
-  ['assets/examples/tavern-helper-iframe-rp/payload.contract.test.mjs', ['assets/examples/tavern-helper-iframe-rp/payload.contract.test.mjs']],
-  ['mvu-zod-rp delivery package', [
+  ['tests/mvu-zod-contract.test.mjs', ['--test', 'tests/mvu-zod-contract.test.mjs']],
+  ['wo-fei-wo-rp delivery package', [
     'scripts/validate-rolecard-package.mjs',
-    '--root', 'assets/examples/mvu-zod-rp',
-    '--card', '灰港避难所.json',
-    '--worldbook', '灰港避难所世界书.json',
-    '--worldbook-name', '灰港避难所世界书',
+    '--root', 'assets/examples/wo-fei-wo-rp',
+    '--card', '我，非我.重构版.json',
+    '--worldbook', '我，非我.世界书.json',
+    '--worldbook-name', '我，非我',
     '--regex', 'regex.json',
     '--regex-mode', 'alternative',
     '--fixtures', 'regex.fixtures.json',
     '--script-folder', '运行脚本.folder.json',
     '--zod-source', 'schema.js',
     '--mvu-contract', 'MVU运行合同.yaml',
+    '--mvu-mode', 'mvu_zod',
+    '--mvu-init-strategy', 'worldbook',
     ...(hostRoot ? ['--host-root', hostRoot] : []),
-  ]],
-  ['mvu-ejs-rp delivery package', [
-    'scripts/validate-rolecard-package.mjs',
-    '--root', 'assets/examples/mvu-ejs-rp',
-    '--card', '灰港避难所.json',
-    '--worldbook', '灰港避难所世界书.json',
-    '--worldbook-name', '灰港避难所世界书',
-    '--regex', 'regex.json',
-    '--regex-mode', 'alternative',
-    '--fixtures', 'regex.fixtures.json',
-    '--script-folder', '运行脚本.folder.json',
-    '--zod-source', 'schema.js',
-    '--mvu-contract', 'MVU运行合同.yaml',
-    '--ejs-contract', 'EJS运行合同.yaml',
-    ...(hostRoot ? ['--host-root', hostRoot] : []),
-  ]],
-  ['full-mvu-rp delivery package', [
-    'scripts/validate-rolecard-package.mjs',
-    '--root', 'assets/examples/full-mvu-rp',
-    '--card', '雾港航站.json',
-    '--worldbook', '雾港航站世界书.json',
-    '--regex', 'regex.json',
-    '--regex-mode', 'alternative',
-    '--fixtures', 'regex.fixtures.json',
-    '--script-folder', '运行脚本.folder.json',
-    '--mvu-contract', 'MVU运行合同.yaml',
-    '--ejs-contract', 'EJS运行合同.yaml',
-    ...(hostRoot ? ['--host-root', hostRoot] : []),
-  ]],
-]) {
+  ]]]) {
   const result = spawnSync(process.execPath, args, { cwd: root, encoding: 'utf8' });
   if (result.status !== 0) fail(relative, (result.stderr || result.stdout).trim());
   else {
@@ -145,29 +114,28 @@ for (const [relative, args] of [
 }
 
 try {
-  const full = path.join(examples, 'full-mvu-rp');
-  const card = JSON.parse(fs.readFileSync(path.join(full, '雾港航站.json'), 'utf8'));
-  const regex = JSON.parse(fs.readFileSync(path.join(full, 'regex.json'), 'utf8'));
-  const worldbook = JSON.parse(fs.readFileSync(path.join(full, '雾港航站世界书.json'), 'utf8'));
-  const folder = JSON.parse(fs.readFileSync(path.join(full, '运行脚本.folder.json'), 'utf8'));
-  const coordinator = fs.readFileSync(path.join(full, '运行协调器.js'), 'utf8').trim();
-  const scopedRegex = card.data?.extensions?.regex_scripts;
-  if (card.spec !== 'chara_card_v3') fail('full-mvu-rp package', '角色卡必须是 V3');
-  if (!card.data?.extensions?.world || !Object.keys(worldbook.entries || {}).length) fail('full-mvu-rp package', '角色卡主世界书绑定或世界书条目缺失');
-  if (scopedRegex) fail('full-mvu-rp package', '独立 Regex 路线下角色卡不应再次嵌入 regex_scripts');
-  if (!Array.isArray(regex) || regex.length === 0) fail('full-mvu-rp package', '独立 regex.json 缺失或为空');
-  const boundBook = path.join(full, `${card.data.extensions.world}.json`);
-  if (!fs.existsSync(boundBook) || path.resolve(boundBook) !== path.resolve(path.join(full, '雾港航站世界书.json'))) fail('full-mvu-rp package', '角色卡主世界书绑定没有指向交付的同名世界书');
+  const sample = path.join(examples, 'wo-fei-wo-rp');
+  const card = JSON.parse(fs.readFileSync(path.join(sample, '我，非我.重构版.json'), 'utf8'));
+  const regex = JSON.parse(fs.readFileSync(path.join(sample, 'regex.json'), 'utf8'));
+  const worldbook = JSON.parse(fs.readFileSync(path.join(sample, '我，非我.世界书.json'), 'utf8'));
+  const folder = JSON.parse(fs.readFileSync(path.join(sample, '运行脚本.folder.json'), 'utf8'));
+  const guide = fs.readFileSync(path.join(sample, 'AGENT_GUIDE.md'), 'utf8');
+  const readme = fs.readFileSync(path.join(sample, 'README.md'), 'utf8');
+  if (card.spec !== 'chara_card_v3') fail('wo-fei-wo-rp package', '角色卡必须是 V3');
+  if (!card.data?.extensions?.world || !Object.keys(worldbook.entries || {}).length) fail('wo-fei-wo-rp package', '角色卡主世界书绑定或世界书条目缺失');
+  if (Object.hasOwn(card.data?.extensions || {}, 'regex_scripts')) fail('wo-fei-wo-rp package', '独立 Regex 路线不应保留卡内 regex_scripts 字段');
+  if (!Array.isArray(regex) || regex.length === 0) fail('wo-fei-wo-rp package', '独立 regex.json 缺失或为空');
+  if (worldbook.name !== card.data.extensions.world) fail('wo-fei-wo-rp package', '角色卡主世界书绑定名与样品世界书名称不一致');
+  if (!fs.existsSync(path.join(sample, '我，非我.世界书.json'))) fail('wo-fei-wo-rp package', '样品世界书文件缺失');
   const scripts = folder.scripts || [];
   const names = scripts.map(script => script.name);
-  if (new Set(names).size !== names.length) fail('full-mvu-rp package', 'ScriptFolder 中存在重复脚本名');
+  if (new Set(names).size !== names.length) fail('wo-fei-wo-rp package', 'ScriptFolder 中存在重复脚本名');
   const ids = scripts.map(script => script.id).filter(Boolean);
-  if (new Set(ids).size !== ids.length) fail('full-mvu-rp package', 'ScriptFolder 中存在重复脚本 ID');
-  const embeddedCoordinator = scripts.find(script => script.name === '雾港航站协调器')?.content?.trim().replace(/\r\n/g, '\n');
-  if (embeddedCoordinator !== coordinator.replace(/\r\n/g, '\n')) fail('full-mvu-rp package', 'ScriptFolder 协调器与可读源码不同步');
+  if (new Set(ids).size !== ids.length) fail('wo-fei-wo-rp package', 'ScriptFolder 中存在重复脚本 ID');
   const loaders = scripts.filter(script => /MagVarUpdate@[0-9a-f]{40}\/artifact\/bundle\.js/i.test(script.content || ''));
-  if (loaders.length !== 1) fail('full-mvu-rp package', `预期唯一锁定 commit 的 MagVarUpdate Loader，实际 ${loaders.length}`);
-} catch (error) { fail('full-mvu-rp package', error); }
+  if (loaders.length !== 1) fail('wo-fei-wo-rp package', `预期唯一锁定 commit 的 MagVarUpdate Loader，实际 ${loaders.length}`);
+  if (!/原始卡是(?:\*\*)?语义金标准/.test(readme) || !/自由发挥/.test(guide)) fail('wo-fei-wo-rp package', '样品缺少面向 Agent 的来源/自由度解释');
+} catch (error) { fail('wo-fei-wo-rp package', error); }
 
 if (hostRoot) {
   const engineFile = path.join(hostRoot, 'public', 'scripts', 'extensions', 'regex', 'engine.js');

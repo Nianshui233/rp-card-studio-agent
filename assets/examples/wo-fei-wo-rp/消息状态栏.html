@@ -1,0 +1,1058 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>我，非我 · 当楼状态</title>
+<style>
+:root{
+  color-scheme:dark;
+  --bg-primary:#0a0a0c;
+  --bg-panel:#121216;
+  --bg-panel-2:#17171c;
+  --line:#2a2a31;
+  --line-soft:#22222a;
+  --ink:#e8e6e2;
+  --ink-dim:#9a978f;
+  --accent-red:#c0392b;
+  --accent-red-soft:#3a1a17;
+  --accent-amber:#d9a04a;
+  --accent-amber-soft:#3a2c15;
+  --accent-cyan:#6fa8a0;
+  --accent-green:#7fa86f;
+  --font-body:system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
+  --font-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg-primary);color:var(--ink);font:13px/1.6 var(--font-body);overflow-wrap:anywhere}
+.app{max-width:1000px;margin:0 auto;padding:10px}
+.head{display:flex;gap:10px;align-items:flex-start;padding:11px 13px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(160deg,var(--bg-panel-2),var(--bg-panel))}
+.head .brand{display:flex;gap:10px;align-items:flex-start;min-width:0}
+.stamp{flex:0 0 auto;width:38px;height:38px;border:1px solid var(--accent-red);border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--accent-red-soft)}
+.stamp svg{width:26px;height:26px}
+h1{margin:0;font-size:15px;letter-spacing:.06em}
+.sub{margin-top:2px;color:var(--ink-dim);font-size:11px}
+.live{margin-left:auto;flex:0 0 auto;border:1px solid var(--line);border-radius:999px;padding:3px 9px;font:11px/1.4 var(--font-mono);color:var(--ink-dim);white-space:nowrap}
+.live.ok{border-color:var(--accent-green);color:var(--accent-green)}
+.live.bad{border-color:var(--accent-red);color:#e08b81}
+.keybar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}
+.cell{border:1px solid var(--line);border-radius:12px;background:var(--bg-panel);padding:9px 10px;min-width:0}
+.cell .label{color:var(--ink-dim);font-size:10px;letter-spacing:.08em}
+.cell .value{margin-top:3px;font:600 15px/1.4 var(--font-mono);overflow-wrap:anywhere}
+.cell .value.small{font-size:13px;font-weight:600;font-family:var(--font-body)}
+.cell .note{margin-top:3px;color:var(--ink-dim);font-size:11px}
+.bar{position:relative;height:7px;margin-top:6px;border:1px solid var(--line);border-radius:999px;background:#000;overflow:hidden}
+.bar > i{display:block;height:100%;width:0;background:var(--accent-cyan);transition:width .2s ease}
+.bar.mid > i{background:var(--accent-amber)}
+.bar.bad > i{background:var(--accent-red)}
+.bar.wait > i{background:#4a4a52}
+.gauge{display:block;width:104px;height:60px;margin-top:4px}
+.gauge .track{fill:none;stroke:var(--line);stroke-width:8;stroke-linecap:round}
+.gauge .fill{fill:none;stroke:var(--accent-cyan);stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset .2s ease}
+.gauge.mid .fill{stroke:var(--accent-amber)}
+.gauge.bad .fill{stroke:var(--accent-red)}
+.gauge .gtext{fill:var(--ink);font:600 19px var(--font-mono)}
+.notice{margin-top:10px;border:1px solid var(--line);border-left:3px solid var(--accent-amber);border-radius:10px;background:#141310;padding:9px 11px;font-size:12px;color:#d8cfbc}
+.notice.bad{border-left-color:var(--accent-red);background:#160f0e;color:#e6b6ae}
+.notice[hidden]{display:none}
+.tabs{display:flex;gap:6px;margin:11px 0 9px;overflow-x:auto;padding-bottom:2px}
+.tab{flex:0 0 auto;min-height:40px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg-panel);color:var(--ink-dim);font:12px/1.4 var(--font-body);cursor:pointer}
+.tab[aria-selected="true"]{border-color:var(--accent-red);color:var(--ink);background:var(--accent-red-soft)}
+.tab:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.panel{border:1px solid var(--line);border-radius:14px;background:var(--bg-panel);padding:11px 12px}
+.panel[hidden]{display:none}
+.panel h2{margin:0 0 8px;font-size:12px;letter-spacing:.08em;color:#cfcac0}
+.block{border:1px solid var(--line-soft);border-radius:11px;padding:9px 10px;background:var(--bg-panel-2);margin-bottom:8px}
+.block:last-child{margin-bottom:0}
+.block h3{margin:0 0 6px;font-size:11px;letter-spacing:.08em;color:var(--ink-dim);font-weight:600}
+.rows{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.row{min-width:0}
+.row .k{color:var(--ink-dim);font-size:11px}
+.row .v{font-size:13px;overflow-wrap:anywhere}
+.row .v.num{font-family:var(--font-mono)}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chips .empty{color:var(--ink-dim);font-size:12px}
+.chip{border:1px solid var(--line);border-radius:999px;padding:2px 8px;font-size:11px;color:#d6d2ca;background:#191920}
+.badge{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:1px 7px;margin:0 4px 3px 0;font-size:11px;color:#d6d2ca;background:#191920}
+.badge.ok{border-color:var(--accent-green);color:#b6d3a8}
+.badge.warn{border-color:var(--accent-amber);color:#e8c78d}
+.badge.bad{border-color:var(--accent-red);color:#e6a79d}
+.badge.dim{color:var(--ink-dim)}
+.meterline{display:flex;align-items:center;gap:8px;margin-top:2px}
+.meterline .bar{flex:1;margin-top:0}
+.meterline .n{font:12px var(--font-mono);color:#cfcac0;min-width:52px;text-align:right}
+.card{border:1px solid var(--line-soft);border-radius:11px;padding:9px 10px;background:var(--bg-panel-2);margin-bottom:7px}
+.card:last-child{margin-bottom:0}
+.card .top{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.card .who{font-weight:600;font-size:13px}
+.card .meta{color:var(--ink-dim);font-size:11px}
+.card .line{margin-top:4px;font-size:12px;color:#cdc8bf}
+.card .line b{color:var(--ink);font-weight:600}
+.svgbox{border:1px solid var(--line-soft);border-radius:11px;background:#0e0e12;padding:6px;margin-bottom:8px}
+.svgbox svg{display:block;width:100%;height:auto}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 0}
+.legend .item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--ink-dim)}
+.legend .dot{width:9px;height:9px;border-radius:50%;border:1px solid var(--line);display:inline-block}
+.search{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+.search input{flex:1;min-width:150px;min-height:40px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#0e0e12;color:var(--ink);font:13px var(--font-body)}
+.search .count{color:var(--ink-dim);font-size:11px;font-family:var(--font-mono)}
+.list{margin:0;padding-left:16px;font-size:12px}
+.list li{margin:2px 0}
+.hint{color:var(--ink-dim);font-size:11px}
+.foot{display:flex;gap:9px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.foot .status{flex:1;min-width:160px;color:var(--ink-dim);font-size:11px}
+.foot .status.ok{color:var(--accent-green)}
+.foot .status.error{color:#e08b81}
+.foot button{min-height:40px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg-panel);color:var(--ink);font:12px var(--font-body);cursor:pointer}
+.foot button:hover{border-color:var(--accent-red)}
+@media (max-width:720px){
+  .keybar{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .rows{grid-template-columns:1fr}
+}
+@media (max-width:420px){
+  .app{padding:6px}
+  .keybar{grid-template-columns:1fr}
+  h1{font-size:14px}
+}
+@media (prefers-reduced-motion:reduce){
+  .bar > i,.gauge .fill{transition:none}
+}
+</style>
+</head>
+<body>
+<main class="app">
+  <header class="head">
+    <div class="brand">
+      <span class="stamp" aria-hidden="true">
+        <svg viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+          <circle cx="60" cy="60" r="52" fill="none" stroke="#c0392b" stroke-width="3"></circle>
+          <path d="M60 20 v18 M60 82 v18 M20 60 h18 M82 60 h18" stroke="#c0392b" stroke-width="3"></path>
+          <circle cx="60" cy="60" r="17" fill="none" stroke="#d9a04a" stroke-width="3"></circle>
+          <path d="M60 47 v26 M47 60 h26" stroke="#d9a04a" stroke-width="3"></path>
+        </svg>
+      </span>
+      <div>
+        <h1>当楼状态</h1>
+        <div class="sub" id="identity">正在连接当前消息楼层……</div>
+      </div>
+    </div>
+    <span class="live" id="live">读取中</span>
+  </header>
+
+  <section class="keybar" aria-label="最紧迫的四项">
+    <div class="cell">
+      <div class="label">威胁等级</div>
+      <div class="value small" id="k-threat">—</div>
+      <div class="note" id="k-threat-note">—</div>
+    </div>
+    <div class="cell">
+      <div class="label">体力</div>
+      <div class="value" id="k-stamina">—</div>
+      <div class="bar" id="k-stamina-meter" role="progressbar" aria-label="体力" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="k-stamina-bar"></i></div>
+    </div>
+    <div class="cell">
+      <div class="label">感染倒计时</div>
+      <div class="value" id="k-infection">—</div>
+      <div class="note" id="k-infection-note">—</div>
+    </div>
+    <div class="cell">
+      <div class="label">当前目标</div>
+      <div class="value small" id="k-goal">—</div>
+    </div>
+  </section>
+
+  <div class="notice" id="pending" hidden>
+    <b>主控未登记／未选择。</b><span id="pending-text">世界与现场照常运行；要显示「我」这一栏，请把入口页生成的可复制资料块保存到你的主控资料中，或作为消息亲手发出。资料很长时可能只登记其中一部分，缺的那几项可以之后再补充。</span>
+  </div>
+  <div class="notice bad" id="problem" hidden><b>本楼状态不可用。</b><span id="problem-text"></span></div>
+
+  <nav class="tabs" role="tablist" aria-label="状态分区">
+    <button type="button" class="tab" role="tab" id="tab-overview" aria-controls="panel-overview" aria-selected="true" tabindex="0">总览</button>
+    <button type="button" class="tab" role="tab" id="tab-self" aria-controls="panel-self" aria-selected="false" tabindex="-1">我</button>
+    <button type="button" class="tab" role="tab" id="tab-supply" aria-controls="panel-supply" aria-selected="false" tabindex="-1">物资与装备</button>
+    <button type="button" class="tab" role="tab" id="tab-relation" aria-controls="panel-relation" aria-selected="false" tabindex="-1">关系</button>
+    <button type="button" class="tab" role="tab" id="tab-holdout" aria-controls="panel-holdout" aria-selected="false" tabindex="-1">据点</button>
+    <button type="button" class="tab" role="tab" id="tab-thread" aria-controls="panel-thread" aria-selected="false" tabindex="-1">悬念与线索</button>
+  </nav>
+
+  <section class="panel" role="tabpanel" id="panel-overview" aria-labelledby="tab-overview" tabindex="0">
+    <h2>总览</h2>
+    <div class="block">
+      <h3>世界</h3>
+      <div class="rows">
+        <div class="row"><div class="k">日期</div><div class="v num" id="ov-date">—</div></div>
+        <div class="row"><div class="k">时段</div><div class="v" id="ov-phase">—</div></div>
+        <div class="row"><div class="k">地点</div><div class="v" id="ov-place">—</div></div>
+        <div class="row"><div class="k">天气</div><div class="v" id="ov-weather">—</div></div>
+      </div>
+      <div class="row" style="margin-top:6px"><div class="k">在场者</div><div class="chips" id="ov-present"></div></div>
+    </div>
+    <div class="block">
+      <h3>现场</h3>
+      <div class="row"><div class="k">敌对单位</div><div class="chips" id="ov-enemies"></div></div>
+      <div class="row" style="margin-top:6px"><div class="k">可调查目标</div><div class="chips" id="ov-clues"></div></div>
+      <div class="row" style="margin-top:6px">
+        <div class="k">暴露与噪音</div>
+        <div class="meterline"><div class="bar" id="ov-noise-meter" role="progressbar" aria-label="暴露与噪音" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="ov-noise-bar"></i></div><span class="n" id="ov-noise-n">—</span></div>
+        <div class="hint" id="ov-noise-note">—</div>
+      </div>
+      <div class="row" style="margin-top:6px"><div class="k">掩体与退路</div><div class="v" id="ov-cover">—</div></div>
+    </div>
+    <div class="block">
+      <h3>推进</h3>
+      <div class="rows">
+        <div class="row"><div class="k">登记状态</div><div class="v" id="ov-registered">—</div></div>
+        <div class="row"><div class="k">已过时段</div><div class="v num" id="ov-tick">—</div></div>
+        <div class="row"><div class="k">上次后台推进</div><div class="v" id="ov-last">—</div></div>
+        <div class="row"><div class="k">难度基调</div><div class="v" id="ov-tone">—</div></div>
+      </div>
+      <div class="row" style="margin-top:6px"><div class="k">备注</div><div class="v" id="ov-note">—</div></div>
+    </div>
+  </section>
+
+  <section class="panel" role="tabpanel" id="panel-self" aria-labelledby="tab-self" tabindex="0" hidden>
+    <h2>我</h2>
+    <div class="block">
+      <h3>身份</h3>
+      <div class="rows">
+        <div class="row"><div class="k">称呼</div><div class="v" id="me-name">—</div></div>
+        <div class="row"><div class="k">专长</div><div class="v" id="me-skill">—</div></div>
+        <div class="row"><div class="k">来历</div><div class="v" id="me-origin">—</div></div>
+        <div class="row"><div class="k">行事倾向</div><div class="v" id="me-temper">—</div></div>
+      </div>
+      <div class="row" style="margin-top:6px"><div class="k">当前目标</div><div class="v" id="me-goal">—</div></div>
+      <div class="hint" id="me-hint"></div>
+    </div>
+    <div class="block">
+      <h3>身体</h3>
+      <div class="row"><div class="k">体力</div><div class="meterline"><div class="bar" id="me-stamina-meter" role="progressbar" aria-label="体力" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="me-stamina-bar"></i></div><span class="n" id="me-stamina-n">—</span></div></div>
+      <div class="row" style="margin-top:6px"><div class="k">伤势</div><div class="v"><span class="badge" id="me-wound">—</span></div></div>
+      <div class="row" style="margin-top:6px"><div class="k">精神</div><div class="meterline"><div class="bar" id="me-mental-meter" role="progressbar" aria-label="精神" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="me-mental-bar"></i></div><span class="n" id="me-mental-n">—</span></div></div>
+      <div class="rows" style="margin-top:6px">
+        <div class="row"><div class="k">脱水（小时）</div><div class="v num" id="me-dehyd">—</div></div>
+        <div class="row"><div class="k">饥饿（小时）</div><div class="v num" id="me-hunger">—</div></div>
+        <div class="row"><div class="k">清醒（小时）</div><div class="v num" id="me-awake">—</div></div>
+      </div>
+    </div>
+    <div class="block">
+      <h3>感染</h3>
+      <div class="rows">
+        <div class="row"><div class="k">可疑暴露</div><div class="v"><span class="badge" id="me-exposed">—</span></div></div>
+        <div class="row"><div class="k">是否确认</div><div class="v"><span class="badge" id="me-confirmed">—</span></div></div>
+      </div>
+      <div class="row" style="margin-top:6px"><div class="k">暴露原因</div><div class="v" id="me-reason">—</div></div>
+      <div class="row" style="margin-top:6px">
+        <div class="k">剩余时间</div>
+        <svg class="gauge" id="me-inf-gauge" viewBox="0 0 120 68" role="progressbar" aria-label="感染剩余时间" aria-valuemin="0" aria-valuemax="36" aria-valuenow="0">
+          <path class="track" d="M10 60 A50 50 0 0 1 110 60"></path>
+          <path class="fill" id="me-inf-arc" d="M10 60 A50 50 0 0 1 110 60"></path>
+          <text class="gtext" id="me-inf-gtext" x="60" y="54" text-anchor="middle">—</text>
+        </svg>
+        <div class="hint" id="me-inf-note">—</div>
+      </div>
+      <div class="row" style="margin-top:6px"><div class="k">已处置</div><div class="chips" id="me-treated"></div></div>
+    </div>
+    <div class="block">
+      <h3>觉醒</h3>
+      <div class="rows">
+        <div class="row"><div class="k">是否觉醒</div><div class="v"><span class="badge" id="me-awakened">—</span></div></div>
+        <div class="row"><div class="k">能力类别</div><div class="v" id="me-ability">—</div></div>
+        <div class="row"><div class="k">等级</div><div class="v num" id="me-level">—</div></div>
+        <div class="row"><div class="k">恢复（小时）</div><div class="v num" id="me-recover">—</div></div>
+        <div class="row"><div class="k">身份是否暴露</div><div class="v"><span class="badge" id="me-expose">—</span></div></div>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <div class="k">觉醒代价</div>
+        <svg class="gauge" id="me-cost-gauge" viewBox="0 0 120 68" role="progressbar" aria-label="觉醒代价" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <path class="track" d="M10 60 A50 50 0 0 1 110 60"></path>
+          <path class="fill" id="me-cost-arc" d="M10 60 A50 50 0 0 1 110 60"></path>
+          <text class="gtext" id="me-cost-gtext" x="60" y="54" text-anchor="middle">—</text>
+        </svg>
+        <div class="hint" id="me-cost-note">—</div>
+      </div>
+      <div class="row" style="margin-top:6px"><div class="k">失控风险来源</div><div class="v" id="me-risk">—</div></div>
+    </div>
+  </section>
+
+  <section class="panel" role="tabpanel" id="panel-supply" aria-labelledby="tab-supply" tabindex="0" hidden>
+    <h2>物资与装备</h2>
+    <div class="search">
+      <input id="su-search" type="search" placeholder="筛选物资或装备" aria-label="筛选物资或装备">
+      <span class="count" id="su-count" aria-live="polite">共 0 项</span>
+    </div>
+    <div class="block">
+      <h3>物资</h3>
+      <div class="chips" id="su-materials"></div>
+    </div>
+    <div class="block">
+      <h3>装备</h3>
+      <ul class="list" id="su-equip"></ul>
+    </div>
+  </section>
+
+  <section class="panel" role="tabpanel" id="panel-relation" aria-labelledby="tab-relation" tabindex="0" hidden>
+    <h2>关系</h2>
+    <div class="svgbox" id="re-graphbox">
+      <svg id="re-graph" viewBox="0 0 340 220" role="img" aria-label="关系图"></svg>
+    </div>
+    <div class="legend" id="re-legend"></div>
+    <div class="block" style="margin-top:8px">
+      <h3>同伴</h3>
+      <div id="re-companions"></div>
+    </div>
+    <div class="block">
+      <h3>势力</h3>
+      <div id="re-factions"></div>
+    </div>
+  </section>
+
+  <section class="panel" role="tabpanel" id="panel-holdout" aria-labelledby="tab-holdout" tabindex="0" hidden>
+    <h2>据点</h2>
+    <div id="ho-list"></div>
+  </section>
+
+  <section class="panel" role="tabpanel" id="panel-thread" aria-labelledby="tab-thread" tabindex="0" hidden>
+    <h2>悬念与线索</h2>
+    <div id="th-list"></div>
+  </section>
+
+  <footer class="foot">
+    <span class="status" id="status" role="status" aria-live="polite">初始化中……</span>
+    <button type="button" id="retry">重新读取本楼状态</button>
+  </footer>
+  <div class="hint" style="margin-top:6px">本面板只读：数字来自当前消息的状态记录，面板本身不会替你改状态，也不会代替你发言。数字是给你看的，不代表角色自己知道。</div>
+</main>
+<script>
+(function () {
+  'use strict';
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  var stops = [];
+  var messageId = null;
+  var swipeId = null;
+  var state = null;
+  var supplyQuery = '';
+  var searchTimer = null;
+
+  function q(id) { return document.getElementById(id); }
+  function text(value, fallback) {
+    if (value === null || value === undefined || value === '') return fallback || '未记录';
+    return String(value);
+  }
+  function isBlank(value) { return value === null || value === undefined || value === ''; }
+  function num(value, fallback) {
+    var n = Number(value);
+    return Number.isFinite(n) ? n : (fallback === undefined ? 0 : fallback);
+  }
+  function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+  function note(msg, kind) {
+    var el = q('status');
+    el.textContent = msg;
+    el.className = 'status' + (kind ? ' ' + kind : '');
+  }
+  function timeout(ms) {
+    return new Promise(function (_resolve, reject) {
+      setTimeout(function () { reject(new Error('状态初始化超时（' + ms + 'ms）')); }, ms);
+    });
+  }
+
+  // ---------- 数据读取（只读；当前楼层 + 当前 Swipe） ----------
+  function readState() {
+    var data = Mvu.getMvuData({ type: 'message', message_id: messageId });
+    if (!data || !data.stat_data || typeof data.stat_data !== 'object' || Array.isArray(data.stat_data)) {
+      throw new Error('这一楼还没有可显示的状态');
+    }
+    // 不检查 schema 的具体类型：不同状态提供者可能返回对象、字符串或不公开该元数据。
+    return data.stat_data;
+  }
+
+  function recordKeys(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+    return Object.keys(value).filter(function (key) { return key.charAt(0) !== '$'; });
+  }
+  function listItems(value) {
+    if (!Array.isArray(value)) return [];
+    return value.filter(function (item) {
+      return !(item && typeof item === 'object' && item.$arrayMeta === true);
+    }).map(function (item) { return String(item); });
+  }
+
+  // ---------- 通用渲染件 ----------
+  function setText(id, value) { q(id).textContent = text(value); }
+  function setName(id, value) {
+    var el = q(id);
+    var blank = isBlank(value);
+    el.textContent = blank ? '未登记' : String(value);
+    el.className = blank ? 'v' : 'v';
+  }
+  function setBadge(id, label, kind) {
+    var el = q(id);
+    el.textContent = label;
+    el.className = 'badge' + (kind ? ' ' + kind : '');
+  }
+  function setChips(id, entries, emptyText) {
+    var box = q(id);
+    box.textContent = '';
+    if (!entries.length) {
+      var span = document.createElement('span');
+      span.className = 'empty';
+      span.textContent = emptyText || '未记录';
+      box.appendChild(span);
+      return;
+    }
+    entries.forEach(function (entry) {
+      var chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.textContent = entry;
+      box.appendChild(chip);
+    });
+  }
+  function setMeter(meterId, fillId, value, min, max, numberId, unit) {
+    var v = clamp(num(value, min), min, max);
+    var frac = max > min ? (v - min) / (max - min) : 0;
+    var meter = q(meterId);
+    var pctValue = Math.round(frac * 100);
+    meter.setAttribute('aria-valuenow', String(v));
+    meter.className = 'bar' + (frac <= 0.2 ? ' bad' : (frac <= 0.45 ? ' mid' : ''));
+    q(fillId).style.width = pctValue + '%';
+    if (numberId) q(numberId).textContent = String(v) + (unit || '');
+  }
+  function setGauge(gaugeId, arcId, textId, value, max, display) {
+    var v = clamp(num(value, 0), 0, max);
+    var frac = max > 0 ? v / max : 0;
+    var gauge = q(gaugeId);
+    gauge.setAttribute('aria-valuenow', String(v));
+    gauge.setAttribute('class', 'gauge' + (frac >= 0.75 ? ' bad' : (frac >= 0.5 ? ' mid' : '')));
+    var len = 157.08;
+    var arc = q(arcId);
+    arc.setAttribute('stroke-dasharray', String(len));
+    arc.setAttribute('stroke-dashoffset', String(len * (1 - frac)));
+    q(textId).textContent = display;
+  }
+  function addLine(parent, label, value) {
+    var line = document.createElement('div');
+    line.className = 'line';
+    var b = document.createElement('b');
+    b.textContent = label + '：';
+    var span = document.createElement('span');
+    span.textContent = text(value);
+    line.appendChild(b);
+    line.appendChild(span);
+    parent.appendChild(line);
+  }
+  function emptyBlock(parent, message) {
+    var d = document.createElement('div');
+    d.className = 'hint';
+    d.textContent = message;
+    parent.appendChild(d);
+  }
+
+  // ---------- 顶栏与未登记态 ----------
+  function renderKeybar(world, me, sys, registered) {
+    var threat = text(world.威胁等级, '未记录');
+    setText('k-threat', threat);
+    var threatNote = { '平静': '暂时没有东西在找你', '不安': '附近有动静，值得先看清' , '危险': '一有响动就可能被围住', '尸潮': '成群的尸群已经在附近' };
+    q('k-threat-note').textContent = threatNote[threat] || '世界状态的威胁等级';
+    var stamina = clamp(num(me.身体 && me.身体.体力, 100), 0, 100);
+    setMeter('k-stamina-meter', 'k-stamina-bar', stamina, 0, 100, null, null);
+    q('k-stamina').textContent = String(stamina);
+    var infection = me.感染 || {};
+    var suspicious = infection.可疑暴露 === true || infection.是否确认 === true;
+    if (suspicious) {
+      var hours = clamp(num(infection.剩余小时, 36), 0, 36);
+      q('k-infection').textContent = String(hours) + ' 小时';
+      q('k-infection-note').textContent = infection.是否确认 === true ? '已经确认：归零就是转化' : '还没确认，但暴露过';
+    } else {
+      q('k-infection').textContent = '无暴露记录';
+      q('k-infection-note').textContent = '当前没有可追踪的暴露';
+    }
+    q('k-goal').textContent = registered ? text(me.当前目标, '未记录') : '未登记／未选择';
+    q('ov-registered').textContent = registered ? '已登记' : '未登记／未选择';
+  }
+
+  // ---------- 总览 ----------
+  function renderOverview(world, sceneRoot, sys) {
+    setText('ov-date', world.日期);
+    setText('ov-phase', world.时段);
+    setText('ov-place', world.地点);
+    setText('ov-weather', world.天气);
+    setChips('ov-present', listItems(world.在场者), '现场没有其他人在场');
+    var scene = sceneRoot || {};
+    setChips('ov-enemies', listItems(scene.敌对单位), '当前没有已知敌对单位');
+    setChips('ov-clues', listItems(scene.可调查目标), '暂时没有可调查的目标');
+    var noise = clamp(num(scene.暴露与噪音, 0), 0, 100);
+    setMeter('ov-noise-meter', 'ov-noise-bar', noise, 0, 100, 'ov-noise-n', '');
+    q('ov-noise-note').textContent = noise >= 60
+      ? '已经到了会引东西过来的程度'
+      : (noise >= 30 ? '有点响，注意别再加了' : '暂时安静');
+    setText('ov-cover', scene.掩体与退路);
+    setText('ov-tick', String(num(sys.时段计数, 0)));
+    setText('ov-last', sys.上次后台推进);
+    setText('ov-tone', sys.难度基调);
+    setText('ov-note', sys.备注);
+  }
+
+  // ---------- 我 ----------
+  function renderSelf(me, registered) {
+    setText('me-name', registered ? me.称呼 : '未登记／未选择');
+    setText('me-skill', registered ? me.专长 : '未登记');
+    setText('me-origin', registered ? me.来历 : '未登记');
+    setText('me-temper', registered ? me.行事倾向 : '未登记');
+    setText('me-goal', registered ? me.当前目标 : '未登记／未选择');
+    q('me-hint').textContent = registered ? '' : '这份内容来自你提供的主控资料；没有登记时这一栏保持空白，不会替你补写。';
+
+    var body = me.身体 || {};
+    var stamina = clamp(num(body.体力, 100), 0, 100);
+    setMeter('me-stamina-meter', 'me-stamina-bar', stamina, 0, 100, 'me-stamina-n', '');
+    var wound = clamp(num(body.伤势, 0), 0, 4);
+    var woundLabel = ['无伤', '轻伤', '重伤', '致命伤', '已死亡'][wound] || '未记录';
+    setBadge('me-wound', woundLabel, wound >= 3 ? 'bad' : (wound >= 1 ? 'warn' : 'ok'));
+    var mental = clamp(num(body.精神, 100), 0, 100);
+    setMeter('me-mental-meter', 'me-mental-bar', mental, 0, 100, 'me-mental-n', '');
+    setText('me-dehyd', String(num(body.脱水小时, 0)));
+    setText('me-hunger', String(num(body.饥饿小时, 0)));
+    setText('me-awake', String(num(body.清醒小时, 0)));
+
+    var inf = me.感染 || {};
+    setBadge('me-exposed', inf.可疑暴露 === true ? '有暴露' : '无记录', inf.可疑暴露 === true ? 'warn' : 'dim');
+    setBadge('me-confirmed', inf.是否确认 === true ? '已确认' : '未确认', inf.是否确认 === true ? 'bad' : 'dim');
+    setText('me-reason', inf.暴露原因);
+    var hours = clamp(num(inf.剩余小时, 36), 0, 36);
+    setGauge('me-inf-gauge', 'me-inf-arc', 'me-inf-gtext', hours, 36, String(hours));
+    q('me-inf-note').textContent = (inf.可疑暴露 === true || inf.是否确认 === true)
+      ? '归零即完成转化；处置过什么看下面的记录'
+      : '没有暴露记录时，这一格只是基线，不代表安全';
+    setChips('me-treated', listItems(inf.已处置), '没有做过处置');
+
+    var aw = me.觉醒 || {};
+    setBadge('me-awakened', aw.是否觉醒 === true ? '已觉醒' : '未觉醒', aw.是否觉醒 === true ? 'warn' : 'dim');
+    setText('me-ability', aw.是否觉醒 === true ? aw.能力类别 : '未觉醒');
+    setText('me-level', aw.是否觉醒 === true ? 'Lv.' + String(num(aw.等级, 0)) : '—');
+    var cost = clamp(num(aw.觉醒代价, 0), 0, 100);
+    setGauge('me-cost-gauge', 'me-cost-arc', 'me-cost-gtext', cost, 100, String(cost));
+    var costNote = cost >= 75 ? '高危：再用一次就可能失控' : (cost >= 50 ? '濒临失控' : (cost >= 25 ? '波动区，还在可控范围' : '稳定'));
+    q('me-cost-note').textContent = aw.是否觉醒 === true ? costNote + '（数字可见，角色自己不一定知道）' : '未觉醒时这一格没有意义';
+    setText('me-recover', String(num(aw.恢复小时, 0)));
+    setBadge('me-expose', aw.身份是否暴露 === true ? '已暴露' : '未暴露', aw.身份是否暴露 === true ? 'bad' : 'dim');
+    setText('me-risk', aw.失控风险来源);
+  }
+
+  // ---------- 物资与装备 ----------
+  function supplyEntries(materials) {
+    return recordKeys(materials).map(function (key) {
+      return { name: key, count: num(materials[key], 0) };
+    });
+  }
+  function renderSupply(me) {
+    var materials = me.物资 || {};
+    var equip = listItems(me.装备);
+    var query = supplyQuery.trim();
+    var mat = supplyEntries(materials).filter(function (entry) {
+      return !query || entry.name.indexOf(query) >= 0;
+    });
+    var items = equip.filter(function (name) { return !query || name.indexOf(query) >= 0; });
+    setChips('su-materials', mat.map(function (entry) {
+      return entry.name + '×' + String(entry.count);
+    }), query ? '没有匹配的物资' : '未记录任何物资');
+    var list = q('su-equip');
+    list.textContent = '';
+    if (!items.length) {
+      var li = document.createElement('li');
+      li.textContent = query ? '没有匹配的装备' : '未记录随身装备';
+      list.appendChild(li);
+    } else {
+      items.forEach(function (name) {
+        var item = document.createElement('li');
+        item.textContent = name;
+        list.appendChild(item);
+      });
+    }
+    var total = supplyEntries(materials).length + equip.length;
+    var shown = mat.length + items.length;
+    q('su-count').textContent = query ? ('匹配 ' + shown + ' / 共 ' + total + ' 项') : ('共 ' + total + ' 项');
+  }
+
+  // ---------- 关系 ----------
+  var TRUST_BANDS = [
+    { max: -50, label: '敌对', color: '#c0392b' },
+    { max: -1, label: '戒备', color: '#d9a04a' },
+    { max: 0, label: '陌生', color: '#6f6f78' },
+    { max: 49, label: '合作', color: '#6fa8a0' },
+    { max: 79, label: '信任', color: '#7fa86f' },
+    { max: 100, label: '亲密', color: '#a8c98f' },
+  ];
+  var STANCE_COLORS = { '敌意': '#c0392b', '戒备': '#d9a04a', '中立': '#6f6f78', '合作': '#6fa8a0', '同盟': '#7fa86f' };
+
+  function trustBand(value) {
+    var v = clamp(num(value, 0), -100, 100);
+    for (var i = 0; i < TRUST_BANDS.length; i += 1) {
+      if (v <= TRUST_BANDS[i].max) return TRUST_BANDS[i];
+    }
+    return TRUST_BANDS[TRUST_BANDS.length - 1];
+  }
+  function svgEl(name, attrs) {
+    var el = document.createElementNS(SVGNS, name);
+    Object.keys(attrs || {}).forEach(function (key) { el.setAttribute(key, String(attrs[key])); });
+    return el;
+  }
+  function drawGraph(companions, factions) {
+    var svg = q('re-graph');
+    svg.textContent = '';
+    var names = Object.keys(companions).concat(Object.keys(factions));
+    svg.setAttribute('aria-label', '关系图：中心是你，周围是 ' + Object.keys(companions).length + ' 名同伴与 ' + Object.keys(factions).length + ' 个势力；下方列表给出同样的内容');
+    if (!names.length) {
+      q('re-graphbox').hidden = true;
+      return;
+    }
+    q('re-graphbox').hidden = false;
+    var cx = 170;
+    var cy = 110;
+    var edge = svgEl('circle', { cx: cx, cy: cy, r: 4, fill: '#c0392b' });
+    svg.appendChild(svgEl('circle', { cx: cx, cy: cy, r: 22, fill: 'none', stroke: '#c0392b', 'stroke-width': 1.5 }));
+    svg.appendChild(edge);
+    var center = svgEl('text', { x: cx, y: cy + 38, fill: '#e8e6e2', 'font-size': 12, 'text-anchor': 'middle' });
+    center.textContent = '你';
+    svg.appendChild(center);
+    var compNames = Object.keys(companions);
+    var facNames = Object.keys(factions);
+    function place(count, index, top) {
+      var span = count > 1 ? index / (count - 1) : 0.5;
+      var angle = top ? (Math.PI * 1.12 - span * Math.PI * 0.24 - Math.PI * 0.5) : (Math.PI * 0.5 + span * Math.PI * 0.52);
+      var rx = 132;
+      var ry = top ? 74 : 78;
+      return { x: cx + Math.cos(angle) * rx, y: cy + Math.sin(angle) * ry };
+    }
+    compNames.forEach(function (name, index) {
+      var data = companions[name] || {};
+      var pos = place(compNames.length, index, true);
+      var band = trustBand(data.好感度);
+      svg.appendChild(svgEl('line', { x1: cx, y1: cy, x2: pos.x, y2: pos.y, stroke: band.color, 'stroke-width': 2, opacity: 0.85 }));
+      svg.appendChild(svgEl('circle', { cx: pos.x, cy: pos.y, r: 13, fill: '#17171c', stroke: band.color, 'stroke-width': 2 }));
+      var label = svgEl('text', { x: pos.x, y: pos.y + 4, fill: '#e8e6e2', 'font-size': 10, 'text-anchor': 'middle' });
+      label.textContent = name.slice(0, 3);
+      svg.appendChild(label);
+      var sub = svgEl('text', { x: pos.x, y: pos.y + 26, fill: '#9a978f', 'font-size': 9, 'text-anchor': 'middle' });
+      sub.textContent = band.label + ' ' + String(clamp(num(data.好感度, 0), -100, 100));
+      svg.appendChild(sub);
+    });
+    facNames.forEach(function (name, index) {
+      var data = factions[name] || {};
+      var pos = place(facNames.length, index, false);
+      var color = STANCE_COLORS[data.立场] || '#6f6f78';
+      svg.appendChild(svgEl('line', { x1: cx, y1: cy, x2: pos.x, y2: pos.y, stroke: color, 'stroke-width': 2, 'stroke-dasharray': '5 4', opacity: 0.85 }));
+      svg.appendChild(svgEl('rect', { x: pos.x - 12, y: pos.y - 12, width: 24, height: 24, rx: 5, fill: '#17171c', stroke: color, 'stroke-width': 2 }));
+      var label = svgEl('text', { x: pos.x, y: pos.y + 4, fill: '#e8e6e2', 'font-size': 10, 'text-anchor': 'middle' });
+      label.textContent = name.slice(0, 3);
+      svg.appendChild(label);
+      var sub = svgEl('text', { x: pos.x, y: pos.y + 26, fill: '#9a978f', 'font-size': 9, 'text-anchor': 'middle' });
+      sub.textContent = text(data.立场, '中立');
+      svg.appendChild(sub);
+    });
+  }
+  function renderLegend() {
+    var box = q('re-legend');
+    box.textContent = '';
+    TRUST_BANDS.forEach(function (band) {
+      var item = document.createElement('span');
+      item.className = 'item';
+      var dot = document.createElement('i');
+      dot.className = 'dot';
+      dot.style.background = band.color;
+      var label = document.createElement('span');
+      label.textContent = '同伴·' + band.label;
+      item.appendChild(dot);
+      item.appendChild(label);
+      box.appendChild(item);
+    });
+    Object.keys(STANCE_COLORS).forEach(function (stance) {
+      var item = document.createElement('span');
+      item.className = 'item';
+      var dot = document.createElement('i');
+      dot.className = 'dot';
+      dot.style.background = STANCE_COLORS[stance];
+      dot.style.borderRadius = '3px';
+      var label = document.createElement('span');
+      label.textContent = '势力·' + stance;
+      item.appendChild(dot);
+      item.appendChild(label);
+      box.appendChild(item);
+    });
+  }
+  function renderRelation(companions, factions) {
+    drawGraph(companions, factions);
+    renderLegend();
+    var compBox = q('re-companions');
+    compBox.textContent = '';
+    var compNames = Object.keys(companions);
+    if (!compNames.length) {
+      emptyBlock(compBox, '还没有认识的人；先接触谁，谁才会出现在这里。');
+    } else {
+      compNames.forEach(function (name) {
+        var data = companions[name] || {};
+        var card = document.createElement('div');
+        card.className = 'card';
+        var top = document.createElement('div');
+        top.className = 'top';
+        var who = document.createElement('span');
+        who.className = 'who';
+        who.textContent = name;
+        var meta = document.createElement('span');
+        meta.className = 'meta';
+        var band = trustBand(data.好感度);
+        meta.textContent = text(data.类型, 'NPC') + ' · ' + band.label + '（' + String(clamp(num(data.好感度, 0), -100, 100)) + '）' + (data.是否在场 === true ? ' · 在场' : ' · 不在场');
+        top.appendChild(who);
+        top.appendChild(meta);
+        card.appendChild(top);
+        addLine(card, '当前地点', data.当前地点);
+        addLine(card, '当前行动', data.当前行动);
+        addLine(card, '关系依据', (isBlank(data.关系依据) ? '还没有可指认的互动' : data.关系依据));
+        addLine(card, '亏欠', data.亏欠);
+        addLine(card, '状态', data.状态);
+        compBox.appendChild(card);
+      });
+    }
+    var facBox = q('re-factions');
+    facBox.textContent = '';
+    var facNames = Object.keys(factions);
+    if (!facNames.length) {
+      emptyBlock(facBox, '还没有和任何势力打过交道。');
+    } else {
+      facNames.forEach(function (name) {
+        var data = factions[name] || {};
+        var card = document.createElement('div');
+        card.className = 'card';
+        var top = document.createElement('div');
+        top.className = 'top';
+        var who = document.createElement('span');
+        who.className = 'who';
+        who.textContent = name;
+        var meta = document.createElement('span');
+        meta.className = 'meta';
+        meta.textContent = '立场：' + text(data.立场, '中立');
+        top.appendChild(who);
+        top.appendChild(meta);
+        card.appendChild(top);
+        var attention = clamp(num(data.关注度, 0), 0, 100);
+        var line = document.createElement('div');
+        line.className = 'meterline';
+        var kh = document.createElement('span');
+        kh.className = 'k';
+        kh.textContent = '关注度';
+        var bar = document.createElement('div');
+        bar.className = 'bar';
+        bar.setAttribute('role', 'progressbar');
+        bar.setAttribute('aria-label', name + ' 的关注度');
+        bar.setAttribute('aria-valuemin', '0');
+        bar.setAttribute('aria-valuemax', '100');
+        bar.setAttribute('aria-valuenow', String(attention));
+        var fill = document.createElement('i');
+        fill.style.width = attention + '%';
+        fill.style.background = STANCE_COLORS[data.立场] || '#6f6f78';
+        bar.appendChild(fill);
+        var n = document.createElement('span');
+        n.className = 'n';
+        n.textContent = String(attention);
+        line.appendChild(kh);
+        line.appendChild(bar);
+        line.appendChild(n);
+        card.appendChild(line);
+        var progress = clamp(num(data.后台进度, 0), 0, 100);
+        var line2 = document.createElement('div');
+        line2.className = 'meterline';
+        var kh2 = document.createElement('span');
+        kh2.className = 'k';
+        kh2.textContent = '后台进度';
+        var bar2 = document.createElement('div');
+        bar2.className = 'bar';
+        bar2.setAttribute('role', 'progressbar');
+        bar2.setAttribute('aria-label', name + ' 的后台进度');
+        bar2.setAttribute('aria-valuemin', '0');
+        bar2.setAttribute('aria-valuemax', '100');
+        bar2.setAttribute('aria-valuenow', String(progress));
+        var fill2 = document.createElement('i');
+        fill2.style.width = progress + '%';
+        fill2.style.background = '#d9a04a';
+        bar2.appendChild(fill2);
+        var n2 = document.createElement('span');
+        n2.className = 'n';
+        n2.textContent = String(progress);
+        line2.appendChild(kh2);
+        line2.appendChild(bar2);
+        line2.appendChild(n2);
+        card.appendChild(line2);
+        addLine(card, '当前阶段', data.当前阶段);
+        addLine(card, '下一步', data.下一步);
+        addLine(card, '已知我方信息', data.已知我方信息);
+        facBox.appendChild(card);
+      });
+    }
+  }
+
+  // ---------- 据点 ----------
+  var ATTITUDE_STOPS = ['排斥', '观望', '接纳', '依赖'];
+  function drawAttitudeAxis(card, label, attitude) {
+    var index = ATTITUDE_STOPS.indexOf(attitude);
+    if (index < 0) index = 1;
+    var bar = document.createElement('div');
+    bar.className = 'meterline';
+    var k = document.createElement('span');
+    k.className = 'k';
+    k.textContent = label;
+    var svg = svgEl('svg', { viewBox: '0 0 240 26', width: '100%', height: '26', 'aria-hidden': 'true', focusable: 'false' });
+    var x0 = 14;
+    var x1 = 226;
+    svg.appendChild(svgEl('line', { x1: x0, y1: 13, x2: x1, y2: 13, stroke: '#2a2a31', 'stroke-width': 3 }));
+    var markerX = x0 + ((x1 - x0) * index) / (ATTITUDE_STOPS.length - 1);
+    svg.appendChild(svgEl('line', { x1: markerX, y1: 5, x2: markerX, y2: 21, stroke: '#d9a04a', 'stroke-width': 3 }));
+    ATTITUDE_STOPS.forEach(function (name, i) {
+      var x = x0 + ((x1 - x0) * i) / (ATTITUDE_STOPS.length - 1);
+      svg.appendChild(svgEl('circle', { cx: x, cy: 13, r: 2.5, fill: '#6f6f78' }));
+      var t = svgEl('text', { x: x, y: 9, fill: '#9a978f', 'font-size': 8, 'text-anchor': 'middle' });
+      t.textContent = name;
+      svg.appendChild(t);
+    });
+    var n = document.createElement('span');
+    n.className = 'n';
+    n.textContent = text(attitude, '观望');
+    bar.appendChild(k);
+    bar.appendChild(svg);
+    bar.appendChild(n);
+    card.appendChild(bar);
+  }
+  function renderHoldouts(holdouts) {
+    var box = q('ho-list');
+    box.textContent = '';
+    var names = Object.keys(holdouts);
+    if (!names.length) {
+      emptyBlock(box, '还没有进入或接触过任何据点。');
+      return;
+    }
+    names.forEach(function (name) {
+      var data = holdouts[name] || {};
+      var card = document.createElement('div');
+      card.className = 'card';
+      var top = document.createElement('div');
+      top.className = 'top';
+      var who = document.createElement('span');
+      who.className = 'who';
+      who.textContent = name;
+      var meta = document.createElement('span');
+      meta.className = 'meta';
+      meta.textContent = '控制方：' + text(data.控制方, '待初始化') + ' · 人数：' + String(num(data.人数, 0));
+      top.appendChild(who);
+      top.appendChild(meta);
+      card.appendChild(top);
+      var morale = clamp(num(data.士气, 50), 0, 100);
+      var line = document.createElement('div');
+      line.className = 'meterline';
+      var k = document.createElement('span');
+      k.className = 'k';
+      k.textContent = '士气';
+      var bar = document.createElement('div');
+      bar.className = 'bar';
+      bar.setAttribute('role', 'progressbar');
+      bar.setAttribute('aria-label', name + ' 的士气');
+      bar.setAttribute('aria-valuemin', '0');
+      bar.setAttribute('aria-valuemax', '100');
+      bar.setAttribute('aria-valuenow', String(morale));
+      var fill = document.createElement('i');
+      fill.style.width = morale + '%';
+      bar.appendChild(fill);
+      var n = document.createElement('span');
+      n.className = 'n';
+      n.textContent = String(morale);
+      line.appendChild(k);
+      line.appendChild(bar);
+      line.appendChild(n);
+      card.appendChild(line);
+      drawAttitudeAxis(card, '对我态度', data.对我态度);
+      addLine(card, '配给', data.配给);
+      addLine(card, '防御', data.防御);
+      var mats = recordKeys(data.物资);
+      var row = document.createElement('div');
+      row.className = 'line';
+      var b = document.createElement('b');
+      b.textContent = '库存：';
+      row.appendChild(b);
+      var chips = document.createElement('span');
+      chips.className = 'chips';
+      if (!mats.length) {
+        var empty = document.createElement('span');
+        empty.className = 'empty';
+        empty.textContent = '未记录';
+        chips.appendChild(empty);
+      } else {
+        mats.forEach(function (key) {
+          var chip = document.createElement('span');
+          chip.className = 'chip';
+          chip.textContent = key + '×' + String(num(data.物资[key], 0));
+          chips.appendChild(chip);
+        });
+      }
+      row.appendChild(chips);
+      card.appendChild(row);
+      box.appendChild(card);
+    });
+  }
+
+  // ---------- 悬念与线索 ----------
+  function renderThreads(threads) {
+    var box = q('th-list');
+    box.textContent = '';
+    var names = Object.keys(threads);
+    if (!names.length) {
+      emptyBlock(box, '目前没有挂着的悬念；遇到线索时它们会出现在这里。');
+      return;
+    }
+    names.forEach(function (name) {
+      var data = threads[name] || {};
+      var card = document.createElement('div');
+      card.className = 'card';
+      var top = document.createElement('div');
+      top.className = 'top';
+      var who = document.createElement('span');
+      who.className = 'who';
+      who.textContent = name;
+      var cred = text(data.可信度, '未经核实');
+      var badge = document.createElement('span');
+      badge.className = 'badge' + (cred === '已核实' ? ' ok' : (cred === '传闻' || cred === '存疑' ? ' warn' : ' dim'));
+      badge.textContent = cred;
+      var done = document.createElement('span');
+      done.className = 'badge' + (data.是否收束 === true ? ' dim' : ' warn');
+      done.textContent = data.是否收束 === true ? '已收束' : '未收束';
+      top.appendChild(who);
+      top.appendChild(badge);
+      top.appendChild(done);
+      card.appendChild(top);
+      addLine(card, '涉及方', data.涉及方);
+      addLine(card, '最后进展', data.最后进展);
+      box.appendChild(card);
+    });
+  }
+
+  // ---------- 主渲染 ----------
+  function render(data) {
+    state = data;
+    var world = data.世界 || {};
+    var me = data.主控 || {};
+    var sys = data.系统 || {};
+    var registered = sys.已登记 === true && !isBlank(me.称呼) && me.称呼 !== '待登记';
+    q('pending').hidden = registered;
+    renderKeybar(world, me, sys, registered);
+    renderOverview(world, data.现场 || {}, sys);
+    renderSelf(me, registered);
+    renderSupply(me);
+    renderRelation(data.同伴 || {}, data.势力 || {});
+    renderHoldouts(data.据点 || {});
+    renderThreads(data.悬念 || {});
+    q('identity').textContent = '正在显示当前消息的状态';
+    q('live').textContent = '已同步';
+    q('live').className = 'live ok';
+  }
+
+  async function refresh() {
+    try {
+      if (typeof getChatMessages === 'function') {
+        var floor = getChatMessages(messageId, { include_swipes: true })[0];
+        swipeId = floor ? Number(floor.swipe_id || 0) : 0;
+      } else {
+        swipeId = 0;
+      }
+      render(readState());
+      note('状态已同步。消息被编辑或切换版本后会重新读取。', 'ok');
+      q('problem').hidden = true;
+    } catch (error) {
+      q('live').textContent = '不可用';
+      q('live').className = 'live bad';
+      console.error('[我，非我状态栏] 读取失败', error);
+      q('problem-text').textContent = '这条消息暂时没有可显示的状态。可以稍后重新读取；开场或尚未结算的消息没有状态是正常的。';
+      q('problem').hidden = false;
+      note('读取失败：' + (error && error.message ? error.message : String(error)), 'error');
+    }
+  }
+
+  // ---------- 分区切换（标准 tablist 键盘行为） ----------
+  function setupTabs() {
+    var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
+    function select(index, focus) {
+      tabs.forEach(function (tab, i) {
+        var on = i === index;
+        tab.setAttribute('aria-selected', on ? 'true' : 'false');
+        tab.tabIndex = on ? 0 : -1;
+        var panel = q(tab.getAttribute('aria-controls'));
+        if (panel) panel.hidden = !on;
+      });
+      if (focus) tabs[index].focus();
+    }
+    tabs.forEach(function (tab, index) {
+      tab.addEventListener('click', function () { select(index, false); });
+      tab.addEventListener('keydown', function (event) {
+        var next = null;
+        if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
+        else if (event.key === 'ArrowLeft') next = (index - 1 + tabs.length) % tabs.length;
+        else if (event.key === 'Home') next = 0;
+        else if (event.key === 'End') next = tabs.length - 1;
+        if (next === null) return;
+        event.preventDefault();
+        select(next, true);
+      });
+    });
+  }
+
+  // ---------- 事件与生命周期 ----------
+  function bindEvents() {
+    if (typeof eventOn !== 'function') return;
+    if (typeof tavern_events === 'object' && tavern_events) {
+      [tavern_events.MESSAGE_UPDATED, tavern_events.MESSAGE_SWIPED].forEach(function (name) {
+        if (!name) return;
+        stops.push(eventOn(name, function (id) {
+          if (Number(id) === messageId) refresh();
+        }));
+      });
+      if (tavern_events.MESSAGE_DELETED) {
+        stops.push(eventOn(tavern_events.MESSAGE_DELETED, function () { /* 楼层被删除时不做动作，等待宿主重建 */ }));
+      }
+    }
+  }
+  addEventListener('pagehide', function () {
+    stops.forEach(function (stop) {
+      if (stop && typeof stop.stop === 'function') stop.stop();
+    });
+    stops = [];
+  }, { once: true });
+
+  q('retry').addEventListener('click', function () { refresh(); });
+  q('su-search').addEventListener('input', function (event) {
+    var value = event.target.value || '';
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(function () {
+      supplyQuery = value;
+      if (state) renderSupply(state.主控 || {});
+    }, 200);
+  });
+
+  (async function boot() {
+    try {
+      if (typeof getCurrentMessageId !== 'function') throw new Error('当前消息暂时无法读取状态');
+      if (typeof Mvu === 'undefined' && typeof waitGlobalInitialized !== 'function') throw new Error('状态读取尚未就绪');
+      messageId = Number(getCurrentMessageId());
+      if (!Number.isInteger(messageId) || messageId < 0) throw new Error('无法取得这一楼的编号');
+      setupTabs();
+      if (typeof waitGlobalInitialized === 'function') {
+        await Promise.race([waitGlobalInitialized('Mvu'), timeout(8000)]);
+      }
+      bindEvents();
+      await refresh();
+    } catch (error) {
+      q('live').textContent = '无法启动';
+      q('live').className = 'live bad';
+      console.error('[我，非我状态栏] 启动失败', error);
+      q('problem-text').textContent = '状态面板暂时无法启动。请重新读取，或稍后再试。';
+      q('problem').hidden = false;
+      note('状态面板暂时不可用。', 'error');
+    }
+  })();
+})();
+</script>
+</body>
+</html>

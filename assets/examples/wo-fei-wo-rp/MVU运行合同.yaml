@@ -1,0 +1,32 @@
+# AGENT SAMPLE NOTE
+# 这是运行层合同：固定 Loader、初始化策略、输出方言和消费者边界。
+# 不要把这里的宿主实现说明复制进世界观或玩家可见 RP 文案。
+# 《我，非我》MVU 运行合同
+# 本文件是 MVU 制品的唯一权威：Loader 版本、初始化策略、输出方言、协议条目名与可写脚本范围都以它为准。
+mvu:
+  mode: mvu_zod
+  init_strategy: worldbook
+  update_dialect: json_patch
+  loader:
+    url: "https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate@0a730cd4a9b99689d1135a49b542c780b977c24c/artifact/bundle.js"
+    script_name: "MVU变量框架"
+  zod:
+    enabled: true
+    source: "配置/MVU/schema.js"
+    script_name: "我，非我ZOD"
+    provider_url: "https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource@523b1f0d82d3debbc2435ec35530f02e8d388219/dist/util/mvu_zod.js"
+  required_worldbook_entries:
+    update_rules: "[mvu_update]变量更新规则"
+    variable_index: "变量列表"
+    output_format: "[mvu_update]变量输出格式"
+  producers:
+    model_update: "assistant 每轮回复末尾的 <UpdateVariable><JSONPatch> 块；写入者只有模型这一条路径"
+    direct_scripts: ""
+  consumers:
+    status_ui: "消息内只读状态栏（导入：我，非我/原始HTML/我，非我.消息状态栏.html）；由模型每轮输出的 <StatusPlaceHolderImpl/> 触发，正则渲染为 fenced html 并由酒馆助手显示；只读当前楼层的 stat_data，不写回任何变量、不发送消息、不覆盖输入框"
+    ejs_bridge: false
+  acceptance:
+    target_sillytavern: "最新稳定版（用户未提供具体版本，见 DEC-305）"
+    target_tavern_helper: "最新稳定版（用户未提供具体版本）"
+    target_mvu_commit: "0a730cd4a9b99689d1135a49b542c780b977c24c"
+    runtime: not_run

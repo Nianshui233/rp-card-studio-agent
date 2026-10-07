@@ -1,27 +1,54 @@
-# 运行技术样本矩阵
+# Agent 样品矩阵
 
-这些样本是经过源码合同核对的原创**运行技术参考**。最小样本用于隔离单条技术路线；`full-mvu-rp` 是完整技术组合制品样例。它们不作为世界观/角色/系统/场景的篇幅或创作密度上限；正式项目应先保留完整 canonical YAML，再无损切入世界书。源码核对与离线测试不等于 SillyTavern 实际导入通过。
+当前矩阵只保留一个完整样品：`wo-fei-wo-rp`。
 
-| 样本 | 纯静态正则 | TH fenced iframe | MVU | STPT EJS | 一次性开场前端 | 持续消息前端 | 包含角色/世界书制品 | 主要用途 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `core-static-rp` | ✓ | — | — | — | — | — | 世界书 producer | 受限纯文本通知；失败关闭的静态捕获边界 |
-| `tavern-helper-iframe-rp` | — | ✓ | — | — | — | 版本化非 MVU 快照 | 世界书 + Script | producer → v1 JSON → 当前楼/Swipe → DOM 文本渲染 → 输入桥 |
-| `mvu-ejs-bridge-rp` | 清理规则 | — | ✓ | ✓ | — | — | 世界书 + ScriptFolder | MVU→EJS 只读桥最小路线 |
-| `mvu-zod-rp` | ✓ MVU清理 | ✓ 状态栏 | ✓ ZOD | — | — | ✓ 当前楼快照 | 角色卡 + 世界书 + ScriptFolder | **复杂 MVU_ZOD 完整制品主参考：Schema、全 Greeting initvar、详细规则、路径索引、输出格式与硬验证** |
-| `full-mvu-rp` | ✓ 通知 | ✓ 两个独立前端 | ✓ | ✓ | ✓ 固定/动态 | ✓ 每楼快照 | ✓ 完整包 | **完整技术组合合同参考；创作内容仍以 canonical YAML 无损打包规则为准** |
+旧的平行样品路线已经清理，不保留替代样品，也不把旧路线改名后继续使用。
 
-`mvu-zod-rp` 是复杂 typed state 的主参考；缺 ZOD、全 Greeting 初态、逐字段规则、路径索引或输出格式会被校验器阻断。`full-mvu-rp` 明确是 `native_schema` 技术组合样本，不得被用来删减 MVU_ZOD 制品。
+## 唯一样品：`wo-fei-wo-rp`
 
-`full-mvu-rp` 选择一套一致的权威状态与 provider，不把互斥替代方案同时装进一个聊天：
+这是实际项目《我，非我》的完整制品样品，代表一条已经闭合的路线：
 
-- 开场前端和持续消息前端是两个独立 HTML、两个窄接口、两个生命周期；
-- MVU 是唯一动态状态树；EJS 只读，不复制变量；
-- 静态通知只承载可读事件，不维护第二套状态；
-- 卡内 Scoped Regex 与独立 `regex.json` 是同一份规则的两种导入方式，必须二选一。
+| 能力 | 状态 |
+| --- | --- |
+| 独立世界书 | 启用 |
+| 角色卡 V3 | 启用 |
+| 独立 Regex | 启用 |
+| Tavern Helper fenced iframe | 启用 |
+| 一次性入口/主控资料页面 | 启用 |
+| 持续消息状态栏 | 启用 |
+| MVU | 启用 |
+| MVU_ZOD | 启用 |
+| EJS | 不启用 |
+| MVU→EJS bridge | 不启用 |
+| 世界书初始化基线 | 启用 |
+| JSON Patch 更新方言 | 启用 |
 
-所有样本都可以做静态合同核对；真实导入、网络、Markdown/DOMPurify、iframe 与浏览器生命周期仍需单独报告 `runtime_pass` 或 `runtime: not_run`。
+## 这个样品教 Agent 什么
 
+它不是“复制字段”的模板，而是一份带解释的完整参考。请先读：
 
-## 矩阵导入硬规则
+```text
+assets/examples/wo-fei-wo-rp/README.md
+```
 
-样品矩阵默认采用独立世界书路线：角色卡不嵌入 `CharacterBook`，世界书单独导入并绑定。卡内与独立 Regex、ScriptFolder 同时存在时只是两种交付方式，实际导入必须二选一。MVU/MVU_ZOD 样品不得使用 prompt-only 清理 `<UpdateVariable>`、`<initvar>`、`<StatusPlaceHolderImpl/>` 或当前状态投影，也不得用 `runOnEdit` 把这些技术载荷永久写回聊天。
+重点包括：
+
+- 原始卡优先于样本惯例；
+- 作品层、运行层、维护层如何分开；
+- 为什么主控页面保留这些字段；
+- 哪些字段可以按项目自由发挥；
+- 哪些状态来源、空态和唯一写者必须固定；
+- 为什么前端不能依赖 `schema` 必须是对象；
+- 为什么 SVG 仪表要使用兼容 SVG 的 class 设置方式；
+- 哪些内容属于当前项目语义，不能直接迁移到别的项目。
+
+## 使用规则
+
+1. 先读取样品 README，再读取实际项目原始卡和 canonical 源；
+2. 技术闭环可以参考；作品字段、文案、页面分组和玩法语义必须重新推导；
+3. 不把样品的主控表单当成通用矩阵；
+4. 不把样品的运行合同写进新的世界观或 RP 文案；
+5. 不把样品中的 Agent 代定、默认值或状态数值复制到新项目；
+6. 真实宿主没有验证时，不得把样品写成 SillyTavern 已验收。
+
+样品目录中的 README、运行合同和注释是给 Agent 的解释，不代表这些解释应该进入最终玩家可见的 RP 制品。
