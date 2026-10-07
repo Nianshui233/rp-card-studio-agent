@@ -15,6 +15,10 @@ description: "Private module for experience-led SillyTavern message frontend fam
 
 不要处理一次性开场/创角页面；但要消费它已经由用户维护/导入的主控资料，不得重新创建第二套主控档案或默认玩家。
 
+## 来源优先级：不要把样本 HUD 当成产品需求
+
+持续消息前端必须从当前项目的原始卡、已确认体验和真实状态合同推导信息架构。`full-mvu-rp`、HUD 样本矩阵和其他示例均标为 `reference_only`，只能提供技术参考，不能直接决定本项目展示哪些卡片、字段、标签、图表、路线或操作。若原始卡已有消息界面，先盘点其保留、迁移、重写、删除和待确认项；新增展示项必须说明对应的本项目事实或玩法后果。
+
 ## 设计起点：玩家在当前消息里要做什么
 
 前端不是“MVU 数据 → 卡片列表”的自动映射。开始设计前先用用户能回答的语言确认：
@@ -116,6 +120,10 @@ description: "Private module for experience-led SillyTavern message frontend fam
 - 只有动态 Prompt/世界书/页面输出才回 EJS；EJS 不得暗中创建 MVU 状态。
 
 状态栏或其他消息前端不得为“显示完整”创建影子状态、假值、默认玩家或第二套持久化。语义未定时可以搭可逆视觉草稿，但必须标出未接通。
+
+## 读取器最低合同
+
+前端渲染只依赖真实的状态载荷：如果 provider 已返回当前消息的 `stat_data`，`schema` 即使存在也可能是对象或字符串，不能用 `typeof schema === "object"` 作为唯一可用性门禁。完整 MvuData/桥接校验与玩家界面渲染是两件事；provider 报告没有快照时显示干净空态，不伪造数据，也不把内部 API 错误直接展示给玩家。
 
 ## 持续生命周期
 

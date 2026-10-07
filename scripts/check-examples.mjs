@@ -86,6 +86,7 @@ for (const [relative, args] of [
   ['tests/materials-research-contract.test.mjs', ['--test', 'tests/materials-research-contract.test.mjs']],
   ['scripts/continuation/continuation.test.mjs', ['--test', 'scripts/continuation/continuation.test.mjs']],
   ['tests/continuation-contract.test.mjs', ['--test', 'tests/continuation-contract.test.mjs']],
+  ['tests/artifact-purity-contract.test.mjs', ['--test', 'tests/artifact-purity-contract.test.mjs']],
   ['tests/project-structure-contract.test.mjs', ['--test', 'tests/project-structure-contract.test.mjs']],
   ['scripts/worldbook/split-yaml-lossless.test.mjs', ['--test', 'scripts/worldbook/split-yaml-lossless.test.mjs']],
   ['assets/examples/full-mvu-rp/runtime.contract.test.mjs', ['assets/examples/full-mvu-rp/runtime.contract.test.mjs']],
