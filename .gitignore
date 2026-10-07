@@ -1,1 +1,4 @@
 node_modules/
+
+# DSH 适配层的构建产物：由 `node .dsh/build.mjs` 现场生成，不入库。
+.dsh/build/
