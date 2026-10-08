@@ -32,13 +32,17 @@ export function validateStageLedger(ledger, currentStage) {
   if (ledger.stages.length !== STAGES.length || STAGES.some(id => !maps.stages.has(id))) issues.push('阶段账本必须完整列出 routing 的全部 ' + STAGES.length + ' 个阶段');
   const evidenceFor = (ref, stage, actions, context, target) => {
     const item = maps.userEvidence.get(ref);
-    if (!item || item.role !== 'user' || item.stage !== stage || !actions.includes(item.action) || !nonempty(item.quote) || !nonempty(item.locator) || !Array.isArray(item.targets) || (target && !item.targets.includes(target))) {
+    if (!item || item.superseded === true || item.role !== 'user' || item.stage !== stage || !actions.includes(item.action) || !nonempty(item.quote) || !nonempty(item.locator) || !Array.isArray(item.targets) || (target && !item.targets.includes(target))) {
       issues.push(context + ' 缺少有效用户依据或引用阶段/动作/目标不匹配：' + String(ref)); return null;
     }
     return item;
   };
   for (const value of maps.userEvidence.values()) {
     if (value.role !== 'user' || !STAGES.includes(value.stage) || !['start', 'delegate', 'confirm', 'accept', 'reject', 'skip'].includes(value.action) || !nonempty(value.quote) || !nonempty(value.locator) || !Array.isArray(value.targets) || value.targets.some(id => !nonempty(id))) issues.push('用户依据字段无效：' + value.id);
+    if (value.superseded === true) {
+      if (!nonempty(value.supersededReason)) issues.push('失效用户依据必须说明 supersededReason：' + value.id);
+      continue;
+    }
     // A locator to our own mutable state is not an independent user source.
     if (typeof value.locator === 'string' && /(?:^|[\\/])(?:authority\.md|NEXT\.md|acceptance\.json)(?:$|[#:\s])/i.test(value.locator)) issues.push('用户依据不能循环引用 Agent 账本：' + value.id);
     if (isBareContinue(value.quote) && ['start', 'delegate', 'confirm', 'accept', 'skip'].includes(value.action)) issues.push('单独的“继续”不能产生阶段/决定/授权依据：' + value.id);
