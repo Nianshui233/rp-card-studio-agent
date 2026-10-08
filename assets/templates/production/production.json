@@ -19,6 +19,7 @@
     "mode": "unresolved",
     "components": {}
   },
+  "frontend": null,
   "ejs": {
     "enabled": false,
     "mode": "none",

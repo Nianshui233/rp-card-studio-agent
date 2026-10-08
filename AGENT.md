@@ -45,6 +45,10 @@
 
 所有交付报告分开写创作状态、静态检查、真实宿主运行和用户验收。没有真实宿主证据时只能报告“静态检查通过；宿主导入/运行未验证”，不能称为“已修复”“可直接导入”或“最终完成”。
 
+## Tavern Helper 前端载体
+
+开场/消息前端默认只走 Tavern Helper / JS-Slash-Runner message iframe；必须通过 carrier gate 锁定 `div.TH-render`、`pre/isFrontend`、`TH-message--{message_id}--{index}`、`TH_UPDATE_VIEWPORT_HEIGHT` 和消息生命周期。普通 HTML、STPT `@@iframe`、脚本 iframe 不能互相冒充。Streaming、Swipe、编辑、重载、删除和 `pagehide` 清理必须分别回归。
+
 ## EJS 生产门禁
 
 启用 ST-Prompt-Template/EJS 后，必须使用 EJS 专属 coverage profile 和 completeness gate；不能因为模板能编译就交接。必须记录执行阶段、作用域、输出通道、副作用、raw message/sandbox/autosave 设置、失败回退、STPT 版本/source pin、fixtures 和宿主回归。使用 `getwi`、`@@preprocessing`、`@@iframe` 或 MVU 数据时，分别补齐对应合同；EJS 不能暗中写入 MVU。

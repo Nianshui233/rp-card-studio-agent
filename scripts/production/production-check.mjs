@@ -5,6 +5,7 @@ import { validateInterviewGate } from './interview-gate.mjs';
 import { validateInterviewCoverage, INTERVIEW_PROFILES } from './interview-coverage.mjs';
 import { validateMvuCompleteness } from './mvu-completeness-gate.mjs';
 import { validateEjsCompleteness } from './ejs-completeness-gate.mjs';
+import { validateFrontendManifest } from './tavern-helper-carrier-gate.mjs';
 import { validateDiagnosticEvents, validateReportClaim } from './diagnostic-evidence.mjs';
 
 function option(name) { const index = process.argv.indexOf(name); return index >= 0 ? process.argv[index + 1] : undefined; }
@@ -26,6 +27,7 @@ try {
       validateProductionManifest(manifest, { root }),
       validateMvuCompleteness(manifest.mvu),
       validateEjsCompleteness(manifest.ejs),
+      ...(['opening_frontend','message_frontend'].includes(manifest.activeStage) ? [validateFrontendManifest(manifest.frontend, { activeStage: manifest.activeStage })] : []),
       validateDiagnosticEvents(manifest.diagnostics?.events)
     ];
     if (['implementation','awaiting_review','runtime_verified','accepted'].includes(manifest.status) && ['opening_frontend','message_frontend','mvu','mvu_zod'].includes(manifest.activeStage) && !manifest.interviews?.[manifest.activeStage]) checks.push({ ok: false, issues: [`activeStage 缺少访谈覆盖：${manifest.activeStage}`] });

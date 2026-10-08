@@ -57,6 +57,21 @@ runtime      真实运行/宿主确认
 - 空态和宿主失败回退；
 - 载体、正则、iframe 和真实宿主回归路径。
 
+## Tavern Helper 前端载体门禁
+
+开场前端和持续消息前端的默认宿主载体固定为 Tavern Helper / JS-Slash-Runner message iframe，不把普通浏览器 HTML、裸 `@@iframe` 或未知 iframe 当成等价路线。frontend manifest 必须锁定：
+
+```text
+container = div.TH-render
+sourceDetection = pre_isFrontend
+iframeIdTemplate = TH-message--{message_id}--{index}
+heightProtocol = TH_UPDATE_VIEWPORT_HEIGHT
+lifecycle = render_started/load/swipe/edit/reload/delete/pagehide
+capabilityProbe = true
+```
+
+脚本 iframe、STPT `@@iframe` 和消息 iframe 是三条不同路线，不能混称。启用 streaming 时必须有独立 streaming fixture；前端回归必须覆盖当前楼、Swipe、编辑、重载、删除、流式和 iframe 清理。
+
 ## EJS 阶段门禁
 
 EJS 是 ST-Prompt-Template 高权限模板执行路线，不是 MVU 存储层。启用 EJS 后必须闭合：
