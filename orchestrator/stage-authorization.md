@@ -70,3 +70,36 @@ authority/v1、next/v1 不静默当作有授权的 v2。校验返回 migrationRe
 防线是：每轮回读真实依据、完整阶段账本、逐条引用校验、阶段报告与实际交回用户。宿主钩子可另作增强，本轮不绑定 Claude Code、Codex、DeepSeek Harness、OpenCode 或 OpenClaw 的私有 API。
 
 已确认事实/能力摘要若展示决定，必须逐字派生为 `- [DEC-001] delegated：决定正文`（来源类型按真实记录替换），不能借一个有效 ID 添加新的确认。`validate.executionAllowed` 只表示当前结构是否允许继续本阶段；不验证来源真实性，不拦截宿主工具。
+
+## 机械门禁：路由、短回复和真实交付状态
+
+本合同不能只靠模型记忆。每个实质阶段开始前，必须从 `orchestrator/routing.yaml` 生成项目 `.rp-card/route-lock.json`，锁定当前阶段的 primary Skill、全部 supporting Skill、路由文件和合同文件哈希：
+
+```text
+node scripts/continuation/continuation.mjs route-lock --root <项目目录> --stage <阶段ID>
+node scripts/continuation/continuation.mjs route-verify --root <项目目录> --stage <阶段ID>
+```
+
+`route-verify` 失败时，不得写入 RP 制品、修改阶段授权、提交交接或声称阶段完成。不能用“我已经读过”“我看过相关 Skill”替代锁定和哈希校验。
+
+阶段账本的状态变更必须通过确定性的转换器完成：`scripts/continuation/ledger-transition.mjs`。它只接受带 `origin=conversation` 的真实用户依据，负责拒绝短回复伪授权、提交交接时使授权到期、接受交接时只关闭当前阶段，不自动启动下一阶段。直接用任意脚本拼接 `authority.md` 不是合法的状态变更路径。
+项目文件变更使用同一转换器的 CLI：
+
+```text
+node scripts/continuation/continuation.mjs ledger-event --root <项目目录> --event start|handoff|accept --stage <阶段ID> [--evidence-file <JSON> --handoff-file <JSON> --handoff-id <ID>]
+```
+
+不再允许 Agent 用临时脚本直接改写 authority/NEXT 的阶段状态。
+
+短回复的确定性边界：
+
+- 单独的“继续”“继续吧”“继续进行”“接着来”只能继续当前未完成范围；不能接受交接、关闭阶段、授权下一阶段或生成新的 userEvidence。
+- 接受交接必须包含明确的接受/确认语义，并以 `responseTo` 指向本轮展示的 handoff；仅有“继续”不满足条件。
+- “按推荐”“你定”只授权访谈控制器已经明确列出的范围；不能扩大为整阶段或下一阶段放权。
+- 没有明确授权时，阶段状态只能保持 `awaiting_handoff`/`pending`，不能由 Agent 自行改为 `accepted`/`closed`。
+
+`authority.md` 的 `driver-accepted` 是最终交付状态，不得只靠阶段关闭或静态测试生成；它必须同时满足 `acceptance.json.summary.real-sillytavern=passed`、`human=passed`、`release=passed`。校验器会拒绝缺少任一项的最终状态。
+
+交付状态必须分开记录：创作内容、静态检查、真实宿主运行、用户验收。`runtime: not_run`、`unknown` 或 `failed` 时，禁止使用“已修复”“可直接导入”“最终完成”等运行交付措辞。
+
+路由锁只证明当前合同文件已按路由读取并且未变化；它不证明用户来源真实性，也不替代真实宿主 QA。

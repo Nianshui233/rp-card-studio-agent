@@ -1,0 +1,25 @@
+{
+  "schema": "rp-card-studio/production/v1",
+  "projectId": "replace-me",
+  "title": "待命名项目",
+  "status": "draft",
+  "source": {
+    "canonicalRoot": "创作源",
+    "userEvidenceRequired": true,
+    "referenceOnlySamples": true
+  },
+  "delivery": {
+    "manifest": "导入：项目名/manifest.json",
+    "activeRoute": null,
+    "runtimeHost": "sillytavern"
+  },
+  "interviews": {},
+  "mvu": {
+    "mode": "unresolved",
+    "components": {}
+  },
+  "diagnostics": {
+    "events": [],
+    "highestVerifiedLevel": "hypothesis"
+  }
+}

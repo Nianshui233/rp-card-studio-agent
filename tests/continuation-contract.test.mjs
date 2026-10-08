@@ -63,3 +63,14 @@ test('ledger stage list exactly matches routing stage ids', () => {
   const ids = [...body.matchAll(/^  (\w+):\s*$/gm)].map(match => match[1]);
   assert.deepEqual(STAGES, ids);
 });
+
+test('production layer is a mandatory correctness gate for runtime projects', () => {
+  const contract = read('orchestrator/production-contract.md');
+  const agent = read('AGENT.md');
+  for (const text of [contract, agent]) {
+    assert.match(text, /production.json/);
+    assert.match(text, /变量列表/);
+    assert.match(text, /user_observation/);
+    assert.match(text, /hypothesis/);
+  }
+});

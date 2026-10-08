@@ -1,0 +1,2 @@
+import {REQUIRED_MVU_COMPONENTS} from './production-manifest.mjs';
+export function validateMvuCompleteness(mvu){const issues=[];if(!mvu||!['mvu','mvu_zod'].includes(mvu.mode))return {ok:true,issues:[]};if(!['covered','accepted'].includes(mvu.interviewStatus))issues.push('MVU 访谈未完成，禁止进入实现/交接');for(const component of REQUIRED_MVU_COMPONENTS){const item=mvu.components?.[component];if(!item||item.status!=='passed'||!item.path)issues.push(`MVU 缺少已通过组件：${component}`)}return {ok:issues.length===0,issues}}

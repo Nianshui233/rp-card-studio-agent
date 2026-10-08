@@ -6,11 +6,15 @@
   "description": "Lean SillyTavern RP brainstorming, authoring, QA, final inspection, and delivery agent.",
   "scripts": {
     "check": "node scripts/check-examples.mjs",
-    "test": "npm run check",
+    "test": "node scripts/run-tests.mjs",
     "dsh:build": "node .dsh/build.mjs",
     "dsh:check": "node .dsh/build.mjs --check",
     "dsh:install": "node .dsh/install.mjs",
     "dsh:verify": "node .dsh/verify.mjs",
-    "test:dsh": "node --test --test-reporter=spec .dsh/adapter-contract.test.mjs"
+    "test:dsh": "node --test --test-reporter=spec .dsh/adapter-contract.test.mjs",
+    "artifact:check": "node scripts/delivery/deliverable-check.mjs",
+    "production:init": "node scripts/production/production-check.mjs init",
+    "production:check": "node scripts/production/production-check.mjs validate",
+    "production:claim": "node scripts/production/production-check.mjs claim"
   }
 }

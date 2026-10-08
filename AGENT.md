@@ -32,16 +32,38 @@
 
 必须读取 `orchestrator/stage-authorization.md`。authority.md 的阶段账本完整列出所有阶段，并分开记录启用、制作进度、用户审阅、执行许可和代定授权。用户确认/放权必须有真实原话与定位、适用阶段、范围和到期条件；Agent 提案、文件存在、自动测试或可编辑账本不能作为用户确认。授权范围外内容保持 proposed/unresolved。阶段成果提交后转为待交接，本阶段授权到期，报告后结束本轮等待用户，不自行跨阶段。只在真实来源覆盖范围内自主制作，不重复询问已确定技术细节。
 
+## 机械门禁与短回复边界
+
+模型读取 Skill 不是执行门禁。进入任何实质阶段前，必须依据 `orchestrator/routing.yaml` 生成并验证当前项目的 `.rp-card/route-lock.json`；它必须覆盖当前 primary Skill、全部 supporting Skill、阶段合同和路由文件哈希。验证失败时停止写入制品、授权变更、阶段交接和完成声明。
+
+阶段账本的状态变更必须经 `scripts/continuation/ledger-transition.mjs` 的确定性转换器；不得用临时脚本直接拼接 `authority.md`。它要求用户依据带 `origin=conversation`，提交交接时使本阶段授权到期，接受交接时只关闭当前阶段，不自动启动下一阶段。
+项目文件状态变化使用 `node scripts/continuation/continuation.mjs ledger-event ...`，不得绕过转换器直接写入 authority/NEXT。
+
+单独的“继续”只能继续当前阶段已经授权且尚未完成的范围，不能表示接受阶段交接、关闭阶段、授权下一阶段或新增用户决定。`accept` 必须有明确接受/确认语义、实际交接 ID 和 `responseTo`；`按推荐`/`你定`只能作用于本轮已经明确列出的范围。用户依据只能来自真实用户消息，不能由 Agent 总结、账本、测试结果或文件存在反向制造。
+
+`driver-accepted` 只能在 `acceptance.json.summary.real-sillytavern=passed`、`human=passed`、`release=passed` 同时成立时使用；阶段关闭或静态测试通过不能替代真实宿主和人工验收。
+
+所有交付报告分开写创作状态、静态检查、真实宿主运行和用户验收。没有真实宿主证据时只能报告“静态检查通过；宿主导入/运行未验证”，不能称为“已修复”“可直接导入”或“最终完成”。
+
+## 工程生产层
+
+凡是需要 SillyTavern/扩展/MVU/前端实际运行的项目，除创作账本外必须建立 `.rp-card/production.json`，并按 `orchestrator/production-contract.md` 使用固定生产骨架。进入开场前端或消息前端实现前，必须通过访谈覆盖门；进入 MVU/MVU_ZOD 实现或交接前，必须通过完整组件门，变量列表、路径索引、输出格式、运行合同、Loader、消费者和 fixtures 任何一项缺失都阻断。
+
+诊断报告必须区分 `hypothesis`、`observed`、`reproduced`、`verified`、`accepted`；“已经定位”“已经修复”“可直接导入”不能在低于要求的证据等级下出现。用户报告的操作先登记为 `user_observation`，没有直接相反的宿主证据时不得反复质疑用户操作。
+
+启动时除项目账本外还要读取 `.rp-card/production.json`；生产校验失败时不得实现、交接或交付。
+
 ## 启动
 
 每次开始或继续工作时：
 
 1. 读取 `orchestrator/routing.yaml`、`orchestrator/stage-loop.md`、`orchestrator/interview-playbook.md` 与 `orchestrator/artifact-purity.md`；
-2. 读取 `.rp-card/authority.md`、`.rp-card/NEXT.md`、`.rp-card/materials.json` 与 `.rp-card/acceptance.json`；若项目尚未建立，初始化最小续接文件；检查 `materials.processing` 和 `materials.research` 状态；
-3. 读取用户指定工作目录中与当前阶段直接相关的源文件、配置、制品和 Git/worktree 状态；有任何用户资料时先进入原始资料整理，有外部事实依赖时先进入主动研究；
-4. 在当前对话先展示进度画板，再只加载当前阶段的主 Skill 和支援 Skill；
-5. 继续项目时以当前文件为准，不信任过期摘要；若权威与实现冲突，先记录冲突并暂停提升状态；
-6. 每次产生真实内容、决定、测试结果或阻断变化后，更新 authority/NEXT/相关证据，并刷新当前对话进度画板。
+2. 读取 `.rp-card/authority.md`、`.rp-card/NEXT.md`、`.rp-card/materials.json` 与 `.rp-card/acceptance.json`；
+3. 若项目尚未建立，先初始化最小续接文件；检查 `materials.processing` 和 `materials.research` 状态；
+4. 读取用户指定工作目录中与当前阶段直接相关的源文件、配置、制品和 Git/worktree 状态；有任何用户资料时先进入原始资料整理，有外部事实依赖时先进入主动研究；
+5. 在当前对话先展示进度画板，再按路由只加载当前阶段的主 Skill 和支援 Skill；同时生成并验证 `.rp-card/route-lock.json`，若路由、primary Skill、任一支援 Skill 或合同哈希不一致，停止制作并先修复路由状态；
+6. 继续项目时以当前文件为准，不信任过期摘要；若权威与实现冲突，先记录冲突并暂停提升状态；
+7. 每次产生真实内容、决定、测试结果或阻断变化后，更新 authority/NEXT/相关证据，并刷新当前对话进度画板。
 
 新项目缺少必要信息时，首轮一次询问：
 
@@ -328,6 +350,10 @@ QA 按风险和实际组件执行，不按固定流程全量展开。
 涉及真实宿主行为时优先做真实 SillyTavern QA。没有实机证据时记录 `runtime: not_run`，不把静态检查冒充运行成功。
 
 - 创作一致性 QA 不按模板字段数量评分，也不重开已经完成的访谈。只检查项目实际承诺的体验与已经写入的承重内容；确定性矛盾直接修复，需要改变用户已确认方向时临时返回拥有该内容的阶段，用建议式深访校准后恢复 QA。检查结果、风险、证据和下一道门写入 `.rp-card/acceptance.json` 与 `.rp-card/NEXT.md`；不保存完整检查过程或重复问题原文。
+
+## 单一路线与作品层污染
+
+最终交付必须有唯一 active route manifest；旧版、修复版和实验路线不得继续作为可导入候选并列存在，superseded 路线只能进入 `.internal/history/`。交付前运行 active-route 校验和 RP-facing purity 扫描；作品层不得混入本机路径、未运行状态、工程导入指令、Agent/Skill/账本/交接说明。运行层和维护层按 manifest 分层，不用机械禁词误伤原始卡原文。
 
 ## 最终检验与交付
 

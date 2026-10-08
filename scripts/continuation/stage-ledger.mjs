@@ -1,3 +1,4 @@
+import { acceptanceEvidenceIssue, isBareContinue } from './user-intent.mjs';
 // Portable structural checks. This is not a host hook or an authenticity verifier.
 export const STAGES = ['preflight', 'continuation', 'materials', 'brainstorm', 'positioning', 'worldbuilding', 'character', 'systems', 'scenes', 'mvu', 'ejs', 'runtime_bridge', 'narrative_opening', 'opening_frontend', 'message_frontend', 'qa_delivery'];
 export const STAGE_LABELS = Object.fromEntries(STAGES.map((id, i) => [id, ['预检', '续接检查', '材料与研究', '脑暴', '定位', '世界观', '角色', '系统', '场景', 'MVU', 'EJS', '运行桥接', '叙事与开场', '开场前端', '消息前端', 'QA 与交付'][i]]));
@@ -40,6 +41,7 @@ export function validateStageLedger(ledger, currentStage) {
     if (value.role !== 'user' || !STAGES.includes(value.stage) || !['start', 'delegate', 'confirm', 'accept', 'reject', 'skip'].includes(value.action) || !nonempty(value.quote) || !nonempty(value.locator) || !Array.isArray(value.targets) || value.targets.some(id => !nonempty(id))) issues.push('用户依据字段无效：' + value.id);
     // A locator to our own mutable state is not an independent user source.
     if (typeof value.locator === 'string' && /(?:^|[\\/])(?:authority\.md|NEXT\.md|acceptance\.json)(?:$|[#:\s])/i.test(value.locator)) issues.push('用户依据不能循环引用 Agent 账本：' + value.id);
+    if (isBareContinue(value.quote) && ['start', 'delegate', 'confirm', 'accept', 'skip'].includes(value.action)) issues.push('单独的“继续”不能产生阶段/决定/授权依据：' + value.id);
   }
   let activeCount = 0;
   const handoffIds = new Set();
@@ -61,6 +63,10 @@ export function validateStageLedger(ledger, currentStage) {
       if (row.review !== 'accepted') issues.push('已关闭阶段必须有用户接受：' + row.id);
       const evidence = evidenceFor(row.acceptanceEvidence, row.id, ['accept'], row.id + ' 用户接受', row.handoff?.id || '__missing_handoff__');
       if (evidence && evidence.responseTo !== row.handoff?.id) issues.push('用户接受必须回应本阶段交接：' + row.id);
+      if (evidence) {
+        const intentIssue = acceptanceEvidenceIssue(evidence, row.handoff?.id);
+        if (intentIssue) issues.push(intentIssue);
+      }
     } else if (row.acceptanceEvidence) issues.push('未接受阶段不能保留生效的接受依据：' + row.id);
     if (['awaiting_handoff', 'closed'].includes(row.progress)) {
       if (!record(row.handoff) || !nonempty(row.handoff.id) || !nonempty(row.handoff.locator) || !Array.isArray(row.handoff.artifacts) || !row.handoff.artifacts.length || row.handoff.artifacts.some(item => !nonempty(item))) issues.push('阶段交接缺少报告定位或实际成果：' + row.id);

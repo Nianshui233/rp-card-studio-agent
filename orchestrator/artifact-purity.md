@@ -72,3 +72,16 @@ QA 与交付必须分别完成：
 - **状态来源审计**：更新块中的用户状态、目标、关系和数值都有用户原话、材料事实或本轮可指认叙事事实，Agent 推测不得直接落库。
 
 “静态文件通过”“样本看起来能运行”不能替代这些门禁，也不能被写成用户接受或真实宿主验收。
+
+## 单一路线与作品层污染扫描
+
+最终交付包必须有一个 `active-route` manifest，声明唯一 active route、当前组件文件和 superseded 路线。旧路线只能放在 `.internal/history/`，不能继续出现在用户可导入目录，也不能与 active route 并列作为候选。
+
+使用：
+
+```text
+node scripts/delivery/deliverable-check.mjs active-route --manifest <delivery-root>/manifest.json --root <delivery-root>
+node scripts/delivery/deliverable-check.mjs purity <RP-facing-file>...
+```
+
+`purity` 只扫描被明确标记为 RP-facing 的文件；运行层和维护层文件不通过禁词猜测来审查，必须在 manifest 中分层。作品层发现本机路径、`runtime: not_run`、工程导入指令、Agent/Skill/账本/交接语义时阻断交付；原始卡原文仍以来源和层级合同为准，不进行机械误伤。

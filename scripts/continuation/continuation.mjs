@@ -2,6 +2,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { STAGES, STAGE_LABELS, PROGRESS_LABELS, REVIEW_LABELS, validateStageLedger, stageAuthorizationLabel } from './stage-ledger.mjs';
+import { writeRouteLock, validateRouteLock } from './route-lock.mjs';
+import { releaseReadinessIssues } from './release-gate.mjs';
+import { applyProjectEvent } from './ledger-transition.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const TEMPLATE_ROOT = path.join(ROOT, 'assets', 'templates', 'continuation');
@@ -120,6 +123,7 @@ export function validateContinuation(rootValue) {
       if (name === 'materials.json' && value.processing && !['absent', 'received', 'organizing', 'organized', 'user_review_needed', 'accepted', 'explicitly_skipped'].includes(value.processing.status)) issues.push(`materials processing 状态无效：${value.processing.status}`);
       if (name === 'materials.json' && value.research && !['not_required', 'required', 'active', 'complete', 'blocked', 'skipped'].includes(value.research.status)) issues.push(`materials research 状态无效：${value.research.status}`);
       if (name === 'acceptance.json' && (!Array.isArray(value.items) || !value.summary || typeof value.summary !== 'object')) issues.push('acceptance.json 必须包含 items 数组和 summary 对象');
+      if (name === 'acceptance.json' && authorityMeta.status === 'driver-accepted') issues.push(...releaseReadinessIssues(value.summary));
     } catch (error) { issues.push(`${name} 不是合法 JSON：${error.message}`); }
   }
   if (!section(next, '下一道门')) warnings.push('NEXT.md 没有可读的下一道门内容');
@@ -220,8 +224,35 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToP
       if (!result.ok) process.exitCode = 1;
     } else if (command === 'board') {
       process.stdout.write(`${renderProgressBoard(root)}\n`);
+    } else if (command === 'route-lock') {
+      const stage = option('--stage');
+      if (!stage) throw new Error('route-lock 必须提供 --stage <stage-id>');
+      const result = writeRouteLock(root, option('--agent-root') || ROOT, stage);
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    } else if (command === 'route-verify') {
+      const lockPath = path.join(root, REQUIRED_DIR, 'route-lock.json');
+      if (!fs.existsSync(lockPath)) throw new Error('缺少 .rp-card/route-lock.json；写入制品前必须先锁定当前阶段路由');
+      const lock = JSON.parse(read(lockPath));
+      const result = validateRouteLock(lock, option('--agent-root') || ROOT, option('--stage') || lock.stage);
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      if (!result.ok) process.exitCode = 1;
+    } else if (command === 'ledger-event') {
+      const type = option('--event');
+      const stage = option('--stage');
+      if (!type || !stage) throw new Error('ledger-event 必须提供 --event start|handoff|accept 与 --stage <stage-id>');
+      const readJson = file => JSON.parse(read(file));
+      const evidenceFile = option('--evidence-file');
+      const handoffFile = option('--handoff-file');
+      const result = applyProjectEvent(root, {
+        type,
+        stage,
+        evidence: evidenceFile ? readJson(evidenceFile) : undefined,
+        handoff: handoffFile ? readJson(handoffFile) : undefined,
+        handoffId: option('--handoff-id')
+      });
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     } else {
-      throw new Error('用法: node continuation.mjs init|validate|board --root <project-root> [--project-id id --title title]');
+      throw new Error('用法: node continuation.mjs init|validate|board|route-lock|route-verify|ledger-event --root <project-root> [--stage stage-id --agent-root agent-root --event start|handoff|accept --evidence-file file --handoff-file file --handoff-id id]');
     }
   } catch (error) {
     process.stderr.write(`${error.message}\n`);
