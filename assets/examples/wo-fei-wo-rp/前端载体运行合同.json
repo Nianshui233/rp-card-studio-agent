@@ -1,0 +1,45 @@
+{
+  "schema": "rp-card-studio/tavern-helper-frontend/v1",
+  "host": "tavern_helper",
+  "carrier": "js-slash-runner-message-iframe",
+  "sourceReference": "JS-Slash-Runner",
+  "versionPin": "host-version-unverified",
+  "highPrivilege": true,
+  "shared": {
+    "container": "div.TH-render",
+    "sourceDetection": "pre_isFrontend",
+    "iframeIdTemplate": "TH-message--{message_id}--{index}",
+    "heightProtocol": "TH_UPDATE_VIEWPORT_HEIGHT",
+    "capabilityProbe": true,
+    "lifecycle": ["render_started", "load", "swipe", "edit", "reload", "delete", "pagehide"],
+    "streaming": "disabled"
+  },
+  "routes": {
+    "opening": {
+      "carrier": "tavern_helper_message_iframe",
+      "marker": "<我非我开场/>",
+      "regex": "regex.json#开场入口页渲染（fenced html → 酒馆助手 iframe）",
+      "placement": [2],
+      "markdownOnly": true,
+      "promptOnly": false,
+      "runOnEdit": false,
+      "source": "开场入口页.html"
+    },
+    "message": {
+      "carrier": "tavern_helper_message_iframe",
+      "marker": "<StatusPlaceHolderImpl/>",
+      "regex": "regex.json#状态栏渲染（fenced html → 酒馆助手 iframe）",
+      "placement": [2],
+      "markdownOnly": true,
+      "promptOnly": false,
+      "runOnEdit": false,
+      "source": "消息状态栏.html",
+      "stateRead": "Mvu.getMvuData({ type: 'message', message_id: getCurrentMessageId() })"
+    }
+  },
+  "runtimeRegression": {
+    "status": "not_run",
+    "cases": ["current_message", "schema_string", "schema_missing", "empty_state", "partial_state", "swipe", "edit", "reload", "pagehide_cleanup"],
+    "limitation": "本样品没有在真实 SillyTavern/Tavern Helper 宿主中完成导入验收"
+  }
+}

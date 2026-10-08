@@ -93,6 +93,29 @@ README.md / AGENT_GUIDE.md / 导入说明.md
 8. 不把样品通过写成真实宿主验收。
 ```
 
+## G.1 前端宿主载体
+
+本样品的两个页面固定使用 Tavern Helper / JS-Slash-Runner message iframe，不是通用 HTML 页面：
+
+```text
+container: div.TH-render
+source detection: pre/isFrontend
+iframe id: TH-message--{message_id}--{index}
+height: TH_UPDATE_VIEWPORT_HEIGHT
+```
+
+开场 marker 是 `<我非我开场/>`，状态栏 marker 是 `<StatusPlaceHolderImpl/>`；两条 Regex 都必须使用 fenced HTML、`markdownOnly=true`、`placement=[2]`、`promptOnly=false`、`runOnEdit=false`。
+
+状态栏从当前消息楼读取：
+
+```js
+Mvu.getMvuData({ type: 'message', message_id: getCurrentMessageId() })
+```
+
+`getCurrentMessageId`、`Mvu` 和 `waitGlobalInitialized` 都属于 Tavern Helper 宿主能力；不要把它们改成普通网页自造的全局变量，也不要用 `latest` 或上一楼缓存替代当前消息楼。
+
+前端必须考虑 `render_started/load/swipe/edit/reload/delete/pagehide` 生命周期。流式路线在本样品中明确关闭；如果另一个项目启用流式，必须另做 streaming fixture 和宿主回归。
+
 ## G. 这个样品的已知路线
 
 ```text
@@ -100,6 +123,7 @@ README.md / AGENT_GUIDE.md / 导入说明.md
 + MVU_ZOD + worldbook initvar + JSON Patch
 + 一次性入口页 + 持续消息状态栏
 + 不启用 EJS，不启用 MVU→EJS bridge
++ 开场/消息页面固定走 Tavern Helper message iframe 载体
 ```
 
 不要从这个样品推断“所有项目都应该启用这些能力”。它只展示：当用户确实选择这些能力时，如何让来源、状态、页面、Regex 和宿主载荷闭合。

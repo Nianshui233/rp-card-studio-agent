@@ -25,6 +25,7 @@
 | `运行脚本.folder.json` | 导入制品 | MVU Loader 与 ZOD 注册 | 依赖版本、脚本顺序和唯一 Loader 是硬约束 |
 | `开场入口页.html` | 维护源码/前端制品 | 入口、序章、主控资料填写和交接 | 字段必须由原卡和项目语义决定，不能照抄别的样品 |
 | `消息状态栏.html` | 维护源码/前端制品 | 当前消息的只读状态展示 | 信息架构必须由当前项目体验和真实状态合同决定 |
+| `前端载体运行合同.json` | 运行合同 | 固定 Tavern Helper / JS-Slash-Runner 消息 iframe 载体、marker、生命周期和回归边界 | 载体协议是硬约束；当前宿主版本仍未实机核对 |
 | `schema.js` | 运行合同源码 | MVU_ZOD 状态结构、类型和范围 | 状态语义需先在项目内容中确定，不能由页面擅自创造 |
 | `MVU运行合同.yaml` | 运行合同 | Loader、初始化、输出方言和消费者 | 技术路线必须保持一致，不能混装互斥路线 |
 | `01-初始化基线.yaml` | 运行合同 | 世界书初始化基线 | 与 Schema 顶层根和空态保持一致 |
@@ -33,6 +34,40 @@
 | `04-变量输出格式.yaml` | 运行合同 | JSON Patch 与状态 marker 输出格式 | 属于机器协议，不应被写成世界观 |
 | `regex.fixtures.json` | QA 证据 | Regex 离线回放样例 | 新规则必须补 fixture，不可只看文件存在 |
 | `导入说明.md` | 维护/导入说明 | 给实际使用者的导入步骤 | 可以解释宿主工具；不应被复制进 RP-facing 内容 |
+
+## 2.1 前端宿主载体是固定的
+
+本样品的开场页和消息状态栏都不是普通浏览器 HTML，也不是任意 iframe。它们固定走 Tavern Helper / JS-Slash-Runner 的消息前端路线：
+
+```text
+消息正文中的 <pre> 前端代码块
+→ isFrontend 识别
+→ div.TH-render
+→ Tavern Helper message iframe
+→ TH-message--{message_id}--{index}
+→ 高度协议与生命周期管理
+```
+
+因此 `regex.json` 中的两个渲染条目必须保持：
+
+- `markdownOnly: true`；
+- `placement: [2]`；
+- fenced `html` 代码块；
+- `promptOnly: false`；
+- `runOnEdit: false`；
+- 与各自 marker 一一配对。
+
+`消息状态栏.html` 使用 Tavern Helper 注入的 `getCurrentMessageId`、`Mvu` 和 `waitGlobalInitialized` 读取当前消息楼状态；它不是独立网页打开后就能工作的页面。页面还在 `pagehide` 时清理监听。
+
+`前端载体运行合同.json` 是这个载体事实的机器可读说明。它明确区分：
+
+```text
+Tavern Helper message iframe
+Tavern Helper script iframe
+ST-Prompt-Template @@iframe
+```
+
+本样品只使用第一种。不能因为另一个项目使用 EJS 或 `@@iframe`，就把本样品的载体替换成另一条路线。
 
 ## 3. 三层边界
 
