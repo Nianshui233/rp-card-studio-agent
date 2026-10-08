@@ -2,7 +2,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { initProductionProject, validateProductionManifest } from './production-manifest.mjs';
 import { validateInterviewGate } from './interview-gate.mjs';
+import { validateInterviewCoverage, INTERVIEW_PROFILES } from './interview-coverage.mjs';
 import { validateMvuCompleteness } from './mvu-completeness-gate.mjs';
+import { validateEjsCompleteness } from './ejs-completeness-gate.mjs';
 import { validateDiagnosticEvents, validateReportClaim } from './diagnostic-evidence.mjs';
 
 function option(name) { const index = process.argv.indexOf(name); return index >= 0 ? process.argv[index + 1] : undefined; }
@@ -23,9 +25,11 @@ try {
     const checks = [
       validateProductionManifest(manifest, { root }),
       validateMvuCompleteness(manifest.mvu),
+      validateEjsCompleteness(manifest.ejs),
       validateDiagnosticEvents(manifest.diagnostics?.events)
     ];
-    for (const [stage, interview] of Object.entries(manifest.interviews ?? {})) checks.push({ stage, ...validateInterviewGate(interview, interview.required ?? undefined) });
+    if (['implementation','awaiting_review','runtime_verified','accepted'].includes(manifest.status) && ['opening_frontend','message_frontend','mvu','mvu_zod'].includes(manifest.activeStage) && !manifest.interviews?.[manifest.activeStage]) checks.push({ ok: false, issues: [`activeStage 缺少访谈覆盖：${manifest.activeStage}`] });
+    for (const [stage, interview] of Object.entries(manifest.interviews ?? {})) checks.push({ stage, ...(interview.profile && INTERVIEW_PROFILES[interview.profile] ? validateInterviewCoverage(interview, interview.profile) : validateInterviewGate(interview, interview.required ?? undefined)) });
     const issues = checks.flatMap(result => result.issues ?? []);
     const result = { ok: issues.length === 0, issues, checks };
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);

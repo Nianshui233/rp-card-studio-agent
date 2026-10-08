@@ -33,6 +33,19 @@ fixtures/
 
 `.rp-card/production.json` 只保存生产状态、组件门禁、诊断证据和交付指针；RP 内容仍以 `创作源/` canonical 为权威。
 
+## 访谈完整性与深度
+
+访谈不能以“问过一个问题”或模型认为“信息够了”结束。每个阶段使用 coverage profile，维度状态必须是 `confirmed`、`delegated`、`deferred` 或 `not_applicable`，并且达到最低深度：
+
+```text
+surface      表层方向
+structured   结构确认
+detailed     细节确认
+runtime      真实运行/宿主确认
+```
+
+缺少必要维度、深度不足、依赖项未展开或仍有阻断性未决项时，禁止进入制作。阶段报告必须列出已确认、已放权、已暂缓、仍未回答和准备代定的事项。
+
 ## 前端阶段门禁
 
 开场前端或消息前端在访谈覆盖前不得实现。至少需要明确：
@@ -43,6 +56,25 @@ fixtures/
 - 交互是否写输入框、剪贴板或自动发送；
 - 空态和宿主失败回退；
 - 载体、正则、iframe 和真实宿主回归路径。
+
+## EJS 阶段门禁
+
+EJS 是 ST-Prompt-Template 高权限模板执行路线，不是 MVU 存储层。启用 EJS 后必须闭合：
+
+```text
+template_source
+execution_contract
+scope_contract
+output_contract
+side_effect_contract
+runtime_settings
+failure_fallback
+version_pin
+fixtures
+host_regression
+```
+
+根据实际使用追加：`getwi_contract`、`iframe_carrier`、`raw_message_contract`、`mvu_bridge`。`generation`、`preparation/raw-message`、`render`、`@@preprocessing`、`@@iframe` 不能只靠语法检查；每条实际路径都要有 fixture 和真实宿主回归。EJS 读取 MVU 必须显式 bridge，EJS 写入 MVU 必须显式双向合同和唯一写者。
 
 ## MVU 阶段门禁
 

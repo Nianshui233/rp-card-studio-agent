@@ -3,6 +3,7 @@
   "projectId": "replace-me",
   "title": "待命名项目",
   "status": "draft",
+  "activeStage": null,
   "source": {
     "canonicalRoot": "创作源",
     "userEvidenceRequired": true,
@@ -17,6 +18,14 @@
   "mvu": {
     "mode": "unresolved",
     "components": {}
+  },
+  "ejs": {
+    "enabled": false,
+    "mode": "none",
+    "executionStages": [],
+    "contract": {},
+    "components": {},
+    "templates": []
   },
   "diagnostics": {
     "events": [],

@@ -45,6 +45,14 @@
 
 所有交付报告分开写创作状态、静态检查、真实宿主运行和用户验收。没有真实宿主证据时只能报告“静态检查通过；宿主导入/运行未验证”，不能称为“已修复”“可直接导入”或“最终完成”。
 
+## EJS 生产门禁
+
+启用 ST-Prompt-Template/EJS 后，必须使用 EJS 专属 coverage profile 和 completeness gate；不能因为模板能编译就交接。必须记录执行阶段、作用域、输出通道、副作用、raw message/sandbox/autosave 设置、失败回退、STPT 版本/source pin、fixtures 和宿主回归。使用 `getwi`、`@@preprocessing`、`@@iframe` 或 MVU 数据时，分别补齐对应合同；EJS 不能暗中写入 MVU。
+
+## 访谈完整性与深度
+
+访谈不得以模型自认为“信息足够”结束。使用 production coverage profile 检查全部必要维度、最低深度、未展开依赖和阻断性未决项；`answered` 不等于 `confirmed`，`confirmed` 不等于 `complete`。缺少维度或深度不足时继续访谈，不得开始制作。阶段报告必须展示已确认、已放权、已暂缓、仍未回答和准备代定的事项。
+
 ## 工程生产层
 
 凡是需要 SillyTavern/扩展/MVU/前端实际运行的项目，除创作账本外必须建立 `.rp-card/production.json`，并按 `orchestrator/production-contract.md` 使用固定生产骨架。进入开场前端或消息前端实现前，必须通过访谈覆盖门；进入 MVU/MVU_ZOD 实现或交接前，必须通过完整组件门，变量列表、路径索引、输出格式、运行合同、Loader、消费者和 fixtures 任何一项缺失都阻断。
