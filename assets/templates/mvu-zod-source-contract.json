@@ -1,0 +1,66 @@
+{
+  "schema": "rp-card-studio/mvu-zod-source-contract/v1",
+  "title": "项目名",
+  "outputDialect": "json_patch",
+  "paths": {
+    "schemaSource": "创作源/MVU/schema.ts",
+    "registrationSource": "创作源/MVU/脚本/变量结构/index.ts",
+    "loaderSource": "创作源/MVU/loader.js",
+    "initvar": "创作源/MVU/世界书/变量/initvar.yaml",
+    "variableList": "创作源/MVU/世界书/变量/变量列表.txt",
+    "updateRules": "创作源/MVU/世界书/变量/更新规则.yaml",
+    "pathIndex": "创作源/MVU/世界书/变量/路径索引.md",
+    "outputFormat": "创作源/MVU/世界书/变量/输出格式.txt",
+    "fixtures": "fixtures/MVU/schema.json",
+    "importArtifact": "导入：项目名/酒馆助手脚本/MVU_ZOD.json",
+    "worldbookArtifact": "导入：项目名/世界书/项目名.json",
+    "cardArtifact": "导入：项目名/角色卡/项目名.json",
+    "buildRecord": ".rp-card/mvu-build.json",
+    "runtimeContract": "配置/MVU运行合同.yaml",
+    "regexArtifact": "导入：项目名/正则/正则.json"
+  },
+  "providers": {
+    "versionPolicy": "tutorial_default",
+    "loader": "https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js",
+    "zod": "https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js"
+  },
+  "scriptIds": {
+    "loader": "替换为稳定Loader-ID",
+    "registration": "替换为稳定Schema-ID"
+  },
+  "worldbookBindings": [
+    {
+      "entryId": "替换为基线UID",
+      "sources": [
+        "initvar"
+      ]
+    },
+    {
+      "entryId": "替换为当前状态UID",
+      "sources": [
+        "variableList"
+      ]
+    },
+    {
+      "entryId": "替换为更新规则UID",
+      "sources": [
+        "updateRules"
+      ]
+    },
+    {
+      "entryId": "替换为路径索引UID",
+      "sources": [
+        "pathIndex"
+      ]
+    },
+    {
+      "entryId": "替换为输出格式UID",
+      "sources": [
+        "outputFormat"
+      ]
+    }
+  ],
+  "runtime": {
+    "status": "not_run"
+  }
+}

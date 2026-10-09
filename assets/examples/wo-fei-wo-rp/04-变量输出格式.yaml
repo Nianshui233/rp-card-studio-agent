@@ -1,6 +1,3 @@
-# AGENT SAMPLE NOTE
-# 这是机器输出协议。它可以解释 JSON Patch 的形状，但不能出现在作品叙事层。
-# 更新块只记录事实变化；状态 marker 只负责把真实状态交给消息前端。
 变量输出格式:
   用途: 每轮回复结束后，在正文之外只输出一次完整更新块，供 MagVarUpdate 解析成 stat_data 变化；再输出一行状态栏标记，供消息前端把这一楼的状态显示出来。
   方言: JSON Patch。只允许 replace、delta、insert、add、remove、move 六种操作；禁止混用其他命令式语法，禁止同一轮输出两段更新块。

@@ -127,3 +127,39 @@ Mvu.getMvuData({ type: 'message', message_id: getCurrentMessageId() })
 ```
 
 不要从这个样品推断“所有项目都应该启用这些能力”。它只展示：当用户确实选择这些能力时，如何让来源、状态、页面、Regex 和宿主载荷闭合。
+
+## MVU 工程组织与注释说明
+
+本样品只有一份 canonical Schema：`schema.js` 不含注册器；`MVU源/注册入口.js` 负责就绪后注册，`MVU源/加载入口.js` 保留原有 Loader。`MVU源码合同.json` 绑定实际代码、01～04 变量源、世界书、角色卡、正则及项目 Schema fixture；`MVU构建/` 只有当前构建结果，不是另一条路线或备份。ScriptFolder 由源码构建，保持既有 ID、名称与按钮元数据。
+
+变量源现在与实际条目正文逐字一致，工程解释集中在本指南，不将注释说明发送到模型的 RP 上下文。各变量源的用途说明如下：
+
+### 01-初始化基线.yaml
+
+这是唯一的空白初始状态。空对象/空数组代表“尚未发生”，不是等待 Agent 自由补全的邀请。
+
+### 02-变量更新规则.yaml
+
+每个字段的 check 是写入门槛。没有用户原话、材料事实或本轮可指认事件，就保持原值。
+特别注意：表单字段不等于用户决定，场景压力不等于主控目标。
+
+### 03-变量列表.txt
+
+这是机器可用路径索引，不是让 Agent 随意扩展的字段清单。
+Record 动态键与 Array 下标的规则必须与 Schema 和更新方言一致。
+
+### 04-变量输出格式.yaml
+
+这是机器输出协议。它可以解释 JSON Patch 的形状，但不能出现在作品叙事层。
+更新块只记录事实变化；状态 marker 只负责把真实状态交给消息前端。
+
+### 构建与验收
+
+从 Agent 根目录执行：
+
+```powershell
+node scripts/mvu/mvu-zod-project.mjs build --root "assets/examples/wo-fei-wo-rp" --contract "MVU源码合同.json" --out "MVU构建"
+node scripts/mvu/mvu-zod-project.mjs validate --root "assets/examples/wo-fei-wo-rp" --contract "MVU源码合同.json"
+```
+
+实际 YAML 和样品 Schema 已用于离线 fixture（初态、数字字符串/范围归一化、非法枚举）；每次检查重新构建并对比最终 ScriptFolder。JSON Schema 只是结构辅助，不替代真实 transform 执行。这里不声称完成新版精确制品的酒馆导入/保存验收：runtime 保持 not_run。不要复制这些字段到别的作品；复制的是责任边界与校验方法。

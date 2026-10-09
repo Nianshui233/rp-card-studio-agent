@@ -108,6 +108,8 @@ consumer
 fixtures
 ```
 
+组件必须是实际项目内可读取的文件，不能仅填 status: passed。mvu.sourceContract 使用 assets/templates/mvu-zod-source-contract.json 合同，覆盖 canonical Schema、注册入口、Loader、初态、Prompt、fixture 与最终导入文件；执行 scripts/mvu/mvu-zod-project.mjs build/validate。源码依赖哈希、实际 YAML + Zod 结果、重建脚本正文及世界书/开局一致性都由工具核对，不接受自写构建通过标记。该链只证明离线一致性，宿主注册/解析/保存仍需真实证据。
+
 缺变量列表、缺路径索引、缺输出格式或缺任一运行消费者，都不能交接。不能通过“先做前端、以后再补 MVU”绕过门禁。
 
 ## 诊断声明等级

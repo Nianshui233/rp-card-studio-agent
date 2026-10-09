@@ -45,3 +45,9 @@ test('route lock covers the declared primary and supporting Skills', () => {
   const tampered = { ...lock, fileSha256: { ...lock.fileSha256, [lock.requiredFiles.at(-1)]: 'tampered' } };
   assert.equal(validateRouteLock(tampered, root, 'message_frontend').ok, false);
 });
+
+test('MVU route lock includes engineering source contract and executable validation', () => {
+  const lock = createRouteLock(root, 'mvu');
+  for (const file of ['internal-skills/st-mvu-authoring/references/mvu-source-build.md', 'scripts/mvu/validate-mvu-zod-source-contract.mjs', 'assets/templates/mvu-zod-source-contract.json']) assert.ok(lock.requiredFiles.includes(file));
+  assert.equal(validateRouteLock(lock, root, 'mvu').ok, true);
+});

@@ -3,14 +3,17 @@ mvu:
   mode: mvu_zod                 # none | native_schema | mvu_zod
   init_strategy: greeting       # greeting | worldbook
   update_dialect: json_patch    # json_patch | lodash
+  version_policy: tutorial_default    # tutorial_default | pinned；滚动地址不能声称版本已锁定
+  patch_move_target: to               # 教程 move 使用 from/to；按目标 parser 可改为 path
+  remote_host: testingcf.jsdelivr.net # 本项目绑定的地址，非普遍 CDN 成败判定
   loader:
-    url: "锁定 tag/commit 的 MagVarUpdate URL"
+    url: "https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js"
     script_name: "MVU变量框架"
   zod:
     enabled: true
-    source: "创作源或配置中的 schema.js"
+    source: "创作源/MVU/schema.ts"
     script_name: "项目名ZOD"
-    provider_url: "锁定 tag/commit 的 mvu_zod.js URL"
+    provider_url: "https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource/dist/util/mvu_zod.js"
   required_worldbook_entries:
     update_rules: "[mvu_update]变量更新规则"
     variable_index: "变量列表"

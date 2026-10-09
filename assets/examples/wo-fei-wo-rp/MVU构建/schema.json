@@ -1,0 +1,456 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "世界": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "日期": {
+          "default": "未记录",
+          "type": "string",
+          "description": "YYYY-MM-DD，未记录时保持「未记录」"
+        },
+        "时段": {
+          "default": "白天",
+          "type": "string",
+          "enum": [
+            "清晨",
+            "白天",
+            "黄昏",
+            "夜晚"
+          ]
+        },
+        "地点": {
+          "default": "未记录",
+          "type": "string",
+          "description": "当前具体地点"
+        },
+        "天气": {
+          "default": "未记录",
+          "type": "string"
+        },
+        "威胁等级": {
+          "default": "平静",
+          "type": "string",
+          "enum": [
+            "平静",
+            "不安",
+            "危险",
+            "尸潮"
+          ]
+        },
+        "在场者": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string",
+            "description": "在场者称呼"
+          }
+        }
+      }
+    },
+    "主控": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "称呼": {
+          "default": "待登记",
+          "type": "string",
+          "description": "外部主控的名号；未登记时保持「待登记」"
+        },
+        "来历": {
+          "default": "待登记",
+          "type": "string"
+        },
+        "专长": {
+          "default": "待登记",
+          "type": "string"
+        },
+        "行事倾向": {
+          "default": "待登记",
+          "type": "string"
+        },
+        "当前目标": {
+          "default": "待登记",
+          "type": "string"
+        },
+        "身体": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "体力": {
+              "default": 100,
+              "type": "number"
+            },
+            "伤势": {
+              "default": 0,
+              "type": "number",
+              "description": "0 无伤 / 1 轻伤 / 2 重伤 / 3 致命 / 4 当场死亡"
+            },
+            "精神": {
+              "default": 100,
+              "type": "number"
+            },
+            "脱水小时": {
+              "default": 0,
+              "type": "number"
+            },
+            "饥饿小时": {
+              "default": 0,
+              "type": "number"
+            },
+            "清醒小时": {
+              "default": 0,
+              "type": "number"
+            }
+          }
+        },
+        "感染": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "可疑暴露": {
+              "default": false,
+              "type": "boolean"
+            },
+            "暴露原因": {
+              "default": "",
+              "type": "string"
+            },
+            "是否确认": {
+              "default": false,
+              "type": "boolean"
+            },
+            "剩余小时": {
+              "default": 36,
+              "type": "number",
+              "description": "归零即完成转化"
+            },
+            "已处置": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "description": "一次处置，如 清创／截肢／抑制剂"
+              }
+            }
+          }
+        },
+        "觉醒": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "是否觉醒": {
+              "default": false,
+              "type": "boolean"
+            },
+            "能力类别": {
+              "default": "未觉醒",
+              "type": "string",
+              "enum": [
+                "未觉醒",
+                "躯体强化",
+                "感知扩展",
+                "念动力",
+                "生体干涉",
+                "环境操控",
+                "精神渗透"
+              ]
+            },
+            "等级": {
+              "default": 0,
+              "type": "number"
+            },
+            "觉醒代价": {
+              "default": 0,
+              "type": "number",
+              "description": "0-24 稳定 / 25-49 波动 / 50-74 濒临失控 / 75-99 高危 / 100 失控释放"
+            },
+            "恢复小时": {
+              "default": 0,
+              "type": "number"
+            },
+            "身份是否暴露": {
+              "default": false,
+              "type": "boolean"
+            },
+            "失控风险来源": {
+              "default": "",
+              "type": "string"
+            }
+          }
+        },
+        "物资": {
+          "default": {},
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "description": "物品名"
+          },
+          "additionalProperties": {
+            "type": "number",
+            "description": "数量"
+          }
+        },
+        "装备": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string",
+            "description": "随身装备"
+          }
+        }
+      }
+    },
+    "同伴": {
+      "default": {},
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "description": "人物称呼"
+      },
+      "additionalProperties": {
+        "default": {},
+        "type": "object",
+        "properties": {
+          "类型": {
+            "default": "NPC",
+            "type": "string",
+            "enum": [
+              "NPC",
+              "外来者"
+            ]
+          },
+          "好感度": {
+            "default": 0,
+            "type": "number",
+            "description": "-100 敌对 / -49 至 -1 戒备 / 0 陌生 / 1 至 49 合作 / 50 至 79 信任 / 80 以上 亲密"
+          },
+          "关系依据": {
+            "default": "",
+            "type": "string",
+            "description": "最近一次改变好感度的具体行为；没有可指认行为就不得改动"
+          },
+          "亏欠": {
+            "default": "无",
+            "type": "string"
+          },
+          "当前地点": {
+            "default": "未知",
+            "type": "string"
+          },
+          "当前行动": {
+            "default": "",
+            "type": "string"
+          },
+          "是否在场": {
+            "default": false,
+            "type": "boolean"
+          },
+          "状态": {
+            "default": "",
+            "type": "string",
+            "description": "伤势、精神与装备现状；死亡时写死亡与时间"
+          }
+        }
+      }
+    },
+    "势力": {
+      "default": {},
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "description": "势力名称"
+      },
+      "additionalProperties": {
+        "default": {},
+        "type": "object",
+        "properties": {
+          "立场": {
+            "default": "中立",
+            "type": "string",
+            "enum": [
+              "敌意",
+              "戒备",
+              "中立",
+              "合作",
+              "同盟"
+            ]
+          },
+          "关注度": {
+            "default": 0,
+            "type": "number",
+            "description": "该势力对我方的关注与暴露程度"
+          },
+          "当前阶段": {
+            "default": "待初始化",
+            "type": "string"
+          },
+          "下一步": {
+            "default": "待初始化",
+            "type": "string"
+          },
+          "后台进度": {
+            "default": 0,
+            "type": "number",
+            "description": "每个时段自行推进 3-10；到 100 完成当前阶段"
+          },
+          "已知我方信息": {
+            "default": "",
+            "type": "string"
+          }
+        }
+      }
+    },
+    "据点": {
+      "default": {},
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "description": "据点名称"
+      },
+      "additionalProperties": {
+        "default": {},
+        "type": "object",
+        "properties": {
+          "控制方": {
+            "default": "待初始化",
+            "type": "string"
+          },
+          "人数": {
+            "default": 0,
+            "type": "number"
+          },
+          "配给": {
+            "default": "待初始化",
+            "type": "string"
+          },
+          "防御": {
+            "default": "待初始化",
+            "type": "string"
+          },
+          "士气": {
+            "default": 50,
+            "type": "number",
+            "description": "0-100；单次变化不超过 20"
+          },
+          "物资": {
+            "default": {},
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "description": "物资名"
+            },
+            "additionalProperties": {
+              "type": "number",
+              "description": "数量"
+            }
+          },
+          "对我态度": {
+            "default": "观望",
+            "type": "string",
+            "enum": [
+              "排斥",
+              "观望",
+              "接纳",
+              "依赖"
+            ]
+          }
+        }
+      }
+    },
+    "悬念": {
+      "default": {},
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "description": "悬念名称或代号"
+      },
+      "additionalProperties": {
+        "default": {},
+        "type": "object",
+        "properties": {
+          "涉及方": {
+            "default": "",
+            "type": "string"
+          },
+          "最后进展": {
+            "default": "",
+            "type": "string"
+          },
+          "可信度": {
+            "default": "未经核实",
+            "type": "string",
+            "enum": [
+              "传闻",
+              "未经核实",
+              "已核实",
+              "存疑"
+            ]
+          },
+          "是否收束": {
+            "default": false,
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "现场": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "敌对单位": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string",
+            "description": "敌人称呼与数量"
+          }
+        },
+        "可调查目标": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "暴露与噪音": {
+          "default": 0,
+          "type": "number",
+          "description": "60 以上必须出现被吸引的后果"
+        },
+        "掩体与退路": {
+          "default": "",
+          "type": "string"
+        }
+      }
+    },
+    "系统": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "已登记": {
+          "default": false,
+          "type": "boolean"
+        },
+        "时段计数": {
+          "default": 0,
+          "type": "number"
+        },
+        "上次后台推进": {
+          "default": "未开始",
+          "type": "string"
+        },
+        "难度基调": {
+          "default": "严酷但不无解",
+          "type": "string"
+        },
+        "备注": {
+          "default": "",
+          "type": "string"
+        }
+      }
+    }
+  }
+}

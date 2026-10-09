@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createSourceFixture } from '../scripts/mvu/source-contract-fixture.mjs';
 import { createProductionManifest, validateProductionManifest, REQUIRED_MVU_COMPONENTS } from '../scripts/production/production-manifest.mjs';
 import { validateInterviewGate } from '../scripts/production/interview-gate.mjs';
 import { validateMvuCompleteness } from '../scripts/production/mvu-completeness-gate.mjs';
@@ -18,11 +19,20 @@ test('frontend implementation requires interview coverage before production', ()
   assert.equal(good.ok, true);
 });
 
-test('MVU_ZOD production requires every runtime component including variable list', () => {
-  const bad = validateMvuCompleteness({ mode: 'mvu_zod', interviewStatus: 'covered', components: {} });
+test('MVU_ZOD production requires real component files and canonical build including variable list', async t => {
+  const bad = await validateMvuCompleteness({ mode: 'mvu_zod', interviewStatus: 'covered', components: {} });
   assert.match(bad.issues.join('\n'), /variable_list/);
-  const components = Object.fromEntries(REQUIRED_MVU_COMPONENTS.map(name => [name, { status: 'passed', path: `配置/MVU/${name}` }]));
-  assert.equal(validateMvuCompleteness({ mode: 'mvu_zod', interviewStatus: 'covered', components }).ok, true);
+  const f = await createSourceFixture(t);
+  const mapping = { schema: 'schemaSource', initvar: 'initvar', variable_list: 'variableList', update_rules: 'updateRules', path_index: 'pathIndex', output_format: 'outputFormat', loader: 'loaderSource', fixtures: 'fixtures', runtime_contract: 'runtimeContract' };
+  const components = Object.fromEntries(REQUIRED_MVU_COMPONENTS.map(name => [name, { status: 'passed', path: f.contract.paths[mapping[name]] || '配置/' + name + '.txt' }]));
+  for (const name of ['consumer']) f.write(components[name].path, '真实测试组件');
+  const mvu = { mode: 'mvu_zod', interviewStatus: 'covered', components, sourceContract: f.contract };
+  const good = await validateMvuCompleteness(mvu, { root: f.root }); assert.equal(good.ok, true, good.issues.join('\n'));
+  components.variable_list.path = '不存在.txt';
+  const missing = await validateMvuCompleteness(mvu, { root: f.root }); assert.equal(missing.ok, false); assert.match(missing.issues.join(' '), /variable_list/);
+});
+test('native_schema cannot silently bypass MVU completeness', async () => {
+  const result = await validateMvuCompleteness({ mode: 'native_schema', interviewStatus: 'unresolved', components: {} }); assert.equal(result.ok, false);
 });
 
 test('diagnostics preserve user operation observations and block unsupported challenges', () => {

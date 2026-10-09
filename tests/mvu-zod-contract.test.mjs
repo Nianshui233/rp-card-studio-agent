@@ -20,7 +20,8 @@ test('MVU_ZOD is a complete route, not a downgradable optional schema add-on', (
 
 test('MVU_ZOD templates cover schema, runtime contract, update rules, paths, and one output dialect', () => {
   for (const file of ['mvu-zod.schema.js', 'mvu-runtime-contract.yaml', 'mvu-update-rules.yaml', 'mvu-variable-index.md', 'mvu-output-format.yaml', 'ejs-runtime-contract.yaml', 'mvu-ejs-bridge.yaml']) assert(exists(path.join('assets', 'templates', file)), `missing ${file}`);
-  assert.match(read('assets/templates/mvu-zod.schema.js'), /registerMvuSchema\(Schema\)/);
+  assert.doesNotMatch(read('assets/templates/mvu-zod.schema.js'), /registerMvuSchema/);
+  assert.match(read('assets/templates/mvu-zod.registration.js'), /registerMvuSchema\(Schema\)/);
   assert.match(read('assets/templates/mvu-update-rules.yaml'), /Record[\s\S]*Array/);
   assert.match(read('assets/templates/mvu-variable-index.md'), /format_message_variable::stat_data/);
   assert.match(read('assets/templates/mvu-output-format.yaml'), /<JSONPatch>/);
@@ -28,7 +29,7 @@ test('MVU_ZOD templates cover schema, runtime contract, update rules, paths, and
 
 test('the repository carries one authoritative complete MVU_ZOD sample with explanatory guidance', () => {
   const base = path.join('assets', 'examples', 'wo-fei-wo-rp');
-  for (const file of ['我，非我.重构版.json', '我，非我.世界书.json', '运行脚本.folder.json', 'schema.js', 'MVU运行合同.yaml', 'regex.json', 'regex.fixtures.json', '消息状态栏.html', 'README.md', 'AGENT_GUIDE.md']) assert(exists(path.join(base, file)), `missing ${file}`);
+  for (const file of ['我，非我.重构版.json', '我，非我.世界书.json', '运行脚本.folder.json', 'schema.js', 'MVU源码合同.json', 'MVU源/注册入口.js', 'MVU构建/registration.js', 'MVU运行合同.yaml', 'regex.json', 'regex.fixtures.json', '消息状态栏.html', 'README.md', 'AGENT_GUIDE.md']) assert(exists(path.join(base, file)), `missing ${file}`);
   const card = JSON.parse(read(path.join(base, '我，非我.重构版.json')));
   assert.equal(Boolean(card.data.character_book), false, '样品必须使用独立世界书路线');
   assert.equal(Object.hasOwn(card.data.extensions, 'regex_scripts'), false, '独立 Regex 样品不能保留空的卡内 Regex 路径');
@@ -43,7 +44,7 @@ test('the repository carries one authoritative complete MVU_ZOD sample with expl
   assert.match(read(path.join(base, 'AGENT_GUIDE.md')), /自由发挥/);
 });
 
-test('technical MVU Regex stays display-only and does not persist on edit', () => {
+test('sample display Regex remains non-persistent; prompt cleanup is a separate route', () => {
   const dir = 'wo-fei-wo-rp';
   const file = path.join('assets', 'examples', dir, 'regex.json');
   const rules = JSON.parse(read(file));

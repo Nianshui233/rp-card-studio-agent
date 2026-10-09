@@ -8,3 +8,4 @@
 *.html text eol=lf
 *.css text eol=lf
 *.svg text eol=lf
+*.txt text eol=lf

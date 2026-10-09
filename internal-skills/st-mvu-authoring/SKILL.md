@@ -11,7 +11,7 @@ description: "Private module for MagVarUpdate state authoring: persistent state 
 
 - 制作规则：`references/mvu.md`
 - 精确宿主行为：`references/mvu-runtime.md`
-- 选择 `mvu_zod` 时必须读取：`references/mvu-zod.md`
+- 选择 `mvu_zod` 时必须读取：`references/mvu-zod.md` 和 `references/mvu-source-build.md`
 - Tavern Helper API 事实由 `st-api-reference/references/tavern-helper-runtime.md` 提供。
 
 ## 何时启用
@@ -48,6 +48,7 @@ MVU 是否启用是用户可以明确选择的运行能力，不得因为执行 
 - `[initvar]` / Greeting `<initvar>`、更新规则、回复输出格式；初始化策略必须明确是 worldbook 基线还是 Greeting 初态；
 - 必要的 Loader、Schema/注册脚本、Tavern Helper 运行脚本；`mvu_zod` 缺 ZOD 脚本时阻断，不得静默降级为 native；
 - 明确数值楼层、完整 MvuData 写入、保存与同面读回；任何 Tavern Helper 直接写入脚本都必须列入运行合同的 `producers.direct_scripts`，不能把 UI 写入藏在消费者里；
+- 导入脚本必须先按 ES Module 做语法检查；若宿主 `z` 需要 Ready 后才能取得，可使用 `createSchema(z)` 工厂并在 `waitGlobalInitialized`/等价就绪门后注册，不能为了通过静态检查把工厂改成未定义的 `z` 顶层调用；
 - 给开场登记和持续消息前端的稳定状态接口；
 - 每个状态写入的事实来源与证据类型。用户原话、材料事实和本轮可指认叙事事实可以写入；Agent 推测、样本默认值和“看起来合理”的主控目标/身份/关系/决定不能直接落库。
 

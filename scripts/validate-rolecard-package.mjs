@@ -6,6 +6,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { normalizeRegexDocument, validateRegexDocument } from './regex/validate-tavern-regex.mjs';
 import { runFixtures } from './regex/run-regex-fixtures.mjs';
 import { parseMvuContract, validateMvuPackage } from './mvu/validate-mvu-package.mjs';
+import { validateMvuZodSourceContract } from './mvu/validate-mvu-zod-source-contract.mjs';
+import { readJson, readProject, projectPath } from './mvu/mvu-source-tools.mjs';
 import { validateEjsPackage } from './ejs/validate-ejs-package.mjs';
 
 export function validateRolecardPackage(input) {
@@ -112,7 +114,7 @@ export function validateRolecardPackage(input) {
     }
   }
 
-  const mvuReport = validateMvuPackage(input, { mode: input.mvuMode, initStrategy: input.mvuInitStrategy, dialect: input.mvuDialect, allowEmbeddedCharacterBook: input.allowEmbeddedCharacterBook === true });
+  const mvuReport = validateMvuPackage(input, { mode: input.mvuMode, initStrategy: input.mvuInitStrategy, dialect: input.mvuDialect, schemaKeys: input.mvuSchemaKeys, contractEntries: input.mvuContractEntries, allowEmbeddedCharacterBook: input.allowEmbeddedCharacterBook === true });
   for (const issue of mvuReport.issues) add(issues, `MVU: ${issue}`);
   for (const warning of mvuReport.warnings) add(warnings, `MVU: ${warning}`);
 
@@ -167,11 +169,11 @@ function parseEjsContract(text) {
 }
 
 async function runCli() {
-  const root = path.resolve(option('--root') || process.cwd());
+  const root = fs.realpathSync(path.resolve(option('--root') || process.cwd()));
   const cardRelative = option('--card');
-  if (!cardRelative) throw new Error('用法: node validate-rolecard-package.mjs --root <package-dir> --card <card.json> [--worldbook <book.json> --worldbook-name <actual-name>] [--regex <regex.json> [--regex-mode additional|alternative] --fixtures <fixtures.json>] [--script-folder <folder.json>] [--zod-source <schema.js>] [--mvu-contract <MVU运行合同.yaml>] [--ejs-contract <EJS运行合同.yaml>] [--mvu-mode none|native_schema|mvu_zod] [--mvu-init-strategy auto|worldbook|greeting] [--allow-embedded-character-book] [--host-root <SillyTavern-source>]');
+  if (!cardRelative) throw new Error('用法: node validate-rolecard-package.mjs --root <package-dir> --card <card.json> [--worldbook <book.json> --worldbook-name <actual-name>] [--regex <regex.json> [--regex-mode additional|alternative] --fixtures <fixtures.json>] [--script-folder <folder.json>] [--zod-source <compiled-registration.js>] [--mvu-source-contract <source-contract.json>] [--mvu-contract <MVU运行合同.yaml>] [--ejs-contract <EJS运行合同.yaml>] [--mvu-mode none|native_schema|mvu_zod] [--mvu-init-strategy auto|worldbook|greeting] [--allow-embedded-character-book] [--host-root <SillyTavern-source>]');
   const readTextFile = relative => {
-    const resolved = path.resolve(root, relative);
+    const resolved = projectPath(root, relative);
     const rel = path.relative(root, resolved);
     if (rel.startsWith('..') || path.isAbsolute(rel)) throw new Error(`路径超出 package root: ${relative}`);
     const bytes = fs.readFileSync(resolved);
@@ -179,7 +181,7 @@ async function runCli() {
     return bytes.toString('utf8').replace(/^\uFEFF/, '');
   };
   const readFile = relative => {
-    const resolved = path.resolve(root, relative);
+    const resolved = projectPath(root, relative);
     const rel = path.relative(root, resolved);
     if (rel.startsWith('..') || path.isAbsolute(rel)) throw new Error(`路径超出 package root: ${relative}`);
     const bytes = fs.readFileSync(resolved);
@@ -188,17 +190,17 @@ async function runCli() {
   };
   const artifactHashes = [];
   const input = { cardPath: cardRelative, card: readFile(cardRelative) };
-  const worldbookPath = option('--worldbook');
+  let worldbookPath = option('--worldbook');
   if (worldbookPath) Object.assign(input, { worldbookPath, worldbook: readFile(worldbookPath) });
   const worldbookName = option('--worldbook-name');
   if (worldbookName) input.worldbookName = worldbookName;
-  const regexPath = option('--regex');
+  let regexPath = option('--regex');
   const fixturesPath = option('--fixtures');
   if (regexPath) input.regex = readFile(regexPath);
   input.regexMode = option('--regex-mode') || 'additional';
   if (!['additional', 'alternative'].includes(input.regexMode)) throw new Error('--regex-mode 必须是 additional 或 alternative');
   if (fixturesPath) input.fixtures = readFile(fixturesPath);
-  const scriptFolderPath = option('--script-folder');
+  let scriptFolderPath = option('--script-folder');
   if (scriptFolderPath) input.scriptFolder = readFile(scriptFolderPath);
   const zodSourcePath = option('--zod-source');
   if (zodSourcePath) input.zodSource = readTextFile(zodSourcePath);
@@ -206,7 +208,28 @@ async function runCli() {
   if (ejsContractPath) {
     input.ejsContract = parseEjsContract(readTextFile(ejsContractPath));
   }
-  const mvuContractPath = option('--mvu-contract');
+  const sourceContractPath = option('--mvu-source-contract');
+  let sourceContract, sourceResult;
+  if (sourceContractPath) {
+    sourceContract = readJson(root, sourceContractPath);
+    sourceResult = await validateMvuZodSourceContract(sourceContract, { root });
+    if (!input.zodSource && sourceResult.ok) {
+      const record = readJson(root, sourceContract.paths.buildRecord);
+      input.zodSource = readProject(root, record.outputs.registration.path).toString('utf8');
+    }
+    if (sourceResult.ok) {
+      if (!worldbookPath) { worldbookPath = sourceContract.paths.worldbookArtifact; Object.assign(input, { worldbookPath, worldbook: readFile(worldbookPath) }); }
+      if (!scriptFolderPath) { scriptFolderPath = sourceContract.paths.importArtifact; input.scriptFolder = readFile(scriptFolderPath); }
+      if (!regexPath) { regexPath = sourceContract.paths.regexArtifact; input.regex = readFile(regexPath); }
+      input.mvuSchemaKeys = sourceResult.schemaKeys;
+      input.mvuContractEntries = {};
+      for (const binding of sourceContract.worldbookBindings || []) {
+        const entry = Object.entries(input.worldbook.entries || {}).find(([id, value]) => String(value.uid ?? value.id ?? id) === String(binding.entryId))?.[1];
+        if (entry) for (const key of binding.sources) input.mvuContractEntries[key] = entry;
+      }
+    }
+  }
+  const mvuContractPath = option('--mvu-contract') || (sourceResult?.ok ? sourceContract.paths.runtimeContract : null);
   if (mvuContractPath) {
     const contract = readTextFile(mvuContractPath);
     input.mvuContract = parseMvuContract(contract);
@@ -234,6 +257,15 @@ async function runCli() {
     };
   }
   const report = validateRolecardPackage(input);
+  if (sourceResult) {
+    for (const issue of sourceResult.issues) report.issues.push('MVU source: ' + issue);
+    for (const [label, supplied, bound] of [['角色卡', cardRelative, sourceContract.paths.cardArtifact], ['世界书', worldbookPath, sourceContract.paths.worldbookArtifact], ['ScriptFolder', scriptFolderPath, sourceContract.paths.importArtifact], ['正则', regexPath, sourceContract.paths.regexArtifact], ['运行合同', mvuContractPath, sourceContract.paths.runtimeContract]]) {
+      if (!supplied || !readProject(root, supplied).equals(readProject(root, bound))) report.issues.push('当前包级检查的 ' + label + ' 与 sourceContract 精确制品不一致');
+    }
+    report.ok = report.issues.length === 0;
+    report.mvuSource = sourceResult;
+  } else if (input.mvuMode === 'mvu_zod') report.warnings.push('仅包级静态检查；未提供 --mvu-source-contract，canonical 工程链未验证');
+
   for (const artifact of artifactHashes) console.log(`ARTIFACT sha256 ${artifact.sha256}  ${artifact.path}`);
   if (input.hostCardValidation) console.log(`HOST SillyTavern ${input.hostCardValidation.hostVersion} CardValidator: ${input.hostCardValidation.valid ? `card spec V${input.hostCardValidation.cardSpecVersion} passed` : 'failed'}`);
   for (const warning of report.warnings) console.warn(`WARN ${warning}`);

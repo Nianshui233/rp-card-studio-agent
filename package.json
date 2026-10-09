@@ -15,6 +15,15 @@
     "artifact:check": "node scripts/delivery/deliverable-check.mjs",
     "production:init": "node scripts/production/production-check.mjs init",
     "production:check": "node scripts/production/production-check.mjs validate",
-    "production:claim": "node scripts/production/production-check.mjs claim"
+    "production:claim": "node scripts/production/production-check.mjs claim",
+    "mvu:build": "node scripts/mvu/mvu-zod-project.mjs build",
+    "mvu:check": "node scripts/mvu/mvu-zod-project.mjs validate"
+  },
+  "dependencies": {
+    "acorn": "8.15.0",
+    "esbuild": "0.25.10",
+    "lodash-es": "4.17.21",
+    "yaml": "2.8.1",
+    "zod": "4.4.3"
   }
 }

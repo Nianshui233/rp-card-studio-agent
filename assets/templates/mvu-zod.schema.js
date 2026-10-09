@@ -1,5 +1,4 @@
-// canonical MVU_ZOD Schema 模板：复制后必须按项目状态合同完整改写，不能只保留示例字段。
-import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource@523b1f0d82d3debbc2435ec35530f02e8d388219/dist/util/mvu_zod.js';
+// canonical MVU_ZOD Schema 模板（不含注册入口）：复制后必须按项目状态合同完整改写，不能只保留示例字段。
 
 const clamp = (min, max) => value => _.clamp(value, min, max);
 
@@ -32,8 +31,4 @@ export const Schema = z.object({
     敌对单位: z.array(z.string()).prefault([]),
     可调查目标: z.array(z.string()).prefault([]),
   }).prefault({}),
-});
-
-$(() => {
-  registerMvuSchema(Schema);
 });

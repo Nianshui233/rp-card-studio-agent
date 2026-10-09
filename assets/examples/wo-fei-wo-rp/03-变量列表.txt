@@ -1,6 +1,3 @@
-# AGENT SAMPLE NOTE
-# 这是机器可用路径索引，不是让 Agent 随意扩展的字段清单。
-# Record 动态键与 Array 下标的规则必须与 Schema 和更新方言一致。
 ---
 <status_current_variable>
 {{format_message_variable::stat_data}}

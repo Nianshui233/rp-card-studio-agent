@@ -2,7 +2,6 @@
  * 这是运行层 Schema，不是世界观来源。字段必须先由项目语义决定，再在这里声明类型、范围、空态和归一化。
  * 页面不得因为“想显示完整”而反向增加字段；新增持久状态应回到 owning stage 先确认。
  */
-import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource@523b1f0d82d3debbc2435ec35530f02e8d388219/dist/util/mvu_zod.js';
 
 // 数值轴统一走 coerce + clamp：模型可能给出字符串数字或越界值，先归一化再落库。
 // 轴名与范围以世界书条目「数值层与精确进度」的数值轴为准，两处必须同步修改。
@@ -96,8 +95,4 @@ export const Schema = z.object({
     难度基调: z.string().prefault('严酷但不无解'),
     备注: z.string().prefault(''),
   }).prefault({}),
-});
-
-$(() => {
-  registerMvuSchema(Schema);
 });

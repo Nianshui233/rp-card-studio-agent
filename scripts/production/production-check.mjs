@@ -25,12 +25,14 @@ try {
     const { manifest } = readProject(root);
     const checks = [
       validateProductionManifest(manifest, { root }),
-      validateMvuCompleteness(manifest.mvu),
+      await validateMvuCompleteness(manifest.mvu, { root }),
       validateEjsCompleteness(manifest.ejs),
       ...(['implementation','awaiting_review','runtime_verified','accepted'].includes(manifest.status) && ['opening_frontend','message_frontend'].includes(manifest.activeStage) ? [validateFrontendManifest(manifest.frontend, { activeStage: manifest.activeStage })] : []),
       validateDiagnosticEvents(manifest.diagnostics?.events)
     ];
-    if (['implementation','awaiting_review','runtime_verified','accepted'].includes(manifest.status) && ['opening_frontend','message_frontend','mvu','mvu_zod'].includes(manifest.activeStage) && !manifest.interviews?.[manifest.activeStage]) checks.push({ ok: false, issues: [`activeStage 缺少访谈覆盖：${manifest.activeStage}`] });
+    if (['implementation','awaiting_review','runtime_verified','accepted'].includes(manifest.status) && ['opening_frontend','message_frontend','mvu','native_schema','mvu_zod'].includes(manifest.activeStage) && !manifest.interviews?.[manifest.activeStage]) checks.push({ ok: false, issues: [`activeStage 缺少访谈覆盖：${manifest.activeStage}`] });
+    if (['implementation', 'awaiting_review', 'runtime_verified', 'accepted'].includes(manifest.status) && ['mvu', 'native_schema', 'mvu_zod'].includes(manifest.activeStage) && !['mvu', 'native_schema', 'mvu_zod'].includes(manifest.mvu?.mode)) checks.push({ ok: false, issues: ['MVU 制作阶段不能使用 unresolved/none 绕过组件门禁'] });
+    if (['runtime_verified', 'accepted'].includes(manifest.status) && manifest.mvu?.mode === 'mvu_zod' && manifest.mvu.sourceContract?.runtime?.status !== 'pass') checks.push({ ok: false, issues: ['runtime_verified/accepted 不能使用 MVU runtime:not_run/failed'] });
     for (const [stage, interview] of Object.entries(manifest.interviews ?? {})) checks.push({ stage, ...(interview.profile && INTERVIEW_PROFILES[interview.profile] ? validateInterviewCoverage(interview, interview.profile) : validateInterviewGate(interview, interview.required ?? undefined)) });
     const issues = checks.flatMap(result => result.issues ?? []);
     const result = { ok: issues.length === 0, issues, checks };

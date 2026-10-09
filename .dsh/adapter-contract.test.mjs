@@ -33,8 +33,8 @@ function yamlModule() {
   return undefined;
 }
 
-function runScript(script, args) {
-  return spawnSync(process.execPath, [path.join(REPO_ROOT, '.dsh', script), ...args], { encoding: 'utf8' });
+function runScript(script, args, env = process.env) {
+  return spawnSync(process.execPath, [path.join(REPO_ROOT, '.dsh', script), ...args], { encoding: 'utf8', env, windowsHide: true });
 }
 
 test('生成清单是可解析的 patch 数组，且只含本 preset 一行', () => {
@@ -142,47 +142,32 @@ test('阶段表里的技能名与仓库 internal-skills 目录一致', () => {
   assert.match(rendered.routing.schemaVersion, /^\d+\.\d+\.\d+$/);
 });
 
-test('重复安装不产生重复条目：注册结果对同一 profile 是幂等的', () => {
+function isolatedDsh(t) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rp-card-adapter-'));
-  const manifest = path.join(tmp, 'package.json');
-  const base = {
-    name: 'dsh-profile-probe',
-    dependencies: { 'some-dep': '1.0.0' },
-    dsh: { profile: { bundles: ['@deepseek-ai/dsh-base'] } },
-  };
-  fs.writeFileSync(manifest, `${JSON.stringify(base, null, 2)}\n`, 'utf8');
-  // 用同一个 out 连续注册两次：第二次必须识别为已登记，不再追加。
-  const first = runScript('install.mjs', ['--dry-run', '--out', DEFAULT_OUT]);
-  const second = runScript('install.mjs', ['--dry-run', '--out', DEFAULT_OUT]);
-  assert.equal(first.status, 0, first.stderr);
-  assert.equal(second.status, 0, second.stderr);
-  const firstReport = JSON.parse(first.stdout);
-  const secondReport = JSON.parse(second.stdout);
-  const read = (report) => report.steps.find((step) => step.step === 'register-profile-bundle');
-  assert.equal(read(secondReport).dependency.result, 'already-linked');
-  assert.equal(read(secondReport).bundles.result, 'already-registered');
-  assert.equal(read(secondReport).written, false);
-  // dry-run 绝不动真实 profile：清单内容必须与注册前完全一致。
-  const probe = JSON.parse(fs.readFileSync(path.join(process.env.DSH_HOME, 'profiles', 'web', 'package.json'), 'utf8'));
-  assert.equal(new Set(probe.dsh.profile.bundles).size, probe.dsh.profile.bundles.length);
-  assert.equal(probe.dsh.profile.bundles.filter((name) => name === BUNDLE_NAME).length, 1);
-  assert.equal(read(firstReport).dependency.value, read(secondReport).dependency.value);
-  fs.rmSync(tmp, { recursive: true, force: true });
+  t.after(() => { assert.equal(fs.realpathSync(path.dirname(tmp)), fs.realpathSync(os.tmpdir())); assert.ok(path.basename(tmp).startsWith('rp-card-adapter-')); fs.rmSync(tmp, { recursive: true, force: true }); });
+  const manifest = path.join(tmp, 'profiles', 'probe', 'package.json');
+  fs.mkdirSync(path.dirname(manifest), { recursive: true });
+  fs.writeFileSync(manifest, JSON.stringify({ name: 'dsh-profile-probe', dependencies: { 'some-dep': '1.0.0' }, dsh: { profile: { bundles: ['@deepseek-ai/dsh-base'] } } }, null, 2) + '\n');
+  return { tmp, manifest, out: path.join(tmp, 'out'), env: { ...process.env, DSH_HOME: tmp, DSH_PROFILE: 'probe', DSH_PROFILE_DIR: path.dirname(manifest) } };
+}
+test('重复安装不产生重复条目：隔离 profile 的注册是幂等的', t => {
+  const f = isolatedDsh(t);
+  for (let i = 0; i < 2; i++) { const result = runScript('install.mjs', ['--profile', 'probe', '--out', f.out], f.env); assert.equal(result.status, 0, result.stderr); }
+  const before = fs.readFileSync(f.manifest, 'utf8');
+  const dry = runScript('install.mjs', ['--dry-run', '--profile', 'probe', '--out', f.out], f.env);
+  assert.equal(dry.status, 0, dry.stderr);
+  const step = JSON.parse(dry.stdout).steps.find(item => item.step === 'register-profile-bundle');
+  assert.equal(step.dependency.result, 'already-linked'); assert.equal(step.bundles.result, 'already-registered'); assert.equal(step.written, false);
+  assert.equal(fs.readFileSync(f.manifest, 'utf8'), before);
+  const probe = JSON.parse(before); assert.equal(probe.dsh.profile.bundles.filter(name => name === BUNDLE_NAME).length, 1);
 });
-
-test('build / install / verify 三个入口都能以 --check 或 --dry-run 无副作用运行', () => {
-  const check = runScript('build.mjs', ['--check', '--report', path.join(os.tmpdir(), 'rp-card-build-check.json')]);
-  assert.equal(check.status, 0, check.stderr);
-  const install = runScript('install.mjs', ['--dry-run', '--out', DEFAULT_OUT]);
-  assert.equal(install.status, 0, install.stderr);
-  const installReport = JSON.parse(install.stdout);
-  assert.equal(installReport.dryRun, true);
-  assert.equal(installReport.out, fs.realpathSync.native(DEFAULT_OUT));
-  assert.ok(installReport.steps.some((step) => step.step === 'build'));
-  const verify = runScript('verify.mjs', ['--offline']);
-  assert.equal(verify.status, 0, verify.stderr);
-  assert.equal(JSON.parse(verify.stdout).conclusion, 'structural-only');
-  assert.equal(JSON.parse(verify.stdout).failed.length, 0);
+test('build / install / verify 在隔离环境验证 dry-run，不依赖已安装目录', t => {
+  const f = isolatedDsh(t); const before = fs.readFileSync(f.manifest, 'utf8');
+  const checked = runScript('build.mjs', ['--check', '--out', f.out], f.env); assert.equal(checked.status, 0, checked.stderr); assert.equal(fs.existsSync(f.out), false);
+  const dry = runScript('install.mjs', ['--dry-run', '--profile', 'probe', '--out', f.out], f.env); assert.equal(dry.status, 0, dry.stderr); assert.equal(fs.readFileSync(f.manifest, 'utf8'), before); assert.equal(fs.existsSync(f.out), false);
+  const built = runScript('build.mjs', ['--out', f.out], f.env); assert.equal(built.status, 0, built.stderr);
+  const verified = runScript('verify.mjs', ['--offline', '--out', f.out], f.env); assert.equal(verified.status, 0, verified.stderr);
+  const report = JSON.parse(verified.stdout); assert.equal(report.conclusion, 'structural-only'); assert.equal(report.failed.length, 0);
 });
 
 test('生成的 package.json 声明 dsh.bundle.patch，且只把仓库路径放在 generated 元数据里', () => {

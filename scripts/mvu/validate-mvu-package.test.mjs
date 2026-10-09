@@ -49,9 +49,9 @@ Record 使用对象键而不是数组下标。Array 使用真实下标或末尾�
 规则：只能使用 JSON Patch；Record 使用 replace/remove；Array 使用 insert/remove；路径必须来自变量列表。输出必须位于正文末尾；没有变化时仍输出 Analysis 与空数组；禁止写入 Schema 外路径；每个操作对象只能包含当前方言允许的字段。replace 用于标量和 Record；delta 只用于数值；insert/remove 只用于 Array；move 仅在目标 provider 明确支持时使用。` },
 ];
 const regex = [
-  { id: 'r1', findRegex: '/<initvar>[\\s\\S]*?<\\/initvar>/g', replaceString: '', placement: [2] },
-  { id: 'r2', findRegex: '/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/g', replaceString: '', placement: [2] },
-  { id: 'r3', findRegex: '/<StatusPlaceHolderImpl\\s*\\/>/g', replaceString: '<div>status</div>', placement: [2] },
+  { id: 'r1', findRegex: '/<initvar>[\\s\\S]*?<\\/initvar>/g', replaceString: '', placement: [2], markdownOnly: true, runOnEdit: false },
+  { id: 'r2', findRegex: '/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/g', replaceString: '', placement: [2], markdownOnly: true, runOnEdit: false },
+  { id: 'r3', findRegex: '/<StatusPlaceHolderImpl\\s*\\/>/g', replaceString: '<div>status</div>', placement: [2], markdownOnly: true, runOnEdit: false },
 ];
 
 function fixture() {
@@ -82,6 +82,57 @@ test('accepts a complete pinned MVU_ZOD package contract', () => {
   assert.equal(result.ok, true, result.issues.join('\n'));
   assert.deepEqual(result.schemaKeys, ['世界', '玩家', '任务']);
   assert.equal(result.dialect, 'json_patch');
+});
+
+test('rejects a CDN change only when project remote_host explicitly binds it', () => {
+  const f = fixture();
+  f.mvuContract.remote_host = 'testingcf.jsdelivr.net';
+  const cdnLoader = loader.content.replace('https://testingcf.jsdelivr.net', 'https://cdn.jsdelivr.net');
+  const cdnProvider = zod.content.replace('https://testingcf.jsdelivr.net', 'https://cdn.jsdelivr.net');
+  f.card.data.extensions.tavern_helper.scripts[0].content = cdnLoader;
+  f.card.data.extensions.tavern_helper.scripts[1].content = cdnProvider;
+  f.scriptFolder.scripts[0].content = cdnLoader;
+  f.scriptFolder.scripts[1].content = cdnProvider;
+  f.zodSource = cdnProvider;
+  f.mvuContract.loader.url = f.mvuContract.loader.url.replace('https://testingcf.jsdelivr.net', 'https://cdn.jsdelivr.net');
+  f.mvuContract.zod.provider_url = f.mvuContract.zod.provider_url.replace('https://testingcf.jsdelivr.net', 'https://cdn.jsdelivr.net');
+  const result = validateMvuPackage(f, { mode: 'mvu_zod', initStrategy: 'greeting' });
+  assert.match(result.issues.join(' '), /remote_host/);
+});
+
+test('accepts a readiness-gated createSchema factory instead of requiring import-time z.object', () => {
+  const f = fixture();
+  const factory = {
+    ...zod,
+    content: `import { registerMvuSchema } from 'https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource@523b1f0d82d3debbc2435ec35530f02e8d388219/dist/util/mvu_zod.js';
+export function createSchema(z) {
+  return z.strictObject({
+    世界: z.object({ 时间: z.string().prefault('08:00') }).prefault({}),
+    玩家: z.object({ 生命值: z.coerce.number().prefault(100) }).prefault({}),
+    任务: z.object({ 阶段: z.string().prefault('开始') }).prefault({}),
+  }).prefault({});
+}
+export let Schema;
+await waitGlobalInitialized('Mvu');
+Schema = createSchema(globalThis.z);
+registerMvuSchema(Schema);`,
+  };
+  f.card.data.extensions.tavern_helper.scripts[1] = structuredClone(factory);
+  f.scriptFolder.scripts[1] = structuredClone(factory);
+  f.zodSource = factory.content;
+  const result = validateMvuPackage(f, { mode: 'mvu_zod', initStrategy: 'greeting' });
+  assert.equal(result.ok, true, result.issues.join('\n'));
+  assert.deepEqual(result.schemaKeys, ['世界', '玩家', '任务']);
+});
+
+test('rejects a malformed import-ready script before delivery', () => {
+  const f = fixture();
+  const malformed = { ...zod, content: 'functioncreateSchema(z) { return z.strictObject({ 世界: z.object({}) }); }' };
+  f.card.data.extensions.tavern_helper.scripts[1] = structuredClone(malformed);
+  f.scriptFolder.scripts[1] = structuredClone(malformed);
+  f.zodSource = malformed.content;
+  const result = validateMvuPackage(f, { mode: 'mvu_zod', initStrategy: 'greeting' });
+  assert.match(result.issues.join(' '), /模块语法错误/);
 });
 
 test('rejects missing Zod registration instead of silently downgrading to native MVU', () => {
@@ -120,6 +171,7 @@ test('rejects embedded/external worldbook and script drift', () => {
 
 test('rejects unpinned providers and mixed update dialects', () => {
   const f = fixture();
+  f.mvuContract.version_policy = 'pinned';
   f.card.data.extensions.tavern_helper.scripts[0].content = "import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate/artifact/bundle.js';";
   f.scriptFolder.scripts[0].content = f.card.data.extensions.tavern_helper.scripts[0].content;
   f.worldbook.entries[2].content += "\n_.set('世界.时间', '10:00');";
@@ -202,8 +254,8 @@ test('accepts a stable worldbook-initvar and shared full-state index pattern', (
   f.card.data.extensions.tavern_helper.scripts = [structuredClone(loader), structuredClone(zod)];
   f.scriptFolder.scripts = [structuredClone(loader), structuredClone(zod)];
   f.regex = [
-    { id: 'lower-update', findRegex: '/<(update(?:variable)?)>[\\s\\S]*?<\\/\\1>/gi', replaceString: '', placement: [2] },
-    { id: 'status', findRegex: '<StatusPlaceHolderImpl/>', replaceString: '<div>status</div>', placement: [2] },
+    { id: 'lower-update', findRegex: '/<(update(?:variable)?)>[\\s\\S]*?<\\/\\1>/gi', replaceString: '', placement: [2], markdownOnly: true, runOnEdit: false },
+    { id: 'status', findRegex: '<StatusPlaceHolderImpl/>', replaceString: '<div>status</div>', placement: [2], markdownOnly: true, runOnEdit: false },
   ];
   const result = validateMvuPackage(f, { mode: 'mvu_zod', initStrategy: 'worldbook', dialect: 'json_patch' });
   assert.equal(result.ok, true, result.issues.join('\n'));
@@ -212,14 +264,14 @@ test('accepts a stable worldbook-initvar and shared full-state index pattern', (
 });
 
 
-test('rejects MVU prompt-only and edit-persistent technical Regex routes', () => {
+test('accepts historical update prompt-only cleanup but rejects edit persistence', () => {
   const f = fixture();
   f.regex = [
     { id: 'prompt', scriptName: '错误提示词清理', findRegex: '/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/g', replaceString: '', placement: [2], promptOnly: true, markdownOnly: false },
     { id: 'edit', scriptName: '错误编辑写回', findRegex: '/<initvar>[\\s\\S]*?<\\/initvar>/g', replaceString: '', placement: [2], runOnEdit: true, markdownOnly: true },
   ];
   const result = validateMvuPackage(f, { mode: 'mvu_zod', initStrategy: 'greeting', dialect: 'json_patch' });
-  assert.match(result.issues.join(' '), /prompt-only/);
+  assert.doesNotMatch(result.issues.join(' '), /prompt-only/);
   assert.match(result.issues.join(' '), /runOnEdit=true/);
 });
 
@@ -307,4 +359,36 @@ test('rejects direct writers that target latest instead of an explicit message f
   f.mvuContract.producers = { direct_scripts: '危险写入' };
   const result = validateMvuPackage(f, { mode: 'mvu_zod', initStrategy: 'greeting', dialect: 'json_patch' });
   assert.match(result.issues.join(' '), /latest/);
+});
+
+
+test('allows D1 state and update rules before character definitions', () => {
+  const f = fixture(); f.worldbook.entries[1].depth = 1; f.worldbook.entries[0].position = 0;
+  const result = validateMvuPackage(f); assert.equal(result.ok, true, result.issues.join('\n'));
+});
+test('updater must also receive current state; narrative-only variable list is rejected', () => {
+  const f = fixture(); f.worldbook.entries[1].comment = '[mvu_plot]变量列表';
+  assert.match(validateMvuPackage(f).issues.join(' '), /额外更新模型无法读取当前状态/);
+});
+test('tutorial move from/to is accepted; alternate parser path dialect must be explicit', () => {
+  const f = fixture(); f.worldbook.entries[2].content = f.worldbook.entries[2].content.replace('[\n', '[\n{"op":"move","from":"/世界/时间","to":"/任务/阶段"},\n');
+  assert.equal(validateMvuPackage(f).ok, true);
+  f.mvuContract.patch_move_target = 'path'; assert.match(validateMvuPackage(f).issues.join(' '), /from\/path/);
+});
+test('worldbook baseline with Greeting update commands is valid incremental initialization', () => {
+  const f = fixture(); f.mvuContract.init_strategy = 'worldbook';
+  f.worldbook.entries[3] = { comment: '[initvar]变量初始化', content: init, disable: true, position: 0, depth: 0 };
+  f.card.data.first_mes = '开局\n<UpdateVariable><JSONPatch>[{"op":"replace","path":"/世界/时间","value":"09:00"}]</JSONPatch></UpdateVariable>';
+  f.card.data.alternate_greetings = [];
+  const result = validateMvuPackage(f, { initStrategy: 'worldbook' }); assert.equal(result.ok, true, result.issues.join('\n'));
+});
+test('permanent technical deletion is rejected; prompt cleanup does not delete original update', () => {
+  const f = fixture(); f.regex[1].markdownOnly = false;
+  assert.match(validateMvuPackage(f).issues.join(' '), /永久替换/);
+});
+
+test('YAML runtime contract retains provider policy and rejects duplicate keys', () => {
+  const result = parseMvuContract('mvu:\n  mode: mvu_zod\n  version_policy: pinned\n  remote_host: example.test\n  patch_move_target: path');
+  assert.equal(result.version_policy, 'pinned'); assert.equal(result.remote_host, 'example.test'); assert.equal(result.patch_move_target, 'path');
+  assert.throws(() => parseMvuContract('mvu:\n  mode: mvu_zod\n  mode: none'), /YAML/);
 });

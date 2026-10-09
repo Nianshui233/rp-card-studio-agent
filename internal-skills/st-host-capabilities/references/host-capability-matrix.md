@@ -140,4 +140,4 @@ autosave_enabled = false
 
 ## 远程依赖
 
-记录直接 URL、锁定版本/commit、传递依赖、加载顺序、网络失败表现和手动回退。`registerMvuSchema` 在 `$(() => ...)` 或等价宿主 Ready 后注册，复用目标环境的 `window.z`；未锁 URL 不得声称可复现，未联网实测时保持 `not_run`。
+记录直接 URL、版本/commit 或现场内容哈希、传递依赖、加载顺序和网络失败表现。教程提供的 MagVarUpdate / mvu_zod.js 示例使用 `https://testingcf.jsdelivr.net/gh/...`；默认保留已验证模板地址，不把下载成功等同于宿主模块执行成功，也不凭域名推断报错原因。项目明确绑定 remote_host 时需保持一致；更换域名/版本必须重新测试目标宿主。滚动 URL 使用 tutorial_default 画像，不声称已锁定可复现版本。注册器在 `$(() => ...)` 或等价宿主 Ready 后注册并复用宿主 z；直接调用 Mvu API 前等待其初始化，未联网运行保持 not_run。

@@ -215,3 +215,7 @@ scripts/                 开发、续接和检查脚本
 ---
 
 > **好的交付不是“文件生成成功”，而是用户知道它是什么、为什么这样设计、如何导入，以及它到底有没有在真实环境里跑通。**
+
+## MVU_ZOD 工程校验
+
+先按 `internal-skills/st-mvu-authoring/references/mvu-source-build.md` 建立实际项目合同。工具包根运行 `npm ci` 后，使用 `npm run mvu:build -- --root "作品目录"` 和 `npm run mvu:check -- --root "作品目录"`。离线构建/Schema 校验、真实酒馆运行和用户验收分开，不能相互替代。

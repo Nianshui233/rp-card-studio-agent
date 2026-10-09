@@ -266,10 +266,10 @@ NSFW 只在首轮确认一次。启用后不再进行边界问卷或运行时门
 - 每个可游玩 Greeting/Swipe 必须继承完整 `[initvar]` 基线，或携带与 Schema 顶层键一致的完整 `<initvar>`；部分覆盖禁止冒充完整初态。
 - MVU 输出只选择 JSON Patch 或 lodash 一种方言，世界书合同、Regex、fixture 和解析器必须一致。
 - 默认交付采用独立制品路线：角色卡不嵌入 `CharacterBook`、Regex 或 Tavern Helper ScriptFolder；它们分别作为独立文件导入，避免同一载荷存在两份。只有用户明确要求旧卡兼容时才保留嵌入副本，并在导入说明中标为二选一。
-- MVU 技术载荷 Regex（`<UpdateVariable>`、`<initvar>`、`<StatusPlaceHolderImpl/>`、当前状态投影）默认只作用于 display，禁止 prompt-only 和 `runOnEdit=true`；非 MVU 的纯文本通知可以在有明确语义保留合同后使用 prompt-only。
-- 世界书路由必须按职责验证：变量状态投影/变量合同通常使用明确的 atDepth/depth 0；普通世界、角色、场景不得无条件全部堆在 atDepth/depth 0；立即事件必须有明确关键词或 sticky/cooldown 语义。
+- MVU Regex 分开承担显示处理与历史 Prompt 清理：历史 `<UpdateVariable>` 可以仅格式提示词清理，并按最小深度保留最近更新；不得永久删除原消息的技术块，或删除当前变量列表、初始化/载体合同。显示规则与 Prompt 规则各自验收，不启用技术块的 `runOnEdit=true`。
+- 世界书路由必须按职责验证：当前变量列表靠近最新剧情 D0/D1；更新规则可以在角色定义前后或其他已验证深度；普通世界、角色、场景不得无条件全部堆在 atDepth/depth 0；立即事件必须有明确关键词或 sticky/cooldown 语义。
 - 世界书运行合同还必须考虑宿主预算：当前 SillyTavern 按较高 `order` 优先参与预算，`constant=true` 不等于绕过预算；变量规则、变量列表、输出格式和必要强调条目要有高优先级/`ignoreBudget` 策略，并用 Prompt 查看器确认实际进入请求。
-- MVU_ZOD 包级检查必须传 `--mvu-contract 配置/MVU运行合同.yaml` 与 `--zod-source`；缺 ZOD、规则、路径索引、输出格式或 initvar 覆盖时阻断交付。
+- MVU_ZOD 必须读取 `internal-skills/st-mvu-authoring/references/mvu-source-build.md`，用真实 canonical Schema、注册入口、Loader、Prompt 和项目 fixture 执行 source→build→import 校验；`.rp-card/production.json` 的 `mvu.sourceContract` 绑定实际文件与导入正文。包级检查传 `--mvu-contract` 与 `--mvu-source-contract`；不能用自填 `passed`、源码字符串或伪造哈希代替构建。
 - 变量卡实机排错必须按“变量管理器 → 日志/Console → Prompt 查看器 → 原始 assistant 回复 → 状态栏 → 保存重载”的证据顺序进行；制作阶段可关闭模板/宏查看原始文本，测试阶段再开启并核对替换后的 Prompt，不能把两个阶段混为一谈。
 - 允许中途新增 Record 实体时，优先为对象字段提供 `prefault`/“待初始化”容错，并在更新规则中要求后续补齐；不得因为模型漏字段就让整批新实体静默失败。
 

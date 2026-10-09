@@ -1,0 +1,103 @@
+{
+  "schema": "rp-card-studio/mvu-zod-source-contract/v1",
+  "title": "我，非我·MVU_ZOD",
+  "outputDialect": "json_patch",
+  "paths": {
+    "schemaSource": "schema.js",
+    "registrationSource": "MVU源/注册入口.js",
+    "loaderSource": "MVU源/加载入口.js",
+    "runtimeContract": "MVU运行合同.yaml",
+    "regexArtifact": "regex.json",
+    "initvar": "01-初始化基线.yaml",
+    "variableList": "03-变量列表.txt",
+    "updateRules": "02-变量更新规则.yaml",
+    "pathIndex": "03-变量列表.txt",
+    "outputFormat": "04-变量输出格式.yaml",
+    "fixtures": "MVU源/schema.fixtures.json",
+    "importArtifact": "运行脚本.folder.json",
+    "worldbookArtifact": "我，非我.世界书.json",
+    "cardArtifact": "我，非我.重构版.json",
+    "buildRecord": "MVU构建/build-record.json"
+  },
+  "providers": {
+    "versionPolicy": "pinned",
+    "loader": "https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate@0a730cd4a9b99689d1135a49b542c780b977c24c/artifact/bundle.js",
+    "zod": "https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource@523b1f0d82d3debbc2435ec35530f02e8d388219/dist/util/mvu_zod.js"
+  },
+  "scriptIds": {
+    "loader": "a1000000-0000-4000-8000-000000000001",
+    "registration": "a1000000-0000-4000-8000-000000000002"
+  },
+  "scriptNames": {
+    "loader": "MVU变量框架",
+    "registration": "我，非我ZOD"
+  },
+  "worldbookBindings": [
+    {
+      "entryId": 43,
+      "sources": [
+        "initvar"
+      ]
+    },
+    {
+      "entryId": 44,
+      "sources": [
+        "updateRules"
+      ]
+    },
+    {
+      "entryId": 45,
+      "sources": [
+        "variableList"
+      ],
+      "separator": ""
+    },
+    {
+      "entryId": 45,
+      "sources": [
+        "pathIndex"
+      ]
+    },
+    {
+      "entryId": 46,
+      "sources": [
+        "outputFormat"
+      ]
+    }
+  ],
+  "runtime": {
+    "status": "not_run"
+  },
+  "scriptMetadata": {
+    "loader": {
+      "info": "唯一 MVU Loader，锁定 commit；不得再加载第二个 MagVarUpdate。",
+      "button": {
+        "enabled": true,
+        "buttons": []
+      },
+      "data": {},
+      "export_with": {
+        "data": true,
+        "button": true
+      }
+    },
+    "registration": {
+      "info": "完整 MVU_ZOD Schema；必须与初始化基线、更新规则、变量列表和状态栏同步。",
+      "button": {
+        "enabled": true,
+        "buttons": []
+      },
+      "data": {},
+      "export_with": {
+        "data": true,
+        "button": true
+      }
+    }
+  },
+  "folderMetadata": {
+    "enabled": true,
+    "id": "a1000000-0000-4000-8000-000000000000",
+    "icon": "fa-solid fa-shield-virus",
+    "color": "#8fb9a8"
+  }
+}

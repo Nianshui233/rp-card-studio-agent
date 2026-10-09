@@ -29,7 +29,7 @@ export function parseRouting(text) {
     const stage = line.match(/^  ([A-Za-z0-9_]+):\s*$/);
     if (stage) {
       current = stage[1];
-      stages[current] = { primary: null, supporting: [] };
+      stages[current] = { primary: null, supporting: [], requiredFiles: [] };
       continue;
     }
     if (!current) continue;
@@ -37,6 +37,8 @@ export function parseRouting(text) {
     if (primary) stages[current].primary = primary[1] === 'null' ? null : primary[1];
     const supporting = line.match(/^    supporting_skills:\s*(\[[^\]]*\])\s*$/);
     if (supporting) stages[current].supporting = parseList(supporting[1]);
+    const requiredFiles = line.match(/^    required_files:\s*(\[[^\]]*\])\s*$/);
+    if (requiredFiles) stages[current].requiredFiles = parseList(requiredFiles[1]);
     if (line === 'skill_paths:') current = null;
   }
   const skillPaths = {};
@@ -58,7 +60,7 @@ export function createRouteLock(rootValue, stage) {
   const route = routing.stages[stage];
   if (!route) throw new Error(`routing.yaml 未声明阶段：${stage}`);
   const skillNames = [route.primary, ...route.supporting].filter(Boolean);
-  const files = [...ORCHESTRATOR_FILES, ...skillNames.map(name => routing.skillPaths[name])];
+  const files = [...ORCHESTRATOR_FILES, ...(route.requiredFiles || []), ...skillNames.map(name => routing.skillPaths[name])];
   const uniqueFiles = [...new Set(files)];
   const fileHashes = Object.fromEntries(uniqueFiles.map(relative => {
     const absolute = path.join(root, relative);

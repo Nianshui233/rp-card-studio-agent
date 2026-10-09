@@ -46,14 +46,14 @@ MVU 在本项目中专指 MagVarUpdate 状态路线。它负责状态、Schema�
 
 ### Greeting `<initvar>`
 
-每个 Greeting/Swipe 可携带自己的 `<initvar>...</initvar>`。它建立该 Swipe 的初态；普通 `<UpdateVariable>` 命令属于后续更新，不能与 `<initvar>` 混为一种语义。
+每个 Greeting/Swipe 可携带自己的 `<initvar>...</initvar>`。它全量替换该 Swipe 的初态。也可以在继承 `[initvar]` 基线后，使用 Greeting `<UpdateVariable>` 只修改差异；不能把部分 YAML 当作全量 `<initvar>`，两种方式分开验收。
 
 初始化事件只是内存阶段。不要在 `VARIABLE_INITIALIZED` 中立即重读消息并声称已经保存。
 
 ## Loader 与 Schema
 
 - 卡内只允许一个真实 MagVarUpdate Loader；
-- 锁定 URL 的 tag/commit，并记录最低 Tavern Helper 版本与断网表现；
+- 保留已验证模板/教程的 Loader import；记录 URL、最低 Tavern Helper 版本与断网表现。使用滚动 URL 时明确声明 tutorial_default；只有项目选择 pinned 才要求 tag/commit，不能未经验证自行换成另一版本；
 - `mvu_zod` 在宿主 Ready 后调用 `registerMvuSchema`；
 - 复用目标环境的 `window.z`，不再引第三套 Zod；
 - `registerVariableSchema()`、MVU 内部 Schema 与 `registerMvuSchema()` 是不同接口，不得互相代替。
@@ -74,19 +74,20 @@ _.inc / _.dec / _.toggle
 ```
 
 命令以分号结束，后接 `// reason`。自定义外层标签只负责生产/清理路由，内层仍必须是 MVU 能解析的真实方言或 JSON Patch。
+`move` 教程写法为 `from/to`；目标版本若支持 `from/path`，在运行合同声明 `patch_move_target: path`，不要凭通用 RFC 假定所有 MVU 版本相同。
 `json_patch` 不是任意宿主都自动具备的格式：必须由锁定版本的 MagVarUpdate 解析，并且 `<JSONPatch>` 内只出现合同允许的 `replace/delta/insert/add/remove/move` 操作；`native_schema`/`mvu_zod` 的方言选择写在运行合同中，不能在同一项目里混用。
 
 ## 世界书路由
 
 - `[mvu_plot]`：剧情模型侧；
 - `[mvu_update]`：变量更新侧；
-- 无标记：按锁定 bundle 的真实行为核对。
+- 无标记：在支持额外模型解析的同一世界书中通常发送给两侧；附加书还需核对其是否被目标 bundle 判定为已适配。当前变量列表不能只标 `[mvu_plot]`。
 
 这些标记不替代世界书本身的激活、关键词、depth、排序和概率规则。
 
 ## UI 读写
 
-TH 消息 iframe 通常读取：
+调用 Mvu API 前等待 `waitGlobalInitialized('Mvu')`。TH 消息 iframe 通常读取：
 
 ```text
 getCurrentMessageId()

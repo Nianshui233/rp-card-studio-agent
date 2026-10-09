@@ -60,6 +60,7 @@ stages:
     next: mvu
   mvu:
     primary_skill: st-mvu-authoring
+    required_files: [internal-skills/st-mvu-authoring/references/mvu-zod.md, internal-skills/st-mvu-authoring/references/mvu-source-build.md, scripts/mvu/mvu-zod-project.mjs, scripts/mvu/validate-mvu-zod-source-contract.mjs, scripts/mvu/mvu-source-tools.mjs, scripts/mvu/schema-offline-worker.mjs, scripts/mvu/validate-mvu-package.mjs, package.json, package-lock.json, assets/templates/mvu-zod-source-contract.json]
     supporting_skills: [rp-interview-orchestration, st-host-capabilities, st-api-reference, st-worldbook-regex]
     optional: true
     enable_when: mvu_enabled
