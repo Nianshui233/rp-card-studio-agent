@@ -12,7 +12,7 @@
 2. 对正在制作的组件做针对性 QA；
 3. 在结束时检查并交付成品文件；只有按目标 SillyTavern/扩展版本完成真实导入验收的精确制品，才可称为“导入验收通过”或“可直接导入”。若宿主路径未执行，必须标为“静态检查通过；宿主导入/运行未验证”，不得把 `runtime: not_run` 当成已完成的运行交付。
 
-你同时维护项目的创作权威与当前对话进度。不要把自己变成脱离创作的项目管理器，但必须为长期项目维护最小、可恢复、可核验的项目状态：`.rp-card/authority.md`、`.rp-card/NEXT.md`、`.rp-card/materials.json`、`.rp-card/acceptance.json`。这些文件只保存会影响创作、运行、交付和验收的事实，不保存完整聊天记录，也不进入最终 SillyTavern 导入包。原始资料只要进入当前创作/制卡任务，就必须经过 `source_material_processing`；资料大小只改变分段与批次策略，不改变是否整理。检测到外部作品、现实事实、版本敏感内容或改编线时，默认启用 `proactive_external_research`，使用宿主可用的公开搜索/网页读取能力；不能搜索时明确标记阻断，不声称已查证。
+你同时维护项目的创作权威与当前对话进度。不要把自己变成脱离创作的项目管理器，但必须为长期项目维护最小、可恢复、可核验的项目状态：`制作文件/项目记录/authority.md`、`制作文件/项目记录/NEXT.md`、`制作文件/项目记录/materials.json`、`制作文件/项目记录/acceptance.json`。这些文件只保存会影响创作、运行、交付和验收的事实，不保存完整聊天记录，也不进入最终 SillyTavern 导入包。原始资料只要进入当前创作/制卡任务，就必须经过 `source_material_processing`；资料大小只改变分段与批次策略，不改变是否整理。检测到外部作品、现实事实、版本敏感内容或改编线时，默认启用 `proactive_external_research`，使用宿主可用的公开搜索/网页读取能力；不能搜索时明确标记阻断，不声称已查证。
 
 制作过程允许落盘：用户原始输入的保真副本、真实 RP 内容、实际运行代码/配置、项目续接文件、材料来源索引、验收证据、最终可导入制品，以及最终交付确实需要的简短导入说明。当前对话仍然保留解释和即时协作；项目权威负责跨会话恢复，`NEXT.md` 负责下一道门，当前对话进度画板负责实时展示。
 
@@ -34,7 +34,7 @@
 
 ## 机械门禁与短回复边界
 
-模型读取 Skill 不是执行门禁。进入任何实质阶段前，必须依据 `orchestrator/routing.yaml` 生成并验证当前项目的 `.rp-card/route-lock.json`；它必须覆盖当前 primary Skill、全部 supporting Skill、阶段合同和路由文件哈希。验证失败时停止写入制品、授权变更、阶段交接和完成声明。
+模型读取 Skill 不是执行门禁。进入任何实质阶段前，必须依据 `orchestrator/routing.yaml` 生成并验证当前项目的 `制作文件/项目记录/route-lock.json`；它必须覆盖当前 primary Skill、全部 supporting Skill、阶段合同和路由文件哈希。验证失败时停止写入制品、授权变更、阶段交接和完成声明。
 
 阶段账本的状态变更必须经 `scripts/continuation/ledger-transition.mjs` 的确定性转换器；不得用临时脚本直接拼接 `authority.md`。它要求用户依据带 `origin=conversation`，提交交接时使本阶段授权到期，接受交接时只关闭当前阶段，不自动启动下一阶段。
 项目文件状态变化使用 `node scripts/continuation/continuation.mjs ledger-event ...`，不得绕过转换器直接写入 authority/NEXT。
@@ -59,21 +59,21 @@
 
 ## 工程生产层
 
-凡是需要 SillyTavern/扩展/MVU/前端实际运行的项目，除创作账本外必须建立 `.rp-card/production.json`，并按 `orchestrator/production-contract.md` 使用固定生产骨架。进入开场前端或消息前端实现前，必须通过访谈覆盖门；进入 MVU/MVU_ZOD 实现或交接前，必须通过完整组件门，变量列表、路径索引、输出格式、运行合同、Loader、消费者和 fixtures 任何一项缺失都阻断。
+凡是需要 SillyTavern/扩展/MVU/前端实际运行的项目，除创作账本外必须建立 `制作文件/项目记录/production.json`，并按 `orchestrator/production-contract.md` 使用固定生产骨架。进入开场前端或消息前端实现前，必须通过访谈覆盖门；进入 MVU/MVU_ZOD 实现或交接前，必须通过完整组件门，变量列表、路径索引、输出格式、运行合同、Loader、消费者和 fixtures 任何一项缺失都阻断。
 
 诊断报告必须区分 `hypothesis`、`observed`、`reproduced`、`verified`、`accepted`；“已经定位”“已经修复”“可直接导入”不能在低于要求的证据等级下出现。用户报告的操作先登记为 `user_observation`，没有直接相反的宿主证据时不得反复质疑用户操作。
 
-启动时除项目账本外还要读取 `.rp-card/production.json`；生产校验失败时不得实现、交接或交付。
+启动时除项目账本外还要读取 `制作文件/项目记录/production.json`；生产校验失败时不得实现、交接或交付。
 
 ## 启动
 
 每次开始或继续工作时：
 
 1. 读取 `orchestrator/routing.yaml`、`orchestrator/stage-loop.md`、`orchestrator/interview-playbook.md` 与 `orchestrator/artifact-purity.md`；
-2. 读取 `.rp-card/authority.md`、`.rp-card/NEXT.md`、`.rp-card/materials.json` 与 `.rp-card/acceptance.json`；
+2. 读取 `制作文件/项目记录/authority.md`、`制作文件/项目记录/NEXT.md`、`制作文件/项目记录/materials.json` 与 `制作文件/项目记录/acceptance.json`；
 3. 若项目尚未建立，先初始化最小续接文件；检查 `materials.processing` 和 `materials.research` 状态；
 4. 读取用户指定工作目录中与当前阶段直接相关的源文件、配置、制品和 Git/worktree 状态；有任何用户资料时先进入原始资料整理，有外部事实依赖时先进入主动研究；
-5. 在当前对话先展示进度画板，再按路由只加载当前阶段的主 Skill 和支援 Skill；同时生成并验证 `.rp-card/route-lock.json`，若路由、primary Skill、任一支援 Skill 或合同哈希不一致，停止制作并先修复路由状态；
+5. 在当前对话先展示进度画板，再按路由只加载当前阶段的主 Skill 和支援 Skill；同时生成并验证 `制作文件/项目记录/route-lock.json`，若路由、primary Skill、任一支援 Skill 或合同哈希不一致，停止制作并先修复路由状态；
 6. 继续项目时以当前文件为准，不信任过期摘要；若权威与实现冲突，先记录冲突并暂停提升状态；
 7. 每次产生真实内容、决定、测试结果或阻断变化后，更新 authority/NEXT/相关证据，并刷新当前对话进度画板。
 
@@ -128,7 +128,7 @@
 
 项目定位阶段必须先关闭“开放世界 / 固定主角 / 开放世界＋可选主控预设”这一高影响分流。未明确时默认开放世界；未关闭该分流前，不得在世界、NPC、场景或开场中写死外部主控身份和关系。运行能力选择与创作归属模式是两套独立决定，不能用启用 MVU、EJS 或前端来推断玩家是谁。
 
-原始资料整理与主动研究阶段必须先判断：是否有任何用户提供材料，以及项目是否依赖外部作品、现实事实、版本或改编线。前者只要存在就执行，不按资料大小设置阈值；后者默认主动使用宿主可用的公开搜索/网页读取能力，不要求用户额外授权一句“可以搜索”。用户明确要求不联网时记录跳过；宿主没有网络工具时记录 blocked，不得声称已经搜索。整理结果进入 `.rp-card/materials.json`，至少区分核心事实、必须保留、制卡候选、冲突、未知、暂缓和下一道问题；研究结果记录来源、版本、日期、身份标签和未决项。
+原始资料整理与主动研究阶段必须先判断：是否有任何用户提供材料，以及项目是否依赖外部作品、现实事实、版本或改编线。前者只要存在就执行，不按资料大小设置阈值；后者默认主动使用宿主可用的公开搜索/网页读取能力，不要求用户额外授权一句“可以搜索”。用户明确要求不联网时记录跳过；宿主没有网络工具时记录 blocked，不得声称已经搜索。整理结果进入 `制作文件/项目记录/materials.json`，至少区分核心事实、必须保留、制卡候选、冲突、未知、暂缓和下一道问题；研究结果记录来源、版本、日期、身份标签和未决项。
 
 阶段内部只执行：
 
@@ -171,7 +171,7 @@
 - 不在脑暴阶段询问地图数量、世界书切片、变量 Schema、MVU、EJS、正则、脚本或 API；不代写最终 `<user>` 身份，只确定兼容的进入条件和行动空间。
 - 脑暴完成后，定位阶段直接消费母纲，只补会改变制作合同的真实缺口，不重新询问同义的空白构想问题。
 
-脑暴结果默认写入项目权威的当前范围和创作事实；如果已经产生可复用的完整母纲，可在 `创作源/创作总纲.md` 保存当前作品内容。`.rp-card/authority.md` 记录哪些方向已确认、哪些仍待决定、当前阶段和下一道门；不保存完整问答历史或重复正文。
+脑暴结果默认写入项目权威的当前范围和创作事实；如果已经产生可复用的完整母纲，可在 `制作文件/创作源/创作总纲.md` 保存当前作品内容。`制作文件/项目记录/authority.md` 记录哪些方向已确认、哪些仍待决定、当前阶段和下一道门；不保存完整问答历史或重复正文。
 
 ## 旧卡与材料
 
@@ -269,7 +269,7 @@ NSFW 只在首轮确认一次。启用后不再进行边界问卷或运行时门
 - MVU Regex 分开承担显示处理与历史 Prompt 清理：历史 `<UpdateVariable>` 可以仅格式提示词清理，并按最小深度保留最近更新；不得永久删除原消息的技术块，或删除当前变量列表、初始化/载体合同。显示规则与 Prompt 规则各自验收，不启用技术块的 `runOnEdit=true`。
 - 世界书路由必须按职责验证：当前变量列表靠近最新剧情 D0/D1；更新规则可以在角色定义前后或其他已验证深度；普通世界、角色、场景不得无条件全部堆在 atDepth/depth 0；立即事件必须有明确关键词或 sticky/cooldown 语义。
 - 世界书运行合同还必须考虑宿主预算：当前 SillyTavern 按较高 `order` 优先参与预算，`constant=true` 不等于绕过预算；变量规则、变量列表、输出格式和必要强调条目要有高优先级/`ignoreBudget` 策略，并用 Prompt 查看器确认实际进入请求。
-- MVU_ZOD 必须读取 `internal-skills/st-mvu-authoring/references/mvu-source-build.md`，用真实 canonical Schema、注册入口、Loader、Prompt 和项目 fixture 执行 source→build→import 校验；`.rp-card/production.json` 的 `mvu.sourceContract` 绑定实际文件与导入正文。包级检查传 `--mvu-contract` 与 `--mvu-source-contract`；不能用自填 `passed`、源码字符串或伪造哈希代替构建。
+- MVU_ZOD 必须读取 `internal-skills/st-mvu-authoring/references/mvu-source-build.md`，用真实 canonical Schema、注册入口、Loader、Prompt 和项目 fixture 执行 source→build→import 校验；`制作文件/项目记录/production.json` 的 `mvu.sourceContract` 绑定实际文件与导入正文。包级检查传 `--mvu-contract` 与 `--mvu-source-contract`；不能用自填 `passed`、源码字符串或伪造哈希代替构建。
 - 变量卡实机排错必须按“变量管理器 → 日志/Console → Prompt 查看器 → 原始 assistant 回复 → 状态栏 → 保存重载”的证据顺序进行；制作阶段可关闭模板/宏查看原始文本，测试阶段再开启并核对替换后的 Prompt，不能把两个阶段混为一谈。
 - 允许中途新增 Record 实体时，优先为对象字段提供 `prefault`/“待初始化”容错，并在更新规则中要求后续补齐；不得因为模型漏字段就让整批新实体静默失败。
 
@@ -361,50 +361,33 @@ QA 按风险和实际组件执行，不按固定流程全量展开。
 
 涉及真实宿主行为时优先做真实 SillyTavern QA。没有实机证据时记录 `runtime: not_run`，不把静态检查冒充运行成功。
 
-- 创作一致性 QA 不按模板字段数量评分，也不重开已经完成的访谈。只检查项目实际承诺的体验与已经写入的承重内容；确定性矛盾直接修复，需要改变用户已确认方向时临时返回拥有该内容的阶段，用建议式深访校准后恢复 QA。检查结果、风险、证据和下一道门写入 `.rp-card/acceptance.json` 与 `.rp-card/NEXT.md`；不保存完整检查过程或重复问题原文。
+- 创作一致性 QA 不按模板字段数量评分，也不重开已经完成的访谈。只检查项目实际承诺的体验与已经写入的承重内容；确定性矛盾直接修复，需要改变用户已确认方向时临时返回拥有该内容的阶段，用建议式深访校准后恢复 QA。检查结果、风险、证据和下一道门写入 `制作文件/项目记录/acceptance.json` 与 `制作文件/项目记录/NEXT.md`；不保存完整检查过程或重复问题原文。
 
 ## 单一路线与作品层污染
 
-最终交付必须有唯一 active route manifest；旧版、修复版和实验路线不得继续作为可导入候选并列存在，superseded 路线只能进入 `.internal/history/`。交付前运行 active-route 校验和 RP-facing purity 扫描；作品层不得混入本机路径、未运行状态、工程导入指令、Agent/Skill/账本/交接说明。运行层和维护层按 manifest 分层，不用机械禁词误伤原始卡原文。
+最终交付只保留当前单一路线；交付清单位于制作文件/项目记录/交付清单.json，旧版、修复版和实验路线不归档成另一套候选。交付前运行 active-route 校验和 RP-facing purity 扫描；作品层不得混入本机路径、未运行状态、工程导入指令、Agent/Skill/账本/交接说明。运行层和维护层按 manifest 分层，不用机械禁词误伤原始卡原文。
 
 ## 最终检验与交付
 
 用户要求交付或创作完成时，主 Agent 直接整理最终文件，不调用通用构建或装配系统。
 
-默认项目目录采用以下结构或沿用用户已有的等价结构：
+作品目录与交付必须遵守 orchestrator/project-layout.md。作品项目最外层从制作开始只有两个文件夹，不再允许等价的分散根布局；此规则不重排 Agent 仓库本身。
 
 ```text
 项目名/
-├─ .rp-card/
-│  ├─ authority.md
-│  ├─ NEXT.md
-│  ├─ materials.json
-│  └─ acceptance.json
-├─ 创作源/
-├─ 配置/
-└─ 导入：项目名/
-   ├─ 角色卡/
-   ├─ 世界书/
-   ├─ 正则/
-   ├─ 酒馆助手脚本/
-   └─ 原始HTML/
+├─ 导入包/       # 实际导入成品平铺 + 唯一导入说明.txt
+└─ 制作文件/     # 当前原稿、资料、源码、配置、构建、检查与项目记录
 ```
 
-目录职责：
+- 制作文件/创作源/：完整 canonical 世界观、角色、系统、场景 YAML；不因整理目录而摘要或删减内容。
+- 制作文件/原始资料/：必要用户原始输入；不是备用成品路线。
+- 制作文件/运行源码/ 与 制作文件/配置/：实际 HTML、JS、Schema、EJS、运行合同和生成设置，按使用需要建立子目录。
+- 制作文件/项目记录/：authority.md、NEXT.md、materials.json、acceptance.json、production.json、route-lock.json 和交付清单.json；不进入最终 SillyTavern 导入包，也不在根目录另建隐藏账本。
+- 导入包/：本次选定的角色卡 JSON/PNG、独立世界书 JSON、实际 Regex JSON、Tavern Helper Script/ScriptFolder JSON及必要已声明运行资源。未启用组件不生成文件；默认平铺，不再附可读源码或原始 HTML。
+- 整包应可单独拿去导入，不要求从制作文件手工取代码。依赖扩展和远程 provider 的要求用唯一导入说明.txt 简短写清。
+- 构建和检查材料收在制作文件内；只留当前必要文件，不把旧版、修复版、实验包转成 history/backup 继续交付。
 
-- `.rp-card/`：项目权威、当前续接指针、材料来源索引、验收证据和当前对话进度画板所依据的状态；不进入最终导入包。
-- `创作源/`：完整 canonical 世界观、角色、系统、场景 YAML，用户原始材料的保真副本，以及确实属于 RP 内容的文本源码。
-- `配置/`：项目实际需要的依赖/版本、导入顺序、MVU、EJS 与 bridge 运行配置、世界书调度配置或其他真实配置。
-- `导入：项目名/`：用户最终导入或直接使用的制品。项目名必须清理 Windows 路径非法字符；固定分隔符使用全角冒号 `：`。
-- `角色卡/`：最终角色卡 JSON/PNG 等实际角色卡制品。
-- `世界书/`：由 canonical YAML 无损切片生成的独立世界书 JSON。
-- `正则/`：实际使用的 Tavern Regex JSON；与卡内嵌同规则时标明二选一。
-- `酒馆助手脚本/`：可导入 Tavern Helper Script/ScriptFolder JSON；可附 `.js` 可读源码，但不能用源码代替导入 JSON。
-- `原始HTML/`：开场页、持续消息前端等完整单文件 HTML 可读源。
-
-只创建项目实际使用的子目录，不为未启用组件制造空文件夹。EJS 若作为世界书模板，随世界书创作源/条目维护；独立 `.ejs` 文件和 MVU Schema/运行源码按用途放入 `配置/` 或 `酒馆助手脚本/`，并在导入说明中写清位置。
-
-默认最终项目同时保留完整创作源和可导入制品。用户明确只要导入包时，可以只交付 `导入：项目名/`，但制作与 QA 仍必须基于完整 canonical YAML；不得因此压缩内容。
+最终交付默认同时提供这两个文件夹。用户明确只要导入包时，可以只交付导入包，但制作和 QA 仍基于完整原稿。交付前运行目录检查及必要包级/宿主检查；目录整理不等于导入成功。
 
 最终检验至少确认：
 

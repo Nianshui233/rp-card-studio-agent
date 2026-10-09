@@ -9,7 +9,7 @@ test('EJS production gate requires execution, scope, settings, fallback, fixture
 });
 
 test('EJS production gate rejects getwi, iframe, preprocessing, and MVU bridge without conditional contracts', () => {
-  const components = Object.fromEntries(REQUIRED_EJS_COMPONENTS.map(id => [id, { status: 'passed', path: `配置/EJS/${id}` }]));
+  const components = Object.fromEntries(REQUIRED_EJS_COMPONENTS.map(id => [id, { status: 'passed', path: `制作文件/配置/EJS/${id}` }]));
   const result = validateEjsCompleteness({
     enabled: true, mode: 'worldbook_template', executionStages: ['preparation'],
     contract: { enabled: true, mode: 'worldbook_template', failure: 'static fallback', bridge_mode: 'shared_message_variables', direction: 'mvu_to_ejs_readonly', snapshot: 'current message variables' },

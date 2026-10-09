@@ -56,7 +56,7 @@
 - MVU 状态、EJS 模板和状态栏分别只实现已经确定的玩法语义，不因 UI 想展示而反向虚构数值；初值、标签、阈值和正文含义一致；
 - 确定性事实矛盾直接修复；如果修复会改变用户已确认的核心体验、人物或世界方向，返回对应阶段用“问题＋建议＋为什么＋影响”校准后再继续。
 
-创作一致性检查只修改真实内容或代码，并将可复核的发现、证据、限制和下一道门写入 `.rp-card/acceptance.json`，同步更新 `.rp-card/NEXT.md` 和当前对话进度画板；不保存完整问答原文或重复创作正文。
+创作一致性检查只修改真实内容或代码，并将可复核的发现、证据、限制和下一道门写入 `制作文件/项目记录/acceptance.json`，同步更新 `制作文件/项目记录/NEXT.md` 和当前对话进度画板；不保存完整问答原文或重复创作正文。
 
 ## canonical YAML 无损打包
 
@@ -96,7 +96,7 @@ chat worldbook
 
 ## MVU 路线声明
 
-每个 MVU 项目先在 `配置/MVU运行合同.yaml` 明确 `mvu_mode: native_schema | mvu_zod` 与 `mvu_init_strategy: worldbook | greeting`。不得靠文件猜测后静默降级。
+每个 MVU 项目先在 `制作文件/配置/MVU运行合同.yaml` 明确 `mvu_mode: native_schema | mvu_zod` 与 `mvu_init_strategy: worldbook | greeting`。不得靠文件猜测后静默降级。
 
 `mvu_zod` 缺少以下任一项即阻断：
 

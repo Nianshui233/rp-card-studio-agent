@@ -4,19 +4,10 @@ import crypto from 'node:crypto';
 import { build, transform, version as esbuildVersion } from 'esbuild';
 export const BUILDER_ID = 'esbuild@' + esbuildVersion;
 import { parse } from 'acorn';
+import { resolveProjectPath } from '../project-layout.mjs';
 
 export const hash = value => crypto.createHash('sha256').update(value).digest('hex');
-export function projectPath(root, relative, { output = false } = {}) {
-  if (!root || typeof relative !== 'string' || !relative.trim() || path.isAbsolute(relative)) throw new Error('必须提供项目内相对路径');
-  const base = fs.realpathSync(root);
-  const target = path.resolve(base, relative);
-  const contained = value => { const rel = path.relative(base, value); return rel !== '..' && !rel.startsWith('..' + path.sep) && !path.isAbsolute(rel); };
-  if (!contained(target) || target === base) throw new Error('路径越出项目或指向项目根：' + relative);
-  let existing = target;
-  while (!fs.existsSync(existing)) { if (!output) throw new Error('文件不存在：' + relative); existing = path.dirname(existing); }
-  if (!contained(fs.realpathSync(existing))) throw new Error('路径经链接越出项目：' + relative);
-  return target;
-}
+export function projectPath(root, relative, options = {}) { return resolveProjectPath(root, relative, options); }
 export function readProject(root, relative) { return fs.readFileSync(projectPath(root, relative)); }
 export function readJson(root, relative) { return JSON.parse(readProject(root, relative).toString('utf8').replace(/^\uFEFF/, '')); }
 export function walkAst(node, visit) {

@@ -12,7 +12,7 @@
       config:
         id: rp-card-studio
         name: SillyTavern制卡工坊
-        description: 精简的 SillyTavern RP 角色卡创作工作台：先整理用户资料并按需做公开来源研究，再做脑暴、定位、世界观、角色、系统、场景、开场，以及 MVU、MVU_ZOD、EJS、正则、酒馆助手脚本与消息内前端，最后做成品 QA 与交付；长期项目用 .rp-card/ 续接并显示当前对话进度画板。默认玩家中立的开放世界，运行能力由用户逐项确认。
+        description: 精简的 SillyTavern RP 角色卡创作工作台：先整理用户资料并按需做公开来源研究，再做脑暴、定位、世界观、角色、系统、场景、开场，以及 MVU、MVU_ZOD、EJS、正则、酒馆助手脚本与消息内前端，最后做成品 QA 与交付；长期项目用 制作文件/项目记录/ 续接并显示当前对话进度画板。默认玩家中立的开放世界，运行能力由用户逐项确认。
         order: 20
         plugins:
           - id: persona

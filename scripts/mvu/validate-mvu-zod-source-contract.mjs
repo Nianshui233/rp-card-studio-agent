@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { DELIVERY_DIR, WORK_DIR, BUILD_DIR, validateProjectLayout, requireArea } from '../project-layout.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
@@ -52,8 +53,12 @@ function validateRuntime(runtime, root, artifactHash, sourceHashes, issues) {
 export async function inspectMvuZodSources(contract, { root } = {}) {
   if (!object(contract) || contract.schema !== MVU_ZOD_SOURCE_CONTRACT_SCHEMA) throw new Error('MVU_ZOD source contract 必须是 ' + MVU_ZOD_SOURCE_CONTRACT_SCHEMA);
   if (!root) throw new Error('MVU_ZOD source contract 需要真实项目 root');
+  const layout = validateProjectLayout(root); if (!layout.ok) throw new Error(layout.issues.join('\n'));
   for (const name of REQUIRED_PATHS) if (!contract.paths?.[name]) throw new Error('source contract 缺少 paths.' + name);
   const p = contract.paths;
+  for (const name of REQUIRED_PATHS) requireArea(p[name], ['importArtifact', 'worldbookArtifact', 'cardArtifact', 'regexArtifact'].includes(name) ? DELIVERY_DIR : WORK_DIR, 'paths.' + name);
+  for (const name of ['importArtifact','worldbookArtifact','cardArtifact','regexArtifact']) if (p[name].replaceAll('\\','/').slice(DELIVERY_DIR.length + 1).includes('/')) throw new Error('实际导入组件应平铺在导入包：' + name);
+  for (const greeting of contract.greetings || []) requireArea(greeting.path, WORK_DIR, 'Greeting 源');
   const issues = [];
   const sources = {};
   const sourceHashes = {};
@@ -201,7 +206,8 @@ export async function validateMvuZodSourceContract(contract, options = {}) {
   } catch (error) { issues.push(error.message); return { ok: false, issues, evidenceLevel: 'offline_only' }; }
 }
 
-export async function buildMvuZodProject(contract, { root, outputDir = '配置/MVU/build' } = {}) {
+export async function buildMvuZodProject(contract, { root, outputDir = BUILD_DIR + '/MVU' } = {}) {
+  requireArea(outputDir + '/file', WORK_DIR, '构建目录');
   const inspected = await inspectMvuZodSources(contract, { root });
   if (inspected.issues.length) throw new Error(inspected.issues.join('\n'));
   const outputPaths = Object.fromEntries(Object.entries(OUTPUT_FILES).map(([name, filename]) => [name, outputDir.replaceAll('\\', '/') + '/' + filename]));

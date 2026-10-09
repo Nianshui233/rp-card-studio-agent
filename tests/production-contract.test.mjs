@@ -24,7 +24,7 @@ test('MVU_ZOD production requires real component files and canonical build inclu
   assert.match(bad.issues.join('\n'), /variable_list/);
   const f = await createSourceFixture(t);
   const mapping = { schema: 'schemaSource', initvar: 'initvar', variable_list: 'variableList', update_rules: 'updateRules', path_index: 'pathIndex', output_format: 'outputFormat', loader: 'loaderSource', fixtures: 'fixtures', runtime_contract: 'runtimeContract' };
-  const components = Object.fromEntries(REQUIRED_MVU_COMPONENTS.map(name => [name, { status: 'passed', path: f.contract.paths[mapping[name]] || '配置/' + name + '.txt' }]));
+  const components = Object.fromEntries(REQUIRED_MVU_COMPONENTS.map(name => [name, { status: 'passed', path: f.contract.paths[mapping[name]] || '制作文件/配置/' + name + '.txt' }]));
   for (const name of ['consumer']) f.write(components[name].path, '真实测试组件');
   const mvu = { mode: 'mvu_zod', interviewStatus: 'covered', components, sourceContract: f.contract };
   const good = await validateMvuCompleteness(mvu, { root: f.root }); assert.equal(good.ok, true, good.issues.join('\n'));

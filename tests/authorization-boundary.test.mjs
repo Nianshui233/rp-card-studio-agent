@@ -23,7 +23,7 @@ test('ledger rejects a handoff accepted only by bare continue', () => {
   row.progress = 'closed';
   row.review = 'accepted';
   row.entryEvidence = 'USR-START';
-  row.handoff = { id: 'HANDOFF-POS-001', locator: '当前对话阶段报告', artifacts: ['创作源/定位.md'] };
+  row.handoff = { id: 'HANDOFF-POS-001', locator: '当前对话阶段报告', artifacts: ['制作文件/创作源/定位.md'] };
   row.acceptanceEvidence = 'USR-CONTINUE';
   ledger.userEvidence.push(
     { id: 'USR-START', role: 'user', locator: '当前用户消息', quote: '开始定位阶段', stage: 'positioning', action: 'start', targets: ['positioning'] },

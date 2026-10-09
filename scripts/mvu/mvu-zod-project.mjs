@@ -4,7 +4,7 @@ import { buildMvuZodProject, validateMvuZodSourceContract } from './validate-mvu
 function option(name) { const i = process.argv.indexOf(name); return i < 0 ? undefined : process.argv[i + 1]; }
 try {
   const root = path.resolve(option('--root') || process.cwd());
-  const contract = readJson(root, option('--contract') || '.rp-card/mvu-source-contract.json');
+  const contract = readJson(root, option('--contract') || '制作文件/项目记录/mvu-source-contract.json');
   const command = process.argv[2];
   const result = command === 'build' ? await buildMvuZodProject(contract, { root, outputDir: option('--out') })
     : command === 'validate' ? await validateMvuZodSourceContract(contract, { root })

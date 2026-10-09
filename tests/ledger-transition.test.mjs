@@ -20,7 +20,7 @@ test('stage handoff expires scoped authorizations and waits for review', () => {
   ledger.stages.find(item => item.id === 'positioning').enabled = 'enabled';
   const started = startStage(ledger, { stage: 'positioning', evidence: evidence() });
   started.authorizations.push({ id: 'AUTH-1', stage: 'positioning', mode: 'scoped_delegation', userEvidence: 'USR-1', scope: ['角色细化'], exclusions: [], expires: 'stage_handoff', status: 'active' });
-  const handed = submitHandoff(started, { stage: 'positioning', handoff: { id: 'HANDOFF-1', locator: 'conversation#report', artifacts: ['创作源/定位.md'] } });
+  const handed = submitHandoff(started, { stage: 'positioning', handoff: { id: 'HANDOFF-1', locator: 'conversation#report', artifacts: ['制作文件/创作源/定位.md'] } });
   assert.equal(handed.stages.find(item => item.id === 'positioning').progress, 'awaiting_handoff');
   assert.equal(handed.authorizations[0].status, 'expired');
 });
@@ -30,7 +30,7 @@ test('accepting a handoff closes only that stage and never starts the next stage
   ledger.stages.find(item => item.id === 'preflight').progress = 'not_started';
   ledger.stages.find(item => item.id === 'positioning').enabled = 'enabled';
   const started = startStage(ledger, { stage: 'positioning', evidence: evidence() });
-  const handed = submitHandoff(started, { stage: 'positioning', handoff: { id: 'HANDOFF-1', locator: 'conversation#report', artifacts: ['创作源/定位.md'] } });
+  const handed = submitHandoff(started, { stage: 'positioning', handoff: { id: 'HANDOFF-1', locator: 'conversation#report', artifacts: ['制作文件/创作源/定位.md'] } });
   const accepted = acceptHandoff(handed, { stage: 'positioning', handoffId: 'HANDOFF-1', evidence: evidence({ id: 'USR-2', action: 'accept', quote: '接受这次定位阶段交接，下一阶段稍后再说', targets: ['HANDOFF-1'], responseTo: 'HANDOFF-1' }) });
   assert.equal(accepted.stages.find(item => item.id === 'positioning').progress, 'closed');
   assert.equal(accepted.stages.find(item => item.id === 'worldbuilding').progress, 'not_started');

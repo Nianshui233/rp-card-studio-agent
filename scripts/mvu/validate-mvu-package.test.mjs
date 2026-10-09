@@ -184,7 +184,7 @@ test('rejects a missing or contradictory MVU runtime contract', () => {
   const missing = fixture();
   delete missing.mvuContract;
   const missingResult = validateMvuPackage(missing, { mode: 'mvu_zod', initStrategy: 'greeting', dialect: 'json_patch' });
-  assert.match(missingResult.issues.join(' '), /缺少 配置\/MVU运行合同/);
+  assert.match(missingResult.issues.join(' '), /缺少 制作文件\/配置\/MVU运行合同/);
 
   const wrong = fixture();
   wrong.mvuContract.mode = 'native_schema';

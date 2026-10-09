@@ -1,10 +1,13 @@
 import fs from 'node:fs';
+import { STATE_DIR, ensureProjectFolders, resolveProjectPath } from '../project-layout.mjs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
 export const ROUTE_LOCK_SCHEMA = 'rp-card-studio/route-lock/v1';
 const ORCHESTRATOR_FILES = [
   'orchestrator/routing.yaml',
+  'orchestrator/project-layout.md',
+  'scripts/project-layout.mjs',
   'orchestrator/stage-loop.md',
   'orchestrator/stage-authorization.md',
   'orchestrator/interview-playbook.md',
@@ -99,9 +102,9 @@ export function validateRouteLock(lock, rootValue, currentStage = lock?.stage) {
 
 export function writeRouteLock(projectRoot, agentRoot, stage) {
   const lock = createRouteLock(agentRoot, stage);
-  const directory = path.join(path.resolve(projectRoot), '.rp-card');
+  const directory = path.join(ensureProjectFolders(projectRoot), STATE_DIR);
   fs.mkdirSync(directory, { recursive: true });
-  const target = path.join(directory, 'route-lock.json');
+  const target = resolveProjectPath(projectRoot, STATE_DIR + '/route-lock.json', { output: true });
   fs.writeFileSync(target, `${JSON.stringify(lock, null, 2)}\n`, 'utf8');
   return { path: target, lock };
 }

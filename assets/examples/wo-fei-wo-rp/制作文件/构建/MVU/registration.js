@@ -1,7 +1,7 @@
-// MVU源/注册入口.js
+// 制作文件/运行源码/MVU/注册入口.js
 import { registerMvuSchema } from "https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource@523b1f0d82d3debbc2435ec35530f02e8d388219/dist/util/mvu_zod.js";
 
-// schema.js
+// 制作文件/运行源码/MVU/schema.js
 var 数值轴 = (最小, 最大) => (值) => _.clamp(值, 最小, 最大);
 var Schema = z.object({
   世界: z.object({
@@ -93,7 +93,7 @@ var Schema = z.object({
   }).prefault({})
 });
 
-// MVU源/注册入口.js
+// 制作文件/运行源码/MVU/注册入口.js
 $(() => {
   registerMvuSchema(Schema);
 });

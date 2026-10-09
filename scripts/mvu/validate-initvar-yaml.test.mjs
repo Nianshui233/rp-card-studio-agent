@@ -9,9 +9,9 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const script = path.join(root, 'scripts', 'mvu', 'validate-initvar-yaml.py');
 const base = path.join(root, 'assets', 'examples', 'wo-fei-wo-rp');
-const cardPath = path.join(base, '我，非我.重构版.json');
-const worldbookPath = path.join(base, '我，非我.世界书.json');
-const schemaPath = path.join(base, 'schema.js');
+const cardPath = path.join(base, '导入包/我，非我.角色卡.json');
+const worldbookPath = path.join(base, '导入包/我，非我.世界书.json');
+const schemaPath = path.join(base, '制作文件/运行源码/MVU/schema.js');
 
 function run(card, worldbook = worldbookPath) {
   const args = ['-X', 'utf8', script, '--card', card, '--zod-script', schemaPath, '--worldbook', worldbook, '--init-strategy', 'worldbook'];

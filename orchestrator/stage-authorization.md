@@ -73,7 +73,7 @@ authority/v1、next/v1 不静默当作有授权的 v2。校验返回 migrationRe
 
 ## 机械门禁：路由、短回复和真实交付状态
 
-本合同不能只靠模型记忆。每个实质阶段开始前，必须从 `orchestrator/routing.yaml` 生成项目 `.rp-card/route-lock.json`，锁定当前阶段的 primary Skill、全部 supporting Skill、路由文件和合同文件哈希：
+本合同不能只靠模型记忆。每个实质阶段开始前，必须从 `orchestrator/routing.yaml` 生成项目 `制作文件/项目记录/route-lock.json`，锁定当前阶段的 primary Skill、全部 supporting Skill、路由文件和合同文件哈希：
 
 ```text
 node scripts/continuation/continuation.mjs route-lock --root <项目目录> --stage <阶段ID>

@@ -39,7 +39,7 @@ test('old conversation-only and anti-state rules are removed', () => {
     assert.doesNotMatch(text, /阶段状态只存在于当前对话/);
     assert.doesNotMatch(text, /不得创建脑暴状态/);
   }
-  assert.match(agent, /\.rp-card\/authority\.md/);
+  assert.match(agent, /制作文件\/项目记录\/authority\.md/);
   assert.match(loop, /当前对话进度画板/);
 });
 

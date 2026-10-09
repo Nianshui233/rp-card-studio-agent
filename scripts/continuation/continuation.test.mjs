@@ -17,7 +17,7 @@ function project(t) {
   return root;
 }
 function authority(root, fn) {
-  const file = path.join(root, '.rp-card', 'authority.md');
+  const file = path.join(root, '制作文件/项目记录', 'authority.md');
   fs.writeFileSync(file, fn(fs.readFileSync(file, 'utf8')), 'utf8');
 }
 function ledger(root, fn) {
@@ -43,7 +43,7 @@ test('initializes v2 with every routed stage and no fabricated user authorizatio
   assert.equal(result.sourceAuthenticity, 'not_verified');
 });
 test('rejects missing NEXT sections', t => {
-  const root = project(t); const file = path.join(root, '.rp-card', 'NEXT.md');
+  const root = project(t); const file = path.join(root, '制作文件/项目记录', 'NEXT.md');
   fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace('## 下一道门', '## 已删除'));
   assert.match(validateContinuation(root).issues.join('\n'), /NEXT\.md 缺少区块：下一道门/);
 });
@@ -78,14 +78,14 @@ test('valid in-scope delegated decisions are not relabeled as user-confirmed', (
 });
 test('handoff requires pending review and expires delegation', () => {
   const value = character(); const row = value.stages.find(row => row.id === 'character');
-  Object.assign(row, { progress: 'awaiting_handoff', review: 'pending', handoff: { id: 'HANDOFF-1', locator: 'chat:example#report-1', artifacts: ['创作源/角色.yaml'] } });
+  Object.assign(row, { progress: 'awaiting_handoff', review: 'pending', handoff: { id: 'HANDOFF-1', locator: 'chat:example#report-1', artifacts: ['制作文件/创作源/角色.yaml'] } });
   assert.match(validateStageLedger(value, 'character').issues.join('\n'), /待交接后必须到期/);
   value.authorizations[0].status = 'expired';
   assert.equal(validateStageLedger(value, 'character').ok, true);
 });
 test('closing a stage requires user acceptance of its actual handoff', () => {
   const value = character(); const row = value.stages.find(row => row.id === 'character');
-  Object.assign(row, { progress: 'closed', review: 'accepted', handoff: { id: 'HANDOFF-1', locator: 'chat:example#report-1', artifacts: ['创作源/角色.yaml'] } });
+  Object.assign(row, { progress: 'closed', review: 'accepted', handoff: { id: 'HANDOFF-1', locator: 'chat:example#report-1', artifacts: ['制作文件/创作源/角色.yaml'] } });
   value.authorizations[0].status = 'expired';
   assert.equal(validateStageLedger(value, 'character').ok, false);
   value.userEvidence.push({ id: 'USR-2', role: 'user', stage: 'character', action: 'accept', locator: 'chat:example#user-2', quote: '角色这样可以，继续。', responseTo: 'HANDOFF-1', targets: ['HANDOFF-1'] });
@@ -95,7 +95,7 @@ test('closing a stage requires user acceptance of its actual handoff', () => {
   assert.equal(validateStageLedger(value, 'character').ok, false);
 });
 test('rejects circular evidence from mutable authority/NEXT files', () => {
-  const value = character(); value.userEvidence[0].locator = '.rp-card/authority.md#confirmed';
+  const value = character(); value.userEvidence[0].locator = '制作文件/项目记录/authority.md#confirmed';
   assert.match(validateStageLedger(value, 'character').issues.join('\n'), /循环引用/);
 });
 test('rejects missing and duplicate stages and malformed records without throwing', () => {
@@ -105,7 +105,7 @@ test('rejects missing and duplicate stages and malformed records without throwin
   assert.match(validateStageLedger(duplicate, 'preflight').issues.join('\n'), /重复/);
 });
 test('rejects stale NEXT stage and malformed ledger JSON', t => {
-  const root = project(t); const file = path.join(root, '.rp-card', 'NEXT.md');
+  const root = project(t); const file = path.join(root, '制作文件/项目记录', 'NEXT.md');
   fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace('\x60preflight\x60', '\x60character\x60'));
   assert.match(validateContinuation(root).issues.join('\n'), /当前阶段不一致/);
   authority(root, text => text.replace('"authorizations": []', '"authorizations": BROKEN'));
@@ -114,10 +114,10 @@ test('rejects stale NEXT stage and malformed ledger JSON', t => {
 test('legacy v1 is not silently accepted or rewritten', t => {
   const root = project(t);
   authority(root, text => text.replace('authority/v2', 'authority/v1'));
-  const before = fs.readFileSync(path.join(root, '.rp-card', 'authority.md'), 'utf8');
+  const before = fs.readFileSync(path.join(root, '制作文件/项目记录', 'authority.md'), 'utf8');
   assert.equal(validateContinuation(root).migrationRequired, true);
   assert.equal(validateContinuation(root).ok, false);
-  assert.equal(fs.readFileSync(path.join(root, '.rp-card', 'authority.md'), 'utf8'), before);
+  assert.equal(fs.readFileSync(path.join(root, '制作文件/项目记录', 'authority.md'), 'utf8'), before);
 });
 test('board shows every stage, review and delegation inside a single fenced block', t => {
   const root = project(t); const board = renderProgressBoard(root);
@@ -173,7 +173,7 @@ test('integration: character-only delegation is visible, then expires at handoff
   const root = project(t); const value = character();
   value.decisions.push({ id: 'DEC-1', stage: 'character', text: '三名核心角色', sourceKind: 'delegated', authorization: 'AUTH-1', scope: '角色细化' });
   authority(root, text => text.replace('current_stage: preflight', 'current_stage: character').replace(/(## 阶段账本\s*\n\x60{3}json\s*\n)([\s\S]*?)(\n\x60{3})/, (_, prefix, data, suffix) => prefix + JSON.stringify(value, null, 2) + suffix));
-  const next = path.join(root, '.rp-card', 'NEXT.md'); fs.writeFileSync(next, fs.readFileSync(next, 'utf8').replace('\x60preflight\x60', '\x60character\x60'));
+  const next = path.join(root, '制作文件/项目记录', 'NEXT.md'); fs.writeFileSync(next, fs.readFileSync(next, 'utf8').replace('\x60preflight\x60', '\x60character\x60'));
   assert.equal(validateContinuation(root).executionAllowed, true);
   assert.match(renderProgressBoard(root), /角色：进行中；本阶段放权/);
   const row = value.stages.find(item => item.id === 'character');
@@ -187,7 +187,7 @@ test('integration: character-only delegation is visible, then expires at handoff
   assert.match(renderProgressBoard(root), /等待用户新消息，不能自动推进/);
 });
 test('init refuses to overwrite existing state', t => {
-  const root = project(t); const file = path.join(root, '.rp-card', 'authority.md');
+  const root = project(t); const file = path.join(root, '制作文件/项目记录', 'authority.md');
   const before = fs.readFileSync(file, 'utf8');
   assert.throws(() => initContinuation(root, { projectId: 'other', title: 'other' }), /拒绝覆盖/);
   assert.equal(fs.readFileSync(file, 'utf8'), before);

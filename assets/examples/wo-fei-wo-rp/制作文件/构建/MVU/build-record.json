@@ -1,0 +1,39 @@
+{
+  "schema": "rp-card-studio/mvu-zod-build/v1",
+  "builder": "esbuild@0.25.10",
+  "offlineZodVersion": "4.4.3",
+  "sourceHashes": {
+    "导入包/我，非我.角色卡.json": "cfecf2d613b2611d91d149ba4cee0f5031194e8d14099c94ac080be85b3e05c0",
+    "导入包/我，非我.世界书.json": "4ae5224f297ae12c4591b516838c677aa6595777d90be802721569cbc9a9a64f",
+    "导入包/我，非我.正则.json": "1c58db8092a87e1b2678392f202bcbfe3db71277456d09a32d6dd2fece600152",
+    "制作文件/创作源/变量/01-初始化基线.yaml": "19cdd4cc1e0d2768fa02d6eec78b8d65c2c4c27acced6f36717d5cf9d79462d5",
+    "制作文件/创作源/变量/02-变量更新规则.yaml": "6866bb56324221203b7ae3c59d21205f19aa41bbb29a7bfd50309720c7bd07f2",
+    "制作文件/创作源/变量/03-变量列表.txt": "96c30930104bae3556ffb485876019ee68c61019bb5f52e0bd1a6df81d65a5f5",
+    "制作文件/创作源/变量/04-变量输出格式.yaml": "66be2435f0323b7edf70c6b25b61846e8e9414373fe5deb17a48a655b0c6b27e",
+    "制作文件/检查/MVU/schema.fixtures.json": "900c39db33a1e78981cf23677b294d92aeb4a842a44d081824b7b2d453630cc0",
+    "制作文件/配置/MVU运行合同.yaml": "21dcd720fd3262d2964c08edd92e42e7faf52f587f6db4351343799500e5f2d2",
+    "制作文件/运行源码/MVU/加载入口.js": "71275a037feb4f453fb858044e4661a6aaf1c5876cab658e4dc76bfb54459306",
+    "制作文件/运行源码/MVU/注册入口.js": "7e84ad719cade77eafdf97dfa16ff21c931a222917baca5ddfd8752dec150d33",
+    "制作文件/运行源码/MVU/schema.js": "5a6e833f1c807e3922dc7c0f768c8a16273e2c41c33c4b9bb4cce5f1cee0bf9d"
+  },
+  "outputs": {
+    "registration": {
+      "path": "制作文件/构建/MVU/registration.js",
+      "sha256": "c5c05bf65669bcd18312fd36edc3e982e39395a100a693bbbf19236701d44d4e"
+    },
+    "loader": {
+      "path": "制作文件/构建/MVU/loader.js",
+      "sha256": "71275a037feb4f453fb858044e4661a6aaf1c5876cab658e4dc76bfb54459306"
+    },
+    "schema": {
+      "path": "制作文件/构建/MVU/schema.json",
+      "sha256": "7829f9adc9662764f4504072f4fc7cdecac872850e6fedcbba543a7d8522c3e5"
+    },
+    "normalizedInitvar": {
+      "path": "制作文件/构建/MVU/initvar.normalized.json",
+      "sha256": "80b861fabffd05114a5365d613aaba2baf248e29c62dc516728dfe3139ef0d1a"
+    }
+  },
+  "artifactHash": "4ca8fd565335f624ec0e9bfda1f8fb10375c83058b5f66baff2f19c56e2d80ac",
+  "evidenceLevel": "offline_only"
+}

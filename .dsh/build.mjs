@@ -203,7 +203,7 @@ ${repoPosix}
 2. \`${repoPosix}/orchestrator/stage-loop.md\` —— 阶段内部循环与阶段总结要求；
 3. \`${repoPosix}/orchestrator/interview-playbook.md\` —— 建议式深访规则；
 4. \`${repoPosix}/orchestrator/stage-authorization.md\` —— 阶段授权、交接账本与防伪确认依据；
-5. 项目目录的 \`.rp-card/authority.md\`、\`.rp-card/NEXT.md\`、\`.rp-card/materials.json\`、\`.rp-card/acceptance.json\`；项目尚未建立时先执行 \`continuation init\` 初始化最小续接文件。
+5. 项目目录的 \`制作文件/项目记录/authority.md\`、\`制作文件/项目记录/NEXT.md\`、\`制作文件/项目记录/materials.json\`、\`制作文件/项目记录/acceptance.json\`；项目尚未建立时先执行 \`continuation init\` 初始化最小续接文件。
 
 ## 阶段路由（由 routing.yaml 生成，共 ${routing.stages.length} 个阶段）
 
@@ -217,20 +217,20 @@ ${rows}
 
 ## 项目续接、阶段授权与进度画板（\`rp-project-continuation\`）
 
-长期项目在作品目录维护 \`.rp-card/\`：\`authority.md\`（阶段账本、授权依据、决定来源、当前范围）、\`NEXT.md\`（下一道门）、\`materials.json\`（材料来源、整理结果与研究状态）、\`acceptance.json\`（验收证据）。它属于项目状态，不进入最终 SillyTavern 导入包。
+长期项目在作品目录维护 \`制作文件/项目记录/\`：\`authority.md\`（阶段账本、授权依据、决定来源、当前范围）、\`NEXT.md\`（下一道门）、\`materials.json\`（材料来源、整理结果与研究状态）、\`acceptance.json\`（验收证据）。它属于项目状态，不进入最终 SillyTavern 导入包。
 
 - 开始或继续时先展示**当前对话进度画板**（简体中文、短而具体）：项目/阶段/范围、已完成、进行中、待决定、暂缓、阻断/待实测、下一道门；
 - 每轮产生真实内容、决定、测试结果或阻断变化后刷新画板，并同步更新 \`authority.md\` / \`NEXT.md\` / 相关证据；
 - 制作进度、用户审阅、阶段执行许可和代定授权分开记录；用户确认必须有真实原话与定位，文件存在、自动测试或 Agent 自己的账本都不能当作用户确认；
 - 阶段成果提交后转为待交接，本阶段授权到期，报告后结束本轮等待用户新消息，不自行跨阶段；
-- 用户说“继续/续接”时按顺序：读 \`.rp-card/\` → 读实际源文件/配置/制品与 Git 状态 → 核对权威与实现是否一致 → 展示画板 → 只问真正开放或冲突的决定 → 完成后更新文件与画板；
+- 用户说“继续/续接”时按顺序：读 \`制作文件/项目记录/\` → 读实际源文件/制作文件/配置/制品与 Git 状态 → 核对权威与实现是否一致 → 展示画板 → 只问真正开放或冲突的决定 → 完成后更新文件与画板；
 - 权威与实际实现冲突时，暂停提升状态、记录冲突、请用户确认权威来源；不把聊天摘要、旧报告或文件名当成当前权威。
 
 ## 原始资料整理与主动外部研究（\`rp-materials-research\`）
 
 材料阶段（\`materials\`）负责两件独立能力，两者可以同时发生：
 
-- **原始资料整理**：只要用户提供了任何资料（粘贴文本、本地文件、旧卡、世界书、脚本、网页摘录、图片参考），就必须整理进 \`.rp-card/materials.json\`；资料大小只改变分段/批次策略，不是开关；
+- **原始资料整理**：只要用户提供了任何资料（粘贴文本、本地文件、旧卡、世界书、脚本、网页摘录、图片参考），就必须整理进 \`制作文件/项目记录/materials.json\`；资料大小只改变分段/批次策略，不是开关；
 - **主动外部研究**：项目依赖外部作品、现实事实、版本敏感信息或改编线时默认启用，不要求用户额外说“可以搜索”；本预设已挂载 \`web_search\` / \`web_fetch\`，可直接使用；默认网络政策是 \`public_sources_only\`；
 - 用户明确要求“不联网/只用我给的材料”时记录 \`research.status: skipped\` + \`override: user\`；宿主确实没有搜索能力时记录 \`research.status: blocked\` 并写明缺失能力，**不得声称已搜索或已核验**；
 - 搜索结果只是候选线索：区分官方/原作来源与 Wiki、社区解析、同人资料，区分 canon/reference/fanon/unknown，不混改编线，只保留必要短摘录；
@@ -240,11 +240,11 @@ ${rows}
 
 | 脚本 | 用途 |
 |---|---|
-| \`node scripts/continuation/continuation.mjs init --root <项目根> --project-id <id> --title <标题>\` | 初始化 \`.rp-card/\` 最小续接文件与阶段账本 |
+| \`node scripts/continuation/continuation.mjs init --root <项目根> --project-id <id> --title <标题>\` | 初始化 \`制作文件/项目记录/\` 最小续接文件与阶段账本 |
 | \`node scripts/continuation/continuation.mjs validate --root <项目根>\` | 校验 authority/NEXT/账本：front matter、必需区块、project_id 一致性、跨阶段授权与伪关闭 |
 | \`node scripts/continuation/continuation.mjs board --root <项目根>\` | 由 authority + NEXT 渲染当前进度画板 |
-| \`node scripts/materials/validate-materials.mjs <项目根>/.rp-card/materials.json\` | 校验 \`rp-card-studio/materials/v2\` 合同：processing/research 状态、来源、事实、研究问题、冲突与整理结果 |
-| \`node scripts/validate-rolecard-package.mjs\` | 角色卡包级检查；MVU 项目必须传 \`--mvu-mode\`、\`--mvu-init-strategy\`，MVU_ZOD 另传 \`--mvu-contract "配置/MVU运行合同.yaml"\` 与 \`--zod-source\` |
+| \`node scripts/materials/validate-materials.mjs <项目根>/制作文件/项目记录/materials.json\` | 校验 \`rp-card-studio/materials/v2\` 合同：processing/research 状态、来源、事实、研究问题、冲突与整理结果 |
+| \`node scripts/validate-rolecard-package.mjs\` | 角色卡包级检查；MVU 项目必须传 \`--mvu-mode\`、\`--mvu-init-strategy\`，MVU_ZOD 另传 \`--mvu-contract "制作文件/配置/MVU运行合同.yaml"\` 与 \`--zod-source\` |
 | \`node scripts/mvu/validate-mvu-package.mjs\` | MVU 包级检查 |
 | \`node scripts/ejs/validate-ejs-package.mjs\` | EJS 包级检查 |
 | \`node scripts/regex/validate-tavern-regex.mjs\` | 正则 JSON 结构校验 |

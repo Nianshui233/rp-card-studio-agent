@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { STATE_DIR, ensureProjectFolders, validateProjectLayout, resolveProjectPath } from '../project-layout.mjs';
 import { STAGES, STAGE_LABELS, PROGRESS_LABELS, REVIEW_LABELS, validateStageLedger, stageAuthorizationLabel } from './stage-ledger.mjs';
 import { writeRouteLock, validateRouteLock } from './route-lock.mjs';
 import { releaseReadinessIssues } from './release-gate.mjs';
@@ -8,7 +9,7 @@ import { applyProjectEvent } from './ledger-transition.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const TEMPLATE_ROOT = path.join(ROOT, 'assets', 'templates', 'continuation');
-const REQUIRED_DIR = '.rp-card';
+const REQUIRED_DIR = STATE_DIR;
 const REQUIRED_FILES = ['authority.md', 'NEXT.md', 'materials.json', 'acceptance.json'];
 const REQUIRED_AUTHORITY_SECTIONS = [
   '项目目标与范围', '阶段账本', '当前授权', '授权与决定记录', '已确认创作事实', '已确认运行能力', '待决定事项', '已否决事项',
@@ -51,12 +52,14 @@ function requiredSections(text, titles) {
   return titles.filter(title => !section(text, title));
 }
 function projectRoot(value) { return path.resolve(value || process.cwd()); }
-function stateRoot(root) { return path.join(root, REQUIRED_DIR); }
-function stateFiles(root) { return Object.fromEntries(REQUIRED_FILES.map(name => [name, path.join(stateRoot(root), name)])); }
+function stateRoot(root) { return resolveProjectPath(root, REQUIRED_DIR, { output: true }); }
+function stateFiles(root) { return Object.fromEntries(REQUIRED_FILES.map(name => [name, resolveProjectPath(root, REQUIRED_DIR + '/' + name, { output: true })])); }
 
 export function validateContinuation(rootValue) {
   const root = projectRoot(rootValue);
-  const files = stateFiles(root);
+  const layout = validateProjectLayout(root);
+  if (!layout.ok) return { ok: false, root, issues: layout.issues, warnings: [] };
+  let files; try { files = stateFiles(root); } catch (error) { return { ok: false, root, issues: [error.message], warnings: [] }; }
   const issues = [];
   const warnings = [];
   if (!fs.existsSync(stateRoot(root))) issues.push(`缺少 ${REQUIRED_DIR}/`);
@@ -132,9 +135,10 @@ export function validateContinuation(rootValue) {
 }
 
 export function initContinuation(rootValue, { projectId, title } = {}) {
-  const root = projectRoot(rootValue);
+  if (!projectId || !title) throw new Error('init 需要 projectId 和 title');
+  const root = ensureProjectFolders(projectRoot(rootValue));
   const target = stateRoot(root);
-  if (fs.existsSync(target)) throw new Error(`拒绝覆盖已有 ${REQUIRED_DIR}/`);
+  if (REQUIRED_FILES.some(name => fs.existsSync(path.join(target, name)))) throw new Error(`拒绝覆盖已有 ${REQUIRED_DIR}/`);
   if (!projectId || !title) throw new Error('init 需要 projectId 和 title');
   fs.mkdirSync(target, { recursive: true });
   for (const name of REQUIRED_FILES) {
@@ -231,7 +235,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToP
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     } else if (command === 'route-verify') {
       const lockPath = path.join(root, REQUIRED_DIR, 'route-lock.json');
-      if (!fs.existsSync(lockPath)) throw new Error('缺少 .rp-card/route-lock.json；写入制品前必须先锁定当前阶段路由');
+      if (!fs.existsSync(lockPath)) throw new Error('缺少 制作文件/项目记录/route-lock.json；写入制品前必须先锁定当前阶段路由');
       const lock = JSON.parse(read(lockPath));
       const result = validateRouteLock(lock, option('--agent-root') || ROOT, option('--stage') || lock.stage);
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);

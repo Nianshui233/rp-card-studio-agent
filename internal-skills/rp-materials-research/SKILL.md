@@ -19,7 +19,7 @@ description: "Process any user-provided source material for RP card preparation 
 - 用户粘贴一段文字、一个章节、笔记、设定、对白或研究摘录；
 - 用户提供本地文件、旧卡、世界书、脚本、网页摘录或图片参考；
 - 用户要求基于某份材料创作、改写、转换、审查或制卡；
-- 续接项目的 `.rp-card/materials.json` 表示存在未处理或待校准材料。
+- 续接项目的 `制作文件/项目记录/materials.json` 表示存在未处理或待校准材料。
 
 资料只有在不存在时才跳过；不能因为资料很短、只有一个文件或只有一段文字而跳过。
 
@@ -115,9 +115,9 @@ description: "Process any user-provided source material for RP card preparation 
 
 更新项目：
 
-- `.rp-card/authority.md`：材料处理状态、研究状态、作品/版本、网络政策、当前范围和下一道门；
-- `.rp-card/materials.json`：来源、提取事实、研究问题、冲突、整理结果和来源指针；
-- `.rp-card/NEXT.md`：下一次从哪份资料、哪个研究问题或哪个校准事项继续；
+- `制作文件/项目记录/authority.md`：材料处理状态、研究状态、作品/版本、网络政策、当前范围和下一道门；
+- `制作文件/项目记录/materials.json`：来源、提取事实、研究问题、冲突、整理结果和来源指针；
+- `制作文件/项目记录/NEXT.md`：下一次从哪份资料、哪个研究问题或哪个校准事项继续；
 - 当前对话进度画板：显示资料整理完成项、研究进行中、待确认、暂缓、阻断和下一道门。
 
 保存来源和状态，不保存完整聊天记录。原始用户文件保持原样；整理文本是派生结果，不能反过来覆盖原始材料。

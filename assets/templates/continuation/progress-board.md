@@ -36,4 +36,4 @@
 - ⇒ <下一步>
 ```
 
-画板状态来源于 `.rp-card/authority.md`、`.rp-card/NEXT.md`、`.rp-card/acceptance.json` 和当前对话刚完成的动作。它是对话中的实时投影，不是新的项目正典。
+画板状态来源于 `制作文件/项目记录/authority.md`、`制作文件/项目记录/NEXT.md`、`制作文件/项目记录/acceptance.json` 和当前对话刚完成的动作。它是对话中的实时投影，不是新的项目正典。

@@ -5,14 +5,15 @@
   "status": "draft",
   "activeStage": null,
   "source": {
-    "canonicalRoot": "创作源",
+    "canonicalRoot": "制作文件/创作源",
     "userEvidenceRequired": true,
     "referenceOnlySamples": true
   },
   "delivery": {
-    "manifest": "导入：项目名/manifest.json",
+    "manifest": "制作文件/项目记录/交付清单.json",
     "activeRoute": null,
-    "runtimeHost": "sillytavern"
+    "runtimeHost": "sillytavern",
+    "directory": "导入包"
   },
   "interviews": {},
   "mvu": {

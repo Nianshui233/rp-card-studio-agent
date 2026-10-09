@@ -5,7 +5,7 @@ description: "Private final QA and delivery module for cross-stage RP consistenc
 
 # SillyTavern Final QA and Delivery
 
-只接受主 Agent 调度。读取项目 `.rp-card/authority.md`、`.rp-card/NEXT.md`、`.rp-card/materials.json` 和 `.rp-card/acceptance.json`，再按实际组件选择性读取：
+只接受主 Agent 调度。读取项目 `制作文件/项目记录/authority.md`、`制作文件/项目记录/NEXT.md`、`制作文件/项目记录/materials.json` 和 `制作文件/项目记录/acceptance.json`，再按实际组件选择性读取：
 
 - 常规最终检查：`references/validation.md`；
 - SillyTavern 导入与宿主验收：`references/integration.md`。
@@ -18,7 +18,7 @@ description: "Private final QA and delivery module for cross-stage RP consistenc
 - 检查世界核心、用户主控资料、固定主控预设和当前活动主控是否分层；
 - 检查开场和消息前端是否从作品体验与真实玩法出发，而不是退化成通用表单或变量 Dashboard；
 - 将最终文件直接整理到交付目录，只包含项目实际使用的组件；
-- 将每项 QA 结果、证据、环境、限制和下一道门写入 `.rp-card/acceptance.json`，同步更新 `.rp-card/NEXT.md`；
+- 将每项 QA 结果、证据、环境、限制和下一道门写入 `制作文件/项目记录/acceptance.json`，同步更新 `制作文件/项目记录/NEXT.md`；
 - 每次 QA 推进后在当前对话刷新进度画板；
 - 未做真实 SillyTavern 测试时在最终报告和 acceptance 中明确写 `runtime: not_run`；静态检查、合同模拟、SillyTavern 源码 CardValidator 或 Regex placement 对照都不能升级为 `runtime_pass`；
 - QA 不保存完整检查过程或重复问题原文，只保存可复核的发现、证据和交接状态。
@@ -84,7 +84,7 @@ description: "Private final QA and delivery module for cross-stage RP consistenc
 - 用户选中的 MVU、mvu.zod、EJS 和交互能力是否全部有实际实现；未实现、阻断或仅静态降级必须明确报告；
 - 交付文件是否残留绝对路径、`src/...`、`source_refs` 或需要用户拼接的本地 CSS/JS。
 
-无法导入、无法运行、数据丢失、明确运行断链或会让核心 RP 合同自相矛盾的问题阻断交付。没有真实宿主证据时，阻断的是“已验收/可直接导入”的声明；可以交付静态检查通过的草稿，但必须显式标注未验收路径与版本边界。纯风格偏好、可选扩写、非承重字段数量和性能建议只作为非阻断说明。
+无法导入、无法运行、数据丢失、明确运行断链或会让核心 RP 合同自相矛盾的问题阻断交付。没有真实宿主证据时，阻断的是“已制作文件/检查/证据/可直接导入”的声明；可以交付静态检查通过的草稿，但必须显式标注未验收路径与版本边界。纯风格偏好、可选扩写、非承重字段数量和性能建议只作为非阻断说明。
 
 ## 交付
 

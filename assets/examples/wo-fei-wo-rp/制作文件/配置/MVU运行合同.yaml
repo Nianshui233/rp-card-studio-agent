@@ -12,7 +12,7 @@ mvu:
     script_name: "MVU变量框架"
   zod:
     enabled: true
-    source: "配置/MVU/schema.js"
+    source: "制作文件/运行源码/MVU/schema.js"
     script_name: "我，非我ZOD"
     provider_url: "https://testingcf.jsdelivr.net/gh/StageDog/tavern_resource@523b1f0d82d3debbc2435ec35530f02e8d388219/dist/util/mvu_zod.js"
   required_worldbook_entries:

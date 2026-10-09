@@ -1,3 +1,4 @@
+import { WORK_DIR, requireArea } from '../project-layout.mjs';
 import { validateMvuZodSourceContract } from '../mvu/validate-mvu-zod-source-contract.mjs';
 import { readProject } from '../mvu/mvu-source-tools.mjs';
 import { REQUIRED_MVU_COMPONENTS } from './production-manifest.mjs';
@@ -10,7 +11,7 @@ export async function validateMvuCompleteness(mvu, { root = null } = {}) {
   for (const component of REQUIRED_MVU_COMPONENTS) {
     const item = mvu.components?.[component];
     if (!item?.path) { issues.push('MVU 缺少组件：' + component); continue; }
-    try { if (!readProject(root, item.path).toString('utf8').trim()) throw new Error('空文件'); }
+    try { requireArea(item.path, WORK_DIR, '制作组件 ' + component); if (!readProject(root, item.path).toString('utf8').trim()) throw new Error('空文件'); }
     catch (error) { issues.push('MVU 组件无法读取：' + component + '：' + error.message); }
   }
   let sourceResult;

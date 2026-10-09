@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { normalizeRegexDocument, validateRegexDocument } from './regex/validate-tavern-regex.mjs';
 import { runFixtures } from './regex/run-regex-fixtures.mjs';
 import { parseMvuContract, validateMvuPackage } from './mvu/validate-mvu-package.mjs';
+import { validateDeliveryLayout } from './delivery/project-package.mjs';
 import { validateMvuZodSourceContract } from './mvu/validate-mvu-zod-source-contract.mjs';
 import { readJson, readProject, projectPath } from './mvu/mvu-source-tools.mjs';
 import { validateEjsPackage } from './ejs/validate-ejs-package.mjs';
@@ -258,6 +259,7 @@ async function runCli() {
   }
   const report = validateRolecardPackage(input);
   if (sourceResult) {
+    for (const issue of validateDeliveryLayout(root).issues) report.issues.push('交付目录: ' + issue);
     for (const issue of sourceResult.issues) report.issues.push('MVU source: ' + issue);
     for (const [label, supplied, bound] of [['角色卡', cardRelative, sourceContract.paths.cardArtifact], ['世界书', worldbookPath, sourceContract.paths.worldbookArtifact], ['ScriptFolder', scriptFolderPath, sourceContract.paths.importArtifact], ['正则', regexPath, sourceContract.paths.regexArtifact], ['运行合同', mvuContractPath, sourceContract.paths.runtimeContract]]) {
       if (!supplied || !readProject(root, supplied).equals(readProject(root, bound))) report.issues.push('当前包级检查的 ' + label + ' 与 sourceContract 精确制品不一致');

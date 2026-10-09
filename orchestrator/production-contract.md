@@ -22,16 +22,9 @@
 
 每个需要运行组件的项目必须有：
 
-```text
-.rp-card/production.json
-创作源/
-配置/
-验收/
-导入：项目名/manifest.json
-fixtures/
-```
+作品根只有导入包与制作文件；production.json 固定在制作文件/项目记录/production.json，canonical 源在制作文件/创作源，交付清单在制作文件/项目记录/交付清单.json，成品平铺在导入包。其他配置、构建和检查文件按实际需要放在制作文件内。目录定义及最终检查见 project-layout.md。
 
-`.rp-card/production.json` 只保存生产状态、组件门禁、诊断证据和交付指针；RP 内容仍以 `创作源/` canonical 为权威。
+`制作文件/项目记录/production.json` 只保存生产状态、组件门禁、诊断证据和交付指针；RP 内容仍以 `制作文件/创作源/` canonical 为权威。
 
 ## 访谈完整性与深度
 

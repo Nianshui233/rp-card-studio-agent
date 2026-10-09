@@ -44,7 +44,7 @@ MVU 是否启用是用户可以明确选择的运行能力，不得因为执行 
 ## 输出
 
 - 唯一状态合同：根、路径、类型、初值、范围、空态、作用域、读写者、变化事件、保存和旧聊天处理；
-- `native_schema` 或 `mvu_zod` 路线选择，并写入实际项目的 `配置/MVU运行合同.yaml`；
+- `native_schema` 或 `mvu_zod` 路线选择，并写入实际项目的 `制作文件/配置/MVU运行合同.yaml`；
 - `[initvar]` / Greeting `<initvar>`、更新规则、回复输出格式；初始化策略必须明确是 worldbook 基线还是 Greeting 初态；
 - 必要的 Loader、Schema/注册脚本、Tavern Helper 运行脚本；`mvu_zod` 缺 ZOD 脚本时阻断，不得静默降级为 native；
 - 明确数值楼层、完整 MvuData 写入、保存与同面读回；任何 Tavern Helper 直接写入脚本都必须列入运行合同的 `producers.direct_scripts`，不能把 UI 写入藏在消费者里；

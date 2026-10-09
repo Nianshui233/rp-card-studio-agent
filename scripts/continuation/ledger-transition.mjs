@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { STATE_DIR, validateProjectLayout, resolveProjectPath } from '../project-layout.mjs';
 import path from 'node:path';
 import { STAGES, validateStageLedger } from './stage-ledger.mjs';
 import { classifyUserReply, isBareContinue } from './user-intent.mjs';
@@ -86,9 +87,10 @@ export function validateTransitionResult(ledger, currentStage) {
 
 function readProjectState(projectRoot) {
   const root = path.resolve(projectRoot);
-  const authorityPath = path.join(root, '.rp-card', 'authority.md');
-  const nextPath = path.join(root, '.rp-card', 'NEXT.md');
-  if (!fs.existsSync(authorityPath) || !fs.existsSync(nextPath)) throw new Error('缺少 .rp-card/authority.md 或 .rp-card/NEXT.md');
+  const layout = validateProjectLayout(root); if (!layout.ok) throw new Error(layout.issues.join('\n'));
+  const authorityPath = resolveProjectPath(root, STATE_DIR + '/authority.md');
+  const nextPath = path.join(root, '制作文件/项目记录', 'NEXT.md');
+  if (!fs.existsSync(authorityPath) || !fs.existsSync(nextPath)) throw new Error('缺少 制作文件/项目记录/authority.md 或 制作文件/项目记录/NEXT.md');
   const authority = fs.readFileSync(authorityPath, 'utf8');
   const next = fs.readFileSync(nextPath, 'utf8');
   const currentStage = authority.match(/^current_stage:\s*([^\r\n]+)$/m)?.[1]?.replace(/[`'"\s]/g, '');

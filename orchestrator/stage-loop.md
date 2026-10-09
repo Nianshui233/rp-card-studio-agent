@@ -1,6 +1,6 @@
 # 固定创作阶段状态机
 
-状态机由 `rp-project-continuation` 维护项目权威，并在当前对话展示实时进度画板。`.rp-card/authority.md` 保存已确认、待决定、暂缓和风险；`.rp-card/NEXT.md` 保存当前续接指针；材料与验收分别进入对应 JSON 文件。它们不保存完整聊天过程，也不进入最终导入包。所有需用户做创作决定的阶段都按 routing 加载 `rp-interview-orchestration`；共用原则见 `orchestrator/interview-playbook.md`，逐阶段触发项见 `internal-skills/rp-interview-orchestration/references/stage-coverage.json`。
+状态机由 `rp-project-continuation` 维护项目权威，并在当前对话展示实时进度画板。`制作文件/项目记录/authority.md` 保存已确认、待决定、暂缓和风险；`制作文件/项目记录/NEXT.md` 保存当前续接指针；材料与验收分别进入对应 JSON 文件。它们不保存完整聊天过程，也不进入最终导入包。所有需用户做创作决定的阶段都按 routing 加载 `rp-interview-orchestration`；共用原则见 `orchestrator/interview-playbook.md`，逐阶段触发项见 `internal-skills/rp-interview-orchestration/references/stage-coverage.json`。
 
 ## 阶段授权与交接
 
@@ -77,7 +77,7 @@ MVU、MVU_ZOD、EJS 分别维护 `enabled`、`disabled`、`unresolved`；用户�
 - 只有零散画面、互相冲突的方向或整体重构需求时建议启用；已有清晰企划、定向修改、纯审查或纯技术任务时建议跳过。
 - 启用后先加载 `rp-concept-brainstorm`，允许用户直接倾倒未经整理的灵感。第一轮必须先展示暂定整合方向，再询问少量承重选择，不以长问卷或专业字段开场。
 - 每次用户回答后立即改写母纲、补出可玩动力或写场景证明；用户只对明确授权范围放权时，直接决定并完成该范围；仍未关闭的高影响项继续逐项追问。
-- 母纲内容写入项目权威的当前范围和创作事实；需要完整参考文本时保存 `创作源/创作总纲.md`。authority 只记录确认状态、待决定、当前阶段和下一道门，不保存完整问答历史。
+- 母纲内容写入项目权威的当前范围和创作事实；需要完整参考文本时保存 `制作文件/创作源/创作总纲.md`。authority 只记录确认状态、待决定、当前阶段和下一道门，不保存完整问答历史。
 - 脑暴足以支撑下游时进入 `positioning`。定位直接继承核心体验、世界动力、关系张力、典型循环与防偏移边界，只补真实缺口，不重复从零发问。
 
 ## 阶段内部循环
@@ -127,13 +127,13 @@ MVU、MVU_ZOD、EJS 分别维护 `enabled`、`disabled`、`unresolved`；用户�
 
 - 新建完整项目在预检检测到用户资料或外部研究需求时先进入 `materials`，否则跳过该阶段；脑暴是否启用再按预检决定。
 - 旧卡修改、审查或转换在 `materials` 中先保留原始副本、整理来源并盘点组件，再进入定位。
-- 继续项目时读取 `.rp-card/authority.md`、`.rp-card/NEXT.md`、材料索引、验收记录、现有文件和 Git/worktree，先检查材料处理/研究状态，再判断当前尚未完成的最早相关阶段；不重新询问已经确认的设置。
+- 继续项目时读取 `制作文件/项目记录/authority.md`、`制作文件/项目记录/NEXT.md`、材料索引、验收记录、现有文件和 Git/worktree，先检查材料处理/研究状态，再判断当前尚未完成的最早相关阶段；不重新询问已经确认的设置。
 - 用户明确只修改某个组件、只审查或只处理 UI 时，可以直接进入该组件所属阶段；完成后更新受影响的权威、验收和 NEXT，只执行相关 QA 与交付，不强迫补做无关阶段。
 - 后续实现发现前置内容确实不足时，临时返回拥有该内容的阶段，补完后回到原阶段；不重跑其他已完成内容。
 
 ## 玩家中立性与主控切换 QA
 
-在进入 QA 与交付前，至少执行以下内容检查，并将结果、证据或待实测状态写入 `.rp-card/acceptance.json`；当前对话同步展示画板：
+在进入 QA 与交付前，至少执行以下内容检查，并将结果、证据或待实测状态写入 `制作文件/项目记录/acceptance.json`；当前对话同步展示画板：
 
 1. **无主控测试**：不加载任何 `<user>` 或主控资料时，世界、NPC、势力和场景仍能运行并产生后果；
 2. **关系切换测试**：准备“主控 A 是 NPC 朋友、主控 B 是 NPC 仇人”，切换 A→B，确认当前关系、提示、状态栏和剧情均跟随 B；

@@ -1,0 +1,56 @@
+{
+  "schema": "rp-card-studio/active-route/v1",
+  "activeRoute": "current",
+  "routes": {
+    "current": {
+      "status": "active",
+      "components": {
+        "card": {
+          "path": "我，非我.角色卡.json",
+          "kind": "character_card",
+          "layer": "creative"
+        },
+        "worldbook": {
+          "path": "我，非我.世界书.json",
+          "kind": "worldbook",
+          "layer": "creative"
+        },
+        "regex": {
+          "path": "我，非我.正则.json",
+          "kind": "regex",
+          "layer": "runtime"
+        },
+        "helper": {
+          "path": "我，非我.酒馆助手脚本.json",
+          "kind": "helper_script",
+          "layer": "runtime"
+        }
+      }
+    }
+  },
+  "components": {
+    "card": {
+      "path": "我，非我.角色卡.json",
+      "kind": "character_card",
+      "layer": "creative"
+    },
+    "worldbook": {
+      "path": "我，非我.世界书.json",
+      "kind": "worldbook",
+      "layer": "creative"
+    },
+    "regex": {
+      "path": "我，非我.正则.json",
+      "kind": "regex",
+      "layer": "runtime"
+    },
+    "helper": {
+      "path": "我，非我.酒馆助手脚本.json",
+      "kind": "helper_script",
+      "layer": "runtime"
+    }
+  },
+  "runtime": {
+    "status": "not_run"
+  }
+}

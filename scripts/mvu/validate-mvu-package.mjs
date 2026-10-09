@@ -326,7 +326,7 @@ export function validateMvuPackage(input, options = {}) {
   if (!['none', 'native_schema', 'mvu_zod'].includes(mode)) issues.push(`未知 MVU mode: ${mode}`);
   if (mode === 'none') return { ok: issues.length === 0, issues, warnings, mode, initStrategy: 'not_applicable' };
   const contract = input.mvuContract || null;
-  if (!contract) issues.push('MVU 项目缺少 配置/MVU运行合同.yaml');
+  if (!contract) issues.push('MVU 项目缺少 制作文件/配置/MVU运行合同.yaml');
   if (contract?.mode && contract.mode !== mode) issues.push(`MVU运行合同 mode=${contract.mode} 与验证 mode=${mode} 不一致`);
   if (contract?.init_strategy && initStrategy !== 'auto' && contract.init_strategy !== initStrategy) issues.push(`MVU运行合同 init_strategy=${contract.init_strategy} 与验证参数 ${initStrategy} 不一致`);
   if (contract?.update_dialect && expectedDialect && contract.update_dialect !== expectedDialect) issues.push(`MVU运行合同 update_dialect=${contract.update_dialect} 与验证参数 ${expectedDialect} 不一致`);

@@ -56,8 +56,8 @@ test('fake runtime pass flags/evidence names cannot satisfy host evidence gate',
   const f = await createSourceFixture(t); f.contract.runtime = { status: 'pass', evidence: ['loader_registered', 'schema_registered', 'message_readback'] }; await bad(f, /运行记录/);
 });
 test('runtime record must belong to exact import artifact and evidence hashes', async t => {
-  const f = await createSourceFixture(t); f.write('验收/runtime.json', { artifactHash: '0'.repeat(64), host: { kind: 'sillytavern' } });
-  f.contract.runtime = { status: 'pass', recordPath: '验收/runtime.json', recordHash: hash(f.read('验收/runtime.json')) }; await bad(f, /精确导入制品/);
+  const f = await createSourceFixture(t); f.write('制作文件/检查/证据/runtime.json', { artifactHash: '0'.repeat(64), host: { kind: 'sillytavern' } });
+  f.contract.runtime = { status: 'pass', recordPath: '制作文件/检查/证据/runtime.json', recordHash: hash(f.read('制作文件/检查/证据/runtime.json')) }; await bad(f, /精确导入制品/);
 });
 test('tutorial Loader is allowed without inventing a mandatory commit/CDN failure', async t => {
   const f = await createSourceFixture(t); assert.equal((await check(f)).ok, true);
@@ -69,12 +69,13 @@ test('readiness-created factory is evaluated using real Zod', async t => {
   await buildMvuZodProject(f.contract, { root: f.root }); const r = await check(f); assert.equal(r.ok, true, r.issues.join('\n'));
 });
 test('broken registration syntax and source-overwrite paths stop a build', async t => {
-  const f = await createSourceFixture(t); f.contract.paths.importArtifact = f.contract.paths.schemaSource;
-  await assert.rejects(buildMvuZodProject(f.contract, { root: f.root }), /覆盖源码/);
+  const f = await createSourceFixture(t); const artifactPath = f.contract.paths.importArtifact; f.contract.paths.importArtifact = f.contract.paths.schemaSource;
+  await assert.rejects(buildMvuZodProject(f.contract, { root: f.root }), /覆盖源码|必须位于 导入包/);
+  f.contract.paths.importArtifact = artifactPath;
   f.write(f.contract.paths.registrationSource, 'const ='); await bad(f, /Expected|Unexpected/);
 });
 test('full Greeting overrides are validated independently through Schema', async t => {
-  const f = await createSourceFixture(t); f.write('创作源/开局2.yaml', '世界:\n  模式: 无效'); f.contract.greetings = [{ kind: 'full', path: '创作源/开局2.yaml' }]; await bad(f, /greeting/);
+  const f = await createSourceFixture(t); f.write('制作文件/运行源码/开局2.yaml', '世界:\n  模式: 无效'); f.contract.greetings = [{ kind: 'full', path: '制作文件/运行源码/开局2.yaml' }]; await bad(f, /greeting/);
 });
 test('normal CLI builds and validates actual project; no host success claim', async t => {
   const f = await createSourceFixture(t); const cli = path.join(import.meta.dirname, 'mvu-zod-project.mjs');
@@ -92,10 +93,10 @@ test('current list cannot be narrative-only and final Greeting overrides cannot 
 });
 
 test('auxiliary local schema dependencies are hashed, not just the entry source', async t => {
-  const f = await createSourceFixture(t); f.write('创作源/time.ts', 'export const initialTime = 0;');
+  const f = await createSourceFixture(t); f.write('制作文件/运行源码/time.ts', 'export const initialTime = 0;');
   f.write(f.contract.paths.schemaSource, "import { initialTime } from './time';\n" + f.read(f.contract.paths.schemaSource).replace('prefault(0)', 'prefault(initialTime)'));
   await buildMvuZodProject(f.contract, { root: f.root }); assert.equal((await check(f)).ok, true);
-  f.write('创作源/time.ts', 'export const initialTime = 2;'); await bad(f, /hashes|漂移/);
+  f.write('制作文件/运行源码/time.ts', 'export const initialTime = 2;'); await bad(f, /hashes|漂移/);
 });
 test('cannot mark rolling branch refs as pinned', async t => {
   const f = await createSourceFixture(t); f.contract.providers.versionPolicy = 'pinned';
@@ -104,14 +105,14 @@ test('cannot mark rolling branch refs as pinned', async t => {
 });
 test('runtime binding includes worldbook/card inputs, not just an unchanged ScriptFolder', async t => {
   const f = await createSourceFixture(t); const build = JSON.parse(f.read(f.contract.paths.buildRecord));
-  f.write('验收/runtime.json', { artifactHash: build.artifactHash, sourceHashes: {} });
-  f.contract.runtime = { status: 'pass', recordPath: '验收/runtime.json', recordHash: hash(f.read('验收/runtime.json')) };
+  f.write('制作文件/检查/证据/runtime.json', { artifactHash: build.artifactHash, sourceHashes: {} });
+  f.contract.runtime = { status: 'pass', recordPath: '制作文件/检查/证据/runtime.json', recordHash: hash(f.read('制作文件/检查/证据/runtime.json')) };
   await bad(f, /输入已经变化/);
 });
 test('package CLI binds the exact requested card, worldbook and ScriptFolder', async t => {
-  const f = await createSourceFixture(t); f.write('导入/不同角色卡.json', { data: { first_mes: '不同开局' } });
+  const f = await createSourceFixture(t); f.write('导入包/不同角色卡.json', { data: { first_mes: '不同开局' } });
   const cli = path.join(import.meta.dirname, '..', 'validate-rolecard-package.mjs');
-  const result = spawnSync(process.execPath, [cli, '--root', f.root, '--card', '导入/不同角色卡.json', '--worldbook', f.contract.paths.worldbookArtifact, '--script-folder', f.contract.paths.importArtifact, '--mvu-source-contract', '.rp-card/mvu-source-contract.json'], { encoding: 'utf8', windowsHide: true });
+  const result = spawnSync(process.execPath, [cli, '--root', f.root, '--card', '导入包/不同角色卡.json', '--worldbook', f.contract.paths.worldbookArtifact, '--script-folder', f.contract.paths.importArtifact, '--mvu-source-contract', '制作文件/项目记录/mvu-source-contract.json'], { encoding: 'utf8', windowsHide: true });
   assert.equal(result.status, 1); assert.match(result.stdout + result.stderr, /角色卡 与 sourceContract 精确制品不一致/);
 });
 
@@ -138,7 +139,7 @@ test('prompt responsibilities can merge without requiring fixed entry names', as
 
 test('package CLI automatically reuses validated canonical paths and passes a matching static package', async t => {
   const f = await createSourceFixture(t); const cli = path.join(import.meta.dirname, '..', 'validate-rolecard-package.mjs');
-  const result = spawnSync(process.execPath, [cli, '--root', f.root, '--card', f.contract.paths.cardArtifact, '--mvu-source-contract', '.rp-card/mvu-source-contract.json'], { encoding: 'utf8', windowsHide: true });
+  const result = spawnSync(process.execPath, [cli, '--root', f.root, '--card', f.contract.paths.cardArtifact, '--mvu-source-contract', '制作文件/项目记录/mvu-source-contract.json'], { encoding: 'utf8', windowsHide: true });
   assert.equal(result.status, 0, result.stdout + result.stderr); assert.match(result.stdout, /static package checks passed/); assert.match(result.stdout, /does not perform SillyTavern/);
 });
 

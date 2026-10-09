@@ -1,4 +1,6 @@
 import fs from 'node:fs';
+import { STATE_DIR, resolveProjectPath } from '../project-layout.mjs';
+import { validateDeliveryLayout } from '../delivery/project-package.mjs';
 import path from 'node:path';
 import { initProductionProject, validateProductionManifest } from './production-manifest.mjs';
 import { validateInterviewGate } from './interview-gate.mjs';
@@ -10,8 +12,8 @@ import { validateDiagnosticEvents, validateReportClaim } from './diagnostic-evid
 
 function option(name) { const index = process.argv.indexOf(name); return index >= 0 ? process.argv[index + 1] : undefined; }
 function readProject(root) {
-  const file = path.join(root, '.rp-card', 'production.json');
-  if (!fs.existsSync(file)) throw new Error('缺少 .rp-card/production.json；请先运行 production-check.mjs init');
+  const file = resolveProjectPath(root, STATE_DIR + '/production.json');
+  if (!fs.existsSync(file)) throw new Error('缺少 制作文件/项目记录/production.json；请先运行 production-check.mjs init');
   return { file, manifest: JSON.parse(fs.readFileSync(file, 'utf8')) };
 }
 
@@ -25,6 +27,7 @@ try {
     const { manifest } = readProject(root);
     const checks = [
       validateProductionManifest(manifest, { root }),
+      validateDeliveryLayout(root, { requireManifest: ['awaiting_review','runtime_verified','accepted'].includes(manifest.status) && manifest.activeStage === 'qa_delivery' }),
       await validateMvuCompleteness(manifest.mvu, { root }),
       validateEjsCompleteness(manifest.ejs),
       ...(['implementation','awaiting_review','runtime_verified','accepted'].includes(manifest.status) && ['opening_frontend','message_frontend'].includes(manifest.activeStage) ? [validateFrontendManifest(manifest.frontend, { activeStage: manifest.activeStage })] : []),

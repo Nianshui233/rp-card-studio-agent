@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { HOST_PLACEMENT_VALUES, validateRegexDocument } from './regex/validate-tavern-regex.mjs';
 import { runFixtures } from './regex/run-regex-fixtures.mjs';
+import { validateDeliveryLayout } from './delivery/project-package.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const examples = path.join(root, 'assets', 'examples');
@@ -46,7 +47,7 @@ for (const file of walk(examples)) {
       if (match[1].trim()) checkJavaScript(`${relative} inline script ${index + 1}`, match[1]);
     }
   }
-  if (path.basename(file).toLowerCase() === 'regex.json') {
+  if (path.basename(file).toLowerCase() === '我，非我.正则.json') {
     try {
       const regexDocument = JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
       const validation = validateRegexDocument(regexDocument);
@@ -54,8 +55,8 @@ for (const file of walk(examples)) {
       for (const result of validation.results.filter(item => item.issues.length)) {
         fail(`${relative} / ${result.name}`, result.issues.map(issue => issue.message).join('; '));
       }
-      const fixtureFile = path.join(path.dirname(file), 'regex.fixtures.json');
-      if (!fs.existsSync(fixtureFile)) fail(relative, '缺少同目录 regex.fixtures.json');
+      const fixtureFile = path.join(path.dirname(file), '..', '制作文件', '检查', 'regex.fixtures.json');
+      if (!fs.existsSync(fixtureFile)) fail(relative, '缺少制作文件/检查/regex.fixtures.json');
       else {
         const fixtures = JSON.parse(fs.readFileSync(fixtureFile, 'utf8').replace(/^\uFEFF/, ''));
         const report = runFixtures(regexDocument, fixtures);
@@ -87,21 +88,22 @@ for (const [relative, args] of [
   ['scripts/continuation/continuation.test.mjs', ['--test', 'scripts/continuation/continuation.test.mjs']],
   ['tests/continuation-contract.test.mjs', ['--test', 'tests/continuation-contract.test.mjs']],
   ['tests/artifact-purity-contract.test.mjs', ['--test', 'tests/artifact-purity-contract.test.mjs']],
+  ['scripts/delivery/project-package.test.mjs', ['--test', 'scripts/delivery/project-package.test.mjs']],
   ['tests/project-structure-contract.test.mjs', ['--test', 'tests/project-structure-contract.test.mjs']],
   ['scripts/worldbook/split-yaml-lossless.test.mjs', ['--test', 'scripts/worldbook/split-yaml-lossless.test.mjs']],
   ['tests/mvu-zod-contract.test.mjs', ['--test', 'tests/mvu-zod-contract.test.mjs']],
   ['wo-fei-wo-rp delivery package', [
     'scripts/validate-rolecard-package.mjs',
     '--root', 'assets/examples/wo-fei-wo-rp',
-    '--card', '我，非我.重构版.json',
-    '--worldbook', '我，非我.世界书.json',
+    '--card', '导入包/我，非我.角色卡.json',
+    '--worldbook', '导入包/我，非我.世界书.json',
     '--worldbook-name', '我，非我',
-    '--regex', 'regex.json',
+    '--regex', '导入包/我，非我.正则.json',
     '--regex-mode', 'alternative',
-    '--fixtures', 'regex.fixtures.json',
-    '--script-folder', '运行脚本.folder.json',
-    '--mvu-source-contract', 'MVU源码合同.json',
-    '--mvu-contract', 'MVU运行合同.yaml',
+    '--fixtures', '制作文件/检查/regex.fixtures.json',
+    '--script-folder', '导入包/我，非我.酒馆助手脚本.json',
+    '--mvu-source-contract', '制作文件/项目记录/MVU源码合同.json',
+    '--mvu-contract', '制作文件/配置/MVU运行合同.yaml',
     '--mvu-mode', 'mvu_zod',
     '--mvu-init-strategy', 'worldbook',
     ...(hostRoot ? ['--host-root', hostRoot] : []),
@@ -116,18 +118,19 @@ for (const [relative, args] of [
 
 try {
   const sample = path.join(examples, 'wo-fei-wo-rp');
-  const card = JSON.parse(fs.readFileSync(path.join(sample, '我，非我.重构版.json'), 'utf8'));
-  const regex = JSON.parse(fs.readFileSync(path.join(sample, 'regex.json'), 'utf8'));
-  const worldbook = JSON.parse(fs.readFileSync(path.join(sample, '我，非我.世界书.json'), 'utf8'));
-  const folder = JSON.parse(fs.readFileSync(path.join(sample, '运行脚本.folder.json'), 'utf8'));
-  const guide = fs.readFileSync(path.join(sample, 'AGENT_GUIDE.md'), 'utf8');
-  const readme = fs.readFileSync(path.join(sample, 'README.md'), 'utf8');
+  const card = JSON.parse(fs.readFileSync(path.join(sample, '导入包/我，非我.角色卡.json'), 'utf8'));
+  const regex = JSON.parse(fs.readFileSync(path.join(sample, '导入包/我，非我.正则.json'), 'utf8'));
+  const worldbook = JSON.parse(fs.readFileSync(path.join(sample, '导入包/我，非我.世界书.json'), 'utf8'));
+  const folder = JSON.parse(fs.readFileSync(path.join(sample, '导入包/我，非我.酒馆助手脚本.json'), 'utf8'));
+  const guide = fs.readFileSync(path.join(sample, '制作文件/AGENT_GUIDE.md'), 'utf8');
+  const readme = fs.readFileSync(path.join(sample, '制作文件/README.md'), 'utf8');
+  const layout = validateDeliveryLayout(sample, { requireManifest: true }); if (!layout.ok) fail('wo-fei-wo-rp layout', layout.issues.join('; '));
   if (card.spec !== 'chara_card_v3') fail('wo-fei-wo-rp package', '角色卡必须是 V3');
   if (!card.data?.extensions?.world || !Object.keys(worldbook.entries || {}).length) fail('wo-fei-wo-rp package', '角色卡主世界书绑定或世界书条目缺失');
   if (Object.hasOwn(card.data?.extensions || {}, 'regex_scripts')) fail('wo-fei-wo-rp package', '独立 Regex 路线不应保留卡内 regex_scripts 字段');
   if (!Array.isArray(regex) || regex.length === 0) fail('wo-fei-wo-rp package', '独立 regex.json 缺失或为空');
   if (worldbook.name !== card.data.extensions.world) fail('wo-fei-wo-rp package', '角色卡主世界书绑定名与样品世界书名称不一致');
-  if (!fs.existsSync(path.join(sample, '我，非我.世界书.json'))) fail('wo-fei-wo-rp package', '样品世界书文件缺失');
+  if (!fs.existsSync(path.join(sample, '导入包/我，非我.世界书.json'))) fail('wo-fei-wo-rp package', '样品世界书文件缺失');
   const scripts = folder.scripts || [];
   const names = scripts.map(script => script.name);
   if (new Set(names).size !== names.length) fail('wo-fei-wo-rp package', 'ScriptFolder 中存在重复脚本名');

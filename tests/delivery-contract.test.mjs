@@ -3,12 +3,11 @@ import assert from 'node:assert/strict';
 import { validateActiveRouteManifest } from '../scripts/delivery/active-route.mjs';
 import { scanRpFacingFiles } from '../scripts/delivery/artifact-purity-lint.mjs';
 
-test('active route manifest allows one route and keeps superseded files outside delivery', () => {
+test('active route manifest allows only the current route', () => {
   const manifest = {
     schema: 'rp-card-studio/active-route/v1', activeRoute: 'route-2',
     routes: {
-      'route-2': { status: 'active', components: { card: { path: 'card.json', layer: 'creative' } } },
-      'route-1': { status: 'superseded', components: { card: { path: '.internal/history/route-1/card.json' } } }
+      'route-2': { status: 'active', components: { card: { path: 'card.json', layer: 'creative' } } }
     },
     components: { card: 'card.json' }
   };
@@ -27,7 +26,7 @@ test('active route rejects superseded files left in delivery and component drift
   };
   const result = validateActiveRouteManifest(manifest, 'D:/delivery', { requireFiles: false });
   assert.match(result.issues.join('\n'), /components 与 active route/);
-  assert.match(result.issues.join('\n'), /superseded route 仍在交付目录/);
+  assert.match(result.issues.join('\n'), /不保留 superseded/);
 });
 
 test('RP-facing purity lint rejects maintenance pollution but allows clean content', () => {

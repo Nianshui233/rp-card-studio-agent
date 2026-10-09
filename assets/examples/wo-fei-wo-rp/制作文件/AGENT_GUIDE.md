@@ -1,3 +1,5 @@
+> 本样品根目录只有“导入包”和“制作文件”。使用只看导入包；源码、解释和检查材料均在制作文件。
+
 # Agent 样品注释索引：如何读这个完整制品
 
 > 本文件只给 Agent/维护者阅读，不是导入组件，也不得复制进角色卡、世界书作品条目或玩家可见页面。
@@ -130,7 +132,7 @@ Mvu.getMvuData({ type: 'message', message_id: getCurrentMessageId() })
 
 ## MVU 工程组织与注释说明
 
-本样品只有一份 canonical Schema：`schema.js` 不含注册器；`MVU源/注册入口.js` 负责就绪后注册，`MVU源/加载入口.js` 保留原有 Loader。`MVU源码合同.json` 绑定实际代码、01～04 变量源、世界书、角色卡、正则及项目 Schema fixture；`MVU构建/` 只有当前构建结果，不是另一条路线或备份。ScriptFolder 由源码构建，保持既有 ID、名称与按钮元数据。
+本样品只有一份 canonical Schema：`制作文件/运行源码/MVU/schema.js` 不含注册器；`制作文件/运行源码/MVU/注册入口.js` 负责就绪后注册，`制作文件/运行源码/MVU/加载入口.js` 保留原有 Loader。`制作文件/项目记录/MVU源码合同.json` 绑定实际代码、01～04 变量源、世界书、角色卡、正则及项目 Schema fixture；`制作文件/构建/MVU/` 只有当前构建结果，不是另一条路线或备份。ScriptFolder 由源码构建，保持既有 ID、名称与按钮元数据。
 
 变量源现在与实际条目正文逐字一致，工程解释集中在本指南，不将注释说明发送到模型的 RP 上下文。各变量源的用途说明如下：
 
@@ -158,8 +160,8 @@ Record 动态键与 Array 下标的规则必须与 Schema 和更新方言一致�
 从 Agent 根目录执行：
 
 ```powershell
-node scripts/mvu/mvu-zod-project.mjs build --root "assets/examples/wo-fei-wo-rp" --contract "MVU源码合同.json" --out "MVU构建"
-node scripts/mvu/mvu-zod-project.mjs validate --root "assets/examples/wo-fei-wo-rp" --contract "MVU源码合同.json"
+node scripts/mvu/mvu-zod-project.mjs build --root "assets/examples/wo-fei-wo-rp" --contract "制作文件/项目记录/MVU源码合同.json" --out "制作文件/构建/MVU"
+node scripts/mvu/mvu-zod-project.mjs validate --root "assets/examples/wo-fei-wo-rp" --contract "制作文件/项目记录/MVU源码合同.json"
 ```
 
 实际 YAML 和样品 Schema 已用于离线 fixture（初态、数字字符串/范围归一化、非法枚举）；每次检查重新构建并对比最终 ScriptFolder。JSON Schema 只是结构辅助，不替代真实 transform 执行。这里不声称完成新版精确制品的酒馆导入/保存验收：runtime 保持 not_run。不要复制这些字段到别的作品；复制的是责任边界与校验方法。

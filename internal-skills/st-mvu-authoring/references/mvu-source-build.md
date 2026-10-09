@@ -14,8 +14,8 @@
 - 注册入口：导入 Schema/工厂和 registerMvuSchema，在宿主就绪后注册。
 - loader.js：单个已验证静态 import。tutorial_default 明确允许教程滚动地址，不冒称已锁版本；pinned 才要求固定 tag/commit。
 - initvar.yaml：完整基线；变量列表、更新规则、路径索引、输出格式使用真实 canonical 文本。
-- fixtures/schema.json：数组，每项 name/input/expected（accept 或 reject）；对 default/coerce/transform 再写 output，校验实际规范化结果而非只有通过与否。
-- 配置/MVU运行合同.yaml 与最终正则 JSON：参与源码哈希和包级校验，版本画像、方言、provider 与源码合同一致。
+- 制作文件/检查/用例/schema.json：数组，每项 name/input/expected（accept 或 reject）；对 default/coerce/transform 再写 output，校验实际规范化结果而非只有通过与否。
+- 制作文件/配置/MVU运行合同.yaml 与最终正则 JSON：参与源码哈希和包级校验，版本画像、方言、provider 与源码合同一致。
 - 世界书与角色卡导入 JSON：先通过既有无损打包流程生成；worldbookBindings 将 canonical 组件映射到实际条目。Prompt 职责可在同一条目组合，sources 顺序和 separator 必须与实际正文一致；initvar 数据不与 Prompt 混合。Greeting-only 全量初始化不强制单独世界书基线，但所有实际可游玩 Greeting 必须完整，仍使用 canonical initvar 做初态 fixture。
 
 本构建器输出独立的 Loader + 注册器 ScriptFolder。Loader 默认保留酒馆助手按钮功能；可用 scriptMetadata/folderMetadata 保留已有导出元数据，构建只替换既定 ID 对应的当前代码。它不生成或覆盖其他项目脚本/前端，若目标已有额外脚本就拒绝覆盖，使用专用生成目录。
@@ -31,7 +31,7 @@ node scripts/mvu/mvu-zod-project.mjs validate --root "作品项目目录"
 node scripts/production/production-check.mjs validate --root "作品项目目录"
 ```
 
-可用 --contract 指定项目内合同路径，默认 .rp-card/mvu-source-contract.json；--out 是项目内输出目录，默认 配置/MVU/build。
+可用 --contract 指定项目内合同路径，默认 制作文件/项目记录/mvu-source-contract.json；--out 是项目内输出目录，默认 制作文件/构建/MVU。
 
 构建生成 registration.js、loader.js、schema.json、initvar.normalized.json、指定 ScriptFolder 和真实构建记录。所有路径限制在当前作品项目，拒绝链接逃逸、覆盖源码或输出互相重叠。schema.json 描述输入结构；不可表达的 transform 以实际 Schema fixture 为准，不宣称 JSON Schema 复刻了所有逻辑。
 

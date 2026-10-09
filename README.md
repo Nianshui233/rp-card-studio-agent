@@ -102,17 +102,17 @@ npm run dsh:verify    # 结构检查 + 真实加载检查
 → QA 与交付
 ```
 
-长期项目会在项目目录维护 `.rp-card/`：
+长期项目会在项目目录维护 `制作文件/项目记录/`：
 
 ```text
-.rp-card/
+制作文件/项目记录/
 ├─ authority.md       # 全阶段账本、授权依据、决定来源、运行能力和当前范围
 ├─ NEXT.md            # 当前从哪里继续、下一道门是什么
 ├─ materials.json     # 任意规模原始资料的整理结果、来源、冲突和研究状态
 └─ acceptance.json    # 静态、浏览器、真实 ST 和人工验收证据
 ```
 
-每次真实推进后，当前对话都会刷新一份进度画板，显示：已完成、进行中、待决定、暂缓、阻断/待实测和下一道门。`.rp-card/NEXT.md` 用于跨会话恢复，当前对话画板是它的实时投影。项目状态文件不进入最终 SillyTavern 导入包，也不保存完整聊天记录。
+每次真实推进后，当前对话都会刷新一份进度画板，显示：已完成、进行中、待决定、暂缓、阻断/待实测和下一道门。`制作文件/项目记录/NEXT.md` 用于跨会话恢复，当前对话画板是它的实时投影。项目状态文件不进入最终 SillyTavern 导入包，也不保存完整聊天记录。
 
 阶段账本将制作进度、用户审阅、阶段执行许可和代定授权分开。用户确认必须有原话与定位；“本阶段放权”只在该阶段范围内产生 `delegated` 决定，不改写成用户逐项确认。NEXT 和 routing.next 只指示建议下一步，不能自动授权。
 
@@ -219,3 +219,7 @@ scripts/                 开发、续接和检查脚本
 ## MVU_ZOD 工程校验
 
 先按 `internal-skills/st-mvu-authoring/references/mvu-source-build.md` 建立实际项目合同。工具包根运行 `npm ci` 后，使用 `npm run mvu:build -- --root "作品目录"` 和 `npm run mvu:check -- --root "作品目录"`。离线构建/Schema 校验、真实酒馆运行和用户验收分开，不能相互替代。
+
+## 作品目录
+
+作品项目从制作开始只保留“导入包”和“制作文件”两个顶层文件夹。实际导入成品默认平铺在导入包；原稿、源码、配置、项目记录和检查材料统一留在制作文件。目录合同见 `orchestrator/project-layout.md`。最终整理用 `node scripts/delivery/deliverable-check.mjs layout --root "作品目录" --final` 检查；该布局不重排 Agent 工具包仓库。
