@@ -1,4 +1,5 @@
 import { textHash } from './artifact-bindings.mjs';
+import { inspectLayoutBlocks } from '../frontend/preview-layout.mjs';
 export const DEPTH_RANK = { surface: 1, structured: 2, detailed: 3, runtime: 4 };
 
 export const INTERVIEW_PROFILES = {
@@ -125,6 +126,7 @@ export function validateSurfaceDetails(surfaces, { ledger } = {}) {
   for (const surface of surfaces) {
     if (!surface?.id || ids.has(surface.id)) issues.push('页面 id 缺失或重复'); ids.add(surface?.id);
     for (const name of ['layout','visual','emptyState','failureState']) checkChoice(surface?.[name], surface?.id + '.' + name);
+    issues.push(...inspectLayoutBlocks(surface).issues.map(issue => surface?.id + ': ' + issue));
     for (const [kind, properties] of [['fields', ['source', 'representation']], ['actions', ['trigger', 'outcome', 'failure']]]) {
       const items = surface?.[kind];
       if (!Array.isArray(items)) { issues.push('页面必须明确 ' + kind + '：' + surface?.id); continue; }

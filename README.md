@@ -233,3 +233,16 @@ scripts/                 开发、续接和检查脚本
 ## 世界书调度检查
 
 `npm run worldbook:check -- --root <项目> --contract 制作文件/项目记录/worldbook-routing.json` 将实际条目与职责、激活、位置、深度和角色逐项核对，并回放预期分区。最终 production --final 自动检查全部实际世界书；真实请求未捕获时仍为 not_run。规则与合同结构见 internal-skills/st-worldbook-regex/references/worldbook-routing.md。
+
+## 前端简易预览
+
+前端讨论还会主动提供简易结构草图：直接看到内容位置、标签/折叠、点开详情和操作结果，修改后同步更新；有实际 HTML 时显示当前内容的渲染预览。无需用户自己画，也不把草图当成成品或新增一轮审批。工具入口为 `npm run frontend:preview`；浏览器用例可加 `--preview <用例id>` 生成实际渲染图。详细边界见 `shared/frontend/layout-preview.md`。
+
+## 可选开场与自动收尾
+
+- 叙事规则与开场可选，分别确定新增、沿用或不制作；未回答不等于拒绝，也不强迫重写已有开场。开场前端与消息前端独立选择，初始化和已有内容检查仍保留。
+- 当前授权范围内的 QA、构建、整理两目录交付默认执行，不需要再问是否检查或打包；不越权改创作内容、不把技术完成写成用户接受。
+- 新项目启动主动只读发现酒馆安装和运行实例；续接复核、实机 QA 前刷新。结果只保存当前记录，找不到不等于不存在，环境发现不等于卡已运行。
+- 多实例仅在明确指定目标能唯一匹配时自动选择，否则问一次；不自动启动宿主、覆盖用户数据或发送未授权测试消息。
+
+详细规则：orchestrator/automatic-work.md。执行入口为 npm run host:discover -- --project-root <项目目录> 与 npm run qa:auto -- --root <项目目录> --scope current_stage|selected_project；它们不是宿主 hook，也不替代实际工具权限和真实验收。

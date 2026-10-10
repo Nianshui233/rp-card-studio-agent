@@ -10,6 +10,8 @@ const ORCHESTRATOR_FILES = [
   'scripts/project-layout.mjs',
   'orchestrator/stage-loop.md',
   'orchestrator/stage-authorization.md',
+  'orchestrator/automatic-work.md',
+  'scripts/continuation/automatic-qa-policy.mjs',
   'orchestrator/interview-playbook.md',
   'orchestrator/artifact-purity.md'
 ];

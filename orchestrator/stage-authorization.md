@@ -4,14 +4,14 @@
 
 ## 一个事实源，四种不同状态
 
-全部路由阶段记录在 authority.md 的“阶段账本”JSON 块中，格式见 assets/templates/continuation/authority.md；不增加新的项目状态文件。stages 记录阶段进度、启用状态和用户审阅；userEvidence 记录真实用户依据；authorizations 记录范围内代定；decisions 记录决定来源。当前授权、已完成阶段、NEXT 和对话画板是派生视图，不得作为第二份授权权威。
+全部路由阶段记录在 authority.md 的“阶段账本”JSON 块中，格式见 assets/templates/continuation/authority.md；不增加第二份阶段或授权事实源；当前环境快照不是用户授权依据。stages 记录阶段进度、启用状态和用户审阅；userEvidence 记录真实用户依据；authorizations 记录范围内代定；decisions 记录决定来源。当前授权、已完成阶段、NEXT 和对话画板是派生视图，不得作为第二份授权权威。
 
 - enabled：enabled / unresolved / disabled。“未到”不是关闭，“启用待定”不是拒绝。
-- progress：not_started / in_progress / awaiting_handoff / closed / blocked / deferred / skipped。
+- progress：not_started / in_progress / awaiting_handoff / authored / delivered / closed / blocked / deferred / skipped。
 - review：not_reviewed / pending / accepted / rejected / evidence_missing。
 - authorizations.status：active / expired / revoked。进入阶段的执行许可 entryEvidence 与“可代定哪些选择”的放权授权不同。
 
-所有阶段都列出，包括 continuation。preflight 和 continuation 是预检/状态核对，可在任务已有工作目录时进行必要行政工作，不因此获得后续创作权；不要要求用户为每次读账本、语法检查或一个文件操作另行授权。每个实质创作阶段结束必须交接。相关静态 QA 可以在当前阶段做；新增玩法、改变体验载体、重做其他阶段或最终打包不属于顺手技术检查。
+所有阶段都列出，包括 continuation。preflight 和 continuation 是预检/状态核对，可在任务已有工作目录时进行必要行政工作，不因此获得后续创作权；不要要求用户为每次读账本、语法检查或一个文件操作另行授权。每个实质创作阶段结束必须交接。相关 QA 默认在当前阶段做；本次范围终检、构建、整理打包按 `orchestrator/automatic-work.md` 自动执行，无需单独用户报备。新增玩法、改变体验载体、重做其他创作阶段不属于自动技术收尾。
 
 ## 用户依据不能由模型凭空产生
 
@@ -44,13 +44,13 @@ decisions.sourceKind 必须是 user_confirmed / delegated / proposed / material_
 
 ## 制作完成不等于用户接受
 
-内容足以支持下游 → 展示成果和阶段报告 → progress=awaiting_handoff、review=pending → 本阶段 active 授权改 expired → 更新 NEXT/画板 → 结束本轮。
+内容足以支持下游 → 展示成果和阶段报告 → progress=awaiting_handoff、review=pending → 本阶段 active 授权改 expired → 更新 NEXT/画板 → 创作等待审阅；本次范围满足收尾条件时可自动 QA/交付，不开启下一创作阶段。
 
 handoff 记录 id、报告 locator、实际 artifacts。阶段报告在对话展示，不另生成报告文件；交接记录仅保存最小指针，不复制完整访谈。
 
 报告必须显示：成果、原要求对应、用户确认/材料事实/代定/提案分别是什么、重要新增/删除/载体或流程变化、草稿和验证限制、未决问题、拟议下一阶段。不得仅写“文件已生成”“测试全绿”。
 
-只有新的实际用户接受依据才能使 review=accepted、progress=closed。未展示成果、仍有未解决承重决定或用户已否决时不得关闭；“已关闭”也不代表用户逐项确认所有代定选择，更不代表真实宿主验收通过。下一阶段要有新的 entryEvidence；NEXT 的“下一道门”和 routing.next 都只描述建议顺序，不授予执行权。闭合前的技术检查不要求额外停顿；禁止同一轮跨实质创作阶段自行问答并自动交付。
+只有新的实际用户接受依据才能使 review=accepted、progress=closed。未展示成果、仍有未解决承重决定或用户已否决时不得关闭；“已关闭”也不代表用户逐项确认所有代定选择，更不代表真实宿主验收通过。下一阶段要有新的 entryEvidence；NEXT 的“下一道门”和 routing.next 都只描述建议顺序，不授予执行权。闭合前的技术检查不要求额外停顿；禁止同一轮跨实质创作阶段自行问答。自动 QA 与交付是独立技术执行例外，读取 `orchestrator/automatic-work.md`：`automaticExecution` 引用制作许可与交接，来源待交接转 `authored/pending`，不新建用户依据，不标用户接受；只交付本次范围。
 
 ## 否决、冲突与旧账本
 
@@ -82,11 +82,11 @@ node scripts/continuation/continuation.mjs route-verify --root <项目目录> --
 
 `route-verify` 失败时，不得写入 RP 制品、修改阶段授权、提交交接或声称阶段完成。不能用“我已经读过”“我看过相关 Skill”替代锁定和哈希校验。
 
-阶段账本的状态变更必须通过确定性的转换器完成：`scripts/continuation/ledger-transition.mjs`。它只接受带 `origin=conversation` 的真实用户依据，负责拒绝短回复伪授权、提交交接时使授权到期、接受交接时只关闭当前阶段，不自动启动下一阶段。直接用任意脚本拼接 `authority.md` 不是合法的状态变更路径。
+阶段账本的状态变更必须通过确定性的转换器完成：`scripts/continuation/ledger-transition.mjs`。用户依据只接受带 `origin=conversation` 的真实来源；自动 QA 单独继承当前制作许可而不是伪造用户消息，负责拒绝短回复伪授权、提交交接时使授权到期、接受交接时只关闭当前阶段，不自动启动下一阶段。直接用任意脚本拼接 `authority.md` 不是合法的状态变更路径。
 项目文件变更使用同一转换器的 CLI：
 
 ```text
-node scripts/continuation/continuation.mjs ledger-event --root <项目目录> --event start|handoff|accept --stage <阶段ID> [--evidence-file <JSON> --handoff-file <JSON> --handoff-id <ID>]
+node scripts/continuation/continuation.mjs ledger-event --root <项目目录> --event start|reopen|handoff|accept|skip|auto-qa|qa-blocked --stage <阶段ID> [--evidence-file <JSON> --handoff-file <JSON> --handoff-id <ID>]
 ```
 
 不再允许 Agent 用临时脚本直接改写 authority/NEXT 的阶段状态。
@@ -96,7 +96,7 @@ node scripts/continuation/continuation.mjs ledger-event --root <项目目录> --
 - 单独的“继续”“继续吧”“继续进行”“接着来”只能继续当前未完成范围；不能接受交接、关闭阶段、授权下一阶段或生成新的 userEvidence。
 - 接受交接必须包含明确的接受/确认语义，并以 `responseTo` 指向本轮展示的 handoff；仅有“继续”不满足条件。
 - “按推荐”“你定”只授权访谈控制器已经明确列出的范围；不能扩大为整阶段或下一阶段放权。
-- 没有明确授权时，阶段状态只能保持 `awaiting_handoff`/`pending`，不能由 Agent 自行改为 `accepted`/`closed`。
+- 没有明确授权时，创作审阅保持 `awaiting_handoff` 或自动 QA 承接后的 `authored`，审阅为 `pending`，不能由 Agent 自行改为 `accepted`/`closed`。
 
 `authority.md` 的 `driver-accepted` 是最终交付状态，不得只靠阶段关闭或静态测试生成；它必须同时满足 `acceptance.json.summary.real-sillytavern=passed`、`human=passed`、`release=passed`。校验器会拒绝缺少任一项的最终状态。
 

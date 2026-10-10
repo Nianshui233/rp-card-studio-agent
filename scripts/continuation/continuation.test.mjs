@@ -184,7 +184,8 @@ test('integration: character-only delegation is visible, then expires at handoff
   assert.equal(result.ok, true, result.issues.join('\n'));
   assert.equal(result.executionAllowed, false);
   assert.match(renderProgressBoard(root), /角色：待交接；已到期\/撤销；待审阅/);
-  assert.match(renderProgressBoard(root), /等待用户新消息，不能自动推进/);
+  assert.match(renderProgressBoard(root), /创作等待审阅；本次范围的 QA 与交付可自动执行/);
+  assert.equal(result.stageLedger.stages.find(s => s.id === 'worldbuilding').progress, 'not_started');
 });
 test('init refuses to overwrite existing state', t => {
   const root = project(t); const file = path.join(root, '制作文件/项目记录', 'authority.md');

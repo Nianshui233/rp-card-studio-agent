@@ -152,7 +152,7 @@ next_gate: 完成预检并确定本轮范围
     },
     {
       "id": "narrative_opening",
-      "enabled": "enabled",
+      "enabled": "unresolved",
       "progress": "not_started",
       "review": "not_reviewed",
       "entryEvidence": null,

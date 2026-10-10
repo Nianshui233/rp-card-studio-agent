@@ -1,5 +1,7 @@
 import { chromium } from 'playwright';
 import { build } from 'esbuild';
+import fs from 'node:fs';
+import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fixture, interviewFixture } from './helpers/production-fixture.mjs';
@@ -7,6 +9,7 @@ import { INTERVIEW_PROFILES } from '../scripts/production/interview-coverage.mjs
 import { validateProductionProject } from '../scripts/production/production-project.mjs';
 import { runCheckPlan } from '../scripts/production/check-plan.mjs';
 import { runBrowserCases } from '../scripts/frontend/run-browser-fixtures.mjs';
+import { textHash } from '../scripts/production/artifact-bindings.mjs';
 
 const f = fixture(), specs = [], bindings = [], rules = [];
 process.once('exit', () => f.remove());
@@ -65,9 +68,30 @@ try {
   browser = await chromium.launch({ headless: true, executablePath: process.env.RP_BROWSER_EXECUTABLE || undefined });
   const results = [];
   for (const spec of specs) {
-    const measured = await runBrowserCases({ root: f.root, bindings, browser, fixtures: { schema: 'rp-card-studio/frontend-fixtures/v1', cases: [spec.case] } });
+    const capture = ['buttons-initial-and-redrawn', 'main-route-without-fallback'].includes(spec.id);
+    const beforeImports = fs.readFileSync(path.join(f.root, '导入包/fixture.正则.json'));
+    const measured = await runBrowserCases({ root: f.root, bindings, browser, fixtures: { schema: 'rp-card-studio/frontend-fixtures/v1', cases: [spec.case] }, captureIds: capture ? [spec.id] : [] });
     results.push({ id: spec.id, ok: measured.ok === spec.expectedOk, expectedExecutionPass: spec.expectedOk, observedExecutionPass: measured.ok, errors: measured.results.filter(r => !r.ok).map(r => r.error) });
+    if (capture) {
+      const record = measured.results[0]?.screenshot, bytes = record ? fs.readFileSync(path.join(f.root, record.path)) : null;
+      results.push({ id: spec.id + '-actual-preview', ok: Boolean(record && bytes?.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10])) && bytes.readUInt32BE(16) > 300 && bytes.readUInt32BE(20) > 24 && record.sha256 === textHash(bytes) && record.targetSha256 === measured.results[0].targetSha256 && record.runtime === 'not_run' && fs.readFileSync(path.join(f.root, '导入包/fixture.正则.json')).equals(beforeImports)), errors: [] });
+      if (record && process.env.RP_PREVIEW_TEST_OUTPUT) {
+        const directory = path.resolve(process.env.RP_PREVIEW_TEST_OUTPUT); fs.mkdirSync(directory, { recursive: true });
+        fs.copyFileSync(path.join(f.root, record.path), path.join(directory, spec.id + '.png'));
+      }
+    }
   }
+
+  const socketTarget = http.createServer(); let upgrades = 0;
+  socketTarget.on('upgrade', (_request, socket) => { upgrades++; socket.destroy(); });
+  await new Promise(resolve => socketTarget.listen(0, '127.0.0.1', resolve));
+  try {
+    const socketPage = script(code(`document.getElementById('out').textContent='ready';const socket=new WebSocket('ws://127.0.0.1:${socketTarget.address().port}');socket.onopen=()=>{document.getElementById('out').textContent='unexpected-network';};`));
+    f.write('导入包/socket.json', [{ scriptName: '技术夹具', findRegex: '/<panel>/g', replaceString: '```html\n' + socketPage + '\n```', placement: [2], disabled: false, markdownOnly: true, promptOnly: false, substituteRegex: 0, trimStrings: [] }]);
+    const socketCase = { id: 'socket-offline', route: 'socket', binding: 'socket', surfaceId: 'main', surface: 'message_iframe', input: '<panel>', decodeEntities: 'none', steps: [{ expect: 'text', selector: '#out', value: 'ready' }] };
+    const checked = await runBrowserCases({ root: f.root, browser, fixtures: { schema: 'rp-card-studio/frontend-fixtures/v1', cases: [socketCase] }, bindings: [{ id: 'socket', target: { path: 'socket.json', pointer: '/0/replaceString', kind: 'regex' } }], captureIds: ['socket-offline'] });
+    results.push({ id: 'preview-cannot-contact-live-websocket-service', ok: checked.ok && upgrades === 0 && checked.results[0]?.screenshot?.runtime === 'not_run', errors: checked.results.filter(r => !r.ok).map(r => r.error) });
+  } finally { await new Promise(resolve => socketTarget.close(resolve)); }
 
   // Positive integration: a measured final package can satisfy the stronger gate without any real-host claim.
   const app = fixture();

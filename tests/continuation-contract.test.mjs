@@ -56,7 +56,7 @@ test('portable authorization policy is loaded and preserves existing stage contr
   assert.match(loop, /预检/);
   assert.match(continuation, /materials\/v2/);
   assert.match(continuation, /sourceAuthenticity/);
-  for (const word of ['entryEvidence', 'userEvidence', 'authorizations', 'decisions', 'responseTo', 'migrationRequired', '真实用户', '结束本轮', '不是宿主']) assert.ok(policy.includes(word), word);
+  for (const word of ['entryEvidence', 'userEvidence', 'authorizations', 'decisions', 'responseTo', 'migrationRequired', '真实用户', 'automaticExecution', 'authored', '不是宿主']) assert.ok(policy.includes(word), word);
 });
 test('ledger stage list exactly matches routing stage ids', () => {
   const routing = read('orchestrator/routing.yaml');

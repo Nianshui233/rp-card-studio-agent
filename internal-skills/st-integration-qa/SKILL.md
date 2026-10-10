@@ -5,6 +5,12 @@ description: "Private final QA and delivery module for cross-stage RP consistenc
 
 # SillyTavern Final QA and Delivery
 
+## 默认自动执行
+
+读取 orchestrator/automatic-work.md。阶段内相关检查和本次制作收尾的终检、构建、整理交付默认执行，不另问“是否 QA/是否打包”，也不强制重新访谈。用户“先讨论/只看不改”等限制优先；新创作取舍回对应 owning stage，不借 QA 降低规格。当前范围有实际交接且承重未决已解决时使用 scripts/production/automatic-qa.mjs；整项目 selected_project，定向修改 current_stage。发现失败则阻断、修复后重跑，不无限重试。
+
+QA 的 automaticExecution 只继承制作许可；来源创作保持 authored/pending，不伪装 accepted/closed。只读宿主发现默认执行，当前环境/账户/扩展状态与实机运行分别记录。脚本不导入卡、不发消息、不提升 human/runtime/release；已经授予的实机测试权限仍按其原范围执行。无需事前报备，但收尾必须一次性给出结果、路径与未验证项。
+
 只接受主 Agent 调度。读取项目 `制作文件/项目记录/authority.md`、`制作文件/项目记录/NEXT.md`、`制作文件/项目记录/materials.json` 和 `制作文件/项目记录/acceptance.json`，再按实际组件选择性读取：
 
 - 常规最终检查：`references/validation.md`；
@@ -79,7 +85,7 @@ description: "Private final QA and delivery module for cross-stage RP consistenc
 - EJS 模板、按名调用条目、执行阶段、作用域和 raw-message/sandbox/autosave 默认态；若存在 MVU→EJS bridge，明确方向、快照选择、只读边界和失败回退；
 - 正则 placement/depth、prompt/display 分工、纯净开场 marker、消息表面 marker 与 HTML 配对；
 - Tavern Helper Script/ScriptFolder JSON 结构、内容、ID、依赖、重复注册、卸载和资料维护权限；直接调用 `Mvu.replaceMvuData`/`updateVariablesWith` 的脚本必须在 MVU 合同中声明，使用明确数值楼层、保存并同面读回；`.js` 不能冒充导入文件；
-- 开场/创角 HTML 是否支持空白、主动选择、预览、剪贴板与手动复制回退、真实静态 Greeting 指引、用户自己维护/导入主控资料，并严格避免世界书静默写入、自动切 Swipe、MVU 直写和自动发送；
+- 开场/创角 HTML 是否支持空白、主动选择、预览、剪贴板与手动复制回退、实际提供剧情开场选择时的真实静态 Greeting 指引、用户自己维护/导入主控资料，并严格避免世界书静默写入、自动切 Swipe、MVU 直写和自动发送；
 - 持续消息 HTML 是否自包含、有真实动态载体、按 provider 取得当前楼层/Swipe、处理持久化后刷新与清理并有空态/无主控/失败回退；非 MVU 页面还检查 producer/版本/Schema/parser/fixture 与静态捕获安全边界；
 - 用户选中的 MVU、mvu.zod、EJS 和交互能力是否全部有实际实现；未实现、阻断或仅静态降级必须明确报告；
 - 交付文件是否残留绝对路径、`src/...`、`source_refs` 或需要用户拼接的本地 CSS/JS。
@@ -101,6 +107,8 @@ description: "Private final QA and delivery module for cross-stage RP consistenc
 9. 远程/宿主依赖与已知限制。
 
 ## 制作与验证接入
+
+实际界面预览按 `shared/frontend/layout-preview.md` 检查：草图来自当前 surfaces，字段/操作无遗漏，渲染图来自当前精确导入内容而不是样品或假页面。查看桌面/窄屏及关键交互图，发现预览与已定结构不符时回 owning stage；图片仅为对应证据级别，不代表用户接受或酒馆运行成功，不把预览说明加入作品。
 
 最终检查按 `orchestrator/production-verification.md` 执行统一构建检查流程，随后运行 production-check validate --final；按 authority 启用项检查所有组件，不因当前为 QA 而跳过前端。每条主路/兜底、每个实际操作、每个 EJS 实例绑定精确导入字段。记录和导入说明由当前结果派生；浏览器夹具不是实机验收。
 

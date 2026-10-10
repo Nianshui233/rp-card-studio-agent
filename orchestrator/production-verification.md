@@ -11,6 +11,8 @@
 - `actions[]`：每项的 id、`trigger`、`outcome`、`failure`；只读查看、复制、输入、写入与发送分别说明，权限不混同；
 - `emptyState`、`failureState`：空白/未接入与真实失败分别怎么呈现。
 
+前端制作预览遵守 `shared/frontend/layout-preview.md`。当前 surfaces 可加页面/字段/操作 label 与 layout.blocks，草图实时引用现有字段/操作，不另建需求账本；更正后同时更新结构与来源。布局节点不存在、遗漏字段/操作或交互 id 冲突会被页面门禁拒绝。例值只用于标明的制作预览，不进入 RP 初值或真实数据兜底。实际 HTML 的截图复用下文浏览器用例，保存于项目记录/检查结果；它不是实机验收。
+
 取舍项带 `decisionRefs:[{id,textSha256}]`，值来自现有 authority 决定。`layout/visual/emptyState/failureState` 以 `{value,decisionRefs}` 记录。确实没有字段或按钮时允许空数组，但以 `fieldsReason/actionsReason` 同形记录理由；不为填清单虚构功能。大类 coverage 的每项也引用真实决定；sourceKind 按当前决定派生，来源混合用 mixed，不能把代定或材料事实改标用户逐项确认。`evidence` 可以省略；如保留，必须逐字投影引用决定的 text，以换行连接，不能另写“用户确认”的解释。
 
 获取当前引用：

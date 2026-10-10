@@ -1,6 +1,6 @@
 {
   "name": "rp-card-studio-agent",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "private": true,
   "type": "module",
   "description": "Lean SillyTavern RP brainstorming, authoring, QA, final inspection, and delivery agent.",
@@ -21,7 +21,10 @@
     "test:frontend": "node tests/frontend-browser.mjs",
     "project:verify": "node scripts/production/check-plan.mjs",
     "frontend:check": "node scripts/frontend/run-browser-fixtures.mjs",
-    "worldbook:check": "node scripts/worldbook/worldbook-check.mjs"
+    "frontend:preview": "node scripts/frontend/preview-layout.mjs",
+    "worldbook:check": "node scripts/worldbook/worldbook-check.mjs",
+    "host:discover": "node scripts/host/discover-sillytavern.mjs",
+    "qa:auto": "node scripts/production/automatic-qa.mjs"
   },
   "dependencies": {
     "acorn": "8.15.0",

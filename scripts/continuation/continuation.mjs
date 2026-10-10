@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { STATE_DIR, ensureProjectFolders, validateProjectLayout, resolveProjectPath } from '../project-layout.mjs';
-import { STAGES, STAGE_LABELS, PROGRESS_LABELS, REVIEW_LABELS, validateStageLedger, stageAuthorizationLabel } from './stage-ledger.mjs';
+import { STAGES, STAGE_LABELS, PROGRESS_LABELS, REVIEW_LABELS, validateStageLedger, stageAuthorizationLabel, stageProgressLabel } from './stage-ledger.mjs';
 import { writeRouteLock, validateRouteLock } from './route-lock.mjs';
 import { releaseReadinessIssues } from './release-gate.mjs';
 import { applyProjectEvent } from './ledger-transition.mjs';
@@ -176,13 +176,13 @@ export function renderProgressBoard(rootValue) {
     '```text',
     '【RP 项目进度画板】',
     `项目：${safe(meta.title || '未命名')}`,
-    `阶段：${STAGE_LABELS[meta.current_stage]}（${PROGRESS_LABELS[current.progress]}）`,
+    `阶段：${STAGE_LABELS[meta.current_stage]}（${stageProgressLabel(current)}）`,
     `用户审阅：${REVIEW_LABELS[current.review]}`,
-    `后续推进：${current.progress === 'awaiting_handoff' ? '等待用户新消息，不能自动推进' : '仅限当前阶段；NEXT 不授予下一阶段许可'}`,
+    `后续推进：${current.automaticExecution ? '按默认规则执行技术收尾；不授予创作决定权' : current.progress === 'awaiting_handoff' ? '创作等待审阅；本次范围的 QA 与交付可自动执行' : '仅限当前阶段；NEXT 不授予下一创作阶段许可'}`,
     '校验边界：用户来源真实性未核验；非宿主硬锁',
     '',
     '阶段账本',
-    ...ledger.stages.map(item => `- ${STAGE_LABELS[item.id]}：${PROGRESS_LABELS[item.progress]}；${stageAuthorizationLabel(ledger, item.id)}；${REVIEW_LABELS[item.review]}${item.enabled === 'unresolved' ? '（启用待定）' : ''}`),
+    ...ledger.stages.map(item => `- ${STAGE_LABELS[item.id]}：${stageProgressLabel(item)}；${stageAuthorizationLabel(ledger, item.id)}；${REVIEW_LABELS[item.review]}${item.enabled === 'unresolved' ? '（启用待定）' : ''}`),
     '',
     '当前授权',
     ...(authorizationRows.length ? authorizationRows : ['- 无生效代定授权；技术细节仅在已确定范围内处理']),
@@ -243,7 +243,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToP
     } else if (command === 'ledger-event') {
       const type = option('--event');
       const stage = option('--stage');
-      if (!type || !stage) throw new Error('ledger-event 必须提供 --event start|handoff|accept 与 --stage <stage-id>');
+      if (!type || !stage) throw new Error('ledger-event 必须提供 --event start|reopen|handoff|accept|skip|auto-qa|qa-blocked 与 --stage <stage-id>');
       const readJson = file => JSON.parse(read(file));
       const evidenceFile = option('--evidence-file');
       const handoffFile = option('--handoff-file');
@@ -252,11 +252,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToP
         stage,
         evidence: evidenceFile ? readJson(evidenceFile) : undefined,
         handoff: handoffFile ? readJson(handoffFile) : undefined,
-        handoffId: option('--handoff-id')
+        handoffId: option('--handoff-id'),
+        scope: option('--scope'), sourceStage: option('--source-stage'), reason: option('--reason')
       });
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     } else {
-      throw new Error('用法: node continuation.mjs init|validate|board|route-lock|route-verify|ledger-event --root <project-root> [--stage stage-id --agent-root agent-root --event start|handoff|accept --evidence-file file --handoff-file file --handoff-id id]');
+      throw new Error('用法: node continuation.mjs init|validate|board|route-lock|route-verify|ledger-event --root <project-root> [--stage stage-id --agent-root agent-root --event start|reopen|handoff|accept --evidence-file file --handoff-file file --handoff-id id]');
     }
   } catch (error) {
     process.stderr.write(`${error.message}\n`);

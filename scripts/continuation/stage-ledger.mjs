@@ -1,10 +1,11 @@
 import { acceptanceEvidenceIssue, isBareContinue } from './user-intent.mjs';
+import { AUTOMATIC_QA_POLICY, automaticQaIssues } from './automatic-qa-policy.mjs';
 // Portable structural checks. This is not a host hook or an authenticity verifier.
 export const STAGES = ['preflight', 'continuation', 'materials', 'brainstorm', 'positioning', 'worldbuilding', 'character', 'systems', 'scenes', 'mvu', 'ejs', 'runtime_bridge', 'narrative_opening', 'opening_frontend', 'message_frontend', 'qa_delivery'];
 export const STAGE_LABELS = Object.fromEntries(STAGES.map((id, i) => [id, ['预检', '续接检查', '材料与研究', '脑暴', '定位', '世界观', '角色', '系统', '场景', 'MVU', 'EJS', '运行桥接', '叙事与开场', '开场前端', '消息前端', 'QA 与交付'][i]]));
-export const PROGRESS_LABELS = { not_started: '未进入', in_progress: '进行中', awaiting_handoff: '待交接', closed: '已关闭', blocked: '阻断', deferred: '暂缓', skipped: '跳过' };
+export const PROGRESS_LABELS = { not_started: '未进入', in_progress: '进行中', awaiting_handoff: '待交接', authored: '制作已提交，待审阅', delivered: '技术收尾已提交，待验收', closed: '已关闭', blocked: '阻断', deferred: '暂缓', skipped: '跳过' };
 export const REVIEW_LABELS = { not_reviewed: '未审阅', pending: '待审阅', accepted: '用户已接受', rejected: '用户已否决', evidence_missing: '接受依据不足' };
-const OPTIONAL = new Set(['materials', 'brainstorm', 'systems', 'scenes', 'mvu', 'ejs', 'runtime_bridge', 'opening_frontend', 'message_frontend']);
+export const OPTIONAL = new Set(['materials', 'brainstorm', 'systems', 'scenes', 'mvu', 'ejs', 'runtime_bridge', 'narrative_opening', 'opening_frontend', 'message_frontend']);
 export function createStageLedger() {
   return {
     schema: 'rp-card-studio/stage-ledger/v1',
@@ -57,7 +58,10 @@ export function validateStageLedger(ledger, currentStage) {
     if (!['not_started', 'skipped', 'deferred'].includes(row.progress) && row.enabled !== 'enabled') issues.push('未启用阶段不能制作或关闭：' + row.id);
     if (row.entryEvidence !== null && row.entryEvidence !== undefined) evidenceFor(row.entryEvidence, row.id, ['start', 'delegate'], row.id + ' 进入阶段', row.id);
     // preflight/continuation only permit administrative setup without an entry grant.
-    if (!['not_started', 'skipped', 'deferred', 'blocked'].includes(row.progress) && !['preflight', 'continuation'].includes(row.id) && !row.entryEvidence) issues.push('阶段缺少执行许可依据：' + row.id);
+    if (!['not_started', 'skipped', 'deferred', 'blocked'].includes(row.progress) && !['preflight', 'continuation'].includes(row.id) && !row.entryEvidence && !row.automaticExecution) issues.push('阶段缺少执行许可依据：' + row.id);
+    issues.push(...automaticQaIssues(ledger, row));
+    if (row.progress === 'delivered' && row.id !== 'qa_delivery') issues.push('技术交付状态只能用于 QA，不代表创作接受：' + row.id);
+    if (row.progress === 'authored' && (row.id === 'qa_delivery' || row.technicalContinuation?.policy !== AUTOMATIC_QA_POLICY || row.technicalContinuation.entryEvidence !== row.entryEvidence || row.technicalContinuation.handoffId !== row.handoff?.id)) issues.push('制作待审阅状态必须由自动 QA 承接，不能用它绕过交接：' + row.id);
     if (row.review === 'accepted' && row.progress !== 'closed') issues.push('用户接受仅对应已关闭的精确阶段成果，修改后必须重开审阅：' + row.id);
     if (row.review === 'accepted' || row.progress === 'closed') {
       if (row.review !== 'accepted') issues.push('已关闭阶段必须有用户接受：' + row.id);
@@ -68,24 +72,24 @@ export function validateStageLedger(ledger, currentStage) {
         if (intentIssue) issues.push(intentIssue);
       }
     } else if (row.acceptanceEvidence) issues.push('未接受阶段不能保留生效的接受依据：' + row.id);
-    if (['awaiting_handoff', 'closed'].includes(row.progress)) {
+    if (['awaiting_handoff', 'authored', 'delivered', 'closed'].includes(row.progress)) {
       if (!record(row.handoff) || !nonempty(row.handoff.id) || !nonempty(row.handoff.locator) || !Array.isArray(row.handoff.artifacts) || !row.handoff.artifacts.length || row.handoff.artifacts.some(item => !nonempty(item))) issues.push('阶段交接缺少报告定位或实际成果：' + row.id);
-      if (row.progress === 'awaiting_handoff' && row.review !== 'pending') issues.push('待交接阶段必须保留用户待审阅状态：' + row.id);
+      if (['awaiting_handoff', 'authored', 'delivered'].includes(row.progress) && row.review !== 'pending') issues.push('待交接阶段必须保留用户待审阅状态：' + row.id);
     }
     if (record(row.handoff) && nonempty(row.handoff.id)) {
       if (handoffIds.has(row.handoff.id)) issues.push('交接 id 重复：' + row.handoff.id);
       handoffIds.add(row.handoff.id);
     }
-    if (row.review === 'rejected' && ['closed', 'awaiting_handoff', 'in_progress'].includes(row.progress)) issues.push('已否决阶段必须先重开/阻断并处理否决依据：' + row.id);
+    if (row.review === 'rejected' && ['closed', 'awaiting_handoff', 'authored', 'delivered', 'in_progress'].includes(row.progress)) issues.push('已否决阶段必须先重开/阻断并处理否决依据：' + row.id);
     if (row.progress === 'skipped') {
       if (row.reasonType === 'user_choice') evidenceFor(row.skipEvidence, row.id, ['skip'], row.id + ' 跳过', row.id);
       else if (row.reasonType !== 'not_applicable' || row.enabled !== 'disabled') issues.push('跳过必须有用户明确依据或明确不适用，不能静默跳过未回答阶段：' + row.id);
     }
-    if (row.progress === 'not_started' && (row.review !== 'not_reviewed' || row.entryEvidence || row.acceptanceEvidence || row.handoff)) issues.push('未进入阶段不得预填审阅、执行或完成状态：' + row.id);
+    if (row.progress === 'not_started' && (row.review !== 'not_reviewed' || row.entryEvidence || row.acceptanceEvidence || row.handoff || row.automaticExecution)) issues.push('未进入阶段不得预填审阅、执行或完成状态：' + row.id);
     if (['skipped', 'deferred', 'blocked'].includes(row.progress) && !nonempty(row.reason)) issues.push('阶段跳过/暂缓/阻断必须记录原因：' + row.id);
   }
   if (!STAGES.includes(currentStage) || !maps.stages.has(currentStage)) issues.push('当前阶段无效：' + currentStage);
-  else if (!['in_progress', 'awaiting_handoff', 'blocked', 'closed'].includes(maps.stages.get(currentStage).progress)) issues.push('当前阶段进度不能是未进入/跳过/暂缓');
+  else if (!['in_progress', 'awaiting_handoff', 'delivered', 'blocked', 'closed'].includes(maps.stages.get(currentStage).progress)) issues.push('当前阶段进度不能是未进入/跳过/暂缓');
   if (activeCount > 1) issues.push('同时只能有一个当前活动阶段');
   for (const auth of maps.authorizations.values()) {
     if (!STAGES.includes(auth.stage) || !['stage_delegation', 'scoped_delegation'].includes(auth.mode) || !['active', 'expired', 'revoked'].includes(auth.status) || auth.expires !== 'stage_handoff' || !Array.isArray(auth.scope) || !auth.scope.length || auth.scope.some(item => !nonempty(item)) || !Array.isArray(auth.exclusions) || auth.exclusions.some(item => !nonempty(item))) issues.push('授权字段不完整或无效：' + auth.id);
@@ -110,7 +114,11 @@ export function validateStageLedger(ledger, currentStage) {
   }
   return { ok: issues.length === 0, issues };
 }
+export function stageProgressLabel(row) {
+  return row.id === 'qa_delivery' && row.automaticExecution && ['awaiting_handoff','delivered'].includes(row.progress) ? '技术收尾已提交，待验收' : PROGRESS_LABELS[row.progress];
+}
 export function stageAuthorizationLabel(ledger, id) {
+  if (ledger.stages.find(s => s.id === id)?.automaticExecution) return '默认技术收尾（无创作放权）';
   const active = ledger.authorizations.filter(item => item.stage === id && item.status === 'active');
   if (active.some(item => item.mode === 'stage_delegation')) return '本阶段放权';
   if (active.length) return '限定授权';

@@ -9,6 +9,8 @@ description: "Private module for experience-led SillyTavern message frontend fam
 
 按需读取：
 
+- 制作时的简易结构/渲染预览：`shared/frontend/layout-preview.md`；开始访谈就主动画推荐结构及关键状态，用户修改后同轮更新，不等用户自己画示意，有当前 HTML 时提供实际渲染图
+
 - 持续状态、交互与消息生命周期：`references/message-ui.md`
 - 非 MVU 消息快照与正则载体：`references/non-variable-regex-ui.md`
 - 字体、图标、SVG 图形与资源策略：`shared/frontend/ui-assets.md`；选用图形化表达时读取该参考中的实现与验收合同

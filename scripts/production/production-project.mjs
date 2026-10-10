@@ -23,6 +23,7 @@ export async function validateProductionProject(manifest, { root, ledger, curren
   }
   if (ledger) {
     checks.push(validateStageLedger(ledger, currentStage));
+    if (finalGate && currentStage === 'qa_delivery' && ledger.stages.find(s => s.id === 'qa_delivery')?.progress === 'blocked') issues.push('当前 QA 仍被阻断，不能用其他静态检查覆盖；修复后重新执行');
     if (implemented && currentStage && manifest.activeStage !== currentStage) issues.push('production.activeStage 与真实阶段账本不一致；不得滞留旧阶段绕过门禁');
   } else if (implemented || finalGate) issues.push('制作/最终检查必须读取现有权威账本，不能另造能力开关');
   const enabled = id => ledger?.stages?.some(s => s.id === id && s.enabled === 'enabled');

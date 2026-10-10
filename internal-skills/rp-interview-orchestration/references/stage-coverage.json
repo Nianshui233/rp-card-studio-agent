@@ -356,22 +356,29 @@
       "owner_skill": "rp-experience-authoring",
       "decisions": [
         {
+          "id": "narrative-policy",
+          "trigger": "Only when new narrative rules are explicitly enabled and the narrative contract is not established.",
+          "player_language": "叙事希望怎么讲？哪些信息可以直接写，哪些行动、想法和台词必须留给玩家？",
+          "policy": "ask_or_explicitly_delegate",
+          "skip_when": "Narrative rules are retained unchanged, not requested, or already have complete material/decision evidence."
+        },
+        {
           "id": "why-now",
-          "trigger": "The player’s reason for entering the current situation is not concrete.",
+          "trigger": "Only when new opening creation is explicitly enabled. The player’s reason for entering the current situation is not concrete.",
           "player_language": "为什么是现在来到这里，而不是更早/更晚？",
           "policy": "ask_if_unknown",
           "skip_when": "The player chooses a fully open-ended entry and that is explicit."
         },
         {
           "id": "first-tension",
-          "trigger": "The opening has atmosphere but no actionable tension.",
+          "trigger": "Only when new opening creation is explicitly enabled. The opening has atmosphere but no actionable tension.",
           "player_language": "开场后玩家最先能处理的具体问题是什么？",
           "policy": "ask_or_explicitly_delegate",
           "skip_when": "The project intentionally begins as free exploration."
         },
         {
           "id": "agency-boundary",
-          "trigger": "Opening prose risks deciding player action or emotion.",
+          "trigger": "Only when new opening creation is explicitly enabled. Opening prose risks deciding player action or emotion.",
           "player_language": "哪些开场事实可以固定，哪些行动必须留给玩家？",
           "policy": "ask_or_explicitly_delegate",
           "skip_when": "A clear player-agency contract already governs the opening."
@@ -412,9 +419,9 @@
         {
           "id": "interaction-feel",
           "trigger": "The page includes choices, form fields, or graphical controls and the desired interaction flow is not explicit.",
-          "player_language": "创角过程希望一页完成，还是分步骤慢慢引导？你希望怎样预览、返回修改、复制开局文本，以及看到“切哪个开场、粘贴到哪里、怎么发送”的指引？",
+          "player_language": "创角过程希望一页完成，还是分步骤慢慢引导？怎样预览、返回修改和复制资料？若实际提供剧情开场选择，怎样说明选择哪个开场？",
           "policy": "ask_or_explicitly_delegate",
-          "skip_when": "The user supplied the exact interaction flow or requested a static, non-interactive intro."
+          "skip_when": "The retained page has a complete handoff contract, or the project explicitly omits the relevant creation/greeting-selection capability."
         },
         {
           "id": "state-impact",

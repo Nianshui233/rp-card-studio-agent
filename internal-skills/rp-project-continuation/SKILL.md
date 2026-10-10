@@ -41,11 +41,15 @@ description: "Maintain and resume a SillyTavern RP project across conversations 
 4. 在当前对话先展示进度画板；
 5. 说明已确认、已完成、尚未完成、待决定、暂缓、阻断和下一道门；
 6. 只询问真正开放或发生冲突的决定，不重新询问已确认内容；
-7. 在本轮真实授权范围内完成当前步骤后立即更新真实内容、`authority.md` 和 `NEXT.md`，再刷新画板；阶段成果提交时进入待交接、使放权到期并结束本轮，不自动推进；
+7. 在本轮真实授权范围内完成当前步骤后立即更新真实内容、`authority.md` 和 `NEXT.md`，再刷新画板；创作成果提交时待审阅、放权到期，不自动推进下一创作阶段；本次范围的 QA 与交付按 orchestrator/automatic-work.md 默认执行，承接后来源保持 authored/pending，不制造用户接受；
 8. 如果权威与实际实现或用户来源冲突，暂停继续打包或提升状态，记录冲突；无依据的确认保留为 proposed/unresolved，不假造用户原话，不重新询问已有可核对依据的设置。
 9. 使用 continuation CLI validate 检查逐条来源/授权/阶段引用；旧 v1 返回 migrationRequired，不自动将旧完成勾选当用户接受。跨宿主拿不到原消息时说明来源真实性未核验，暂停依赖它的提升。
 
 不得把聊天摘要、旧报告、自动测试或文件名当成当前权威；必须回读当前文件。
+
+## 当前环境复核
+
+读取 orchestrator/automatic-work.md：新项目默认只读发现当前可访问的酒馆安装和运行实例，续接复核制作文件/项目记录/host-environment.json，环境变化或实机 QA 前刷新。只保存当前记录，不存扫描历史；不把已有探测当成当前可用，也不因发现环境而自动取得实机操作权限。
 
 ## authority.md 合同
 

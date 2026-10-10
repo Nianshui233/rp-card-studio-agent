@@ -7,7 +7,27 @@ import { CHECK_DIR, DELIVERY_DIR, STATE_DIR, requireArea, resolveProjectPath } f
 import { checkFrontendScript } from './frontend-source-check.mjs';
 
 export const FRONTEND_FIXTURE_SCHEMA = 'rp-card-studio/frontend-fixtures/v1';
+export const FRONTEND_PREVIEW_DIR = STATE_DIR + '/检查结果/前端预览';
 const readJson = p => JSON.parse(fs.readFileSync(p, 'utf8').replace(/^\uFEFF/, ''));
+
+function preparePreviewFiles(root, captureIds) {
+  const directory = resolveProjectPath(root, FRONTEND_PREVIEW_DIR, { output: true }); fs.mkdirSync(directory, { recursive: true });
+  if (fs.realpathSync(directory) !== path.resolve(fs.realpathSync(root), FRONTEND_PREVIEW_DIR)) throw new Error('预览目录经过链接，不能写入或清理其他制作区域');
+  const indexPath = resolveProjectPath(root, FRONTEND_PREVIEW_DIR + '/current.json', { output: true });
+  if (fs.existsSync(indexPath)) {
+    if (fs.lstatSync(indexPath).isSymbolicLink()) throw new Error('当前预览索引不能是链接');
+    const old = readJson(indexPath);
+    if (old.schema !== 'rp-card-studio/frontend-preview/v1' || !Array.isArray(old.images)) throw new Error('当前预览记录无效；保留现有文件，不猜测清理范围');
+    for (const image of old.images) {
+      if (!/^preview-[a-f0-9]{16}\.png$/.test(path.basename(image?.path ?? '')) || image.path !== FRONTEND_PREVIEW_DIR + '/' + path.basename(image.path)) throw new Error('预览记录包含非本工具图片，停止清理');
+      const file = resolveProjectPath(root, image.path, { output: true });
+      if (fs.existsSync(file) && fs.lstatSync(file).isFile() && !fs.lstatSync(file).isSymbolicLink() && textHash(fs.readFileSync(file)) === image.sha256) fs.unlinkSync(file);
+    }
+  }
+  for (const id of captureIds) if (fs.existsSync(path.join(directory, 'preview-' + textHash(id).slice(0, 16) + '.png'))) throw new Error('同名预览文件不属于当前记录或已被外部修改；保留文件，不覆盖');
+  fs.writeFileSync(indexPath, JSON.stringify({ schema: 'rp-card-studio/frontend-preview/v1', runtime: 'not_run', images: [] }, null, 2) + '\n');
+  return indexPath;
+}
 export function validateBrowserCases(document) {
   const issues = [], ids = new Set();
   if (document?.schema !== FRONTEND_FIXTURE_SCHEMA || !Array.isArray(document.cases) || !document.cases.length) return { ok: false, issues: ['缺少实际浏览器用例'] };
@@ -81,18 +101,22 @@ async function waitAssertion(scope, s, timeout) {
   throw new Error('可观察结果未满足：' + JSON.stringify(s));
 }
 
-export async function runBrowserCases({ root, fixtures, bindings, browser }) {
+export async function runBrowserCases({ root, fixtures, bindings, browser, captureIds = [] }) {
   const validation = validateBrowserCases(fixtures);
   const results = [], issues = [...validation.issues];
-  if (!validation.ok) return { ok: false, level: 'browser-fixture', runtime: 'not_run', issues, results, total: fixtures?.cases?.length ?? 0, passed: 0 };
+  if (!Array.isArray(captureIds) || captureIds.some(id => !fixtures?.cases?.some(c => c.id === id))) issues.push('截图必须选择当前实际浏览器用例，不能指向其他页面或旧用例');
+  if (issues.length) return { ok: false, level: 'browser-fixture', runtime: 'not_run', issues, results, total: fixtures?.cases?.length ?? 0, passed: 0 };
+  // Only indexed, byte-identical captures are ours to remove; user-modified files stay untouched.
+  const previewIndex = captureIds.length ? preparePreviewFiles(root, captureIds) : null;
   for (const c of fixtures.cases) {
     const errors = [];
-    let context;
+    let context, screenshot;
     try {
       const prepared = contentForCase(root, c, bindings); let code = prepared.code; const { binding, targetSha256 } = prepared;
-      context = await browser.newContext({ viewport: c.viewport ?? { width: 1100, height: 800 } });
+      context = await browser.newContext({ viewport: c.viewport ?? { width: 1100, height: 800 }, serviceWorkers: 'block' });
       // Fixture runs are offline. Live-host imports, remote dependencies and persistence require a separate real-ST run.
       await context.route('**/*', route => route.abort());
+      await context.routeWebSocket('**/*', socket => socket.close());
       const host = await context.newPage(); host.on('pageerror', error => errors.push(error.message));
       const timeout = c.timeoutMs ?? 5000;
       host.setDefaultTimeout(timeout);
@@ -114,6 +138,10 @@ export async function runBrowserCases({ root, fixtures, bindings, browser }) {
       if (!sourceFrame) throw new Error('测试 iframe 未加载');
       if (c.surface === 'script_iframe') await sourceFrame.evaluate(code => { const s = document.createElement('script'); s.textContent = code; document.body.appendChild(s); }, code);
       const frame = c.resultFrame ? host.frameLocator(c.resultFrame) : host.frameLocator(sourceSelector);
+      if (captureIds.includes(c.id)) {
+        await host.locator(c.resultFrame ?? sourceSelector).waitFor({ state: 'attached' });
+        await host.locator(c.resultFrame ?? sourceSelector).evaluate((el, height) => { el.style.width = '100%'; el.style.height = height + 'px'; el.style.border = '0'; }, (c.viewport ?? { height: 800 }).height);
+      }
       for (const step of c.steps) {
         const scope = step.scope === 'host' ? host : frame;
         if (step.op === 'click') await scope.locator(step.selector).click();
@@ -130,11 +158,25 @@ export async function runBrowserCases({ root, fixtures, bindings, browser }) {
         if (step.expect) await waitAssertion(scope, step, timeout);
       }
       if (errors.length) throw new Error('页面执行错误：' + errors.join('; '));
-      results.push({ id: c.id, route: c.route, surfaceId: c.surfaceId, binding: binding.id, actionId: c.actionId ?? null, scenario: c.scenario ?? 'load', ok: true, targetSha256 });
+      if (captureIds.includes(c.id)) {
+        const size = await frame.locator('body').evaluate(el => Math.ceil(Math.max(el.scrollHeight, el.ownerDocument.documentElement.scrollHeight)));
+        const height = Math.max(24, Math.min(size, 16384));
+        const locator = host.locator(c.resultFrame ?? sourceSelector);
+        await locator.evaluate((el, value) => { el.style.height = value + 'px'; }, height);
+        const relative = FRONTEND_PREVIEW_DIR + '/preview-' + textHash(c.id).slice(0, 16) + '.png';
+        const bytes = await locator.screenshot({ animations: 'disabled', caret: 'hide' });
+        if (errors.length) throw new Error('预览执行错误：' + errors.join('; '));
+        fs.writeFileSync(resolveProjectPath(root, relative, { output: true }), bytes, { flag: 'wx' });
+        screenshot = { path: relative, sha256: textHash(fs.readFileSync(resolveProjectPath(root, relative))), targetSha256,
+          level: 'browser-fixture', runtime: 'not_run', viewport: host.viewportSize(), frame: await locator.boundingBox(), clipped: size > height,
+          note: '当前导入内容在受控预览容器中渲染；外部网络禁用，不是酒馆实机截图或用户接受。' };
+      }
+      results.push({ id: c.id, route: c.route, surfaceId: c.surfaceId, binding: binding.id, actionId: c.actionId ?? null, scenario: c.scenario ?? 'load', ok: true, targetSha256, ...(screenshot ? { screenshot } : {}) });
     } catch (e) { results.push({ id: c.id, route: c.route, surfaceId: c.surfaceId, binding: c.binding, actionId: c.actionId ?? null, scenario: c.scenario ?? 'load', ok: false, error: String(e.message) }); }
     finally { if (context) await context.close(); }
   }
   const passed = results.filter(r => r.ok).length;
+  if (previewIndex) fs.writeFileSync(previewIndex, JSON.stringify({ schema: 'rp-card-studio/frontend-preview/v1', runtime: 'not_run', images: results.filter(r => r.ok && r.screenshot).map(r => ({ caseId: r.id, route: r.route, surfaceId: r.surfaceId, ...r.screenshot })) }, null, 2) + '\n');
   return { ok: passed === results.length, level: 'browser-fixture', runtime: 'not_run', issues, passed, total: results.length, results };
 }
 
@@ -147,7 +189,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const production = readJson(resolveProjectPath(root, STATE_DIR + '/production.json'));
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true, executablePath: opt('--browser') || process.env.RP_BROWSER_EXECUTABLE || undefined });
-    const report = await runBrowserCases({ root, fixtures: readJson(resolveProjectPath(root, file)), bindings: production.bindings ?? [], browser });
+    const captureIds = process.argv.flatMap((value, i) => {
+      if (value !== '--preview') return [];
+      if (!process.argv[i + 1] || process.argv[i + 1].startsWith('--')) throw new Error('--preview 必须指定实际用例 id');
+      return [process.argv[i + 1]];
+    });
+    const report = await runBrowserCases({ root, fixtures: readJson(resolveProjectPath(root, file)), bindings: production.bindings ?? [], browser, captureIds });
     console.log(JSON.stringify(report, null, 2)); if (!report.ok) process.exitCode = 1;
   } catch (e) { console.log(JSON.stringify({ ok: false, level: 'browser-fixture', runtime: 'not_run', issues: [String(e.message)] })); process.exitCode = 1; }
   finally { if (browser) await browser.close(); }
