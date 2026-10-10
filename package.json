@@ -23,6 +23,11 @@
     "frontend:check": "node scripts/frontend/run-browser-fixtures.mjs",
     "frontend:preview": "node scripts/frontend/preview-layout.mjs",
     "frontend:design": "node scripts/frontend/design-guide.mjs",
+    "frontend:library": "node scripts/frontend/design-library.mjs",
+    "frontend:workbench": "node scripts/frontend/frontend-workbench.mjs",
+    "frontend:tune": "node scripts/frontend/tuning-backport.mjs",
+    "install:check": "node scripts/install/verify-install.mjs",
+    "test:design-tools": "node tests/design-tools-browser.mjs",
     "worldbook:check": "node scripts/worldbook/worldbook-check.mjs",
     "host:discover": "node scripts/host/discover-sillytavern.mjs",
     "qa:auto": "node scripts/production/automatic-qa.mjs"
@@ -31,6 +36,9 @@
     "acorn": "8.15.0",
     "esbuild": "0.25.10",
     "lodash-es": "4.17.21",
+    "lucide": "1.55.0",
+    "parse5": "8.0.1",
+    "postcss": "8.5.29",
     "yaml": "2.8.1",
     "zod": "4.4.3"
   },

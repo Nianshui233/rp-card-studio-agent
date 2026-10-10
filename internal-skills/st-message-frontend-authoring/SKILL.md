@@ -9,6 +9,9 @@ description: "Private module for experience-led SillyTavern message frontend fam
 
 按需读取：
 
+- 设计检索、可视化挑选和真实源码打磨：`shared/frontend/design-tools.md`；按真实游玩任务检索本阶段资料，需要比较时主动展示独立挑选页。合成演示不能决定实际字段、关系、玩法或默认皮肤。
+- 实现后从反复使用重新复核：`references/message-review.md`；检查高频任务、动作、内容增长与连续阅读，不以开场视觉冲击替代长期舒适度。
+
 - 本阶段必读的独立设计流程：`references/message-design.md`；按任务检索 `references/message-design.json`，从高频游玩任务、信息表达和连续使用舒适度完整设计，不复制开场的审美规则或以字段列表包装交接。主动研究、方向反馈和设计复核在本阶段独立执行。
 
 - 制作时的简易结构/渲染预览：`shared/frontend/layout-preview.md`；开始访谈就主动画推荐结构及关键状态，用户修改后同轮更新，不等用户自己画示意，有当前 HTML 时提供实际渲染图

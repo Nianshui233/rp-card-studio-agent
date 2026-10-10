@@ -11,7 +11,7 @@ description: "Private creative module for project positioning, source-material r
 - 材料或旧卡盘点：`references/materials.md`
 - 世界观：`references/worldbuilding.md`
 
-不要读取其他参考，不维护项目账本、阶段状态、Schema 或装配清单。
+不要读取其他参考，不维护项目账本、阶段状态、Schema 或装配清单。定位和世界观创作分别按 `../rp-interview-orchestration/references/interview-routes.json#positioning` 与 `../rp-interview-orchestration/references/interview-routes.json#worldbuilding` 的固定节点顺序推进；阶段覆盖地图只补充决定，不替代路线。
 
 ## 职责
 
@@ -30,9 +30,9 @@ description: "Private creative module for project positioning, source-material r
 
 ## 工作方式
 
-遵循 `orchestrator/interview-playbook.md`。定位阶段用普通语言确认玩家自由度和进入方式，不询问最终玩家准备扮演谁，也不要求用户理解变量作用域或 API。运行能力选择可以透明询问：是否需要跨消息记住状态（MVU）、是否需要校验变量结构（MVU_ZOD）、是否需要动态 Prompt/世界书/页面（EJS）；说明每项用途和取舍，但把具体实现交给 Agent。用户明确启用的能力不得因“安全、复杂或省事”被静默关闭或降级。
+遵循 `orchestrator/interview-playbook.md`。定位阶段按固定路线先关闭玩家承诺、玩家控制权、创作归属模式和制作范围；世界观阶段按元信息、类型基调、时空、信息层、核心矛盾、规则、社会、常识、历史、变更边界和交接核对推进。运行能力选择可以透明询问：是否需要跨消息记住状态（MVU）、是否需要校验变量结构（MVU_ZOD）、是否需要动态 Prompt/世界书/页面（EJS）；说明每项用途和取舍，但把具体实现交给 Agent。用户明确启用的能力不得因“安全、复杂或省事”被静默关闭或降级。
 
-每个创作取舍采用“问题＋建议＋为什么这样建议＋影响”，优先把抽象定位转成典型一轮体验，把世界概念转成日常、权力、压力和无人介入时的变化。问题可以多，但不能把空白构思或无解释的选项清单交给用户。
+每个创作取舍采用“问题＋建议＋为什么这样建议＋影响”，优先把抽象定位转成典型一轮体验，把世界概念转成日常、权力、压力和无人介入时的变化。问题可以多，但不能把空白构思或无解释的选项清单交给用户。每个固定节点都必须经过材料预填、主访谈和一次补全/冲突检查；模型不能把粗稿或自己的推断记成用户决定。
 
 每次用户回答后立即写入或修改实际内容，并用一个短场景、日常片段、因果链或对比边界校准承重设定。用户完全放权时按建议直接完成。若上游已经完成脑暴，定位直接消费创作母纲并只补真实缺口，不重复从零访谈。阶段结束时由主 Agent 在对话中总结；本 Skill 不生成账本、决定锁、交接表或总结文件。
 

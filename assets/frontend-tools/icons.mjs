@@ -1,0 +1,2 @@
+import { createIcons, Search, ArrowLeft, ArrowRight, RotateCcw, Download, Check, X, SlidersHorizontal, Maximize2, Eye, Copy, FolderCheck, ExternalLink, ChevronRight } from 'lucide';
+export function paintIcons() { createIcons({ icons: { Search, ArrowLeft, ArrowRight, RotateCcw, Download, Check, X, SlidersHorizontal, Maximize2, Eye, Copy, FolderCheck, ExternalLink, ChevronRight }, attrs: { 'aria-hidden': 'true', width: 18, height: 18, 'stroke-width': 1.7 } }); }

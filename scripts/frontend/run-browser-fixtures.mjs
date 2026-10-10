@@ -58,7 +58,7 @@ export function validateBrowserCases(document) {
   return { ok: issues.length === 0, issues };
 }
 
-function contentForCase(root, c, bindings) {
+export function contentForCase(root, c, bindings) {
   const binding = bindings.find(b => b.id === c.binding);
   if (!binding) throw new Error('找不到该用例的实际装配绑定：' + c.binding);
   const doc = readJson(resolveProjectPath(root, DELIVERY_DIR + '/' + binding.target.path));
@@ -108,9 +108,11 @@ async function waitAssertion(scope, s, timeout) {
   throw new Error('可观察结果未满足：' + JSON.stringify(s));
 }
 
-export async function runBrowserCases({ root, fixtures, bindings, browser, captureIds = [] }) {
+export async function runBrowserCases({ root, fixtures, bindings, browser, captureIds = [], onCaseReady, hostDocumentUrl }) {
   const validation = validateBrowserCases(fixtures);
   const results = [], issues = [...validation.issues];
+  if (onCaseReady && (typeof onCaseReady !== 'function' || fixtures?.cases?.length !== 1 || captureIds.length)) issues.push('交互打磨只执行一个精确用例，不得生成可冒充正式验收的截图');
+  if (hostDocumentUrl && (!onCaseReady || !/^http:\/\/127\.0\.0\.1:\d+\/$/.test(hostDocumentUrl))) issues.push('打磨页面只允许本工具的本地地址');
   if (!Array.isArray(captureIds) || new Set(captureIds).size !== captureIds.length || captureIds.some(id => !fixtures?.cases?.some(c => c.id === id))) issues.push('截图必须选择不重复的当前实际浏览器用例，不能指向其他页面或旧用例');
   if (issues.length) return { ok: false, level: 'browser-fixture', runtime: 'not_run', issues, results, total: fixtures?.cases?.length ?? 0, passed: 0 };
   // Only indexed, byte-identical captures are ours to remove; user-modified files stay untouched.
@@ -126,6 +128,7 @@ export async function runBrowserCases({ root, fixtures, bindings, browser, captu
       // Exact resource bytes may be replayed; no request reaches a live account or service.
       await context.route('**/*', route => {
         const request = route.request(), resource = resources.get(request.url());
+        if (hostDocumentUrl && request.url() === hostDocumentUrl && request.method() === 'GET' && request.isNavigationRequest()) return route.continue();
         if (resource && request.method() === 'GET') {
           usedResources.add(request.url());
           return route.fulfill({ status: 200, contentType: resource.contentType, headers: { 'access-control-allow-origin': '*' }, body: resource.body });
@@ -137,7 +140,8 @@ export async function runBrowserCases({ root, fixtures, bindings, browser, captu
       const host = await context.newPage(); host.on('pageerror', error => errors.push(error.message));
       const timeout = c.timeoutMs ?? 5000;
       host.setDefaultTimeout(timeout);
-      await host.setContent('<!doctype html><html><body><textarea id="send_textarea"></textarea><div id="chat"></div></body></html>');
+      if (hostDocumentUrl) await host.goto(hostDocumentUrl);
+      else await host.setContent('<!doctype html><html><body><textarea id="send_textarea"></textarea><div id="chat"></div></body></html>');
       if (c.decodeEntities === 'once') code = await host.evaluate(html => { const decoder = document.createElement('textarea'); return html.replace(/&(?:[a-z][a-z0-9]+|#\d+|#x[0-9a-f]+);/gi, entity => { decoder.innerHTML = entity; return decoder.value; }); }, code);
       const hostSetup = fixtureCode(root, c.hostSetup); if (hostSetup) await host.evaluate(code => { const s = document.createElement('script'); s.textContent = code; document.head.appendChild(s); }, hostSetup);
       await host.evaluate(({ html, name }) => new Promise(resolve => { const f = document.createElement('iframe'); f.id = name; f.name = name; f.onload = resolve; f.srcdoc = html; document.body.appendChild(f); }), {
@@ -176,6 +180,7 @@ export async function runBrowserCases({ root, fixtures, bindings, browser, captu
         if (step.expect) await waitAssertion(scope, step, timeout);
       }
       if (errors.length) throw new Error('页面执行错误：' + errors.join('; '));
+      if (onCaseReady) { await onCaseReady({ host, frame, context, c, binding, targetSha256, errors, usedResources, blockedResources, resources }); if (errors.length) throw Error('打磨期间发生页面错误：' + errors.join('; ')); }
       if (captureIds.includes(c.id)) {
         const size = await frame.locator('body').evaluate(el => Math.ceil(Math.max(el.scrollHeight, el.ownerDocument.documentElement.scrollHeight)));
         const height = Math.max(24, Math.min(size, 16384));
@@ -211,7 +216,7 @@ export async function runBrowserCases({ root, fixtures, bindings, browser, captu
   }
   const passed = results.filter(r => r.ok).length;
   if (previewIndex) fs.writeFileSync(previewIndex.indexPath, JSON.stringify({ schema: 'rp-card-studio/frontend-preview/v1', runtime: 'not_run', images: [...previewIndex.retainedImages, ...results.filter(r => r.ok && r.screenshot).map(r => ({ caseId: r.id, route: r.route, surfaceId: r.surfaceId, ...r.screenshot }))] }, null, 2) + '\n');
-  return { ok: passed === results.length, level: 'browser-fixture', runtime: 'not_run', issues, passed, total: results.length, results };
+  return { ok: passed === results.length, level: onCaseReady ? 'workbench-candidate' : 'browser-fixture', runtime: 'not_run', issues, passed, total: results.length, results };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

@@ -1,6 +1,6 @@
 # 固定创作阶段状态机
 
-状态机由 `rp-project-continuation` 维护项目权威，并在当前对话展示实时进度画板。`制作文件/项目记录/authority.md` 保存已确认、待决定、暂缓和风险；`制作文件/项目记录/NEXT.md` 保存当前续接指针；材料与验收分别进入对应 JSON 文件。它们不保存完整聊天过程，也不进入最终导入包。所有需用户做创作决定的阶段都按 routing 加载 `rp-interview-orchestration`；共用原则见 `orchestrator/interview-playbook.md`，逐阶段触发项见 `internal-skills/rp-interview-orchestration/references/stage-coverage.json`。
+状态机由 `rp-project-continuation` 维护项目权威，并在当前对话展示实时进度画板。`制作文件/项目记录/authority.md` 保存已确认、待决定、暂缓和风险；`制作文件/项目记录/NEXT.md` 保存当前续接指针；材料与验收分别进入对应 JSON 文件。它们不保存完整聊天过程，也不进入最终导入包。所有需用户做创作决定的阶段都按 routing 加载 `rp-interview-orchestration`；共用原则见 `orchestrator/interview-playbook.md`，固定节点顺序见 `internal-skills/rp-interview-orchestration/references/interview-routes.json`，逐节点补充决定见 `internal-skills/rp-interview-orchestration/references/stage-coverage.json`。
 
 ## 阶段授权与交接
 
@@ -149,7 +149,9 @@ MVU、MVU_ZOD、EJS 分别维护 `enabled`、`disabled`、`unresolved`；用户�
 
 脑暴阶段完成不是因为灵感数量足够，而是零散构想已经成为可供定位直接消费的可游玩母纲：有统一核心、反复体验、自主变化、关系或利益张力、典型循环、开局与升级方向，并至少经过一次具体场景、失败或无人介入检验。
 
-以下是阶段内容就绪标准，不是用户接受或进入下一阶段的授权。其他阶段的真实内容已经足以供下游使用：覆盖地图中已触发的承重决策均已由明确材料解决、用户确认、用户明确授权代定或明确跳过；临时假设不能关闭承重项。关键抽象已有可观察表现，至少一个高风险点经过场景、边界或失败压力检查。若用户要先看草稿，可交可逆草稿并指出未定事项；不要因为还能扩写或模板还有字段而无限延长访谈。
+以下是阶段内容就绪标准，不是用户接受或进入下一阶段的授权。其他阶段的真实内容已经足以供下游使用：固定路线中的每个启用节点均已访问，节点最低覆盖均已由明确材料解决、用户确认、用户明确授权代定、明确跳过或明确不适用关闭；临时假设不能关闭承重项。关键抽象已有可观察表现，至少一个高风险点经过场景、边界或失败压力检查。若用户要先看草稿，可交可逆草稿并指出未定事项；不要因为还能扩写或模板还有字段而无限延长访谈，也不要因为模型自行认为内容足够而提前结束路线。
+
+固定路线进度写入当前阶段账本的 `interviewRoute`，包含 `visited`、`currentNode`、`nodeStatus` 和 `status`；节点状态变更不新增用户依据，但阶段交接前必须通过路线结算检查。
 
 阶段内容就绪后提交创作交接；自动 QA 可以承接本次制作范围，不能代替用户接受，已关闭必须有用户对实际交接的接受依据。授权引用缺失、跨阶段或与真实消息冲突时阻断提升，不以 Agent 自己的账本循环证明确认。
 

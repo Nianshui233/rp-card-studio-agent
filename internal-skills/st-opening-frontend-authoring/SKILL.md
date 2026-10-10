@@ -9,6 +9,9 @@ description: "Private module for experience-led SillyTavern opening and characte
 
 按需读取：
 
+- 设计检索、可视化挑选和真实源码打磨：`shared/frontend/design-tools.md`；优先按本作入场问题检索本阶段资料，需要比较时主动展示独立挑选页。合成演示仅供方法参考，不成为字段、流程或皮肤的默认值。
+- 实现后从画面和实际操作重新复核：`references/opening-review.md`；检查世界呈现、指南和创角，不套状态栏的密度或长期刷新标准。
+
 - 本阶段必读的独立设计流程：`references/opening-design.md`；按任务检索 `references/opening-design.json`，完整设计世界介绍、游玩指南与创角，不以情绪答案、文字包装或载体骨架交接。它不继承状态栏规则；主动研究、方向反馈和设计复核均独立执行。
 
 - 给制作者看的结构/渲染预览：`shared/frontend/layout-preview.md`；与玩家资料预览不同，主动展示导航、当前创角步骤和操作结果，用户修改后同轮更新，有当前 HTML 时提供实际渲染图

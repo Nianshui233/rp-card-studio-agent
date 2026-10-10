@@ -1,15 +1,33 @@
 import { acceptanceEvidenceIssue, isBareContinue } from './user-intent.mjs';
 import { AUTOMATIC_QA_POLICY, automaticQaIssues } from './automatic-qa-policy.mjs';
+import { getInterviewRoute, validateInterviewRouteCompletion, validateInterviewRouteProgress } from '../production/interview-routes.mjs';
+export { validateInterviewRouteCompletion };
 // Portable structural checks. This is not a host hook or an authenticity verifier.
 export const STAGES = ['preflight', 'continuation', 'materials', 'brainstorm', 'positioning', 'worldbuilding', 'character', 'systems', 'scenes', 'mvu', 'ejs', 'runtime_bridge', 'narrative_opening', 'opening_frontend', 'message_frontend', 'qa_delivery'];
 export const STAGE_LABELS = Object.fromEntries(STAGES.map((id, i) => [id, ['预检', '续接检查', '材料与研究', '脑暴', '定位', '世界观', '角色', '系统', '场景', 'MVU', 'EJS', '运行桥接', '叙事与开场', '开场前端', '消息前端', 'QA 与交付'][i]]));
 export const PROGRESS_LABELS = { not_started: '未进入', in_progress: '进行中', awaiting_handoff: '待交接', authored: '制作已提交，待审阅', delivered: '技术收尾已提交，待验收', closed: '已关闭', blocked: '阻断', deferred: '暂缓', skipped: '跳过' };
 export const REVIEW_LABELS = { not_reviewed: '未审阅', pending: '待审阅', accepted: '用户已接受', rejected: '用户已否决', evidence_missing: '接受依据不足' };
 export const OPTIONAL = new Set(['materials', 'brainstorm', 'systems', 'scenes', 'mvu', 'ejs', 'runtime_bridge', 'narrative_opening', 'opening_frontend', 'message_frontend']);
+export const FIXED_ROUTE_STAGES = new Set(['brainstorm', 'positioning', 'worldbuilding', 'character', 'systems', 'scenes', 'narrative_opening']);
+
+export function createInterviewRouteProgress(stage) {
+  if (!FIXED_ROUTE_STAGES.has(stage) || !getInterviewRoute(stage)) return null;
+  return { stage, status: 'not_started', visited: [], currentNode: null, nodeStatus: {}, lastUpdated: null };
+}
+
+export function interviewRouteLabel(row) {
+  const route = row?.interviewRoute;
+  if (!route || !FIXED_ROUTE_STAGES.has(row?.id)) return null;
+  const definition = getInterviewRoute(row.id);
+  const total = definition?.nodes?.length ?? 0;
+  const visited = Array.isArray(route.visited) ? route.visited.length : 0;
+  const current = definition?.nodes?.find(node => node.id === route.currentNode)?.label ?? (route.status === 'complete' ? '路线已结算' : '尚未定位');
+  return `访谈路线 ${Math.min(visited, total)}/${total}；当前节点：${current}`;
+}
 export function createStageLedger() {
   return {
     schema: 'rp-card-studio/stage-ledger/v1',
-    stages: STAGES.map(id => ({ id, enabled: OPTIONAL.has(id) ? 'unresolved' : 'enabled', progress: id === 'preflight' ? 'in_progress' : 'not_started', review: 'not_reviewed', entryEvidence: null, acceptanceEvidence: null, handoff: null, reason: null })),
+    stages: STAGES.map(id => ({ id, enabled: OPTIONAL.has(id) ? 'unresolved' : 'enabled', progress: id === 'preflight' ? 'in_progress' : 'not_started', review: 'not_reviewed', entryEvidence: null, acceptanceEvidence: null, handoff: null, reason: null, interviewRoute: null })),
     userEvidence: [], authorizations: [], decisions: []
   };
 }
@@ -87,6 +105,17 @@ export function validateStageLedger(ledger, currentStage) {
     }
     if (row.progress === 'not_started' && (row.review !== 'not_reviewed' || row.entryEvidence || row.acceptanceEvidence || row.handoff || row.automaticExecution)) issues.push('未进入阶段不得预填审阅、执行或完成状态：' + row.id);
     if (['skipped', 'deferred', 'blocked'].includes(row.progress) && !nonempty(row.reason)) issues.push('阶段跳过/暂缓/阻断必须记录原因：' + row.id);
+    if (row.interviewRoute !== null && row.interviewRoute !== undefined) {
+      const routeProgress = validateInterviewRouteProgress(row.interviewRoute, row.id);
+      if (!routeProgress.ok) issues.push(...routeProgress.issues);
+      if (row.interviewRoute.status === 'complete') {
+        const complete = validateInterviewRouteCompletion(row.interviewRoute, row.id);
+        if (!complete.ok) issues.push(...complete.issues);
+      }
+      if (['awaiting_handoff', 'authored', 'delivered', 'closed'].includes(row.progress) && row.interviewRoute.status !== 'complete') {
+        issues.push('固定访谈路线未结算，不能提交该阶段交接：' + row.id);
+      }
+    }
   }
   if (!STAGES.includes(currentStage) || !maps.stages.has(currentStage)) issues.push('当前阶段无效：' + currentStage);
   else if (!['in_progress', 'awaiting_handoff', 'delivered', 'blocked', 'closed'].includes(maps.stages.get(currentStage).progress)) issues.push('当前阶段进度不能是未进入/跳过/暂缓');

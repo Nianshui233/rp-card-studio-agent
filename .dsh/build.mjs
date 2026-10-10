@@ -203,7 +203,8 @@ ${repoPosix}
 2. \`${repoPosix}/orchestrator/stage-loop.md\` —— 阶段内部循环与阶段总结要求；
 3. \`${repoPosix}/orchestrator/interview-playbook.md\` —— 建议式深访规则；
 4. \`${repoPosix}/orchestrator/stage-authorization.md\` —— 阶段授权、交接账本与防伪确认依据；
-5. 项目目录的 \`制作文件/项目记录/authority.md\`、\`制作文件/项目记录/NEXT.md\`、\`制作文件/项目记录/materials.json\`、\`制作文件/项目记录/acceptance.json\`；项目尚未建立时先执行 \`continuation init\` 初始化最小续接文件。
+5. \`${repoPosix}/internal-skills/rp-interview-orchestration/references/interview-routes.json\` —— 创作阶段固定节点顺序、最低覆盖和节点状态；
+6. 项目目录的 \`制作文件/项目记录/authority.md\`、\`制作文件/项目记录/NEXT.md\`、\`制作文件/项目记录/materials.json\`、\`制作文件/项目记录/acceptance.json\`；项目尚未建立时先执行 \`continuation init\` 初始化最小续接文件。
 
 ## 阶段路由（由 routing.yaml 生成，共 ${routing.stages.length} 个阶段）
 
@@ -214,6 +215,8 @@ ${rows}
 规则：只加载当前阶段的主技能 + 上表声明的支援技能；有用户创作决策时加载 \`rp-interview-orchestration\`；不预读后续阶段。技能内部引用的 \`references/…\` 相对各自技能目录解析。
 
 已注册的阶段技能（${routing.skillPaths.length} 个）：${skillList}。
+
+创作阶段访谈必须使用固定路线：材料已解决的节点直接预填，未解决节点按顺序主访谈并做一次补全检查；模型不能以自认为足够、粗稿已生成或用户单独说“继续”为由提前结束。delegated 必须显示为用户放权后的 Agent 代定，不得改写成用户确认。
 
 ## 项目续接、阶段授权与进度画板（\`rp-project-continuation\`）
 
@@ -272,6 +275,7 @@ ${rows}
 - \`internal-skills/st-opening-frontend-authoring/references/opening-design.md\` 与其 JSON 索引：独立设计介绍、指南和创角；氛围不闭合整套方案，授权内完整实现、自查后交接；
 - \`internal-skills/st-message-frontend-authoring/references/message-design.md\` 与其 JSON 索引：独立设计高频游玩任务、信息表达和长期舒适度，不继承开场规则；
 - \`npm run frontend:design -- --stage opening_frontend|message_frontend --query <主要意图>\`：本地定向设计检索，只是参考入口，不冒充外部研究；公开参考主动查看，完整视觉可重放核对资源，断网回退不作为成品；
+- \`shared/frontend/design-tools.md\`：两阶段独立的可视化挑选页、真实源码 workbench、参数差异回写及只读安装核验；通过 \`frontend:library\`、\`frontend:workbench\`、\`frontend:tune\` 与 \`install:check\` 使用。临时打磨不进入正式设计证据，不复制合成演示到作品；
 - \`assets/examples/\`：经过静态合同核对的原创示例，只在需要对照实现时读取。
 
 ## 交付与验收口径

@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import { STATE_DIR, validateProjectLayout, resolveProjectPath } from '../project-layout.mjs';
 import path from 'node:path';
-import { STAGES, OPTIONAL, validateStageLedger } from './stage-ledger.mjs';
+import { STAGES, OPTIONAL, createInterviewRouteProgress, validateInterviewRouteCompletion, validateStageLedger } from './stage-ledger.mjs';
+import { getInterviewRoute, INTERVIEW_ROUTES } from '../production/interview-routes.mjs';
 import { classifyUserReply, isBareContinue } from './user-intent.mjs';
 import { AUTOMATIC_QA_POLICY, createAutomaticQaPolicy } from './automatic-qa-policy.mjs';
 
@@ -36,7 +37,36 @@ function stageOf(ledger, stage) {
   return row;
 }
 
-export function startStage(ledger, { stage, evidence }) {
+export function recordInterviewNode(ledger, { stage, node, status }) {
+  const next = clone(ledger), row = stageOf(next, stage), route = getInterviewRoute(stage);
+  if (!route || !row.interviewRoute) throw new Error(`阶段没有启用固定访谈路线：${stage}`);
+  if (row.progress !== 'in_progress') throw new Error(`只有进行中的阶段可以记录访谈节点：${stage}`);
+  const definition = route.nodes.find(item => item.id === node);
+  if (!definition) throw new Error(`节点不在固定访谈路线：${stage}.${node}`);
+  const allowed = new Set([
+    ...(INTERVIEW_ROUTES.node_status_contract?.closed ?? []),
+    ...(INTERVIEW_ROUTES.node_status_contract?.open ?? []),
+  ]);
+  if (!allowed.has(status) || status === 'not_started') throw new Error(`访谈节点状态无效：${status}`);
+  const visited = row.interviewRoute.visited;
+  const position = route.nodes.findIndex(item => item.id === node);
+  const nextPosition = visited.length;
+  if (!visited.includes(node) && position !== nextPosition) throw new Error(`访谈节点必须按顺序记录：${stage}.${node}`);
+  if (!visited.includes(node)) visited.push(node);
+  row.interviewRoute.nodeStatus[node] = status;
+  row.interviewRoute.lastUpdated = new Date().toISOString();
+  if (INTERVIEW_ROUTES.node_status_contract.closed.includes(status)) {
+    const nextNode = route.nodes.find(item => !visited.includes(item.id));
+    row.interviewRoute.currentNode = nextNode?.id ?? null;
+    row.interviewRoute.status = nextNode ? 'tracking' : 'complete';
+  } else {
+    row.interviewRoute.currentNode = node;
+    row.interviewRoute.status = 'tracking';
+  }
+  return next;
+}
+
+export function startStage(ledger, { stage, evidence, trackInterviewRoute = false }) {
   requireEvidence(evidence, ['start', 'delegate']);
   if (evidence.stage !== stage || !evidence.targets.includes(stage)) throw new Error('阶段进入依据必须指向同一阶段');
   const next = recordUserEvidence(ledger, evidence);
@@ -52,6 +82,11 @@ export function startStage(ledger, { stage, evidence }) {
   row.handoff = null;
   delete row.technicalContinuation;
   row.reason = null;
+  if (trackInterviewRoute && getInterviewRoute(stage)) {
+    row.interviewRoute = createInterviewRouteProgress(stage);
+    row.interviewRoute.status = 'tracking';
+    row.interviewRoute.currentNode = getInterviewRoute(stage)?.nodes?.[0]?.id ?? null;
+  }
   return next;
 }
 
@@ -59,6 +94,10 @@ export function submitHandoff(ledger, { stage, handoff }) {
   const next = clone(ledger);
   const row = stageOf(next, stage);
   if (row.progress !== 'in_progress') throw new Error(`只有进行中的阶段可以提交交接：${stage}`);
+  if (row.interviewRoute) {
+    const route = validateInterviewRouteCompletion(row.interviewRoute, stage);
+    if (!route.ok || row.interviewRoute.status !== 'complete') throw new Error(`固定访谈路线尚未结算，不能提交阶段交接：${stage}`);
+  }
   if (!handoff?.id || !handoff?.locator || !Array.isArray(handoff.artifacts) || handoff.artifacts.length === 0) throw new Error('交接必须包含 id、报告定位和实际制品');
   row.progress = stage === 'qa_delivery' ? 'delivered' : 'awaiting_handoff';
   row.review = 'pending';
@@ -83,7 +122,7 @@ export function acceptHandoff(ledger, { stage, handoffId, evidence }) {
 }
 
 
-export function reopenStage(ledger, { stage, evidence }) {
+export function reopenStage(ledger, { stage, evidence, trackInterviewRoute = false }) {
   requireEvidence(evidence, ['start','delegate']);
   if (evidence.stage !== stage || !evidence.targets.includes(stage)) throw new Error('重新制作必须有同阶段真实许可');
   const next = clone(ledger), row = stageOf(next,stage);
@@ -96,7 +135,7 @@ export function reopenStage(ledger, { stage, evidence }) {
   }
   for (const auth of next.authorizations) if (auth.stage === stage && auth.status === 'active') auth.status = 'expired';
   row.progress = 'blocked'; row.review = 'not_reviewed'; row.acceptanceEvidence = null; row.reason = '用户要求本次范围重新制作';
-  return startStage(next,{stage,evidence});
+  return startStage(next,{stage,evidence,trackInterviewRoute});
 }
 
 export function skipStage(ledger, { stage, evidence, reason }) {
@@ -185,9 +224,11 @@ export function applyProjectEvent(projectRoot, event) {
   const state = readProjectState(projectRoot);
   let ledger = state.ledger;
   if (event.type === 'start' || event.type === 'reopen') {
-    ledger = (event.type === 'reopen' ? reopenStage : startStage)(ledger, { stage: event.stage, evidence: event.evidence });
+    ledger = (event.type === 'reopen' ? reopenStage : startStage)(ledger, { stage: event.stage, evidence: event.evidence, trackInterviewRoute: true });
     state.authority = replaceCurrentStage(state.authority, event.stage);
     state.next = replaceNextStage(state.next, event.stage);
+  } else if (event.type === 'interview-node') {
+    ledger = recordInterviewNode(ledger, { stage: event.stage, node: event.node, status: event.nodeStatus });
   } else if (event.type === 'auto-qa') {
     if (event.stage !== 'qa_delivery') throw new Error('auto-qa 只能进入 QA 与交付');
     const sourceStage = event.sourceStage || state.currentStage;

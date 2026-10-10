@@ -29,7 +29,9 @@ export function inspectBinding(root, binding, activePaths) {
     if (!['text', 'json'].includes(binding.source.format)) throw new Error('装配源必须声明 format:text/json');
     if (typeof expected !== 'string' || expected.trim().length === 0) throw new Error('装配源必须是非空的实际运行文本');
     const runtimeText = expected;
+    if (binding.source.normalize && binding.source.normalize !== 'lf') throw new Error('装配源 normalize 只支持 lf');
     if (binding.component === 'ejs' && binding.runtimeKind !== 'provider_script' && !/<%|@@(?:preprocessing|generate_|iframe)/.test(expected)) throw new Error('EJS 绑定没有实际模板内容；静态兜底不能代替动态模板');
+    if (binding.source.normalize === 'lf') expected = expected.replace(/\r\n?/g, '\n');
     if (binding.wrapper === 'fenced_html') expected = '```html\n' + expected + '\n```';
     else if (binding.wrapper && binding.wrapper !== 'none') throw new Error('未知装配 wrapper');
     const document = json(resolveProjectPath(root, DELIVERY_DIR + '/' + binding.target.path));

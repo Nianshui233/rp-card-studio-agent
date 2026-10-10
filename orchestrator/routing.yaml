@@ -5,6 +5,8 @@ stage_loop: orchestrator/stage-loop.md
 # next 字段是建议顺序，不是创作执行授权；QA/交付按 automatic-work.md 在当前范围自动收尾。
 stage_authorization: orchestrator/stage-authorization.md
 interview_playbook: orchestrator/interview-playbook.md
+interview_routes: internal-skills/rp-interview-orchestration/references/interview-routes.json
+interview_coverage: internal-skills/rp-interview-orchestration/references/stage-coverage.json
 
 stages:
   preflight:
@@ -95,14 +97,14 @@ stages:
     next: opening_frontend
   opening_frontend:
     primary_skill: st-opening-frontend-authoring
-    required_files: [internal-skills/st-opening-frontend-authoring/references/opening-design.md, internal-skills/st-opening-frontend-authoring/references/opening-design.json, scripts/frontend/design-guide.mjs, scripts/frontend/design-contract.mjs, scripts/frontend/preview-resources.mjs, scripts/production/decision-refs.mjs, shared/frontend/layout-preview.md, scripts/frontend/preview-layout.mjs, orchestrator/production-verification.md, scripts/production/check-plan.mjs, scripts/production/artifact-bindings.mjs, scripts/production/production-project.mjs, scripts/frontend/run-browser-fixtures.mjs, scripts/frontend/frontend-source-check.mjs, shared/frontend/boot-controller.mjs]
+    required_files: [internal-skills/st-opening-frontend-authoring/references/opening-design.md, internal-skills/st-opening-frontend-authoring/references/opening-design.json, internal-skills/st-opening-frontend-authoring/references/opening-review.md, shared/frontend/design-tools.md, scripts/frontend/design-guide.mjs, scripts/frontend/design-contract.mjs, scripts/frontend/preview-resources.mjs, scripts/production/decision-refs.mjs, shared/frontend/layout-preview.md, scripts/frontend/preview-layout.mjs, orchestrator/production-verification.md, scripts/production/check-plan.mjs, scripts/production/artifact-bindings.mjs, scripts/production/production-project.mjs, scripts/frontend/run-browser-fixtures.mjs, scripts/frontend/frontend-source-check.mjs, shared/frontend/boot-controller.mjs]
     supporting_skills: [rp-interview-orchestration, rp-materials-research, st-host-capabilities, st-api-reference, st-worldbook-regex, st-render-regex, st-tavern-helper-engineering]
     optional: true
     enable_when: opening_or_creation_frontend_requested
     next: message_frontend
   message_frontend:
     primary_skill: st-message-frontend-authoring
-    required_files: [internal-skills/st-message-frontend-authoring/references/message-design.md, internal-skills/st-message-frontend-authoring/references/message-design.json, scripts/frontend/design-guide.mjs, scripts/frontend/design-contract.mjs, scripts/frontend/preview-resources.mjs, scripts/production/decision-refs.mjs, shared/frontend/layout-preview.md, scripts/frontend/preview-layout.mjs, orchestrator/production-verification.md, scripts/production/check-plan.mjs, scripts/production/artifact-bindings.mjs, scripts/production/production-project.mjs, scripts/frontend/run-browser-fixtures.mjs, scripts/frontend/frontend-source-check.mjs, shared/frontend/boot-controller.mjs]
+    required_files: [internal-skills/st-message-frontend-authoring/references/message-design.md, internal-skills/st-message-frontend-authoring/references/message-design.json, internal-skills/st-message-frontend-authoring/references/message-review.md, shared/frontend/design-tools.md, scripts/frontend/design-guide.mjs, scripts/frontend/design-contract.mjs, scripts/frontend/preview-resources.mjs, scripts/production/decision-refs.mjs, shared/frontend/layout-preview.md, scripts/frontend/preview-layout.mjs, orchestrator/production-verification.md, scripts/production/check-plan.mjs, scripts/production/artifact-bindings.mjs, scripts/production/production-project.mjs, scripts/frontend/run-browser-fixtures.mjs, scripts/frontend/frontend-source-check.mjs, shared/frontend/boot-controller.mjs]
     supporting_skills: [rp-interview-orchestration, rp-materials-research, st-host-capabilities, st-api-reference, st-worldbook-regex, st-render-regex, st-tavern-helper-engineering]
     optional: true
     enable_when: ongoing_message_ui_requested

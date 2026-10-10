@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
-  "purpose": "Triggered decision coverage, not a questionnaire. Resolve from explicit material first; ask only when an unresolved decision changes the player-facing result.",
+  "purpose": "Supplemental decision coverage inside fixed ordered interview routes. Resolve from explicit material first; visit every active route node in order, and ask only for the node's unresolved minimum rather than letting the model decide that the whole stage is sufficient.",
+  "interview_route": "references/interview-routes.json",
   "preflight_runtime_capabilities": {
     "display_rule": "首轮能力选择必须同时展示 MVU、MVU_ZOD、EJS，以及需要交互时的 Tavern Helper；它们是独立可多选项。先用功能语言说明，再附技术名称。不能只显示 MVU，也不能由执行 Agent 以安全、复杂或省事为由静默关闭已选择能力。",
     "states": [
@@ -45,6 +46,7 @@
   "stages": {
     "brainstorm": {
       "owner_skill": "rp-concept-brainstorm",
+      "interview_route": "references/interview-routes.json#brainstorm",
       "decisions": [
         {
           "id": "repeatable-experience",
@@ -78,6 +80,7 @@
     },
     "positioning": {
       "owner_skill": "rp-project-foundation",
+      "interview_route": "references/interview-routes.json#positioning",
       "decisions": [
         {
           "id": "player-promise",
@@ -130,6 +133,7 @@
     },
     "worldbuilding": {
       "owner_skill": "rp-project-foundation",
+      "interview_route": "references/interview-routes.json#worldbuilding",
       "decisions": [
         {
           "id": "ordinary-life",
@@ -156,6 +160,7 @@
     },
     "character": {
       "owner_skill": "rp-cast-authoring",
+      "interview_route": "references/interview-routes.json#character",
       "decisions": [
         {
           "id": "character-want",
@@ -189,6 +194,7 @@
     },
     "systems": {
       "owner_skill": "rp-experience-authoring",
+      "interview_route": "references/interview-routes.json#systems",
       "decisions": [
         {
           "id": "choice-loop",
@@ -215,6 +221,7 @@
     },
     "scenes": {
       "owner_skill": "rp-experience-authoring",
+      "interview_route": "references/interview-routes.json#scenes",
       "decisions": [
         {
           "id": "scene-agency",
@@ -354,6 +361,7 @@
     },
     "narrative_opening": {
       "owner_skill": "rp-experience-authoring",
+      "interview_route": "references/interview-routes.json#narrative_opening",
       "decisions": [
         {
           "id": "narrative-policy",

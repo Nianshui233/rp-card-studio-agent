@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { STATE_DIR, ensureProjectFolders, validateProjectLayout, resolveProjectPath } from '../project-layout.mjs';
-import { STAGES, STAGE_LABELS, PROGRESS_LABELS, REVIEW_LABELS, validateStageLedger, stageAuthorizationLabel, stageProgressLabel } from './stage-ledger.mjs';
+import { STAGES, STAGE_LABELS, PROGRESS_LABELS, REVIEW_LABELS, validateStageLedger, stageAuthorizationLabel, stageProgressLabel, interviewRouteLabel } from './stage-ledger.mjs';
 import { writeRouteLock, validateRouteLock } from './route-lock.mjs';
 import { releaseReadinessIssues } from './release-gate.mjs';
 import { applyProjectEvent } from './ledger-transition.mjs';
@@ -182,7 +182,7 @@ export function renderProgressBoard(rootValue) {
     '校验边界：用户来源真实性未核验；非宿主硬锁',
     '',
     '阶段账本',
-    ...ledger.stages.map(item => `- ${STAGE_LABELS[item.id]}：${stageProgressLabel(item)}；${stageAuthorizationLabel(ledger, item.id)}；${REVIEW_LABELS[item.review]}${item.enabled === 'unresolved' ? '（启用待定）' : ''}`),
+    ...ledger.stages.map(item => `- ${STAGE_LABELS[item.id]}：${stageProgressLabel(item)}；${stageAuthorizationLabel(ledger, item.id)}；${REVIEW_LABELS[item.review]}${item.enabled === 'unresolved' ? '（启用待定）' : ''}${interviewRouteLabel(item) ? '；' + interviewRouteLabel(item) : ''}`),
     '',
     '当前授权',
     ...(authorizationRows.length ? authorizationRows : ['- 无生效代定授权；技术细节仅在已确定范围内处理']),
@@ -253,11 +253,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToP
         evidence: evidenceFile ? readJson(evidenceFile) : undefined,
         handoff: handoffFile ? readJson(handoffFile) : undefined,
         handoffId: option('--handoff-id'),
+        node: option('--node'), nodeStatus: option('--node-status'),
         scope: option('--scope'), sourceStage: option('--source-stage'), reason: option('--reason')
       });
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     } else {
-      throw new Error('用法: node continuation.mjs init|validate|board|route-lock|route-verify|ledger-event --root <project-root> [--stage stage-id --agent-root agent-root --event start|reopen|handoff|accept --evidence-file file --handoff-file file --handoff-id id]');
+      throw new Error('用法: node continuation.mjs init|validate|board|route-lock|route-verify|ledger-event --root <project-root> [--stage stage-id --agent-root agent-root --event start|reopen|interview-node|handoff|accept|skip|auto-qa|qa-blocked --node <node-id> --node-status <status> --evidence-file file --handoff-file file --handoff-id id]');
     }
   } catch (error) {
     process.stderr.write(`${error.message}\n`);

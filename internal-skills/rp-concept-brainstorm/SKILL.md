@@ -18,7 +18,7 @@ description: "Private creative module for turning sparse, fragmentary, or confli
 
 ## 工作方式
 
-遵循 `orchestrator/interview-playbook.md` 的“问题＋建议＋为什么这样建议＋影响”。第一轮先解释用户现有灵感已经承诺了什么，并展示一个暂定整合方向，再询问真正会改变整体结构的少量问题；不能以长问卷开场。
+遵循 `orchestrator/interview-playbook.md` 的“问题＋建议＋为什么这样建议＋影响”，并按 `../rp-interview-orchestration/references/interview-routes.json#brainstorm` 依次访问核心体验、玩家介入、世界自行推进、方向红线和可玩脊柱核对。第一轮先解释用户现有灵感已经承诺了什么，并展示一个暂定整合方向，再询问当前节点真正会改变整体结构的少量问题；不能以长问卷开场，也不能因为已有一个好点子就跳过后面的节点。
 
 每次用户回答后立即完成至少一项真实推进：重写当前母纲、补出一个承重关系、建立世界动力、写出可反复循环或生成场景证明。用户说“按建议”“你定”或整体放权后，直接完成一致的默认方案，不把创作负担换个说法推回用户。
 

@@ -13,7 +13,10 @@ const ORCHESTRATOR_FILES = [
   'orchestrator/automatic-work.md',
   'scripts/continuation/automatic-qa-policy.mjs',
   'orchestrator/interview-playbook.md',
-  'orchestrator/artifact-purity.md'
+  'orchestrator/artifact-purity.md',
+  'internal-skills/rp-interview-orchestration/references/interview-routes.json',
+  'internal-skills/rp-interview-orchestration/references/stage-coverage.json',
+  'scripts/production/interview-routes.mjs'
 ];
 
 function hashFile(file) {

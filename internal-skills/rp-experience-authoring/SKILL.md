@@ -5,7 +5,7 @@ description: "Private creative module for gameplay systems, scenes, events, narr
 
 # RP Experience Authoring
 
-只接受主 Agent 调度。按当前任务读取一个相关参考：`references/systems.md`、`references/quantitative-systems.md`、`references/scenes.md` 或 `references/narrative-opening.md`。不要读取项目账本或阶段合同。
+只接受主 Agent 调度。按当前任务读取一个相关参考：`references/systems.md`、`references/quantitative-systems.md`、`references/scenes.md` 或 `references/narrative-opening.md`；同时按 `../rp-interview-orchestration/references/interview-routes.json#systems`、`#scenes` 或 `#narrative_opening` 的对应固定路线推进。不要读取项目账本或其他装配合同。
 
 ## 职责
 
@@ -28,7 +28,7 @@ description: "Private creative module for gameplay systems, scenes, events, narr
 
 ## 工作方式
 
-遵循 `orchestrator/interview-playbook.md`。围绕当前主题提出“问题＋建议＋为什么这样建议＋影响”，让用户校准 Agent 已经提出的具体方案，而不是从零设计系统、场景或开场。优先讨论玩家会做什么、选择会改变什么、失败留下什么、无人介入时如何推进，再由 Agent 处理专业实现。
+遵循 `orchestrator/interview-playbook.md`。系统按用途/对象、玩家循环、维度范围、阈值行为、变化规则、情境限制、边界代价、可见反馈和示例核对推进；场景按用途、空间、区域、权限、生态、资源、线索、时间事件、场景规则和行动校准推进；叙事/开场只在叙事规则路线中确认叙事视角与整体文笔风格，再分别处理开场是否制作及开场局势。围绕当前主题提出“问题＋建议＋为什么这样建议＋影响”，让用户校准 Agent 已经提出的具体方案，而不是从零设计系统、场景或开场。优先讨论玩家会做什么、选择会改变什么、失败留下什么、无人介入时如何推进，再由 Agent 处理专业实现。
 
 用户每次回答、选择或放权后立即写出或修改可用内容，并用规则演算、场景行动或前三轮开场片段验证。涉及运行能力时可以用普通语言询问“要不要记住状态（MVU）”“要不要检查变量结构（MVU_ZOD）”“要不要动态改变 Prompt/世界书/页面（EJS）”；这些是独立选择，用户明确启用后不得被执行 AI 静默删掉。具体正则、Schema、API、世界书调度和脚本实现由 Agent 负责。
 

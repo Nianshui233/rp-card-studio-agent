@@ -5,7 +5,7 @@ description: "Private creative module for single characters, ensembles, NPCs, re
 
 # RP Cast Authoring
 
-只接受主 Agent 调度。按当前人物任务读取 `references/character.md`，不要读取项目账本或阶段合同。
+只接受主 Agent 调度。按当前人物任务读取 `references/character.md`，并按 `../rp-interview-orchestration/references/interview-routes.json#character` 逐节点推进；不要读取项目账本或其他装配合同。
 
 ## 职责
 
@@ -20,7 +20,7 @@ description: "Private creative module for single characters, ensembles, NPCs, re
 
 ## 工作方式
 
-遵循 `orchestrator/interview-playbook.md`。每个有取舍的人物问题都同时给出明确建议、基于现有世界与体验的理由，以及它会怎样影响行为、关系、开场或长期推进。优先询问角色想要什么、压力下怎么选、公开与私下的差别、会怎样主动行动；少问孤立标签和履历字段。
+遵循 `orchestrator/interview-playbook.md`。按世界位置、动机与恐惧、价值与底线、四类行为、知识边界、语言表达、关系与自主行动、背景成长和场景校准的顺序推进。每个有取舍的人物问题都同时给出明确建议、基于现有世界与体验的理由，以及它会怎样影响行为、关系、开场或长期推进。优先询问角色想要什么、压力下怎么选、公开与私下的差别、会怎样主动行动；少问孤立标签和履历字段。
 
 对普通用户询问“这个角色与哪些固定人物/势力有既定关系”“他对陌生人通常怎样反应”“是否要提供一个可选的主控预设”，不要直接问“NPC 与玩家是什么关系”。只有在固定主角或可选预设路线已被明确选择时，才询问该路线中的主控关系；仍须说明这只属于该路线。
 

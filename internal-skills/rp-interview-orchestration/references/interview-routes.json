@@ -1,0 +1,440 @@
+{
+  "schema_version": 1,
+  "purpose": "固定创作阶段的访谈路线。它规定每个阶段必须按顺序访问哪些语义节点，不把每个可选叶子字段都变成问题，也不允许 Agent 以自认为足够为由提前结束。",
+  "scope": "brainstorm, positioning, worldbuilding, character, systems, scenes, narrative_opening",
+  "excluded_for_now": ["mvu", "ejs", "runtime_bridge", "opening_frontend", "message_frontend"],
+  "route_contract": {
+    "source_prefill": "先读取原始材料、既有决定和当前阶段成果；已经有明确来源的节点直接标记 source_resolved，不重复向用户询问。",
+    "ordered_visit": "启用的阶段必须按 nodes 的顺序访问每个节点；提前生成粗稿只能作为可逆草稿，不得跳过后续节点。",
+    "node_is_not_field_form": "节点代表一个有共同语义的决定簇。只询问会改变 RP 的最低必要内容；文档版本、变更记录等可由 Agent 生成的维护字段不要求用户填写。",
+    "main_interview": "每个未被材料解决的节点至少进行一次主访谈。相邻的独立决定分别编号，单轮最多提出 3 个高影响决定。",
+    "completion_pass": "主访谈后固定进行一次补全与冲突检查：缺少最低内容、答案只覆盖一部分、或节点与前面内容冲突时，不得直接推进。",
+    "follow_up_limit": "默认每个节点最多追加一轮定向补问；超过后保留 unresolved/tentative，除非用户明确确认、放权、跳过或声明不适用。",
+    "no_silent_completion": "模型建议、自动草稿、测试通过、文件存在、用户沉默和单独的“继续”都不能关闭节点。",
+    "delegation_scope": "用户说“你来定”只覆盖当前明确节点；只有明确说“本阶段整体由你决定”才扩大到阶段，且仍记录为 delegated，不改写为 user_confirmed。",
+    "fast_lane": "原始提示词中的快速通道只允许减少重复提问、完成预填，不允许跳过尚未访问的承重节点。",
+    "stage_handoff": "所有 blocking 节点必须处于 source_resolved、confirmed、delegated、explicit_skip 或 not_applicable 之一，才能提交阶段交接；tentative、proposed、unresolved 不是完成。",
+    "blocking_default": true,
+    "ledger_progress": "阶段启动后，route progress 写入 authority.md 对应 stage.interviewRoute；每次节点结算记录 visited、currentNode、nodeStatus 和 status。可通过 continuation ledger-event --event interview-node --stage <stage> --node <node> --node-status <status> 走确定性转换器；它不创建用户依据。",
+    "draft_mode": "用户明确要求先看粗稿时，可以带着未决项输出可逆草稿，但必须逐项列出未决状态和实际影响。",
+    "short_reply": "单独的“继续”“接着来”“继续改”只表示沿当前路线继续，不代表回答当前问题、接受交接或扩大授权。"
+  },
+  "node_status_contract": {
+    "open": ["not_started", "unresolved", "tentative", "proposed"],
+    "closed": ["source_resolved", "confirmed", "delegated", "explicit_skip", "not_applicable"],
+    "display_labels": {
+      "not_started": "未开始",
+      "source_resolved": "原始资料已明确",
+      "confirmed": "用户已确认",
+      "delegated": "用户放权，Agent 代定（不是用户确认）",
+      "explicit_skip": "用户明确跳过",
+      "not_applicable": "明确不适用",
+      "unresolved": "待用户回答",
+      "tentative": "临时草稿，尚未定案",
+      "proposed": "Agent 提案，尚未接受"
+    }
+  },
+  "stages": {
+    "brainstorm": {
+      "owner_skill": "rp-concept-brainstorm",
+      "route_mode": "fixed_nodes",
+      "scope": "one_project",
+      "nodes": [
+        {
+          "id": "repeatable_experience",
+          "label": "核心体验",
+          "purpose": "明确玩家反复回来是为了获得什么感觉、满足或关系体验。",
+          "minimum": ["反复体验", "玩家为什么愿意继续"],
+          "decision_ids": ["repeatable-experience"]
+        },
+        {
+          "id": "player_agency",
+          "label": "玩家介入方式",
+          "purpose": "明确玩家主要通过观察、行动、协商、探索或混合方式改变局势。",
+          "minimum": ["玩家能做什么", "玩家不能替世界直接决定什么"],
+          "decision_ids": ["player-agency"]
+        },
+        {
+          "id": "world_autonomy",
+          "label": "世界自行推进",
+          "purpose": "明确玩家暂时不介入时，世界、势力或重要人物会怎样继续变化。",
+          "minimum": ["无人介入时的运动", "至少一个自主推进例子"],
+          "decision_ids": ["world-autonomy"]
+        },
+        {
+          "id": "unwanted_direction",
+          "label": "方向红线",
+          "purpose": "明确最不希望作品最后滑向的题材、基调或玩法方向。",
+          "minimum": ["至少一条红线，或明确没有额外红线"],
+          "decision_ids": ["unwanted-direction"]
+        },
+        {
+          "id": "playable_spine_check",
+          "label": "可玩脊柱核对",
+          "purpose": "把碎片整合为核心体验、动力、循环、开局和升级方向，不生成正式世界书或角色卡。",
+          "minimum": ["统一核心", "典型循环", "开局方向", "升级方向", "一次场景或失败压力检验"]
+        }
+      ]
+    },
+    "positioning": {
+      "owner_skill": "rp-project-foundation",
+      "route_mode": "fixed_nodes",
+      "scope": "one_project",
+      "nodes": [
+        {
+          "id": "player_promise",
+          "label": "玩家承诺",
+          "purpose": "明确玩家打开作品后主要来做什么、得到什么。",
+          "minimum": ["主要游玩目标", "反复获得的体验"],
+          "decision_ids": ["player-promise"]
+        },
+        {
+          "id": "player_control",
+          "label": "玩家控制权",
+          "purpose": "明确玩家观察、行动、谈判、改变关系和改变局势的权限边界。",
+          "minimum": ["玩家可以改变什么", "世界不会替玩家决定什么"],
+          "decision_ids": ["player-control"]
+        },
+        {
+          "id": "ownership_mode",
+          "label": "创作归属模式",
+          "purpose": "正式关闭开放世界、固定主角、开放世界加可选主控预设三者之一。",
+          "minimum": ["模式选择", "固定关系是否存在", "从零创建入口是否保留"]
+        },
+        {
+          "id": "scope_and_source_policy",
+          "label": "制作范围与来源策略",
+          "purpose": "明确本次保留、转换、重做和暂不处理的内容，避免样品或旧卡代替当前项目决定。",
+          "minimum": ["本次范围", "原始卡保留/重构策略", "明显缺口的处理方式"],
+          "decision_ids": ["scope-boundary", "preserve-vs-rework", "known-gaps"]
+        }
+      ]
+    },
+    "worldbuilding": {
+      "owner_skill": "rp-project-foundation",
+      "route_mode": "fixed_nodes",
+      "scope": "one_world",
+      "nodes": [
+        {
+          "id": "metadata",
+          "label": "元信息与文档边界",
+          "purpose": "确定 RP 形式和本文档对执行 AI 的核心约束；用途、版本和变更记录由 Agent 维护。",
+          "minimum": ["RP 形式", "本文档对 AI 的核心指令"],
+          "generated": ["文档用途", "文档版本", "变更记录"]
+        },
+        {
+          "id": "genre_tone",
+          "label": "类型与基调",
+          "purpose": "锁定题材、基调、叙事风格和不可接受的基调偏移。",
+          "minimum": ["类型", "整体基调", "基调红线"]
+        },
+        {
+          "id": "time_place_scope",
+          "label": "时间、地点与世界范围",
+          "purpose": "建立世界运行的时空范围、主要地点和日常技术/资源基线。",
+          "minimum": ["时代", "主要地点", "世界范围", "会影响行动的环境或技术条件"]
+        },
+        {
+          "id": "information_layers",
+          "label": "信息分层",
+          "purpose": "区分公开、半公开和秘密信息，防止角色和旁白越权引用。",
+          "minimum": ["公开信息", "半公开信息", "秘密信息", "秘密信息引用规则"]
+        },
+        {
+          "id": "core_conflict",
+          "label": "核心矛盾",
+          "purpose": "确定当前局势、冲突各方、各方目标和矛盾如何升级。",
+          "minimum": ["当前局势", "至少两方目标与手段", "升级或变化路径", "玩家可介入方向"]
+        },
+        {
+          "id": "world_rules",
+          "label": "世界规则与判定",
+          "purpose": "把魔法、科技、超自然、法律或社会制度写成能做什么、不能做什么、代价和上限。",
+          "minimum": ["关键系统", "能做什么", "明确不能做什么", "代价或限制", "判定框架", "冲突裁决"],
+          "decision_ids": ["causal-boundaries"]
+        },
+        {
+          "id": "species_factions_society",
+          "label": "种族、势力与社会结构",
+          "purpose": "建立会影响角色行为、资源和冲突的群体结构。",
+          "minimum": ["相关种族或明确不适用", "主要势力", "势力关系", "社会秩序"],
+          "conditional": "没有非人种族时明确 not_applicable；没有可影响 RP 的势力结构时明确 explicit_skip。"
+        },
+        {
+          "id": "ordinary_life",
+          "label": "常识与日常秩序",
+          "purpose": "让世界不只存在于主线冲突中，普通人、交易、法律和日常生活有可描写依据。",
+          "minimum": ["民众普遍常识", "法律或禁忌", "至少一组日常生活锚点"],
+          "decision_ids": ["ordinary-life"]
+        },
+        {
+          "id": "history_timeline",
+          "label": "历史与当前时间线",
+          "purpose": "确定不可更改的大事件、当前年份、最近发生的事和即将到来的危机。",
+          "minimum": ["至少一个影响当下的大事件", "当前状态", "近期或即将发生的变化"]
+        },
+        {
+          "id": "change_boundaries",
+          "label": "变更边界与 AI 即兴约束",
+          "purpose": "区分硬设定、软设定、鼓励探索方向和禁止即兴新增的内容。",
+          "minimum": ["硬设定", "软设定", "即兴补全边界"]
+        },
+        {
+          "id": "cross_world_rules",
+          "label": "跨世界规则",
+          "purpose": "仅在多世界、平行维度或跨时空项目中确定维度结构、移动和信息传递。",
+          "minimum": ["维度结构", "移动规则", "信息传递", "统一规则"],
+          "conditional": "单一世界项目必须明确 not_applicable。"
+        },
+        {
+          "id": "world_consistency_check",
+          "label": "世界观交接核对",
+          "purpose": "检查规则可判定性、信息层级、势力目标、日常表现和无人介入时的世界运动。",
+          "minimum": ["至少一个具体场景压力检查", "未决项及其影响", "硬设定与软设定清单"],
+          "decision_ids": ["unattended-motion"]
+        }
+      ]
+    },
+    "character": {
+      "owner_skill": "rp-cast-authoring",
+      "route_mode": "fixed_nodes_per_character",
+      "scope": "one_character_or_ensemble_member",
+      "nodes": [
+        {
+          "id": "world_role",
+          "label": "世界位置与角色功能",
+          "purpose": "确定角色属于何处、拥有什么资源和限制，以及在世界动力中承担什么作用。",
+          "minimum": ["世界归属", "角色功能", "资源与限制"]
+        },
+        {
+          "id": "want_fear",
+          "label": "核心动机与恐惧",
+          "purpose": "确定角色当前想得到什么、害怕失去什么，以及两者冲突时的优先级。",
+          "minimum": ["当前动机", "核心恐惧", "目标受阻时的反应"],
+          "decision_ids": ["character-want"]
+        },
+        {
+          "id": "values_boundaries",
+          "label": "价值排序与底线",
+          "purpose": "把性格形容词转成可执行的价值排序、禁忌和反常底线。",
+          "minimum": ["至少三项价值排序或等价结构", "底线", "底线被触碰后的行为"]
+        },
+        {
+          "id": "behavior_situations",
+          "label": "四类行为规则",
+          "purpose": "验证角色在合作、冲突、压力和道德困境中的触发、行为与代价。",
+          "minimum": ["合作行为", "冲突行为", "压力反应", "道德困境选择"],
+          "decision_ids": ["pressure-behavior"]
+        },
+        {
+          "id": "knowledge_boundary",
+          "label": "知识与信息边界",
+          "purpose": "确定角色知道什么、不知道什么、误解什么，以及信息层级如何限制其反应。",
+          "minimum": ["已知范围", "未知或误解", "秘密信息处理"],
+          "decision_ids": ["knowledge-boundary"]
+        },
+        {
+          "id": "speech_expression",
+          "label": "语言与表达",
+          "purpose": "确定整体说话方式、情绪变化时的表达，以及至少一个可观察的语言样例。",
+          "minimum": ["整体表达风格", "压力下的语言变化", "一段示例对白或表达规则"]
+        },
+        {
+          "id": "relationships_agency",
+          "label": "关系与自主行动",
+          "purpose": "区分固定关系、可变关系和留给当前主控的关系，并确定角色不等待玩家时会做什么。",
+          "minimum": ["固定关系", "关系边界", "至少一个自主行动方向"],
+          "decision_ids": ["relationship-agency"]
+        },
+        {
+          "id": "background_growth",
+          "label": "背景因果与成长边界",
+          "purpose": "只保留能解释当前行为的背景，并确定角色是否、如何、在什么代价下改变。",
+          "minimum": ["影响当前行为的背景", "成长或不变规则", "不可擅自改写的内容"]
+        },
+        {
+          "id": "character_behavior_check",
+          "label": "角色场景校准",
+          "purpose": "用初见、冲突、脆弱、拒绝或无人介入中的至少一个具体片段检查人物是否前后一致。",
+          "minimum": ["一个可观察场景", "行为是否能回指动机/恐惧/价值", "待修正矛盾"]
+        }
+      ]
+    },
+    "systems": {
+      "owner_skill": "rp-experience-authoring",
+      "route_mode": "fixed_nodes_per_system_with_conditional_numeric_depth",
+      "scope": "one_gameplay_or_quantified_system",
+      "nodes": [
+        {
+          "id": "system_purpose",
+          "label": "系统用途与作用对象",
+          "purpose": "确定系统控制什么变化、作用于谁，以及为什么会改变 RP。",
+          "minimum": ["系统用途", "作用对象", "对后续玩法或叙事的影响"]
+        },
+        {
+          "id": "choice_loop",
+          "label": "玩家循环与选择",
+          "purpose": "确定玩家反复做什么、每次选择在权衡什么。",
+          "minimum": ["典型循环", "可选行动", "至少一组取舍"],
+          "decision_ids": ["choice-loop"]
+        },
+        {
+          "id": "dimensions_ranges",
+          "label": "变化维度或状态结构",
+          "purpose": "数值系统确定维度、范围和初始状态；叙事型系统确定状态、条件、资源或阶段结构，不强行数字化。",
+          "minimum": ["系统的变化维度或状态结构", "初始状态/起始条件", "变化方向或状态转移方式"],
+          "conditional": "只有数值系统才要求上下限、纯数值初始值和数值方向。"
+        },
+        {
+          "id": "threshold_behavior",
+          "label": "阈值、阶段或状态行为",
+          "purpose": "把数值阈值、状态阶段或条件转化成玩家可观察的行为差异。",
+          "minimum": ["阶段/状态划分，或明确不需要分段", "每段或每态的可观察行为", "状态变化方式"]
+        },
+        {
+          "id": "calculation",
+          "label": "触发、判定与变化规则",
+          "purpose": "数值系统确定触发事件、变化幅度和合并规则；叙事型系统确定触发、判定、代价和结果转化。",
+          "minimum": ["触发条件", "判定或变化方式", "重复触发/连续行动处理", "至少一个边界或反直觉案例"]
+        },
+        {
+          "id": "context_and_limits",
+          "label": "情境修正与限制",
+          "purpose": "确定公开/私下、情绪、关系、时间等情境如何修正系统，并防止无限刷取。",
+          "minimum": ["重要情境修正", "单次或单阶段限制", "是否衰减或冷却"]
+        },
+        {
+          "id": "boundaries",
+          "label": "触顶、触底与失败代价",
+          "purpose": "确定系统到达边界后发生什么，以及失败是否会产生永久或严重后果。",
+          "minimum": ["上限/终态行为，或明确没有数值边界", "下限/失败态行为", "失败代价"],
+          "decision_ids": ["failure-cost"]
+        },
+        {
+          "id": "visible_feedback",
+          "label": "玩家可见反馈",
+          "purpose": "确定玩家如何通过叙事、角色行为或其他表现感知系统变化。",
+          "minimum": ["至少一种可观察反馈", "是否显示数值", "反馈不出现时的处理"],
+          "decision_ids": ["visible-feedback"]
+        },
+        {
+          "id": "system_judgment_check",
+          "label": "系统边界与示例核对",
+          "purpose": "用正面、负面、模糊和边界案例检查触发、变化和行为表现是否闭环。",
+          "minimum": ["正面示例", "负面示例", "模糊事件裁决", "触发→变化→行为闭环"]
+        }
+      ]
+    },
+    "scenes": {
+      "owner_skill": "rp-experience-authoring",
+      "route_mode": "fixed_nodes_per_scene",
+      "scope": "one_scene_or_location",
+      "nodes": [
+        {
+          "id": "scene_purpose",
+          "label": "场景用途与边界",
+          "purpose": "确定场景类型、剧情功能、玩法重心、规模、危险度和访问门槛。",
+          "minimum": ["场景用途", "玩法重心", "危险等级", "访问门槛"],
+          "decision_ids": ["scene-agency"]
+        },
+        {
+          "id": "spatial_structure",
+          "label": "空间结构",
+          "purpose": "建立规模、拓扑、楼层、关键通道和不可更改的空间事实。",
+          "minimum": ["总体规模", "区域连接关系", "关键通路", "不可改动空间事实"]
+        },
+        {
+          "id": "key_areas",
+          "label": "关键区域",
+          "purpose": "为每个会影响行动的区域定义用途、可见信息、互动点、风险和连接。",
+          "minimum": ["核心区域", "每个核心区域的用途", "互动点", "风险或限制", "连接关系"]
+        },
+        {
+          "id": "access_security",
+          "label": "出入口、权限与安保",
+          "purpose": "确定玩家如何进入、绕过、失败和离开场景。",
+          "minimum": ["出入口", "权限条件", "失败后果", "监控/巡逻/感知或明确不适用"]
+        },
+        {
+          "id": "inhabitants_ecology",
+          "label": "场景内角色与生态",
+          "purpose": "确定常驻者、关键 NPC、普通人群/生物和场景所属势力。",
+          "minimum": ["常驻者或管理者", "关键 NPC 目标", "普通生态", "势力关系"]
+        },
+        {
+          "id": "resources_destruction",
+          "label": "资源与可破坏元素",
+          "purpose": "确定可获得资源、关键道具、可破坏/可改造点和相应后果。",
+          "minimum": ["可获得资源", "关键道具或明确没有", "可破坏/可改造点", "行动后果"]
+        },
+        {
+          "id": "clues_information",
+          "label": "线索与信息结构",
+          "purpose": "在推理、悬疑或任务场景中明确真相、线索、获取方式、误导和时间窗。",
+          "minimum": ["核心秘密或明确不适用", "至少三条可取得线索或替代信息结构", "误导/权限边界"]
+        },
+        {
+          "id": "time_events",
+          "label": "时间与事件触发",
+          "purpose": "确定不同时间段的差异、随机事件、必然事件和玩家不介入时的变化。",
+          "minimum": ["时间段差异", "至少一个事件触发", "必然事件或明确没有", "无人介入后果"],
+          "decision_ids": ["scene-pressure"]
+        },
+        {
+          "id": "scene_rules",
+          "label": "场景特殊规则",
+          "purpose": "把世界规则落实到本场景的特殊限制和常见行动判定。",
+          "minimum": ["场景特殊规则", "常见行动判定", "明确禁止或无法实现的事情"]
+        },
+        {
+          "id": "scene_boundaries_check",
+          "label": "场景边界与行动校准",
+          "purpose": "区分硬设定和可即兴内容，并用至少一个进入、行动、失败或离开流程检查场景是否可玩。",
+          "minimum": ["硬设定", "软设定", "禁止走向", "一个行动后果链"],
+          "decision_ids": ["scene-exit"]
+        }
+      ]
+    },
+    "narrative_opening": {
+      "owner_skill": "rp-experience-authoring",
+      "route_mode": "fixed_nodes_with_optional_subroutes",
+      "scope": "narrative_rules_and_opening_content",
+      "nodes": [
+        {
+          "id": "narrative_viewpoint",
+          "label": "叙事视角",
+          "purpose": "只确定叙事使用的视角和基本观察距离。",
+          "minimum": ["第一/第二/第三人称或等价视角", "视角切换边界"]
+        },
+        {
+          "id": "prose_style",
+          "label": "整体文笔风格",
+          "purpose": "只确定整体文笔、句式密度和表达质感，不把节奏、信息揭示等拆成独立问卷。",
+          "minimum": ["整体文笔方向", "明确不接受的文风偏移"]
+        },
+        {
+          "id": "narrative_opening_policy",
+          "label": "叙事规则与开场选择",
+          "purpose": "分别确认沿用、新设或不制作叙事规则，以及沿用、新写或不制作开场。",
+          "minimum": ["叙事规则状态", "开场状态"],
+          "decision_ids": ["narrative-policy"],
+          "conditional": "两项可以分别选择，不因启用其中一项自动启用另一项。"
+        },
+        {
+          "id": "opening_situation",
+          "label": "开场局势",
+          "purpose": "当用户选择新写开场时，确定为什么现在开始、第一份张力和玩家第一步。",
+          "minimum": ["为什么现在", "第一份张力", "玩家初始可行动范围"],
+          "decision_ids": ["why-now", "first-tension", "agency-boundary"],
+          "conditional": "保留已有开场或不制作开场时明确 not_applicable。"
+        },
+        {
+          "id": "opening_consistency_check",
+          "label": "开场一致性核对",
+          "purpose": "检查开场是否符合世界、角色和场景，不强迫玩家接受未授权身份或私人关系。",
+          "minimum": ["开场与世界规则一致", "开场与角色行为一致", "玩家身份边界明确"]
+        }
+      ]
+    }
+  }
+}

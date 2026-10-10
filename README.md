@@ -102,6 +102,10 @@ npm run dsh:verify    # 结构检查 + 真实加载检查
 → QA 与交付
 ```
 
+创作阶段的访谈不是由 Agent 自己判断“信息够不够”。脑暴、定位、世界观、角色、系统、场景、叙事与开场分别有自己的固定节点路线，定义在 `internal-skills/rp-interview-orchestration/references/interview-routes.json`；原始材料已明确的节点直接预填，用户明确跳过或声明不适用的节点明确记录，其他节点按顺序主访谈并进行一次补全检查。固定路线规定最低语义覆盖，不要求用户逐字段填表，也不允许模型用自动补全、粗稿或单独的“继续”提前结束阶段。MVU、EJS、桥接和前端路线暂不纳入这份创作路线合同。
+
+路线进度会写入当前阶段的 `authority.md`，显示已访问节点和当前节点；阶段交接前由确定性路线检查确认所有节点已结算。路线进度不等于用户接受，`delegated` 仍只表示用户放权后的 Agent 代定。
+
 长期项目会在项目目录维护 `制作文件/项目记录/`：
 
 ```text
@@ -235,6 +239,26 @@ scripts/                 开发、续接和检查脚本
 `npm run worldbook:check -- --root <项目> --contract 制作文件/项目记录/worldbook-routing.json` 将实际条目与职责、激活、位置、深度和角色逐项核对，并回放预期分区。最终 production --final 自动检查全部实际世界书；真实请求未捕获时仍为 not_run。规则与合同结构见 internal-skills/st-worldbook-regex/references/worldbook-routing.md。
 
 ## 前端简易预览
+
+### 设计材料与现场打磨
+
+两阶段各自带来源、适用问题、采用方法和边界，并有独立离线挑选页。开场侧有世界呈现、指南、创角、排版与素材；持续消息侧有阅读、导航、地图、情报、物品、任务、反馈与窄屏使用。8 个可交互合成演示只说明方法，不是默认皮肤、样品路线或作品数据。
+
+```text
+npm run frontend:library -- --stage opening_frontend --root <作品目录> --out 制作文件/检查/界面参考/开场.html
+npm run frontend:library -- --stage message_frontend --root <作品目录> --out 制作文件/检查/界面参考/持续消息.html
+npm run frontend:workbench -- --root <作品目录> --fixtures 制作文件/检查/前端用例.json --case <实际用例id> --browser <现有浏览器程序>
+```
+
+挑选页可直接打开；workbench 在受控浏览器中运行实际导入内容，支持声明的样式参数、原样对照、项目预设、字段观察，以及确认后才注入的夹具快照。它不是重画的替身，也不接入真实账户。参数先保存当前候选，用 `frontend:tune` 查看差异，再在授权范围内落回维护源码；重建、装配和移除临时覆盖后才生成正式证据。不能用打磨截图通过设计复核。
+
+操作合同与完整例子见 `shared/frontend/design-tools.md`；视觉复核分别见 opening-review.md、message-review.md，不建立共用审美模板。
+
+### 安装后核验
+
+`npm run install:check -- --target <实际安装Agent根目录绝对路径> --host codex` 逐文件对照当前源与指定安装目录，列出缺失、改动和过时资源；`--check-dependencies` 另查实际工具依赖。它只读、不安装、不改全局规则，也不把源码树当安装目标。文件匹配不等于宿主已加载，更不等于酒馆制品通过。未专门适配的宿主使用 generic，目标扫描位置须另行核对。
+
+### 结构与正式渲染预览
 
 开场前端与状态栏现在分别使用独立设计流程和资料索引：开场围绕世界介绍、游玩指南与页面内创角，持续消息围绕真实游玩任务、信息表达和长期舒适度。不建立统管两者的共用 UI 规则，也不默认使用同一套皮肤。两边都要求针对作品高度定制。
 

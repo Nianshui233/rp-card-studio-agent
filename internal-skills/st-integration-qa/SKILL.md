@@ -18,6 +18,8 @@ QA 的 automaticExecution 只继承制作许可；来源创作保持 authored/pe
 
 ## 职责
 
+已启用开场读取 `internal-skills/st-opening-frontend-authoring/references/opening-review.md`，已启用持续消息读取 `internal-skills/st-message-frontend-authoring/references/message-review.md`，从真实画面复核，不使用共用审美模板。检查打磨参数是否已落回维护源码并重新装配，workbench-candidate 与 eligibleForDesignReview:false 的截图不能当正式视觉、真实宿主或用户接受证据。安装文件比对也不证明当前宿主已加载。
+
 - 直接检查用户工作目录中的完整 canonical 世界/角色/系统/场景 YAML、最终角色卡、独立世界书、正则、Tavern Helper 脚本、MVU/mvu.zod 文件、EJS 文件、可选 bridge 和完整 HTML；存在角色卡组合时优先运行 `scripts/validate-rolecard-package.mjs`，再按实际 provider 做宿主验收；
 - 对实际存在的世界、角色、系统、场景、叙事、开场、主控入口、变量初态和玩家反馈执行跨阶段一致性检查；
 - 修复确定的语法错误、字段错位、路径断链、ID 冲突、标记生产者/消费者不一致、变量路径错误和不改变创作方向的明确事实矛盾；
