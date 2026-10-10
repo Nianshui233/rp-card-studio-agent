@@ -1,3 +1,4 @@
+import { createRoutedEntry } from './routing.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -83,7 +84,12 @@ export function buildLosslessWorldbook(sourceText, options = {}) {
   if (!Number.isInteger(startUid) || startUid < 0) throw new Error('startUid 必须是非负整数');
   const sections = splitYamlTextLosslessly(sourceText, options);
   const entries = {};
-  sections.forEach((section, index) => { entries[startUid + index] = worldbookEntry(startUid + index, section); });
+  sections.forEach((section, index) => {
+    const uid = startUid + index, base = worldbookEntry(uid, section);
+    const policy = options.routing ? options.routing[section.key] : options.policy;
+    if (options.routing && !policy) throw new Error('切片没有对应职责策略：' + section.key);
+    entries[uid] = policy ? createRoutedEntry(base, policy) : base;
+  });
   const reconstructed = Object.values(entries).map(entry => entry.content).join('');
   const source = String(sourceText).replace(/^\uFEFF/, '');
   if (reconstructed !== source) throw new Error('内部错误：世界书条目无法无损重组源 YAML');
@@ -100,14 +106,16 @@ function main() {
   const sourcePath = arg('--source', args);
   const outputPath = arg('--output', args);
   if (!sourcePath || !outputPath) {
-    console.error('用法: node split-yaml-lossless.mjs --source <完整.yaml> --output <世界书.json> [--indent 0] [--start-uid 0]');
+    console.error('用法: node split-yaml-lossless.mjs --source <完整.yaml> --output <世界书.json> [--indent 0] [--start-uid 0] [--routing <按切片键名定义的策略.json>]');
     process.exitCode = 2;
     return;
   }
   const indent = Number(arg('--indent', args) || 0);
   const startUid = Number(arg('--start-uid', args) || 0);
   const source = fs.readFileSync(path.resolve(sourcePath), 'utf8');
-  const worldbook = buildLosslessWorldbook(source, { indent, startUid });
+  const routingPath = arg('--routing', args);
+  const routing = routingPath ? JSON.parse(fs.readFileSync(path.resolve(routingPath), 'utf8').replace(/^\uFEFF/, '')) : undefined;
+  const worldbook = buildLosslessWorldbook(source, { indent, startUid, routing });
   fs.writeFileSync(path.resolve(outputPath), JSON.stringify(worldbook, null, 2) + '\n', 'utf8');
   const count = Object.keys(worldbook.entries).length;
   console.log(`OK: ${count} 个世界书条目；content 可按 UID 顺序无损重组源 YAML`);

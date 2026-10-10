@@ -10,7 +10,8 @@ export function createProductionManifest({ projectId, title }) {
   return { schema: PRODUCTION_SCHEMA, projectId, title, status: 'draft',
     source: { canonicalRoot: SOURCE_DIR, userEvidenceRequired: true, referenceOnlySamples: true },
     delivery: { directory: DELIVERY_DIR, manifest: DELIVERY_MANIFEST, activeRoute: null, runtimeHost: 'sillytavern' },
-    interviews: {}, mvu: { mode: 'unresolved', components: {} }, diagnostics: { events: [], highestVerifiedLevel: 'hypothesis' } };
+    interviews: {}, mvu: { mode: 'unresolved', components: {} }, ejs: { enabled: null, mode: 'unresolved', components: {}, templates: [], runtimeIndex: null },
+    worldbook: { routingContract: null }, frontends: {}, bindings: [], verification: { plan: STATE_DIR + '/check-plan.json', report: STATE_DIR + '/check-report.json' }, diagnostics: { events: [], highestVerifiedLevel: 'hypothesis' } };
 }
 export function validateProductionManifest(manifest, { root } = {}) {
   const issues = [];
@@ -24,7 +25,7 @@ export function validateProductionManifest(manifest, { root } = {}) {
   if (!object(manifest?.mvu) || !object(manifest.mvu.components)) issues.push('production manifest 缺少 mvu.components');
   if (!object(manifest?.diagnostics) || !Array.isArray(manifest.diagnostics.events)) issues.push('production manifest 缺少 diagnostics.events');
   for (const group of [manifest?.mvu?.components, manifest?.ejs?.components]) for (const [name, item] of Object.entries(group || {})) {
-    if (item?.path) try { requireArea(item.path, WORK_DIR, '制作组件 ' + name); } catch (error) { issues.push(error.message); }
+    if (item?.path) try { requireArea(item.path, WORK_DIR, '制作组件 ' + name); if (root && item.status === 'passed') resolveProjectPath(root, item.path); } catch (error) { issues.push(error.message); }
   }
   if (root) {
     issues.push(...validateProjectLayout(root).issues);

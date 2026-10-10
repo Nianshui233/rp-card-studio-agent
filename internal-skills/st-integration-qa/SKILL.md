@@ -99,3 +99,11 @@ description: "Private final QA and delivery module for cross-stage RP consistenc
 7. 已通过的文件检查和真实宿主检查；
 8. `runtime: not_run` 项；
 9. 远程/宿主依赖与已知限制。
+
+## 制作与验证接入
+
+最终检查按 `orchestrator/production-verification.md` 执行统一构建检查流程，随后运行 production-check validate --final；按 authority 启用项检查所有组件，不因当前为 QA 而跳过前端。每条主路/兜底、每个实际操作、每个 EJS 实例绑定精确导入字段。记录和导入说明由当前结果派生；浏览器夹具不是实机验收。
+
+## 世界书调度接入
+
+世界书位置终检必须读取 st-worldbook-regex/references/worldbook-routing.md 并执行 worldbook-check。按实际文件全量核对策略：稳定背景、角色与场景不默认全部 @D，变量保留近剧情；实机查看激活后实际 Before/After/Chat History 归属，不能仅以 depth 不为 0 或文件存在判通过。

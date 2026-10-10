@@ -1,14 +1,11 @@
+import { readProjectState } from '../continuation/ledger-transition.mjs';
+import { textHash } from './artifact-bindings.mjs';
+import { validateProductionProject } from './production-project.mjs';
 import fs from 'node:fs';
 import { STATE_DIR, resolveProjectPath } from '../project-layout.mjs';
-import { validateDeliveryLayout } from '../delivery/project-package.mjs';
 import path from 'node:path';
-import { initProductionProject, validateProductionManifest } from './production-manifest.mjs';
-import { validateInterviewGate } from './interview-gate.mjs';
-import { validateInterviewCoverage, INTERVIEW_PROFILES } from './interview-coverage.mjs';
-import { validateMvuCompleteness } from './mvu-completeness-gate.mjs';
-import { validateEjsCompleteness } from './ejs-completeness-gate.mjs';
-import { validateFrontendManifest } from './tavern-helper-carrier-gate.mjs';
-import { validateDiagnosticEvents, validateReportClaim } from './diagnostic-evidence.mjs';
+import { initProductionProject } from './production-manifest.mjs';
+import { validateReportClaim } from './diagnostic-evidence.mjs';
 
 function option(name) { const index = process.argv.indexOf(name); return index >= 0 ? process.argv[index + 1] : undefined; }
 function readProject(root) {
@@ -25,28 +22,20 @@ try {
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   } else if (command === 'validate') {
     const { manifest } = readProject(root);
-    const checks = [
-      validateProductionManifest(manifest, { root }),
-      validateDeliveryLayout(root, { requireManifest: ['awaiting_review','runtime_verified','accepted'].includes(manifest.status) && manifest.activeStage === 'qa_delivery' }),
-      await validateMvuCompleteness(manifest.mvu, { root }),
-      validateEjsCompleteness(manifest.ejs),
-      ...(['implementation','awaiting_review','runtime_verified','accepted'].includes(manifest.status) && ['opening_frontend','message_frontend'].includes(manifest.activeStage) ? [validateFrontendManifest(manifest.frontend, { activeStage: manifest.activeStage })] : []),
-      validateDiagnosticEvents(manifest.diagnostics?.events)
-    ];
-    if (['implementation','awaiting_review','runtime_verified','accepted'].includes(manifest.status) && ['opening_frontend','message_frontend','mvu','native_schema','mvu_zod'].includes(manifest.activeStage) && !manifest.interviews?.[manifest.activeStage]) checks.push({ ok: false, issues: [`activeStage 缺少访谈覆盖：${manifest.activeStage}`] });
-    if (['implementation', 'awaiting_review', 'runtime_verified', 'accepted'].includes(manifest.status) && ['mvu', 'native_schema', 'mvu_zod'].includes(manifest.activeStage) && !['mvu', 'native_schema', 'mvu_zod'].includes(manifest.mvu?.mode)) checks.push({ ok: false, issues: ['MVU 制作阶段不能使用 unresolved/none 绕过组件门禁'] });
-    if (['runtime_verified', 'accepted'].includes(manifest.status) && manifest.mvu?.mode === 'mvu_zod' && manifest.mvu.sourceContract?.runtime?.status !== 'pass') checks.push({ ok: false, issues: ['runtime_verified/accepted 不能使用 MVU runtime:not_run/failed'] });
-    for (const [stage, interview] of Object.entries(manifest.interviews ?? {})) checks.push({ stage, ...(interview.profile && INTERVIEW_PROFILES[interview.profile] ? validateInterviewCoverage(interview, interview.profile) : validateInterviewGate(interview, interview.required ?? undefined)) });
-    const issues = checks.flatMap(result => result.issues ?? []);
-    const result = { ok: issues.length === 0, issues, checks };
+    const result = await validateProductionProject(manifest, { root, final: process.argv.includes('--final') });
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     if (!result.ok) process.exitCode = 1;
+  } else if (command === 'decision-ref') {
+    const { ledger } = readProjectState(root);
+    const decision = ledger.decisions?.find(d => d.id === option('--id'));
+    if (!decision || !['user_confirmed','delegated','material_fact'].includes(decision.sourceKind)) throw new Error('决定不存在或未生效；不能制造确认');
+    process.stdout.write(JSON.stringify({ ok: true, sourceKind: decision.sourceKind, text: decision.text, ref: { id: decision.id, textSha256: textHash(decision.text) } }, null, 2) + '\n');
   } else if (command === 'claim') {
     const result = validateReportClaim(option('--text') || '', option('--level') || 'hypothesis');
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     if (!result.ok) process.exitCode = 1;
   } else {
-    throw new Error('用法: node production-check.mjs init|validate|claim --root <项目目录> [--project-id id --title title --text claim --level evidence-level]');
+    throw new Error('用法: node production-check.mjs init|validate|decision-ref|claim --root <项目目录> [--final --project-id id --title title --text claim --level evidence-level]');
   }
 } catch (error) {
   process.stderr.write(`${error.message}\n`);

@@ -20,17 +20,26 @@
     "mode": "unresolved",
     "components": {}
   },
-  "frontend": null,
   "ejs": {
-    "enabled": false,
-    "mode": "none",
+    "enabled": null,
+    "mode": "unresolved",
     "executionStages": [],
     "contract": {},
     "components": {},
-    "templates": []
+    "templates": [],
+    "runtimeIndex": null
   },
   "diagnostics": {
     "events": [],
     "highestVerifiedLevel": "hypothesis"
+  },
+  "frontends": {},
+  "bindings": [],
+  "verification": {
+    "plan": "制作文件/项目记录/check-plan.json",
+    "report": "制作文件/项目记录/check-report.json"
+  },
+  "worldbook": {
+    "routingContract": null
   }
 }

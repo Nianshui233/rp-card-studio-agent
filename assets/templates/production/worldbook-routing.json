@@ -1,0 +1,6 @@
+{
+  "schema": "rp-card-studio/worldbook-routing/v1",
+  "versionPin": "待核对的 SillyTavern 目标版本",
+  "books": [],
+  "fixtures": "制作文件/检查/worldbook-routing.fixtures.json"
+}

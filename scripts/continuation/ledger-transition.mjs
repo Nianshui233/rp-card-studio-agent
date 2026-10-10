@@ -85,7 +85,7 @@ export function validateTransitionResult(ledger, currentStage) {
 }
 
 
-function readProjectState(projectRoot) {
+export function readProjectState(projectRoot) {
   const root = path.resolve(projectRoot);
   const layout = validateProjectLayout(root); if (!layout.ok) throw new Error(layout.issues.join('\n'));
   const authorityPath = resolveProjectPath(root, STATE_DIR + '/authority.md');

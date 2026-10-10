@@ -65,6 +65,14 @@
 
 启动时除项目账本外还要读取 `制作文件/项目记录/production.json`；生产校验失败时不得实现、交接或交付。
 
+## 工程验证与最终装配
+
+运行组件制作与 QA 必须按 `orchestrator/production-verification.md` 执行。访谈覆盖要落到实际页面的布局、图形、字段、操作、空态和失败结果，并引用 authority 中当前有效决定；用户更正使旧引用与受影响验收失效，不能只改主账本而保留旧确认摘要。前端快捷填表不自动改变创作归属模式。
+
+先验证最小载体，再扩充页面；真正源文件与拼装产物分开，修复必须重建至精确导入内容。后台脚本的 document、父页面与 JQuery 包装对象不能混用，模板工具必须导入打包，不能猜成宿主全局。图形与复杂交互按项目自由创作，不把代码行数或某一模板版式当质量证明。
+
+统一构建检查用 `scripts/production/check-plan.mjs`：检查结果和退出码必须同时成功，任何失败停止；检查后再改源文件或重建使证据过期。QA 检查全部已启用组件的最终 bindings，EJS 检查全部运行实例，前端主路与兜底分别执行实际操作、重画和生命周期用例。`scripts/frontend/run-browser-fixtures.mjs` 只产生 browser-fixture 证据，不能替代真实 SillyTavern 导入、依赖加载、Swipe 与保存读回。无法运行时如实记录 not_run，不写假通过。
+
 ## 启动
 
 每次开始或继续工作时：
@@ -267,7 +275,7 @@ NSFW 只在首轮确认一次。启用后不再进行边界问卷或运行时门
 - MVU 输出只选择 JSON Patch 或 lodash 一种方言，世界书合同、Regex、fixture 和解析器必须一致。
 - 默认交付采用独立制品路线：角色卡不嵌入 `CharacterBook`、Regex 或 Tavern Helper ScriptFolder；它们分别作为独立文件导入，避免同一载荷存在两份。只有用户明确要求旧卡兼容时才保留嵌入副本，并在导入说明中标为二选一。
 - MVU Regex 分开承担显示处理与历史 Prompt 清理：历史 `<UpdateVariable>` 可以仅格式提示词清理，并按最小深度保留最近更新；不得永久删除原消息的技术块，或删除当前变量列表、初始化/载体合同。显示规则与 Prompt 规则各自验收，不启用技术块的 `runOnEdit=true`。
-- 世界书路由必须按职责验证：当前变量列表靠近最新剧情 D0/D1；更新规则可以在角色定义前后或其他已验证深度；普通世界、角色、场景不得无条件全部堆在 atDepth/depth 0；立即事件必须有明确关键词或 sticky/cooldown 语义。
+- 世界书按 `internal-skills/st-worldbook-regex/references/worldbook-routing.md` 分开核对激活、位置、深度和角色。稳定世界/人物/场景/长期规则优先角色定义前后；当前变量列表靠近最新剧情 D0/D1，更新规则按实际合同安排。不得把全部 atDepth 从 D0 改到 D3/D4 冒充分层；非常规稳定资料位置须有当前明确依据。最终每个实际 uid 都有职责策略和分区回放，实机仍核对真正请求。立即事件有明确触发或 cooldown 语义。
 - 世界书运行合同还必须考虑宿主预算：当前 SillyTavern 按较高 `order` 优先参与预算，`constant=true` 不等于绕过预算；变量规则、变量列表、输出格式和必要强调条目要有高优先级/`ignoreBudget` 策略，并用 Prompt 查看器确认实际进入请求。
 - MVU_ZOD 必须读取 `internal-skills/st-mvu-authoring/references/mvu-source-build.md`，用真实 canonical Schema、注册入口、Loader、Prompt 和项目 fixture 执行 source→build→import 校验；`制作文件/项目记录/production.json` 的 `mvu.sourceContract` 绑定实际文件与导入正文。包级检查传 `--mvu-contract` 与 `--mvu-source-contract`；不能用自填 `passed`、源码字符串或伪造哈希代替构建。
 - 变量卡实机排错必须按“变量管理器 → 日志/Console → Prompt 查看器 → 原始 assistant 回复 → 状态栏 → 保存重载”的证据顺序进行；制作阶段可关闭模板/宏查看原始文本，测试阶段再开启并核对替换后的 Prompt，不能把两个阶段混为一谈。

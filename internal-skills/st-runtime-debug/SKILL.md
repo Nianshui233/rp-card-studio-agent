@@ -74,3 +74,7 @@ source_checked → static_pass → browser_pass → runtime_pass → human_accep
 按第一因果错误返回 `handoff`：导入/绑定 → integration，API/版本 → st-api-reference 或 st-host-capabilities，状态/变量 → mvu；动态模板 → ejs；MVU 与 EJS 数据交换 → runtime_bridge；正则/标记 → st-render-regex，开场/创角页面与提交 → st-opening-frontend-authoring，持续消息 UI 源码与生命周期 → st-message-frontend-authoring。
 
 浏览器超时只表示观察动作超时，不代表副作用没有发生；重新读取聊天身份、消息数量、挂载数量和变量值后再下结论。最终 QA 报告只需给出精确制品哈希、环境版本、所跑矩阵的 `passed/failed/blocked/not_run`、关键直接证据与限制；继续遵守本 Agent 的轻量规则，不另存逐步运行日志、会话转录、矩阵副本或调试账本。
+
+## 制作与验证接入
+
+使用 `orchestrator/production-verification.md` 的分层证据：先核对真正源码、精确交付内容与局部/全局配置位置，再改代码；用户报告重新操作不是重新质疑用户的理由。显示、操作、刷新和保存分别验证；主路与兜底隔离，不能拿夹具结果替代实机。

@@ -1,3 +1,5 @@
+import { validateWorldbookProject } from './worldbook/worldbook-project.mjs';
+import { readProjectState } from './continuation/ledger-transition.mjs';
 import fs from 'node:fs';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -172,7 +174,7 @@ function parseEjsContract(text) {
 async function runCli() {
   const root = fs.realpathSync(path.resolve(option('--root') || process.cwd()));
   const cardRelative = option('--card');
-  if (!cardRelative) throw new Error('用法: node validate-rolecard-package.mjs --root <package-dir> --card <card.json> [--worldbook <book.json> --worldbook-name <actual-name>] [--regex <regex.json> [--regex-mode additional|alternative] --fixtures <fixtures.json>] [--script-folder <folder.json>] [--zod-source <compiled-registration.js>] [--mvu-source-contract <source-contract.json>] [--mvu-contract <MVU运行合同.yaml>] [--ejs-contract <EJS运行合同.yaml>] [--mvu-mode none|native_schema|mvu_zod] [--mvu-init-strategy auto|worldbook|greeting] [--allow-embedded-character-book] [--host-root <SillyTavern-source>]');
+  if (!cardRelative) throw new Error('用法: node validate-rolecard-package.mjs --root <package-dir> --card <card.json> [--worldbook <book.json> --worldbook-name <actual-name>] [--regex <regex.json> [--regex-mode additional|alternative] --fixtures <fixtures.json>] [--script-folder <folder.json>] [--zod-source <compiled-registration.js>] [--mvu-source-contract <source-contract.json>] [--mvu-contract <MVU运行合同.yaml>] [--ejs-contract <EJS运行合同.yaml>] [--mvu-mode none|native_schema|mvu_zod] [--mvu-init-strategy auto|worldbook|greeting] [--allow-embedded-character-book] [--worldbook-routing <调度合同.json> --require-worldbook-runtime] [--host-root <SillyTavern-source>]');
   const readTextFile = relative => {
     const resolved = projectPath(root, relative);
     const rel = path.relative(root, resolved);
@@ -239,7 +241,7 @@ async function runCli() {
     input.mvuDialect = input.mvuContract.update_dialect;
     if (!input.mvuMode || !input.mvuInitStrategy || !input.mvuDialect) throw new Error('MVU运行合同缺少 mode/init_strategy/update_dialect');
   }
-  input.allowEmbeddedCharacterBook = option('--allow-embedded-character-book') !== undefined;
+  input.allowEmbeddedCharacterBook = process.argv.includes('--allow-embedded-character-book');
   input.mvuMode = option('--mvu-mode') || input.mvuMode || undefined;
   input.mvuInitStrategy = option('--mvu-init-strategy') || input.mvuInitStrategy || undefined;
   const hostRoot = option('--host-root');
@@ -258,6 +260,12 @@ async function runCli() {
     };
   }
   const report = validateRolecardPackage(input);
+  const routingPath = option('--worldbook-routing');
+  if (routingPath) {
+    let ledger; if (fs.existsSync(path.join(root, '制作文件/项目记录/authority.md'))) ledger = readProjectState(root).ledger;
+    const routing = validateWorldbookProject(root, routingPath, { ledger, requireRuntime: process.argv.includes('--require-worldbook-runtime') });
+    report.worldbookRouting = routing; report.issues.push(...routing.issues); report.warnings.push(...routing.warnings); report.ok = report.issues.length === 0;
+  }
   if (sourceResult) {
     for (const issue of validateDeliveryLayout(root).issues) report.issues.push('交付目录: ' + issue);
     for (const issue of sourceResult.issues) report.issues.push('MVU source: ' + issue);
@@ -268,11 +276,14 @@ async function runCli() {
     report.mvuSource = sourceResult;
   } else if (input.mvuMode === 'mvu_zod') report.warnings.push('仅包级静态检查；未提供 --mvu-source-contract，canonical 工程链未验证');
 
+  if (process.argv.includes('--json')) console.log(JSON.stringify({ ...report, artifactHashes, level: 'offline-artifact', runtime: 'not_run' }, null, 2));
+  else {
   for (const artifact of artifactHashes) console.log(`ARTIFACT sha256 ${artifact.sha256}  ${artifact.path}`);
   if (input.hostCardValidation) console.log(`HOST SillyTavern ${input.hostCardValidation.hostVersion} CardValidator: ${input.hostCardValidation.valid ? `card spec V${input.hostCardValidation.cardSpecVersion} passed` : 'failed'}`);
   for (const warning of report.warnings) console.warn(`WARN ${warning}`);
   for (const issue of report.issues) console.error(`FAIL ${issue}`);
   if (!report.issues.length) console.log(`PASS ${cardRelative}: static package checks passed; this does not perform SillyTavern UI import/runtime acceptance`);
+  }
   if (!report.ok) process.exitCode = 1;
 }
 

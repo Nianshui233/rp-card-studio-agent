@@ -32,3 +32,7 @@ TavernWeave `core-facts.md` 中标记为 2026-07-22 的版本表是导航快照�
 ## 证据规则
 
 类型声明、文档和源码检查只能证明接口来源已核对。真正写入、挂载、渲染和持久化仍要通过实际文件或真实运行证据确认。找不到精确签名时直接报告缺口，由拥有实现的阶段补充，不凭印象编造参数。
+
+## 世界书调度接入
+
+世界书位置核对还读取 st-worldbook-regex/references/worldbook-routing.md；确认目标版本的 position 枚举、@D 的 depth/role 和 CharacterBook extensions 转换。depth 不改变 Before/After 归属，系统身份不等于聊天记录之外。

@@ -98,6 +98,7 @@ for (const [relative, args] of [
     '--card', '导入包/我，非我.角色卡.json',
     '--worldbook', '导入包/我，非我.世界书.json',
     '--worldbook-name', '我，非我',
+    '--worldbook-routing', '制作文件/项目记录/世界书调度合同.json',
     '--regex', '导入包/我，非我.正则.json',
     '--regex-mode', 'alternative',
     '--fixtures', '制作文件/检查/regex.fixtures.json',

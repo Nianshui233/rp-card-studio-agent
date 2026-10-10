@@ -223,3 +223,13 @@ scripts/                 开发、续接和检查脚本
 ## 作品目录
 
 作品项目从制作开始只保留“导入包”和“制作文件”两个顶层文件夹。实际导入成品默认平铺在导入包；原稿、源码、配置、项目记录和检查材料统一留在制作文件。目录合同见 `orchestrator/project-layout.md`。最终整理用 `node scripts/delivery/deliverable-check.mjs layout --root "作品目录" --final` 检查；该布局不重排 Agent 工具包仓库。
+
+## 工程验证工具
+
+运行组件的完整规则与配置结构见 `orchestrator/production-verification.md`。`npm run project:verify -- --root <项目>` 执行项目自己的构建检查计划，失败立即停止；`npm run production:check -- --root <项目> --final` 复核所有已启用组件的实际装配和当前证据。`npm run frontend:check -- --root <项目> --fixtures 制作文件/检查/前端用例.json --browser <浏览器程序>` 用最终导入内容运行受控页面与操作用例。缺浏览器时明确失败/not_run，不自动下载安装或声称实机通过。
+
+仓库自测：`npm test`、`npm run test:dsh`、`npm run check`；浏览器行为测试 `npm run test:frontend`，可用 `RP_BROWSER_EXECUTABLE` 指定已有 Chrome/Edge。浏览器夹具测试不等于 SillyTavern 实机验收。
+
+## 世界书调度检查
+
+`npm run worldbook:check -- --root <项目> --contract 制作文件/项目记录/worldbook-routing.json` 将实际条目与职责、激活、位置、深度和角色逐项核对，并回放预期分区。最终 production --final 自动检查全部实际世界书；真实请求未捕获时仍为 not_run。规则与合同结构见 internal-skills/st-worldbook-regex/references/worldbook-routing.md。

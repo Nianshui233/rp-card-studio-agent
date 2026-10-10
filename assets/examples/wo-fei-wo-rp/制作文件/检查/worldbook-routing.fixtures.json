@@ -1,0 +1,275 @@
+{
+  "schema": "rp-card-studio/worldbook-routing-fixtures/v1",
+  "fixtures": [
+    {
+      "id": "stable-background-and-rules",
+      "bookId": "main",
+      "activatedEntryIds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        21,
+        22,
+        23,
+        24,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        47,
+        48
+      ],
+      "expected": [
+        {
+          "entryId": "0",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "1",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "2",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "3",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "4",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "5",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "6",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "7",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "8",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "9",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "10",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "11",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "12",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "13",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "14",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "21",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "22",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "23",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "24",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "33",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "34",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "35",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "36",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "37",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "38",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "39",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "40",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "41",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "42",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "47",
+          "area": "worldInfoBefore"
+        },
+        {
+          "entryId": "48",
+          "area": "worldInfoBefore"
+        }
+      ]
+    },
+    {
+      "id": "conditional-characters-and-factions",
+      "bookId": "main",
+      "activatedEntryIds": [
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "expected": [
+        {
+          "entryId": "15",
+          "area": "worldInfoAfter"
+        },
+        {
+          "entryId": "16",
+          "area": "worldInfoAfter"
+        },
+        {
+          "entryId": "17",
+          "area": "worldInfoAfter"
+        },
+        {
+          "entryId": "18",
+          "area": "worldInfoAfter"
+        },
+        {
+          "entryId": "19",
+          "area": "worldInfoAfter"
+        },
+        {
+          "entryId": "20",
+          "area": "worldInfoAfter"
+        },
+        {
+          "entryId": "25",
+          "area": "worldInfoAfter"
+        },
+        {
+          "entryId": "26",
+          "area": "worldInfoAfter"
+        },
+        {
+          "entryId": "27",
+          "area": "worldInfoAfter"
+        },
+        {
+          "entryId": "28",
+          "area": "worldInfoAfter"
+        },
+        {
+          "entryId": "29",
+          "area": "worldInfoAfter"
+        },
+        {
+          "entryId": "30",
+          "area": "worldInfoAfter"
+        },
+        {
+          "entryId": "31",
+          "area": "worldInfoAfter"
+        },
+        {
+          "entryId": "32",
+          "area": "worldInfoAfter"
+        }
+      ]
+    },
+    {
+      "id": "current-state-and-turn-contracts",
+      "bookId": "main",
+      "activatedEntryIds": [
+        44,
+        45,
+        46
+      ],
+      "expected": [
+        {
+          "entryId": "44",
+          "area": "chatHistory",
+          "depth": 0,
+          "role": 0
+        },
+        {
+          "entryId": "45",
+          "area": "chatHistory",
+          "depth": 0,
+          "role": 0
+        },
+        {
+          "entryId": "46",
+          "area": "chatHistory",
+          "depth": 0,
+          "role": 0
+        }
+      ]
+    }
+  ]
+}

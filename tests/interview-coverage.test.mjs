@@ -1,3 +1,4 @@
+import { interviewFixture } from './helpers/production-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { INTERVIEW_PROFILES, validateInterviewCoverage } from '../scripts/production/interview-coverage.mjs';
@@ -16,6 +17,6 @@ test('interview coverage requires all dependencies and detailed MVU dimensions',
 });
 
 test('complete coverage can close a profile', () => {
-  const coverage = Object.fromEntries(Object.entries(INTERVIEW_PROFILES.opening_frontend).map(([id, depth]) => [id, { status: 'confirmed', depth, sourceKind: 'user_confirmed', evidence: 'USR-1' }]));
-  assert.equal(validateInterviewCoverage({ status: 'covered', coverage }, 'opening_frontend').ok, true);
+  const { interview, ledger } = interviewFixture('opening_frontend', INTERVIEW_PROFILES);
+  assert.equal(validateInterviewCoverage(interview, 'opening_frontend', { ledger }).ok, true);
 });

@@ -81,3 +81,7 @@ MVU 是否启用是用户可以明确选择的运行能力，不得因为执行 
 ```
 
 `replaceMvuData` 的即时读回不等于耐久保存；MVU 初始化/更新事件也不等于消息已经持久化。没有真实宿主证据时记录 `runtime: not_run`。
+
+## 世界书调度接入
+
+世界书调度按 st-worldbook-regex/references/worldbook-routing.md：current_state 的近剧情 D0/D1 与普通世界背景的位置分开，不能把其它作品内容一律随变量放进聊天。默认禁用的 initvar 仍按初始化合同读取，位置字段不代表是否完成初始化。

@@ -90,3 +90,7 @@ provider → 数值 message_id → Swipe → MvuData/stat_data → 保存后刷�
 ## 完成门槛
 
 静态检查必须能说明源工程、导入 JSON、HTML、脚本和 Regex 的对应关系；真实宿主未验证时记录 `runtime: not_run`。仅有一个 HTML/Regex 文件而没有 producer、provider、message_id、生命周期和失败回退，不算完整 Tavern Helper 前端交付。
+
+## 制作与验证接入
+
+工程实现必须读取 `orchestrator/production-verification.md`。createScriptIdIframe/createScriptIdDiv/teleportStyle 是模板 util/script.ts 的导出，不是宿主自动全局；导入并打包，前两者返回 JQuery，需要原生节点时取 [0]。后台脚本的 document 是自己的 iframe；父页面查找与挂载必须明确文档。可选用 shared/frontend/boot-controller.mjs 协调就绪、渲染成功、超时、重试与清理，不产生作品状态。

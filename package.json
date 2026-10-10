@@ -1,6 +1,6 @@
 {
   "name": "rp-card-studio-agent",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "private": true,
   "type": "module",
   "description": "Lean SillyTavern RP brainstorming, authoring, QA, final inspection, and delivery agent.",
@@ -17,7 +17,11 @@
     "production:check": "node scripts/production/production-check.mjs validate",
     "production:claim": "node scripts/production/production-check.mjs claim",
     "mvu:build": "node scripts/mvu/mvu-zod-project.mjs build",
-    "mvu:check": "node scripts/mvu/mvu-zod-project.mjs validate"
+    "mvu:check": "node scripts/mvu/mvu-zod-project.mjs validate",
+    "test:frontend": "node tests/frontend-browser.mjs",
+    "project:verify": "node scripts/production/check-plan.mjs",
+    "frontend:check": "node scripts/frontend/run-browser-fixtures.mjs",
+    "worldbook:check": "node scripts/worldbook/worldbook-check.mjs"
   },
   "dependencies": {
     "acorn": "8.15.0",
@@ -25,5 +29,8 @@
     "lodash-es": "4.17.21",
     "yaml": "2.8.1",
     "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
   }
 }

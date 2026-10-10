@@ -1,0 +1,304 @@
+{
+  "schema": "rp-card-studio/worldbook-routing/v1",
+  "versionPin": "SillyTavern@1.19.0",
+  "books": [
+    {
+      "id": "main",
+      "artifact": "我，非我.世界书.json",
+      "policies": {
+        "stable_rules-constant-0": {
+          "purpose": "stable_rules",
+          "activation": "constant",
+          "placement": {
+            "position": 0
+          }
+        },
+        "world_background-constant-0": {
+          "purpose": "world_background",
+          "activation": "constant",
+          "placement": {
+            "position": 0
+          }
+        },
+        "scene_reference-keyword-0": {
+          "purpose": "scene_reference",
+          "activation": "keyword",
+          "placement": {
+            "position": 0
+          }
+        },
+        "world_background-keyword-0": {
+          "purpose": "world_background",
+          "activation": "keyword",
+          "placement": {
+            "position": 0
+          }
+        },
+        "world_background-keyword-1": {
+          "purpose": "world_background",
+          "activation": "keyword",
+          "placement": {
+            "position": 1
+          }
+        },
+        "character_profile-keyword-1": {
+          "purpose": "character_profile",
+          "activation": "keyword",
+          "placement": {
+            "position": 1
+          }
+        },
+        "stable_rules-keyword-0": {
+          "purpose": "stable_rules",
+          "activation": "keyword",
+          "placement": {
+            "position": 0
+          }
+        },
+        "initialization-disabled-0": {
+          "purpose": "initialization",
+          "activation": "disabled",
+          "placement": {
+            "position": 0
+          }
+        },
+        "turn_instruction-constant-4": {
+          "purpose": "turn_instruction",
+          "activation": "constant",
+          "placement": {
+            "position": 4,
+            "depth": 0,
+            "role": 0
+          }
+        },
+        "current_state-constant-4": {
+          "purpose": "current_state",
+          "activation": "constant",
+          "placement": {
+            "position": 4,
+            "depth": 0,
+            "role": 0
+          },
+          "rendering": "host_transform",
+          "renderContract": {
+            "path": "制作文件/配置/MVU运行合同.yaml",
+            "sha256": "21dcd720fd3262d2964c08edd92e42e7faf52f587f6db4351343799500e5f2d2"
+          }
+        },
+        "user_profile-disabled-0": {
+          "purpose": "user_profile",
+          "activation": "disabled",
+          "placement": {
+            "position": 0
+          }
+        }
+      },
+      "assignments": [
+        {
+          "entryId": 0,
+          "policy": "stable_rules-constant-0"
+        },
+        {
+          "entryId": 1,
+          "policy": "world_background-constant-0"
+        },
+        {
+          "entryId": 2,
+          "policy": "world_background-constant-0"
+        },
+        {
+          "entryId": 3,
+          "policy": "stable_rules-constant-0"
+        },
+        {
+          "entryId": 4,
+          "policy": "stable_rules-constant-0"
+        },
+        {
+          "entryId": 5,
+          "policy": "stable_rules-constant-0"
+        },
+        {
+          "entryId": 6,
+          "policy": "stable_rules-constant-0"
+        },
+        {
+          "entryId": 7,
+          "policy": "world_background-constant-0"
+        },
+        {
+          "entryId": 8,
+          "policy": "stable_rules-constant-0"
+        },
+        {
+          "entryId": 9,
+          "policy": "scene_reference-keyword-0"
+        },
+        {
+          "entryId": 10,
+          "policy": "world_background-keyword-0"
+        },
+        {
+          "entryId": 11,
+          "policy": "world_background-keyword-0"
+        },
+        {
+          "entryId": 12,
+          "policy": "world_background-keyword-0"
+        },
+        {
+          "entryId": 13,
+          "policy": "world_background-keyword-0"
+        },
+        {
+          "entryId": 14,
+          "policy": "world_background-keyword-0"
+        },
+        {
+          "entryId": 15,
+          "policy": "world_background-keyword-1"
+        },
+        {
+          "entryId": 16,
+          "policy": "world_background-keyword-1"
+        },
+        {
+          "entryId": 17,
+          "policy": "world_background-keyword-1"
+        },
+        {
+          "entryId": 18,
+          "policy": "world_background-keyword-1"
+        },
+        {
+          "entryId": 19,
+          "policy": "world_background-keyword-1"
+        },
+        {
+          "entryId": 20,
+          "policy": "world_background-keyword-1"
+        },
+        {
+          "entryId": 21,
+          "policy": "world_background-keyword-0"
+        },
+        {
+          "entryId": 22,
+          "policy": "world_background-keyword-0"
+        },
+        {
+          "entryId": 23,
+          "policy": "world_background-keyword-0"
+        },
+        {
+          "entryId": 24,
+          "policy": "stable_rules-constant-0"
+        },
+        {
+          "entryId": 25,
+          "policy": "character_profile-keyword-1"
+        },
+        {
+          "entryId": 26,
+          "policy": "character_profile-keyword-1"
+        },
+        {
+          "entryId": 27,
+          "policy": "character_profile-keyword-1"
+        },
+        {
+          "entryId": 28,
+          "policy": "character_profile-keyword-1"
+        },
+        {
+          "entryId": 29,
+          "policy": "character_profile-keyword-1"
+        },
+        {
+          "entryId": 30,
+          "policy": "character_profile-keyword-1"
+        },
+        {
+          "entryId": 31,
+          "policy": "character_profile-keyword-1"
+        },
+        {
+          "entryId": 32,
+          "policy": "character_profile-keyword-1"
+        },
+        {
+          "entryId": 33,
+          "policy": "stable_rules-constant-0"
+        },
+        {
+          "entryId": 34,
+          "policy": "stable_rules-constant-0"
+        },
+        {
+          "entryId": 35,
+          "policy": "stable_rules-keyword-0"
+        },
+        {
+          "entryId": 36,
+          "policy": "stable_rules-keyword-0"
+        },
+        {
+          "entryId": 37,
+          "policy": "stable_rules-keyword-0"
+        },
+        {
+          "entryId": 38,
+          "policy": "stable_rules-keyword-0"
+        },
+        {
+          "entryId": 39,
+          "policy": "stable_rules-keyword-0"
+        },
+        {
+          "entryId": 40,
+          "policy": "stable_rules-keyword-0"
+        },
+        {
+          "entryId": 41,
+          "policy": "stable_rules-keyword-0"
+        },
+        {
+          "entryId": 42,
+          "policy": "stable_rules-keyword-0"
+        },
+        {
+          "entryId": 43,
+          "policy": "initialization-disabled-0"
+        },
+        {
+          "entryId": 44,
+          "policy": "turn_instruction-constant-4"
+        },
+        {
+          "entryId": 45,
+          "policy": "current_state-constant-4"
+        },
+        {
+          "entryId": 46,
+          "policy": "turn_instruction-constant-4"
+        },
+        {
+          "entryId": 47,
+          "policy": "stable_rules-constant-0"
+        },
+        {
+          "entryId": 48,
+          "policy": "stable_rules-constant-0"
+        },
+        {
+          "entryId": 49,
+          "policy": "user_profile-disabled-0"
+        }
+      ],
+      "runtime": {
+        "status": "not_run"
+      }
+    }
+  ],
+  "fixtures": "制作文件/检查/worldbook-routing.fixtures.json"
+}

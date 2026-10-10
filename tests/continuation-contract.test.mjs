@@ -1,3 +1,4 @@
+import YAML from 'yaml';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -59,8 +60,7 @@ test('portable authorization policy is loaded and preserves existing stage contr
 });
 test('ledger stage list exactly matches routing stage ids', () => {
   const routing = read('orchestrator/routing.yaml');
-  const body = routing.split('stages:\n')[1].split('\nskill_paths:')[0];
-  const ids = [...body.matchAll(/^  (\w+):\s*$/gm)].map(match => match[1]);
+  const ids = Object.keys(YAML.parse(routing).stages);
   assert.deepEqual(STAGES, ids);
 });
 

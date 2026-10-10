@@ -34,7 +34,7 @@
 surface      表层方向
 structured   结构确认
 detailed     细节确认
-runtime      真实运行/宿主确认
+runtime      运行合同与验收路径；deferred 不等于实机通过
 ```
 
 缺少必要维度、深度不足、依赖项未展开或仍有阻断性未决项时，禁止进入制作。阶段报告必须列出已确认、已放权、已暂缓、仍未回答和准备代定的事项。
@@ -125,3 +125,7 @@ node scripts/production/production-check.mjs validate --root <项目目录>
 ```
 
 `validate` 失败时不得生成最终交付声明。真实 SillyTavern 运行、回归 fixture 和用户验收分开记录，静态检查不能替代宿主证据。
+
+## 工程验证细则
+
+运行阶段按 `production-verification.md` 执行具体页面取舍、当前决定投影、精确导入 bindings、全部 EJS 运行实例、主路/兜底隔离操作用例和统一检查流程。实现阶段只要求合同与对应范围的证据，不能要求未制作页面已经实机通过；最终门禁检查所有已启用组件。每次文件变化后重新检查，旧验收不能自动沿用。

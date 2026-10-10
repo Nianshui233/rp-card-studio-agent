@@ -37,36 +37,41 @@ stages:
     next: worldbuilding
   worldbuilding:
     primary_skill: rp-project-foundation
+    required_files: [internal-skills/st-worldbook-regex/references/worldbook-routing.md, scripts/worldbook/routing.mjs, scripts/worldbook/worldbook-project.mjs, scripts/worldbook/worldbook-check.mjs]
     references: [worldbuilding]
     supporting_skills: [rp-interview-orchestration, st-worldbook-regex]
     optional: false
     next: character
   character:
     primary_skill: rp-cast-authoring
+    required_files: [internal-skills/st-worldbook-regex/references/worldbook-routing.md, scripts/worldbook/routing.mjs, scripts/worldbook/worldbook-project.mjs, scripts/worldbook/worldbook-check.mjs]
     supporting_skills: [rp-interview-orchestration, st-worldbook-regex]
     optional: false
     next: systems
   systems:
     primary_skill: rp-experience-authoring
+    required_files: [internal-skills/st-worldbook-regex/references/worldbook-routing.md, scripts/worldbook/routing.mjs, scripts/worldbook/worldbook-project.mjs, scripts/worldbook/worldbook-check.mjs]
     references: [systems]
     supporting_skills: [rp-interview-orchestration, st-worldbook-regex]
     optional: true
     next: scenes
   scenes:
     primary_skill: rp-experience-authoring
+    required_files: [internal-skills/st-worldbook-regex/references/worldbook-routing.md, scripts/worldbook/routing.mjs, scripts/worldbook/worldbook-project.mjs, scripts/worldbook/worldbook-check.mjs]
     references: [scenes]
     supporting_skills: [rp-interview-orchestration, st-worldbook-regex]
     optional: true
     next: mvu
   mvu:
     primary_skill: st-mvu-authoring
-    required_files: [internal-skills/st-mvu-authoring/references/mvu-zod.md, internal-skills/st-mvu-authoring/references/mvu-source-build.md, scripts/mvu/mvu-zod-project.mjs, scripts/mvu/validate-mvu-zod-source-contract.mjs, scripts/mvu/mvu-source-tools.mjs, scripts/mvu/schema-offline-worker.mjs, scripts/mvu/validate-mvu-package.mjs, package.json, package-lock.json, assets/templates/mvu-zod-source-contract.json]
+    required_files: [internal-skills/st-mvu-authoring/references/mvu-zod.md, internal-skills/st-mvu-authoring/references/mvu-source-build.md, scripts/mvu/mvu-zod-project.mjs, scripts/mvu/validate-mvu-zod-source-contract.mjs, scripts/mvu/mvu-source-tools.mjs, scripts/mvu/schema-offline-worker.mjs, scripts/mvu/validate-mvu-package.mjs, package.json, package-lock.json, assets/templates/mvu-zod-source-contract.json, internal-skills/st-worldbook-regex/references/worldbook-routing.md, scripts/worldbook/routing.mjs, scripts/worldbook/worldbook-project.mjs, scripts/worldbook/worldbook-check.mjs]
     supporting_skills: [rp-interview-orchestration, st-host-capabilities, st-api-reference, st-worldbook-regex]
     optional: true
     enable_when: mvu_enabled
     next: ejs
   ejs:
     primary_skill: st-ejs-authoring
+    required_files: [orchestrator/production-verification.md, scripts/production/check-plan.mjs, scripts/production/artifact-bindings.mjs, scripts/production/production-project.mjs, internal-skills/st-worldbook-regex/references/worldbook-routing.md, scripts/worldbook/routing.mjs, scripts/worldbook/worldbook-project.mjs, scripts/worldbook/worldbook-check.mjs]
     supporting_skills: [rp-interview-orchestration, st-host-capabilities, st-api-reference, st-worldbook-regex]
     optional: true
     enable_when: ejs_enabled
@@ -79,24 +84,28 @@ stages:
     next: narrative_opening
   narrative_opening:
     primary_skill: rp-experience-authoring
+    required_files: [internal-skills/st-worldbook-regex/references/worldbook-routing.md, scripts/worldbook/routing.mjs, scripts/worldbook/worldbook-project.mjs, scripts/worldbook/worldbook-check.mjs]
     references: [narrative-opening]
     supporting_skills: [rp-interview-orchestration, st-worldbook-regex]
     optional: false
     next: opening_frontend
   opening_frontend:
     primary_skill: st-opening-frontend-authoring
+    required_files: [orchestrator/production-verification.md, scripts/production/check-plan.mjs, scripts/production/artifact-bindings.mjs, scripts/production/production-project.mjs, scripts/frontend/run-browser-fixtures.mjs, scripts/frontend/frontend-source-check.mjs, shared/frontend/boot-controller.mjs]
     supporting_skills: [rp-interview-orchestration, st-host-capabilities, st-api-reference, st-worldbook-regex, st-render-regex, st-tavern-helper-engineering]
     optional: true
     enable_when: opening_or_creation_frontend_requested
     next: message_frontend
   message_frontend:
     primary_skill: st-message-frontend-authoring
+    required_files: [orchestrator/production-verification.md, scripts/production/check-plan.mjs, scripts/production/artifact-bindings.mjs, scripts/production/production-project.mjs, scripts/frontend/run-browser-fixtures.mjs, scripts/frontend/frontend-source-check.mjs, shared/frontend/boot-controller.mjs]
     supporting_skills: [rp-interview-orchestration, st-host-capabilities, st-api-reference, st-worldbook-regex, st-render-regex, st-tavern-helper-engineering]
     optional: true
     enable_when: ongoing_message_ui_requested
     next: qa_delivery
   qa_delivery:
     primary_skill: st-integration-qa
+    required_files: [orchestrator/production-verification.md, scripts/production/check-plan.mjs, scripts/production/artifact-bindings.mjs, scripts/production/production-project.mjs, scripts/frontend/run-browser-fixtures.mjs, scripts/frontend/frontend-source-check.mjs, shared/frontend/boot-controller.mjs, internal-skills/st-worldbook-regex/references/worldbook-routing.md, scripts/worldbook/routing.mjs, scripts/worldbook/worldbook-project.mjs, scripts/worldbook/worldbook-check.mjs]
     supporting_skills: [rp-interview-orchestration, st-runtime-debug, st-render-regex, st-host-capabilities, st-api-reference]
     optional: false
     next: null

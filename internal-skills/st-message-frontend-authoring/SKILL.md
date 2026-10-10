@@ -189,3 +189,7 @@ Agent 先给首选方案和真实示例，再让用户确认；不以“默认 H
 ## 交付
 
 每个页面含完整 body、CSS 和 JavaScript，并明确 Tavern Helper fenced HTML、ST-Prompt-Template `@@iframe`、纯静态 SillyTavern 或其他已验证载体。交付说明列出前端家族中实际启用的表面及其用途，不为未启用的表面制造文件。没有真实宿主证据时写 `runtime: not_run`。
+
+## 制作与验证接入
+
+实现与终检读取 `orchestrator/production-verification.md`。启动必须等到工具、快照与成功显示，超时不等于无数据。自动挂载与标记兜底单独验证；每个实际操作在初次显示及重画后验证其结果，生命周期继续核对当前楼层与 Swipe，不拿文字存在代表按钮可用。

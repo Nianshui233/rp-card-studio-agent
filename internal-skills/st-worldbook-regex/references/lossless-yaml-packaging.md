@@ -94,3 +94,7 @@ node scripts/worldbook/split-yaml-lossless.mjs `
 5. 不存在只在压缩摘要里出现、却在完整源中找不到的新增事实；
 6. 不存在完整源有内容、世界书打包时静默遗漏的块；
 7. 内容哈希与交付制品绑定；没有无损检查证据时，不声称“完整保真拆分”。
+
+## 插入位置与调度合同
+
+按 worldbook-routing.md 为切片明确职责与激活方式，可用 split-yaml-lossless --routing 生成对应 metadata。默认切片只是草稿；最终 worldbook-check 逐条核对位置，并回放 Before/After、聊天深度及其它实际使用区域。位置调整不改 canonical 正文；不因片段很大就改成聊天 D4，也不因全部选中输入的回放通过就声称实际扫描和 token 预算通过。
