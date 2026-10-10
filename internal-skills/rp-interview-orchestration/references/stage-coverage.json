@@ -391,7 +391,7 @@
         {
           "id": "visual-direction",
           "trigger": "The user requested an opening/creation frontend and did not provide a complete visual brief or explicitly delegate art direction.",
-          "player_language": "这个开场页希望给玩家什么第一印象？更像沉浸式世界序章、精致档案/设定集、简洁创角向导，还是你有别的方向？有喜欢/不喜欢的作品或视觉参考吗？",
+          "player_language": "我会先结合实际参考展示入口构图和内容呈现方案。你更倾向哪个具体方向，或想保留/排除其中哪些表现？氛围描述只作线索，不代表整套设计确定。",
           "policy": "ask_or_explicitly_delegate",
           "skip_when": "The user supplied a sufficiently specific visual brief or explicitly asked the agent to freely choose the style."
         },
@@ -405,7 +405,7 @@
         {
           "id": "layout-and-information",
           "trigger": "The user has not specified how the opening content and fields should be arranged/read.",
-          "player_language": "你更喜欢先看氛围与故事、再进入选择，还是一打开就清楚看到路线和创角选项？整体偏简洁易读还是层次丰富、有明显标题和章节感？",
+          "player_language": "按这张结构草图，介绍、指南与创角各在什么位置，玩家怎样进入和返回？我会展示对应步骤与展开状态，让你直接调整。",
           "policy": "ask_or_explicitly_delegate",
           "skip_when": "A complete reference layout or approved visual design already determines composition and reading hierarchy."
         },
@@ -433,7 +433,7 @@
         {
           "id": "host-interaction",
           "trigger": "The frontend may need to perform a host action beyond local display and the user has not chosen whether the page should be interactive.",
-          "player_language": "玩家是否需要点击界面查看详情、选择行动、修改允许的状态或使用商城/任务/地图等功能？",
+          "player_language": "这个开场页需要哪些页面内查看、创角、预设和结果操作？资料出口按已确认方式执行，不因为有按钮就启用长期状态写入。",
           "policy": "ask_or_explicitly_delegate",
           "skip_when": "The page is explicitly read-only, or the user has already selected/declined Tavern Helper interaction."
         }
@@ -441,7 +441,7 @@
       "personalization_gate": {
         "required_before_implementation": true,
         "ask_unless_explicitly_delegated": true,
-        "rule": "先了解使用者想要的观感与个性化方向，再开始页面视觉实现；明确授权 Agent 自由设计时可代定。不得把本地偏好、个人资料或实现细节当作默认审美。"
+        "rule": "按 opening-design 独立完成介绍/指南/创角、具体构图与页面流程；氛围不关闭整套设计，资料索引不冒充外部研究。明确授权后自主深化低影响细节，完整实现并看图自查，不以骨架交接；方向反馈需重新判断。"
       }
     },
     "message_frontend": {
@@ -450,7 +450,7 @@
         {
           "id": "visual-direction",
           "trigger": "The user requested an ongoing message frontend and did not provide a complete visual brief or explicitly delegate art direction.",
-          "player_language": "状态栏想融入作品世界，做成沉浸式终端/档案/手账，还是更清爽直观的游戏 HUD？有喜欢或明确不想要的视觉参考吗？",
+          "player_language": "我会根据高频游玩任务和真实参考展示具体界面方案。哪种信息组织与表现更适合你？不默认沿用开场皮肤，也不把氛围词当成全部视觉决定。",
           "policy": "ask_or_explicitly_delegate",
           "skip_when": "The user supplied a sufficiently specific visual brief or explicitly asked the agent to freely choose the style."
         },
@@ -464,7 +464,7 @@
         {
           "id": "layout-and-information",
           "trigger": "The user has not specified the visual hierarchy, density, or reading style for the ongoing panel.",
-          "player_language": "你偏好紧凑、一眼扫完的仪表盘，还是更有叙事氛围、分区卡片式的面板？最重要的信息要放在哪里、突出到什么程度？",
+          "player_language": "看这张实际内容草图，哪些信息先读、哪些按需打开？我会展示长内容和展开状态，判断它是否妨碍正文阅读或反复操作。",
           "policy": "ask_or_explicitly_delegate",
           "skip_when": "A reference design or approved layout already specifies hierarchy and density."
         },
@@ -507,7 +507,7 @@
       "personalization_gate": {
         "required_before_implementation": true,
         "ask_unless_explicitly_delegated": true,
-        "rule": "状态栏/持续消息 UI 的主题、信息呈现和操作体验是产品设计决策。先问使用者喜欢的风格与想展示/操作什么，再写视觉实现；不得以工程方便或常见组件替代用户偏好。"
+        "rule": "按 message-design 独立完成游玩任务、信息表达、动作语义和长期舒适度，不继承开场规则。以具体参考与方案深化设计，授权内完整实现并预览自查，不以变量清单包装或装饰堆叠交接；技术通过不等于用户满意。"
       }
     }
   },

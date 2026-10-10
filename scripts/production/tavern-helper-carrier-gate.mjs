@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import { CHECK_DIR, requireArea, resolveProjectPath } from '../project-layout.mjs';
 import { validateBrowserCases } from '../frontend/run-browser-fixtures.mjs';
+import { validateDesignReview } from '../frontend/design-contract.mjs';
 
 const MESSAGE_LIFECYCLE = new Set(['render_started','load','swipe','edit','reload','delete','pagehide']);
 const SCRIPT_LIFECYCLE = new Set(['load','reload','pagehide']);
@@ -49,7 +50,7 @@ export function validateFrontendManifest(frontend, { activeStage = null, require
   if (requireArtifacts) {
     if (frontend.status !== 'implemented') issues.push('最终前端仍处于计划/未实现状态：' + activeStage);
     if (!routes.length) issues.push('最终前端必须明确各条实际运行路线');
-    if (!frontend.prototype || !['static', 'browser-fixture', 'real-sillytavern'].includes(frontend.prototype.level) || !['passed', 'not_run'].includes(frontend.prototype.status)) issues.push('缺少最小载体原型的检查边界');
+    issues.push(...validateDesignReview(frontend.designReview, activeStage, { root, interview, bindingResults, checkSteps }).issues);
     let cases = [];
     try {
       requireArea(frontend.browserFixtures, CHECK_DIR, '前端浏览器用例');

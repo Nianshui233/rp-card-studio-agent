@@ -1,6 +1,6 @@
 ---
 name: rp-materials-research
-description: "Process any user-provided source material for RP card preparation and proactively research public external sources when a project depends on a named work, real-world facts, or version-sensitive information."
+description: "Process user-provided RP materials and research public sources for named works, real-world facts, version-sensitive implementation, or stage-specific frontend design references."
 ---
 
 # 原始资料整理与主动外部研究
@@ -32,6 +32,9 @@ description: "Process any user-provided source material for RP card preparation 
 - 任务依赖当前版本、插件版本、宿主 API、时间敏感事实或改编差异；
 - 用户材料之间的冲突需要外部来源才能判断；
 - Agent 的训练记忆不足以可靠确认关键事实。
+- 当前开场或持续消息前端需要新设计/方向重做，需核对真实视觉、交互、资源或当前实现参考；该研究服务当前前端阶段，不重启无关世界/角色访谈。
+
+前端参考按其自身 opening-design/message-design 记录采用范围，既有 materials.json 中有来源时引用原材料 id，不另建来源账本。新做/重做不能只依赖训练记忆或本地设计索引；真实用户参考充分时可以直接研究，不机械凑公开来源数量。借鉴布局、组件与表现方法不等于复制作品语义，更不等于用户已确认该设计。
 
 默认网络政策是 `public_sources_only`：只使用公开页面和当前宿主提供的搜索/网页读取能力，不绕过登录、付费墙、访问控制或地区限制，不收集私人信息，不自动下载或再分发受限正文。
 

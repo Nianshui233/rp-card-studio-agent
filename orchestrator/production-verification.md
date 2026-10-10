@@ -8,10 +8,10 @@
 
 - `layout`、`visual`：具体布局、信息密度、图形与交互取舍；
 - `fields[]`：每项的 id、`source`、`representation`；静态内容来源和只读派生也合法，不强制创建状态；
-- `actions[]`：每项的 id、`trigger`、`outcome`、`failure`；只读查看、复制、输入、写入与发送分别说明，权限不混同；
+- `actions[]`：每项的 id、`trigger`、`outcome`、`failure`、`visualState`（是否产生需展示的视觉状态）；只读查看、复制、输入、写入与发送分别说明，权限不混同；
 - `emptyState`、`failureState`：空白/未接入与真实失败分别怎么呈现。
 
-前端制作预览遵守 `shared/frontend/layout-preview.md`。当前 surfaces 可加页面/字段/操作 label 与 layout.blocks，草图实时引用现有字段/操作，不另建需求账本；更正后同时更新结构与来源。布局节点不存在、遗漏字段/操作或交互 id 冲突会被页面门禁拒绝。例值只用于标明的制作预览，不进入 RP 初值或真实数据兜底。实际 HTML 的截图复用下文浏览器用例，保存于项目记录/检查结果；它不是实机验收。
+前端制作预览遵守 `shared/frontend/layout-preview.md`。当前 surfaces 可加页面/字段/操作 label 与 layout.blocks，actions 必须用 visualState 明确是否产生需展示的视觉状态；草图实时引用现有字段/操作，不另建需求账本。布局遗漏、无具体内容或来源失效会被门禁拒绝。例值只用于显式预览，不进入初值或真实回退。完整视觉复核需要实际字段在截图中可见，关键操作后的状态单独捕获；用例的 fieldId 关联实际可见断言，不以隐藏 DOM 或父页面冒充。实际 HTML 截图复用下文浏览器用例；它不是实机验收。
 
 取舍项带 `decisionRefs:[{id,textSha256}]`，值来自现有 authority 决定。`layout/visual/emptyState/failureState` 以 `{value,decisionRefs}` 记录。确实没有字段或按钮时允许空数组，但以 `fieldsReason/actionsReason` 同形记录理由；不为填清单虚构功能。大类 coverage 的每项也引用真实决定；sourceKind 按当前决定派生，来源混合用 mixed，不能把代定或材料事实改标用户逐项确认。`evidence` 可以省略；如保留，必须逐字投影引用决定的 text，以换行连接，不能另写“用户确认”的解释。
 
@@ -23,9 +23,15 @@ node scripts/production/production-check.mjs decision-ref --root <项目> --id <
 
 这个命令不产生授权，也不验证聊天来源真实性。用户更正后，旧引用摘要失效；先回读原话并改实际内容，再更新引用与检查。禁止仅重算摘要、继续保留旧解释。前端快捷填表默认只是临时界面操作，不自动升级为世界预设路线。纯装饰、图形表达不是新增世界事实；不因“纯净”要求退回文字堆，也不把本项目的行数要求设成其它项目门槛。
 
-## 2. 先验证最小载体，再填完整内容
+## 2. 完整实现与内部载体验证
 
-先制作可逆的小页面，验证载体加载、状态读取（适用时）、一个操作、刷新与清理；宿主不可用时明确原型证据为 static/browser-fixture，真实宿主仍 not_run。不要要求“已有实机通过”才能进入实现，或把 activeStage 留在旧阶段躲开检查。
+先按当前前端独立设计流程确定完整授权范围，再连续完成内容、视觉、组件、交互、资源、载体与必要状态链。载体有不确定性时可以在内部用可逆探针定位，但不是默认分阶段交给用户尝试的骨架，也不能替代正式界面的设计与验收。不要求未制作页面先实机通过，不把 activeStage 留在旧阶段绕过检查；宿主未运行仍明确 not_run。
+
+开场必读 `internal-skills/st-opening-frontend-authoring/references/opening-design.md`，持续消息必读 `internal-skills/st-message-frontend-authoring/references/message-design.md`。两套 design schema、资料索引和复核观察独立；技术工具可以复用，不建立统一审美规则。第一印象、布局草图、代码量和技术检查通过均不代表设计完成。
+
+具体设计保存在现有 interviews.<stage>.design；当前反馈覆盖保存而非增加历史。新做/重做主动查看真实设计与实现资料，本地 `frontend:design` 检索仅提供候选，不是外部研究证据。不联网、工具不可用或局部修改不研究时如实说明，不自行声称最新或擅自降级。
+
+前端标记 implemented 或进行最终交付前，需要 frontends.<stage>.designReview：引用当前 designSha256、真实截图 caseIds 和本阶段具体观察。工具核对精确导入目标、PNG 字节、当前索引及每个实际页面的窄屏（<=480px）和宽屏（>=900px）证据；viewport 是 QA 覆盖，不是固定布局尺寸。开场分别观察介绍、指南、创角和视觉执行；持续消息分别观察信息优先级、操作清晰、连续舒适度和视觉执行。未制作开场模块可明确不适用。美感、实际设计兑现仍由 Agent 看图判断，机械全绿不产生用户接受或实机通过。
 
 真正源文件和拼装产物明确分开；修复改源文件，再沿构建依赖重新生成最终文件，不能只修马上会被覆盖的产物。
 
@@ -87,7 +93,9 @@ EJS 还声明 `runtimeIndex:{path,pointer,idField,contentField}`。它指向由�
 node scripts/frontend/run-browser-fixtures.mjs --root <项目> --fixtures 制作文件/检查/前端用例.json --browser <浏览器程序>
 ```
 
-Playwright 由仓库固定版本提供，浏览器可用已有 Chrome/Edge 或 Playwright Chromium，不能自动改用户浏览器设置。缺依赖或浏览器时失败退出、明确 not_run，不写 passed。夹具禁用外部网络；依赖加载、SillyTavern 真实重渲染与持久化必须在实机另验。浏览器结果绑定精确目标文本摘要，但摘要本身不证明捕获真实。
+Playwright 由仓库固定版本提供，浏览器可用已有 Chrome/Edge 或 Playwright Chromium，不能自动改用户浏览器设置。缺依赖或浏览器时失败退出、明确 not_run，不写 passed。夹具不向真实服务联网，但允许各 case.resources 声明准确 URL、制作文件/检查 内的实际资源 path、sha256 与 contentType，按核对后的字节重放字体、图片、CSS 和库。资源取得与版本/许可核对由制作 Agent 按宿主网络政策执行，不是要求成品零外链。未声明请求与 WebSocket 继续阻断。
+
+`--preview <case-id>` 默认产生 previewKind:visual；有未映射资源时拒绝生成完整视觉声明，资源已变化也立即失败。断网回退用例显式 previewKind:resource_failure，不能借作完整设计复核。图片同时记录实际资源与阻断边界；线上资源可达、SillyTavern 真实重渲染和持久化仍需实机另验。源码无需为了预览删外链、替字体或复制另一套页面。
 
 ## 5. 统一构建检查流程
 

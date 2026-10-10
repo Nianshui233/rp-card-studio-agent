@@ -5,34 +5,41 @@ import { atPointer, textHash } from '../production/artifact-bindings.mjs';
 import { applyEntry } from '../regex/run-regex-fixtures.mjs';
 import { CHECK_DIR, DELIVERY_DIR, STATE_DIR, requireArea, resolveProjectPath } from '../project-layout.mjs';
 import { checkFrontendScript } from './frontend-source-check.mjs';
+import { validatePreviewResources, loadPreviewResources, blockedResourceLabel } from './preview-resources.mjs';
 
 export const FRONTEND_FIXTURE_SCHEMA = 'rp-card-studio/frontend-fixtures/v1';
 export const FRONTEND_PREVIEW_DIR = STATE_DIR + '/检查结果/前端预览';
 const readJson = p => JSON.parse(fs.readFileSync(p, 'utf8').replace(/^\uFEFF/, ''));
 
-function preparePreviewFiles(root, captureIds) {
+const previewName = (id, component) => 'preview-' + textHash(component ? component + ':' + id : id).slice(0, 16) + '.png';
+function preparePreviewFiles(root, captures) {
   const directory = resolveProjectPath(root, FRONTEND_PREVIEW_DIR, { output: true }); fs.mkdirSync(directory, { recursive: true });
   if (fs.realpathSync(directory) !== path.resolve(fs.realpathSync(root), FRONTEND_PREVIEW_DIR)) throw new Error('预览目录经过链接，不能写入或清理其他制作区域');
   const indexPath = resolveProjectPath(root, FRONTEND_PREVIEW_DIR + '/current.json', { output: true });
+  const touched = new Set(captures.map(c => c.component)), retainedImages = [];
   if (fs.existsSync(indexPath)) {
     if (fs.lstatSync(indexPath).isSymbolicLink()) throw new Error('当前预览索引不能是链接');
     const old = readJson(indexPath);
     if (old.schema !== 'rp-card-studio/frontend-preview/v1' || !Array.isArray(old.images)) throw new Error('当前预览记录无效；保留现有文件，不猜测清理范围');
     for (const image of old.images) {
       if (!/^preview-[a-f0-9]{16}\.png$/.test(path.basename(image?.path ?? '')) || image.path !== FRONTEND_PREVIEW_DIR + '/' + path.basename(image.path)) throw new Error('预览记录包含非本工具图片，停止清理');
+      if (image.component != null && !['opening_frontend', 'message_frontend'].includes(image.component)) throw Error('预览索引包含未知前端阶段，不能猜测清理范围');
       const file = resolveProjectPath(root, image.path, { output: true });
+      if (image.component && !touched.has(image.component)) { retainedImages.push(image); continue; }
       if (fs.existsSync(file) && fs.lstatSync(file).isFile() && !fs.lstatSync(file).isSymbolicLink() && textHash(fs.readFileSync(file)) === image.sha256) fs.unlinkSync(file);
     }
   }
-  for (const id of captureIds) if (fs.existsSync(path.join(directory, 'preview-' + textHash(id).slice(0, 16) + '.png'))) throw new Error('同名预览文件不属于当前记录或已被外部修改；保留文件，不覆盖');
-  fs.writeFileSync(indexPath, JSON.stringify({ schema: 'rp-card-studio/frontend-preview/v1', runtime: 'not_run', images: [] }, null, 2) + '\n');
-  return indexPath;
+  for (const capture of captures) if (fs.existsSync(path.join(directory, previewName(capture.id, capture.component)))) throw new Error('同名预览文件不属于当前记录或已被外部修改；保留文件，不覆盖');
+  fs.writeFileSync(indexPath, JSON.stringify({ schema: 'rp-card-studio/frontend-preview/v1', runtime: 'not_run', images: retainedImages }, null, 2) + '\n');
+  return { indexPath, retainedImages };
 }
 export function validateBrowserCases(document) {
   const issues = [], ids = new Set();
   if (document?.schema !== FRONTEND_FIXTURE_SCHEMA || !Array.isArray(document.cases) || !document.cases.length) return { ok: false, issues: ['缺少实际浏览器用例'] };
   for (const c of document.cases) {
     if (!c?.id || ids.has(c.id)) issues.push('用例 id 缺失或重复'); ids.add(c?.id);
+    issues.push(...validatePreviewResources(c.resources).issues.map(issue => c.id + ': ' + issue));
+    if (c.previewKind !== undefined && !['visual', 'resource_failure'].includes(c.previewKind)) issues.push('previewKind 必须是 visual/resource_failure');
     if (c.decodeEntities !== 'none' && c.decodeEntities !== 'once') issues.push('用例必须明确载体解码步骤：none/once');
     if (!c?.route || !c?.binding || !c?.surfaceId || !['message_iframe', 'script_iframe'].includes(c.surface)) issues.push('用例必须明确 route/binding/surfaceId/surface：' + c?.id);
     if (c.surface === 'script_iframe' && !c.resultFrame) issues.push('脚本用例必须指定实际产生的结果 iframe，不能只测后台脚本空壳');
@@ -104,19 +111,29 @@ async function waitAssertion(scope, s, timeout) {
 export async function runBrowserCases({ root, fixtures, bindings, browser, captureIds = [] }) {
   const validation = validateBrowserCases(fixtures);
   const results = [], issues = [...validation.issues];
-  if (!Array.isArray(captureIds) || captureIds.some(id => !fixtures?.cases?.some(c => c.id === id))) issues.push('截图必须选择当前实际浏览器用例，不能指向其他页面或旧用例');
+  if (!Array.isArray(captureIds) || new Set(captureIds).size !== captureIds.length || captureIds.some(id => !fixtures?.cases?.some(c => c.id === id))) issues.push('截图必须选择不重复的当前实际浏览器用例，不能指向其他页面或旧用例');
   if (issues.length) return { ok: false, level: 'browser-fixture', runtime: 'not_run', issues, results, total: fixtures?.cases?.length ?? 0, passed: 0 };
   // Only indexed, byte-identical captures are ours to remove; user-modified files stay untouched.
-  const previewIndex = captureIds.length ? preparePreviewFiles(root, captureIds) : null;
+  const captures = captureIds.map(id => { const c = fixtures.cases.find(c => c.id === id), binding = bindings.find(b => b.id === c.binding); return { id, component: ['opening_frontend', 'message_frontend'].includes(binding?.component) ? binding.component : null }; });
+  const previewIndex = captureIds.length ? preparePreviewFiles(root, captures) : null;
   for (const c of fixtures.cases) {
     const errors = [];
     let context, screenshot;
     try {
       const prepared = contentForCase(root, c, bindings); let code = prepared.code; const { binding, targetSha256 } = prepared;
+      const resources = loadPreviewResources(root, c.resources), usedResources = new Set(), blockedResources = new Set();
       context = await browser.newContext({ viewport: c.viewport ?? { width: 1100, height: 800 }, serviceWorkers: 'block' });
-      // Fixture runs are offline. Live-host imports, remote dependencies and persistence require a separate real-ST run.
-      await context.route('**/*', route => route.abort());
-      await context.routeWebSocket('**/*', socket => socket.close());
+      // Exact resource bytes may be replayed; no request reaches a live account or service.
+      await context.route('**/*', route => {
+        const request = route.request(), resource = resources.get(request.url());
+        if (resource && request.method() === 'GET') {
+          usedResources.add(request.url());
+          return route.fulfill({ status: 200, contentType: resource.contentType, headers: { 'access-control-allow-origin': '*' }, body: resource.body });
+        }
+        blockedResources.add(blockedResourceLabel(request.url(), request.resourceType()));
+        return route.abort();
+      });
+      await context.routeWebSocket('**/*', socket => { blockedResources.add(blockedResourceLabel(socket.url(), 'websocket')); socket.close(); });
       const host = await context.newPage(); host.on('pageerror', error => errors.push(error.message));
       const timeout = c.timeoutMs ?? 5000;
       host.setDefaultTimeout(timeout);
@@ -139,6 +156,7 @@ export async function runBrowserCases({ root, fixtures, bindings, browser, captu
       if (c.surface === 'script_iframe') await sourceFrame.evaluate(code => { const s = document.createElement('script'); s.textContent = code; document.body.appendChild(s); }, code);
       const frame = c.resultFrame ? host.frameLocator(c.resultFrame) : host.frameLocator(sourceSelector);
       if (captureIds.includes(c.id)) {
+        await frame.locator('body').evaluate(el => el.ownerDocument.fonts.ready);
         await host.locator(c.resultFrame ?? sourceSelector).waitFor({ state: 'attached' });
         await host.locator(c.resultFrame ?? sourceSelector).evaluate((el, height) => { el.style.width = '100%'; el.style.height = height + 'px'; el.style.border = '0'; }, (c.viewport ?? { height: 800 }).height);
       }
@@ -163,20 +181,36 @@ export async function runBrowserCases({ root, fixtures, bindings, browser, captu
         const height = Math.max(24, Math.min(size, 16384));
         const locator = host.locator(c.resultFrame ?? sourceSelector);
         await locator.evaluate((el, value) => { el.style.height = value + 'px'; }, height);
-        const relative = FRONTEND_PREVIEW_DIR + '/preview-' + textHash(c.id).slice(0, 16) + '.png';
+        const failedAssets = await frame.locator('body').evaluate(el => {
+          const doc = el.ownerDocument;
+          return { images: [...doc.images].filter(image => image.src && image.getClientRects().length && image.complete && image.naturalWidth === 0).length,
+            fonts: [...doc.fonts].filter(font => font.status === 'error').length };
+        });
+        if ((c.previewKind ?? 'visual') === 'visual' && (failedAssets.images || failedAssets.fonts)) throw Error('完整视觉预览包含加载失败的图片或字体');
+        if ((c.previewKind ?? 'visual') === 'visual' && blockedResources.size) throw Error('完整视觉预览缺少实际资源；补齐 resources，断网用例另标 resource_failure：' + [...blockedResources].join(', '));
+        const visibleFields = new Set();
+        for (const step of c.steps.filter(step => step.expect && step.fieldId && step.scope !== 'host')) {
+          if (await frame.locator(step.selector).isVisible()) visibleFields.add(step.fieldId);
+        }
+        const component = captures.find(capture => capture.id === c.id)?.component ?? null;
+        const relative = FRONTEND_PREVIEW_DIR + '/' + previewName(c.id, component);
         const bytes = await locator.screenshot({ animations: 'disabled', caret: 'hide' });
         if (errors.length) throw new Error('预览执行错误：' + errors.join('; '));
+        if ((c.previewKind ?? 'visual') === 'visual' && blockedResources.size) throw Error('截图时出现未映射资源，不能宣布完整视觉');
         fs.writeFileSync(resolveProjectPath(root, relative, { output: true }), bytes, { flag: 'wx' });
         screenshot = { path: relative, sha256: textHash(fs.readFileSync(resolveProjectPath(root, relative))), targetSha256,
           level: 'browser-fixture', runtime: 'not_run', viewport: host.viewportSize(), frame: await locator.boundingBox(), clipped: size > height,
-          note: '当前导入内容在受控预览容器中渲染；外部网络禁用，不是酒馆实机截图或用户接受。' };
+          component, previewKind: c.previewKind ?? 'visual', blockedResources: [...blockedResources],
+          fieldIds: [...visibleFields],
+          resources: [...usedResources].sort().map(url => { const { path, sha256, contentType } = resources.get(url); return { url, path, sha256, contentType }; }),
+          note: '当前导入内容的受控预览；已声明资源按核对字节重放，不代表线上资源可达、酒馆实机通过或用户接受。' };
       }
       results.push({ id: c.id, route: c.route, surfaceId: c.surfaceId, binding: binding.id, actionId: c.actionId ?? null, scenario: c.scenario ?? 'load', ok: true, targetSha256, ...(screenshot ? { screenshot } : {}) });
     } catch (e) { results.push({ id: c.id, route: c.route, surfaceId: c.surfaceId, binding: c.binding, actionId: c.actionId ?? null, scenario: c.scenario ?? 'load', ok: false, error: String(e.message) }); }
     finally { if (context) await context.close(); }
   }
   const passed = results.filter(r => r.ok).length;
-  if (previewIndex) fs.writeFileSync(previewIndex, JSON.stringify({ schema: 'rp-card-studio/frontend-preview/v1', runtime: 'not_run', images: results.filter(r => r.ok && r.screenshot).map(r => ({ caseId: r.id, route: r.route, surfaceId: r.surfaceId, ...r.screenshot })) }, null, 2) + '\n');
+  if (previewIndex) fs.writeFileSync(previewIndex.indexPath, JSON.stringify({ schema: 'rp-card-studio/frontend-preview/v1', runtime: 'not_run', images: [...previewIndex.retainedImages, ...results.filter(r => r.ok && r.screenshot).map(r => ({ caseId: r.id, route: r.route, surfaceId: r.surfaceId, ...r.screenshot }))] }, null, 2) + '\n');
   return { ok: passed === results.length, level: 'browser-fixture', runtime: 'not_run', issues, passed, total: results.length, results };
 }
 

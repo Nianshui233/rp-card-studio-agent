@@ -58,6 +58,8 @@ QA 的 automaticExecution 只继承制作许可；来源创作保持 authored/pe
 
 ## 前端体验与家族检查
 
+按实际启用项分别读取 `internal-skills/st-opening-frontend-authoring/references/opening-design.md` 或 `internal-skills/st-message-frontend-authoring/references/message-design.md`，不以共同 UI 规范检查两种前端。开场核对介绍/指南/创角完整体验；持续消息核对高频任务、语义表达、动作与长期舒适度。查看 design.research 的真实参考与当前反馈处理，再看完整资源的宽窄屏及关键状态图；不能把初稿骨架、更多装饰、代码量、原型通过或技术全绿当作设计兑现。implemented/交付需要当前 designReview；机械检查只证明证据对应当前内容，不证明美感、实机通过或用户接受。
+
 按项目实际使用的页面检查：
 
 - 开场第一条开场白是否只有纯净 `<opening_remarks>`（或约定 marker），并由实际正则替换成完整开场页；

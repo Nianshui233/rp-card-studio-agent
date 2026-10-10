@@ -1,0 +1,22 @@
+{
+  "schema": "rp-card-studio/design-catalog/v1",
+  "stage": "opening_frontend",
+  "patterns": [
+    { "id": "narrative-entry", "title": "有节奏的世界入口", "tags": ["序章", "介绍", "叙事", "图像"], "intent": "玩家需要先进入世界，再决定从哪里开始", "outcome": "用有主次的构图、图像和段落节奏组织已确认世界内容；入口始终可找到，不照搬营销首屏", "avoid": "标题加长文、装饰铺满、必须等动画播完" },
+    { "id": "world-exhibit", "title": "可探索的世界展陈", "tags": ["世界", "地图", "机构", "空间", "介绍"], "intent": "玩家需要理解地点、组织或生活结构", "outcome": "按作品实际关系选择地图、展板、目录、插图与详情；图形不能创造不存在的事实", "avoid": "把所有资料做成同样的小卡片，或把文字列表假称地图" },
+    { "id": "play-guide", "title": "以游玩情境组织的指南", "tags": ["指南", "玩法", "规则", "示例"], "intent": "玩家需要理解可以做什么以及行为后果", "outcome": "用具体情境、层级和可回看的片段说明玩家约定，工程依赖说明留在制作材料", "avoid": "全文手册堆到首屏、插件说明混进作品、无依据捏造演示后果" },
+    { "id": "branching-creation", "title": "分支创角流程", "tags": ["创角", "步骤", "条件", "预设"], "intent": "身份或路线影响后续需要填写的资料", "outcome": "明确条件、返回、跳过、快速预设与结果预览，复杂性留在页面内", "avoid": "所有路线同一张巨表、返回就丢资料、预设替玩家锁定身份" },
+    { "id": "build-workbench", "title": "角色配置工作台", "tags": ["创角", "装备", "技能", "槽位", "约束"], "intent": "需要比较组合、消耗与选择限制", "outcome": "用槽位、选项详情、已选摘要和即时验证表达本项目真实规则", "avoid": "只有下拉框、不解释冲突、从参考卡复制属性或装备规则" },
+    { "id": "identity-studio", "title": "自由身份工作室", "tags": ["创角", "外貌", "身份", "自由", "预览"], "intent": "开放角色需要细化但不应被迫填满", "outcome": "按语义分组并区分可空与必需，允许自由描述、局部预设、编辑和完整结果预览", "avoid": "把默认值当玩家决定、为显得复杂强行增加字段" }
+  ],
+  "concerns": [
+    { "id": "opening-type", "title": "中文标题与说明层级", "tags": ["字体", "中文", "排版", "长文本"], "outcome": "标题、段落、选项与提示各有层级；用真实中文检查字形覆盖、字重、行长和窄屏，不只选择英文字体", "avoid": "所有文字同样小、靠字距或描边冒充设计" },
+    { "id": "opening-labels", "title": "选项标签容纳", "tags": ["标签", "溢出", "长名称", "按钮"], "outcome": "根据选择控件形态调整列数、换行和详情入口，长名称与触控操作不挤压相邻区域", "avoid": "全局 nowrap 或统一裁切、只有鼠标悬停才能看完整内容" },
+    { "id": "opening-progress", "title": "步骤、错误与返回", "tags": ["表单", "焦点", "验证", "返回"], "outcome": "让玩家知道当前步骤与下一动作，错误就近说明，修正后保留其他输入；页面出口准确描述实际结果", "avoid": "一次报错清空全部输入、复制却宣称已经入场或保存" },
+    { "id": "opening-motion", "title": "入场节奏与动效", "tags": ["动效", "节奏", "减弱动画"], "outcome": "动效服务介绍与选择；减少动画后内容和操作完整，不用动画等待拖住创角", "avoid": "统一给所有区域加闪烁、悬停导致版式跳动" }
+  ],
+  "researchTargets": [
+    { "kind": "public_documentation", "locator": "https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_containment/Container_queries", "use": "按消息容器而非整块桌面窗口设计布局", "status": "lookup_target_not_evidence" },
+    { "kind": "public_documentation", "locator": "https://web.dev/learn/design/typography", "use": "阅读层级与响应式排版的实现参考；不机械照搬字号", "status": "lookup_target_not_evidence" }
+  ]
+}

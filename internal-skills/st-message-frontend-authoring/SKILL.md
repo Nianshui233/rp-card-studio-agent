@@ -9,6 +9,8 @@ description: "Private module for experience-led SillyTavern message frontend fam
 
 按需读取：
 
+- 本阶段必读的独立设计流程：`references/message-design.md`；按任务检索 `references/message-design.json`，从高频游玩任务、信息表达和连续使用舒适度完整设计，不复制开场的审美规则或以字段列表包装交接。主动研究、方向反馈和设计复核在本阶段独立执行。
+
 - 制作时的简易结构/渲染预览：`shared/frontend/layout-preview.md`；开始访谈就主动画推荐结构及关键状态，用户修改后同轮更新，不等用户自己画示意，有当前 HTML 时提供实际渲染图
 
 - 持续状态、交互与消息生命周期：`references/message-ui.md`

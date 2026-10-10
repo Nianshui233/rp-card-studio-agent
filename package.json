@@ -22,6 +22,7 @@
     "project:verify": "node scripts/production/check-plan.mjs",
     "frontend:check": "node scripts/frontend/run-browser-fixtures.mjs",
     "frontend:preview": "node scripts/frontend/preview-layout.mjs",
+    "frontend:design": "node scripts/frontend/design-guide.mjs",
     "worldbook:check": "node scripts/worldbook/worldbook-check.mjs",
     "host:discover": "node scripts/host/discover-sillytavern.mjs",
     "qa:auto": "node scripts/production/automatic-qa.mjs"

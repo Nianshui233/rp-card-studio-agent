@@ -1,0 +1,22 @@
+{
+  "schema": "rp-card-studio/design-catalog/v1",
+  "stage": "message_frontend",
+  "patterns": [
+    { "id": "reading-companion", "title": "陪伴正文的现场界面", "tags": ["阅读", "正文", "现场", "变化"], "intent": "玩家以阅读为主，只需快速掌握当前情境", "outcome": "常驻摘要与按需详情配合，变化适度突出，重复信息不会淹没正文", "avoid": "每轮展开全部变量、仅为缩短而隐藏承重信息" },
+    { "id": "tactical-workbench", "title": "行动与判断工作台", "tags": ["战术", "行动", "检定", "地图"], "intent": "玩家需要比较风险、选择行动和理解结果", "outcome": "按已确认行动规则组织现场、选择、风险与结果；不同动作的后果清楚可辨", "avoid": "把行动按钮当装饰、把查看偷偷变成发送" },
+    { "id": "social-intelligence", "title": "关系与情报界面", "tags": ["人物", "关系", "线索", "证据"], "intent": "玩家要理解人物联系、信息来源与可信程度", "outcome": "按人物和证据组织摘要、详情与关联，区别当前主控所知、传闻和事实", "avoid": "通用好感条替代所有关系、把未知与推测当真相" },
+    { "id": "resource-console", "title": "资源与经营操作台", "tags": ["物品", "资源", "商城", "经营", "库存"], "intent": "玩家反复查询、比较、使用或交易资源", "outcome": "分类、筛选、数量、详情与实际操作配合，操作结果与存储读回一致", "avoid": "把数百物品列成一段文字、点后无反馈或重复扣费" },
+    { "id": "world-network", "title": "地点与世界网络", "tags": ["地图", "路线", "地点", "通讯", "网站"], "intent": "地点连接或信息渠道是实际玩法", "outcome": "地图、路线、频道或终端使用唯一真实数据；可达、未知与仅展示区别明确", "avoid": "为了炫技创建新地点、没有数据的地图使用假坐标" },
+    { "id": "system-controller", "title": "系统角色控制台", "tags": ["系统", "任务", "奖励", "控制", "规则"], "intent": "玩家扮演的角色拥有发布、管理或调度权", "outcome": "把真实权限做成可理解的工作流程，明确编辑、提交、执行与持久化，拒绝越权动作", "avoid": "默认让每张卡都有管理员权、将控制台做成只读字段列表" }
+  ],
+  "concerns": [
+    { "id": "message-density", "title": "连续游玩的阅读密度", "tags": ["密度", "舒适", "长文本", "折叠"], "outcome": "用实际长消息、空态与大量条目检验层级和展开方式，不靠无限缩字或永久截断适配", "avoid": "只看第一屏、把长期信息全部折到难以找到的位置" },
+    { "id": "message-state", "title": "变化与操作反馈", "tags": ["状态", "反馈", "刷新", "变化"], "outcome": "变化可察觉但不过度打断，处理中、成功、冲突和失败可辨；不要把读到值当保存成功", "avoid": "每次更新重建整页、重复动效、反馈靠颜色独自承担" },
+    { "id": "message-labels", "title": "长标签与实时数值", "tags": ["标签", "溢出", "数字", "长名称"], "outcome": "稳定控件尺寸，为长名称、数量增长、未知与单位留出布局；完整内容可通过键盘与触控取得", "avoid": "数字变化挤走按钮、只在 hover 展示关键信息" },
+    { "id": "message-focus", "title": "反复操作与焦点连续性", "tags": ["焦点", "弹窗", "重画", "操作"], "outcome": "重画不丢用户展开位置和操作上下文，详情关闭返回触发入口，旧消息不误操作新快照", "avoid": "状态更新抢焦点、重复绑定导致一次点击多次执行" }
+  ],
+  "researchTargets": [
+    { "kind": "public_documentation", "locator": "https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_containment/Container_queries", "use": "消息宽度与局部分区响应式的实现参考", "status": "lookup_target_not_evidence" },
+    { "kind": "public_documentation", "locator": "https://vuejs.org/guide/best-practices/performance.html", "use": "实际采用 Vue 时查询更新与大列表表现，不据此强制框架", "status": "lookup_target_not_evidence" }
+  ]
+}

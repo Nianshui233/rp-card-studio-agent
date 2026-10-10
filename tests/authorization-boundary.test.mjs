@@ -38,9 +38,10 @@ test('route lock covers the declared primary and supporting Skills', () => {
   const lock = createRouteLock(root, 'message_frontend');
   assert.equal(lock.primarySkill, 'st-message-frontend-authoring');
   assert.deepEqual(lock.supportingSkills, [
-    'rp-interview-orchestration', 'st-host-capabilities', 'st-api-reference',
+    'rp-interview-orchestration', 'rp-materials-research', 'st-host-capabilities', 'st-api-reference',
     'st-worldbook-regex', 'st-render-regex', 'st-tavern-helper-engineering'
   ]);
+  assert.ok(lock.requiredFiles.includes('internal-skills/rp-materials-research/SKILL.md'));
   assert.equal(validateRouteLock(lock, root, 'message_frontend').ok, true);
   const tampered = { ...lock, fileSha256: { ...lock.fileSha256, [lock.requiredFiles.at(-1)]: 'tampered' } };
   assert.equal(validateRouteLock(tampered, root, 'message_frontend').ok, false);

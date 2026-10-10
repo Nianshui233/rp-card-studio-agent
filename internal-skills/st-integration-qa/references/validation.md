@@ -177,6 +177,9 @@ minDepth/maxDepth: number|null
 
 ## 开场/创角前端
 
+- 存在独立 opening-design/v1，世界介绍、游玩指南、创角采用范围分别明确，页面内流程完整，不继承持续状态栏的密度和刷新规则；
+- 参考实际查看、具体构图与内容表现已落实；worldPresentation、guideComprehension、creationFlow、visualExecution 复核对应当前精确导入内容和完整资源图像，不是情绪答案或原型通过；
+
 - 正式玩家字段默认空白，快速预设默认不选且可编辑；
 - 每条路线映射到真实静态 Greeting；自定义来意也有可手动选择的自由入口；
 - 页面只生成可见、可编辑、可复制的 canonical 开局登记文本；修改字段后旧预览失效；
@@ -189,6 +192,9 @@ minDepth/maxDepth: number|null
 - 完成后不继续承担持续消息状态栏职责。
 
 ## 持续消息前端
+
+- 存在独立 message-design/v1，高频任务、信息优先级、语义表现与连续使用计划完整，不直接复制开场皮肤或变量树；
+- readingPriority、actionClarity、longSessionComfort、visualExecution 有当前画面观察与实际宽窄屏证据；方向反馈经过重新判断，不只增加纹理、阴影或代码量；
 
 - 纯 SillyTavern 动态脚本路线判定失败；静态捕获值直接进入 HTML 时，有与 producer 一致的字符/长度限制或明确允许的净化 markup 边界，不虚构通用 escape；
 - 非 MVU 结构化页面能找到实际 producer、协议版本、字段 Schema、缺失/重复/未知/多块策略、parser 和 fixture；HTML 中出现 marker 不算 producer；

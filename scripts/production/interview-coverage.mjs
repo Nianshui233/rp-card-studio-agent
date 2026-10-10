@@ -1,4 +1,6 @@
-import { textHash } from './artifact-bindings.mjs';
+import { validateDecisionRefs } from './decision-refs.mjs';
+import { validateFrontendDesign } from '../frontend/design-contract.mjs';
+export { validateDecisionRefs } from './decision-refs.mjs';
 import { inspectLayoutBlocks } from '../frontend/preview-layout.mjs';
 export const DEPTH_RANK = { surface: 1, structured: 2, detailed: 3, runtime: 4 };
 
@@ -8,7 +10,10 @@ export const INTERVIEW_PROFILES = {
     content_hierarchy: 'detailed',
     creation_scope: 'detailed',
     handoff: 'structured',
-    visual: 'structured',
+    visual: 'detailed',
+    world_presentation: 'detailed',
+    guide_presentation: 'structured',
+    creation_journey: 'detailed',
     host_runtime: 'runtime'
   },
   message_frontend: {
@@ -19,7 +24,10 @@ export const INTERVIEW_PROFILES = {
     display_policy: 'detailed',
     fallback: 'detailed',
     carrier: 'runtime',
-    host_regression: 'runtime'
+    host_regression: 'runtime',
+    visual_direction: 'detailed',
+    representation_design: 'detailed',
+    play_comfort: 'detailed'
   },
   ejs: {
     purpose: 'detailed',
@@ -79,7 +87,10 @@ export function validateInterviewCoverage(interview, profileName, { ledger } = {
       if (item.evidence !== projection) issues.push('访谈 evidence 必须逐字投影当前决定，不得另写确认摘要：' + dimension);
     }
   }
-  if (['opening_frontend', 'message_frontend'].includes(profileName)) issues.push(...validateSurfaceDetails(interview?.surfaces, { ledger }));
+  if (['opening_frontend', 'message_frontend'].includes(profileName)) {
+    issues.push(...validateSurfaceDetails(interview?.surfaces, { ledger }));
+    issues.push(...validateFrontendDesign(interview?.design, profileName, { ledger, surfaces: interview?.surfaces }).issues);
+  }
   for (const item of interview?.blockingUnresolved ?? []) issues.push(`仍有阻断性未决项：${item}`);
   for (const item of interview?.unexpandedDependencies ?? []) issues.push(`仍有未展开的访谈依赖项：${item}`);
   return { ok: issues.length === 0, issues, profile: profileName };
@@ -101,21 +112,6 @@ export function renderInterviewCoverage(interview, profileName) {
 }
 
 
-export function validateDecisionRefs(refs, ledger, label) {
-  const issues = [];
-  if (!Array.isArray(refs) || !refs.length) return ['缺少当前决定引用：' + label];
-  const ids = new Set();
-  for (const ref of refs) {
-    if (!ref?.id || !/^[a-f0-9]{64}$/.test(ref.textSha256 ?? '') || ids.has(ref.id)) { issues.push('决定引用缺少 id/文本摘要或重复：' + label); continue; }
-    ids.add(ref.id);
-    if (!ledger) continue; // Structure-only calls do not authenticate user evidence.
-    const decision = ledger.decisions?.find(d => d.id === ref.id);
-    if (!decision || !ACCEPTED_SOURCES.has(decision.sourceKind)) issues.push('决定已撤回、未确认或不存在：' + label + ' -> ' + ref.id);
-    else if (textHash(decision.text) !== ref.textSha256) issues.push('决定已更正，访谈引用过期：' + label + ' -> ' + ref.id);
-  }
-  return issues;
-}
-
 export function validateSurfaceDetails(surfaces, { ledger } = {}) {
   const issues = [], ids = new Set();
   if (!Array.isArray(surfaces) || !surfaces.length) return ['前端访谈必须展开实际页面，不得只标记大类 covered'];
@@ -135,6 +131,7 @@ export function validateSurfaceDetails(surfaces, { ledger } = {}) {
       for (const item of items) {
         if (!item?.id || itemIds.has(item.id)) issues.push('页面字段/操作 id 缺失或重复：' + surface.id); itemIds.add(item?.id);
         for (const prop of properties) if (typeof item?.[prop] !== 'string' || !item[prop].trim()) issues.push('页面细项缺少 ' + prop + '：' + surface.id + '.' + item?.id);
+        if (kind === 'actions' && typeof item?.visualState !== 'boolean') issues.push('页面操作必须明确是否产生需要预览的视觉状态：' + surface.id + '.' + item?.id);
         issues.push(...validateDecisionRefs(item?.decisionRefs, ledger, surface.id + '.' + item?.id));
       }
     }

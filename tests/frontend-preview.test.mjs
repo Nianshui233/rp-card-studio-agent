@@ -30,8 +30,8 @@ function surface() {
       { id: 'item', label: '条目', source: 'mock.item', representation: '列表', example: '演示值' },
       { id: 'detail', label: '详细信息', source: 'mock.detail', representation: '文字' }
     ], actions: [
-      { id: 'next', label: '下一步', trigger: '点击', outcome: '显示下一页', failure: '留在原页' },
-      { id: 'inspect', label: '查看详情', trigger: '点击', outcome: '展开详细资料', failure: '提示无法读取' }
+      { id: 'next', label: '下一步', trigger: '点击', outcome: '显示下一页', failure: '留在原页', visualState: true },
+      { id: 'inspect', label: '查看详情', trigger: '点击', outcome: '展开详细资料', failure: '提示无法读取', visualState: true }
     ] };
 }
 

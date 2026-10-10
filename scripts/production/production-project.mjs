@@ -36,7 +36,8 @@ export async function validateProductionProject(manifest, { root, ledger, curren
   if (reached('ejs')) checks.push(validateEjsCompleteness(manifest.ejs));
   checks.push(validateDiagnosticEvents(manifest.diagnostics?.events));
   if (runtimeClaim && manifest.mvu?.mode === 'mvu_zod' && manifest.mvu.sourceContract?.runtime?.status !== 'pass') issues.push('runtime_verified/accepted 不能使用 MVU runtime:not_run/failed');
-  const frontStages = ['opening_frontend','message_frontend'].filter(id => finalGate ? enabled(id) || manifest.frontends?.[id] : implemented && manifest.activeStage === id);
+  const frontStages = ['opening_frontend','message_frontend'].filter(id => finalGate ? enabled(id) || manifest.frontends?.[id]
+    : (manifest.activeStage === id || currentStage === id) && (implemented || manifest.frontends?.[id]?.status === 'implemented'));
   if (finalGate) {
     for (const stage of frontStages) if (!enabled(stage)) issues.push('最终前端没有对应启用依据，不能用制作记录自行授权：' + stage);
     if (manifest.ejs?.enabled && !enabled('ejs')) issues.push('最终 EJS 没有对应启用依据');
@@ -44,21 +45,26 @@ export async function validateProductionProject(manifest, { root, ledger, curren
   if (manifest.status === 'accepted' && !ledger?.stages?.some(s => s.id === 'qa_delivery' && s.progress === 'closed' && s.review === 'accepted')) issues.push('accepted 必须有 QA 阶段的真实用户接受引用');
   const required = [...frontStages, ...(finalGate && manifest.ejs?.enabled ? ['ejs'] : [])];
   let bindings = { results: [], issues: [], ok: true }, receipt = { steps: [], issues: [], ok: true };
-  if (finalGate && root) {
-    checks.push(validateWorldbookProject(root, manifest.worldbook?.routingContract, { ledger, requireRuntime: runtimeClaim }));
+  const readyFrontend = frontStages.some(stage => manifest.frontends?.[stage]?.status === 'implemented');
+  if ((finalGate || readyFrontend) && root) {
+    if (finalGate) checks.push(validateWorldbookProject(root, manifest.worldbook?.routingContract, { ledger, requireRuntime: runtimeClaim }));
     bindings = validateArtifactBindings(root, manifest.bindings, { requiredComponents: required }); checks.push(bindings);
     receipt = validateCheckReceipt(root, manifest.verification); checks.push(receipt);
-    if (manifest.ejs?.enabled) checks.push(validateEjsInstallations(root, manifest.ejs, manifest.bindings, bindings.results));
+    if (finalGate && manifest.ejs?.enabled) checks.push(validateEjsInstallations(root, manifest.ejs, manifest.bindings, bindings.results));
   }
   for (const stage of frontStages) {
     const front = manifest.frontends?.[stage] ?? (!finalGate ? manifest.frontend : null);
     if (!manifest.interviews?.[stage]) issues.push('缺少具体页面访谈：' + stage);
-    checks.push(validateFrontendManifest(front, { activeStage: stage, requireRuntime: runtimeClaim, requireArtifacts: finalGate, root,
+    checks.push(validateFrontendManifest(front, { activeStage: stage, requireRuntime: runtimeClaim, requireArtifacts: finalGate || front?.status === 'implemented', root,
       interview: manifest.interviews?.[stage], bindingResults: bindings.results, checkSteps: receipt.steps }));
   }
   if (implemented && ['mvu','native_schema','mvu_zod'].includes(manifest.activeStage) && !manifest.interviews?.[manifest.activeStage]) issues.push('MVU 当前阶段缺少访谈覆盖');
-  for (const [stage, interview] of Object.entries(manifest.interviews ?? {})) checks.push({ stage, ...(INTERVIEW_PROFILES[interview.profile ?? stage]
-    ? validateInterviewCoverage(interview, interview.profile ?? stage, { ledger }) : validateInterviewGate(interview, interview.required ?? undefined)) });
+  for (const [stage, interview] of Object.entries(manifest.interviews ?? {})) {
+    const isFrontend = ['opening_frontend', 'message_frontend'].includes(stage);
+    if (isFrontend && interview?.profile && interview.profile !== stage) issues.push('前端访谈不能更名 profile 绕过独立设计：' + stage);
+    const profile = isFrontend ? stage : interview?.profile ?? stage;
+    checks.push({ stage, ...(INTERVIEW_PROFILES[profile] ? validateInterviewCoverage(interview, profile, { ledger }) : validateInterviewGate(interview, interview?.required ?? undefined)) });
+  }
   issues.push(...checks.flatMap(c => c.issues ?? []));
   return { ok: issues.length === 0, finalGate, runtimeClaim, issues, checks };
 }

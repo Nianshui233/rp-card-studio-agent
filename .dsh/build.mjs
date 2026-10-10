@@ -269,6 +269,9 @@ ${rows}
 - \`assets/templates/\`：世界/角色/系统/场景/开场/用户角色模板，MVU 运行合同、更新规则、变量路径索引、\`mvu-zod.schema.js\`、NSFW mixin、定量系统 mixin；
 - \`shared/frontend/ui-assets.md\`：字形、图标、SVG 图形与资源策略；
 - \`shared/frontend/layout-preview.md\`：给制作者主动画当前布局和交互状态；有真实 HTML 时展示当前渲染图，不拿草图冒充完成或新增预览审批门；
+- \`internal-skills/st-opening-frontend-authoring/references/opening-design.md\` 与其 JSON 索引：独立设计介绍、指南和创角；氛围不闭合整套方案，授权内完整实现、自查后交接；
+- \`internal-skills/st-message-frontend-authoring/references/message-design.md\` 与其 JSON 索引：独立设计高频游玩任务、信息表达和长期舒适度，不继承开场规则；
+- \`npm run frontend:design -- --stage opening_frontend|message_frontend --query <主要意图>\`：本地定向设计检索，只是参考入口，不冒充外部研究；公开参考主动查看，完整视觉可重放核对资源，断网回退不作为成品；
 - \`assets/examples/\`：经过静态合同核对的原创示例，只在需要对照实现时读取。
 
 ## 交付与验收口径

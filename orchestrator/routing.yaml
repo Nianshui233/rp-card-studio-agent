@@ -95,21 +95,21 @@ stages:
     next: opening_frontend
   opening_frontend:
     primary_skill: st-opening-frontend-authoring
-    required_files: [shared/frontend/layout-preview.md, scripts/frontend/preview-layout.mjs, orchestrator/production-verification.md, scripts/production/check-plan.mjs, scripts/production/artifact-bindings.mjs, scripts/production/production-project.mjs, scripts/frontend/run-browser-fixtures.mjs, scripts/frontend/frontend-source-check.mjs, shared/frontend/boot-controller.mjs]
-    supporting_skills: [rp-interview-orchestration, st-host-capabilities, st-api-reference, st-worldbook-regex, st-render-regex, st-tavern-helper-engineering]
+    required_files: [internal-skills/st-opening-frontend-authoring/references/opening-design.md, internal-skills/st-opening-frontend-authoring/references/opening-design.json, scripts/frontend/design-guide.mjs, scripts/frontend/design-contract.mjs, scripts/frontend/preview-resources.mjs, scripts/production/decision-refs.mjs, shared/frontend/layout-preview.md, scripts/frontend/preview-layout.mjs, orchestrator/production-verification.md, scripts/production/check-plan.mjs, scripts/production/artifact-bindings.mjs, scripts/production/production-project.mjs, scripts/frontend/run-browser-fixtures.mjs, scripts/frontend/frontend-source-check.mjs, shared/frontend/boot-controller.mjs]
+    supporting_skills: [rp-interview-orchestration, rp-materials-research, st-host-capabilities, st-api-reference, st-worldbook-regex, st-render-regex, st-tavern-helper-engineering]
     optional: true
     enable_when: opening_or_creation_frontend_requested
     next: message_frontend
   message_frontend:
     primary_skill: st-message-frontend-authoring
-    required_files: [shared/frontend/layout-preview.md, scripts/frontend/preview-layout.mjs, orchestrator/production-verification.md, scripts/production/check-plan.mjs, scripts/production/artifact-bindings.mjs, scripts/production/production-project.mjs, scripts/frontend/run-browser-fixtures.mjs, scripts/frontend/frontend-source-check.mjs, shared/frontend/boot-controller.mjs]
-    supporting_skills: [rp-interview-orchestration, st-host-capabilities, st-api-reference, st-worldbook-regex, st-render-regex, st-tavern-helper-engineering]
+    required_files: [internal-skills/st-message-frontend-authoring/references/message-design.md, internal-skills/st-message-frontend-authoring/references/message-design.json, scripts/frontend/design-guide.mjs, scripts/frontend/design-contract.mjs, scripts/frontend/preview-resources.mjs, scripts/production/decision-refs.mjs, shared/frontend/layout-preview.md, scripts/frontend/preview-layout.mjs, orchestrator/production-verification.md, scripts/production/check-plan.mjs, scripts/production/artifact-bindings.mjs, scripts/production/production-project.mjs, scripts/frontend/run-browser-fixtures.mjs, scripts/frontend/frontend-source-check.mjs, shared/frontend/boot-controller.mjs]
+    supporting_skills: [rp-interview-orchestration, rp-materials-research, st-host-capabilities, st-api-reference, st-worldbook-regex, st-render-regex, st-tavern-helper-engineering]
     optional: true
     enable_when: ongoing_message_ui_requested
     next: qa_delivery
   qa_delivery:
     primary_skill: st-integration-qa
-    required_files: [shared/frontend/layout-preview.md, scripts/frontend/preview-layout.mjs, orchestrator/automatic-work.md, scripts/production/automatic-qa.mjs, scripts/continuation/automatic-qa-policy.mjs, scripts/host/discover-sillytavern.mjs, scripts/host/local-environment.mjs, orchestrator/production-verification.md, scripts/production/check-plan.mjs, scripts/production/artifact-bindings.mjs, scripts/production/production-project.mjs, scripts/frontend/run-browser-fixtures.mjs, scripts/frontend/frontend-source-check.mjs, shared/frontend/boot-controller.mjs, internal-skills/st-worldbook-regex/references/worldbook-routing.md, scripts/worldbook/routing.mjs, scripts/worldbook/worldbook-project.mjs, scripts/worldbook/worldbook-check.mjs]
+    required_files: [scripts/frontend/design-contract.mjs, scripts/frontend/preview-resources.mjs, scripts/production/decision-refs.mjs, shared/frontend/layout-preview.md, scripts/frontend/preview-layout.mjs, orchestrator/automatic-work.md, scripts/production/automatic-qa.mjs, scripts/continuation/automatic-qa-policy.mjs, scripts/host/discover-sillytavern.mjs, scripts/host/local-environment.mjs, orchestrator/production-verification.md, scripts/production/check-plan.mjs, scripts/production/artifact-bindings.mjs, scripts/production/production-project.mjs, scripts/frontend/run-browser-fixtures.mjs, scripts/frontend/frontend-source-check.mjs, shared/frontend/boot-controller.mjs, internal-skills/st-worldbook-regex/references/worldbook-routing.md, scripts/worldbook/routing.mjs, scripts/worldbook/worldbook-project.mjs, scripts/worldbook/worldbook-check.mjs]
     supporting_skills: [st-runtime-debug, st-render-regex, st-host-capabilities, st-api-reference]
     execution: automatic_within_current_task
     optional: false
