@@ -18,6 +18,11 @@ function handed() {
 test('narrative is optional in routing and initial ledger; skipping does not disable either frontend', () => {
   const route = YAML.parse(fs.readFileSync(path.join(agentRoot,'orchestrator/routing.yaml'),'utf8'));
   assert.equal(route.stages.narrative_opening.optional,true);
+  const interviewRoutes = JSON.parse(fs.readFileSync(path.join(agentRoot,'internal-skills/rp-interview-orchestration/references/interview-routes.json'),'utf8'));
+  assert.ok(interviewRoutes.opt_in_stages.includes('narrative_opening'));
+  assert.equal(interviewRoutes.stages.narrative_opening.optional,true);
+  assert.equal(interviewRoutes.stages.narrative_opening.enable_when,'new_narrative_rules_or_openings_requested');
+  assert.match(fs.readFileSync(path.join(agentRoot,'orchestrator/stage-loop.md'),'utf8'),/opt-in.*默认绕过/);
   assert.equal(route.stages.qa_delivery.execution,'automatic_within_current_task');
   const ledger = createStageLedger(); assert.equal(ledger.stages.find(s => s.id === 'narrative_opening').enabled,'unresolved');
   const skipped = skipStage(ledger,{ stage:'narrative_opening',evidence:evidence({id:'USR-S',stage:'narrative_opening',action:'skip',quote:'这次不制作叙事规则和开场',targets:['narrative_opening']}) });

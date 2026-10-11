@@ -21,7 +21,7 @@ preflight
 → mvu（需要跨消息持久状态或明确要求 MVU 时）
 → ejs（需要动态模板/Prompt 或明确要求 EJS 时）
 → runtime_bridge（MVU 与 EJS 都已启用且确实需要交换数据时）
-→ narrative_opening（需要新设叙事规则或新写开场时；可只做其中一项）
+→ narrative_opening（opt-in；只有需要新设叙事规则或新写开场时才进入，可只做其中一项；默认绕过）
 → opening_frontend（需要介绍/路线/创角页面时）
 → message_frontend（需要持续消息 UI 时）
 → qa_delivery
@@ -151,7 +151,7 @@ MVU、MVU_ZOD、EJS 分别维护 `enabled`、`disabled`、`unresolved`；用户�
 
 以下是阶段内容就绪标准，不是用户接受或进入下一阶段的授权。其他阶段的真实内容已经足以供下游使用：固定路线中的每个启用节点均已访问，节点最低覆盖均已由明确材料解决、用户确认、用户明确授权代定、明确跳过或明确不适用关闭；临时假设不能关闭承重项。关键抽象已有可观察表现，至少一个高风险点经过场景、边界或失败压力检查。若用户要先看草稿，可交可逆草稿并指出未定事项；不要因为还能扩写或模板还有字段而无限延长访谈，也不要因为模型自行认为内容足够而提前结束路线。
 
-固定路线进度写入当前阶段账本的 `interviewRoute`，包含 `visited`、`currentNode`、`nodeStatus` 和 `status`；节点状态变更不新增用户依据，但阶段交接前必须通过路线结算检查。
+固定路线进度写入当前阶段账本的 `interviewRoute`，包含 `visited`、`currentNode`、`nodeStatus`、`nodeBasis` 和 `status`；关闭节点必须有可追溯依据，节点状态变更不制造新的用户确认。续接时优先使用 `node scripts/continuation/continuation.mjs context --root <项目目录>`，结算时使用 `close-node --stage <阶段> --node <节点> --node-status <状态> --basis-file <依据 JSON>`，不要手工编辑 `authority.md`/`NEXT.md`；阶段交接前必须通过路线结算检查。
 
 阶段内容就绪后提交创作交接；自动 QA 可以承接本次制作范围，不能代替用户接受，已关闭必须有用户对实际交接的接受依据。授权引用缺失、跨阶段或与真实消息冲突时阻断提升，不以 Agent 自己的账本循环证明确认。
 

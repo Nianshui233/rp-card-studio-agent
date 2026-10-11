@@ -5,7 +5,8 @@ import { STATE_DIR, ensureProjectFolders, validateProjectLayout, resolveProjectP
 import { STAGES, STAGE_LABELS, PROGRESS_LABELS, REVIEW_LABELS, validateStageLedger, stageAuthorizationLabel, stageProgressLabel, interviewRouteLabel } from './stage-ledger.mjs';
 import { writeRouteLock, validateRouteLock } from './route-lock.mjs';
 import { releaseReadinessIssues } from './release-gate.mjs';
-import { applyProjectEvent } from './ledger-transition.mjs';
+import { applyProjectEvent, readProjectState } from './ledger-transition.mjs';
+import { getInterviewRoute } from '../production/interview-routes.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const TEMPLATE_ROOT = path.join(ROOT, 'assets', 'templates', 'continuation');
@@ -209,6 +210,64 @@ export function renderProgressBoard(rootValue) {
   ].join('\n');
 }
 
+export function buildStageContext(rootValue, stageOverride) {
+  const state = readProjectState(projectRoot(rootValue));
+  const stageId = stageOverride || state.currentStage;
+  const row = state.ledger.stages?.find(item => item.id === stageId);
+  if (!row) throw new Error(`阶段账本没有阶段：${stageId}`);
+  const route = getInterviewRoute(stageId);
+  const progress = row.interviewRoute;
+  const nodes = route?.nodes ?? [];
+  const currentNode = route && progress ? nodes.find(node => node.id === progress.currentNode) ?? null : null;
+  const visited = Array.isArray(progress?.visited) ? progress.visited : [];
+  const nodeStatus = progress?.nodeStatus ?? {};
+  const legacyBasisMissing = progress && progress.basisVersion !== 1
+    ? visited.filter(id => nodeStatus[id] && !(progress.nodeBasis?.[id])).map(id => ({ node: id, status: nodeStatus[id] }))
+    : [];
+  const nextLines = title => section(state.next, title).split(/\r?\n/).map(line => line.trim().replace(/^[-*]\s+/, '')).filter(Boolean).slice(0, 3);
+  const meta = frontMatter(state.authority);
+  return {
+    schema: 'rp-card-studio/stage-context/v1',
+    project: { id: meta.project_id ?? null, title: meta.title ?? null, root: state.root },
+    currentStage: state.currentStage,
+    stage: {
+      id: row.id,
+      label: STAGE_LABELS[row.id] ?? row.id,
+      enabled: row.enabled,
+      progress: row.progress,
+      progressLabel: stageProgressLabel(row),
+      review: row.review,
+      reviewLabel: REVIEW_LABELS[row.review] ?? row.review,
+      authorization: stageAuthorizationLabel(state.ledger, row.id),
+    },
+    route: route && progress ? {
+      owner: route.owner_skill,
+      mode: route.route_mode,
+      optional: route.optional === true,
+      enableWhen: route.enable_when ?? null,
+      status: progress.status,
+      total: nodes.length,
+      visited,
+      remaining: nodes.filter(node => !visited.includes(node.id)).map(node => node.id),
+      nodeStatus,
+      legacyBasisMissing,
+    } : null,
+    currentNode: currentNode ? {
+      id: currentNode.id,
+      label: currentNode.label,
+      purpose: currentNode.purpose,
+      minimum: currentNode.minimum,
+      status: nodeStatus[currentNode.id] ?? 'not_started',
+      basis: progress?.nodeBasis?.[currentNode.id] ?? null,
+    } : null,
+    next: { incomplete: nextLines('当前未完成'), gate: nextLines('下一道门'), risks: nextLines('当前风险') },
+    allowedActions: row.progress === 'in_progress'
+      ? (currentNode ? ['ask_current_node', 'write_current_node', 'close_current_node'] : ['write_current_stage', 'submit_stage_handoff'])
+      : row.progress === 'awaiting_handoff' ? ['wait_user_acceptance'] : [],
+    instruction: '只处理当前阶段和当前节点；不要重新读取全阶段账本或手工编辑 authority.md/NEXT.md。节点关闭必须使用 close-node 并附 basis-file。若 legacyBasisMissing 非空，先为这些旧节点补证据，不把旧状态自动升级为新确认。',
+  };
+}
+
 function option(name) {
   const index = process.argv.indexOf(name);
   return index >= 0 ? process.argv[index + 1] : undefined;
@@ -228,6 +287,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToP
       if (!result.ok) process.exitCode = 1;
     } else if (command === 'board') {
       process.stdout.write(`${renderProgressBoard(root)}\n`);
+    } else if (command === 'context' || command === 'stage-context') {
+      process.stdout.write(`${JSON.stringify(buildStageContext(root, option('--stage')), null, 2)}\n`);
     } else if (command === 'route-lock') {
       const stage = option('--stage');
       if (!stage) throw new Error('route-lock 必须提供 --stage <stage-id>');
@@ -240,10 +301,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToP
       const result = validateRouteLock(lock, option('--agent-root') || ROOT, option('--stage') || lock.stage);
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
       if (!result.ok) process.exitCode = 1;
-    } else if (command === 'ledger-event') {
-      const type = option('--event');
+    } else if (['ledger-event', 'start-stage', 'close-node', 'handoff-stage', 'accept-handoff'].includes(command)) {
+      const type = command === 'start-stage' ? 'start' : command === 'close-node' ? 'interview-node' : command === 'handoff-stage' ? 'handoff' : command === 'accept-handoff' ? 'accept' : option('--event');
       const stage = option('--stage');
-      if (!type || !stage) throw new Error('ledger-event 必须提供 --event start|reopen|handoff|accept|skip|auto-qa|qa-blocked 与 --stage <stage-id>');
+      if (!type || !stage) throw new Error(`${command} 必须提供 --stage <stage-id>${command === 'ledger-event' ? ' 和 --event <event>' : ''}`);
       const readJson = file => JSON.parse(read(file));
       const evidenceFile = option('--evidence-file');
       const handoffFile = option('--handoff-file');
@@ -254,11 +315,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToP
         handoff: handoffFile ? readJson(handoffFile) : undefined,
         handoffId: option('--handoff-id'),
         node: option('--node'), nodeStatus: option('--node-status'),
+        nodeBasis: option('--basis-file') ? readJson(option('--basis-file')) : undefined,
         scope: option('--scope'), sourceStage: option('--source-stage'), reason: option('--reason')
       });
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     } else {
-      throw new Error('用法: node continuation.mjs init|validate|board|route-lock|route-verify|ledger-event --root <project-root> [--stage stage-id --agent-root agent-root --event start|reopen|interview-node|handoff|accept|skip|auto-qa|qa-blocked --node <node-id> --node-status <status> --evidence-file file --handoff-file file --handoff-id id]');
+      throw new Error('用法: node continuation.mjs init|validate|board|context|route-lock|route-verify|ledger-event|start-stage|close-node|handoff-stage|accept-handoff --root <project-root> [--stage stage-id --agent-root agent-root --event ... --node <node-id> --node-status <status> --basis-file file --evidence-file file --handoff-file file --handoff-id id]');
     }
   } catch (error) {
     process.stderr.write(`${error.message}\n`);

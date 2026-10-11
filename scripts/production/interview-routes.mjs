@@ -12,6 +12,32 @@ export const INTERVIEW_ROUTES = JSON.parse(fs.readFileSync(INTERVIEW_ROUTE_PATH,
 export const FIXED_INTERVIEW_STAGES = Object.freeze(Object.keys(INTERVIEW_ROUTES.stages ?? {}));
 
 const CLOSED_NODE_STATUSES = new Set(INTERVIEW_ROUTES.node_status_contract?.closed ?? []);
+const NODE_BASIS_KINDS = new Set(['material', 'user_confirmed', 'delegated', 'explicit_skip', 'not_applicable']);
+
+export function validateInterviewNodeBasis(basis, status) {
+  const issues = [];
+  if (!CLOSED_NODE_STATUSES.has(status)) return { ok: true, issues };
+  if (!basis || typeof basis !== 'object' || Array.isArray(basis)) return { ok: false, issues: ['关闭节点必须附带 basis 依据'] };
+  if (!NODE_BASIS_KINDS.has(basis.kind)) issues.push('节点 basis.kind 无效');
+  if (!Array.isArray(basis.coverage) || basis.coverage.length === 0 || basis.coverage.some(item => typeof item !== 'string' || !item.trim())) {
+    issues.push('节点 basis.coverage 必须列出已关闭的最低覆盖项');
+  }
+  const expectedKind = {
+    source_resolved: 'material',
+    confirmed: 'user_confirmed',
+    delegated: 'delegated',
+    explicit_skip: 'explicit_skip',
+    not_applicable: 'not_applicable',
+  }[status];
+  if (expectedKind && basis.kind !== expectedKind) issues.push(`${status} 节点的 basis.kind 必须是 ${expectedKind}`);
+  if (['user_confirmed', 'explicit_skip'].includes(basis.kind) && (!Array.isArray(basis.evidence) || basis.evidence.length === 0 || basis.evidence.some(item => typeof item !== 'string' || !item.trim()))) {
+    issues.push(`${basis.kind} 节点必须引用 evidence id`);
+  }
+  if (basis.kind === 'material' && (typeof basis.source !== 'string' || !basis.source.trim())) issues.push('material 节点必须提供 source 定位');
+  if (basis.kind === 'delegated' && (typeof basis.authorization !== 'string' || !basis.authorization.trim())) issues.push('delegated 节点必须引用 authorization id');
+  if (basis.kind === 'not_applicable' && (typeof basis.reason !== 'string' || !basis.reason.trim())) issues.push('not_applicable 节点必须说明 reason');
+  return { ok: issues.length === 0, issues };
+}
 
 export function getInterviewRoute(stage) {
   return INTERVIEW_ROUTES.stages?.[stage] ?? null;
@@ -30,6 +56,11 @@ export function validateInterviewRouteDefinitions(routes = INTERVIEW_ROUTES) {
   if (!routes.route_contract?.no_silent_completion) issues.push('访谈路线缺少 no_silent_completion 规则');
   if (!routes.route_contract?.stage_handoff) issues.push('访谈路线缺少 stage_handoff 规则');
   if (!CLOSED_NODE_STATUSES.size) issues.push('访谈路线缺少 closed 节点状态');
+  for (const stage of routes.opt_in_stages ?? []) {
+    if (!routes.stages?.[stage]) issues.push(`opt_in_stages 引用了不存在的阶段：${stage}`);
+    else if (routes.stages[stage].optional !== true) issues.push(`opt_in 阶段必须标记 optional=true：${stage}`);
+    else if (!routes.stages[stage].enable_when) issues.push(`opt_in 阶段缺少 enable_when：${stage}`);
+  }
   for (const [stage, definition] of Object.entries(routes.stages ?? {})) {
     if (!definition?.owner_skill) issues.push(stage + ' 缺少 owner_skill');
     if (!Array.isArray(definition?.nodes) || definition.nodes.length === 0) {
@@ -82,6 +113,10 @@ export function validateInterviewRouteProgress(progress, stage) {
       if (!CLOSED_NODE_STATUSES.has(status) && !INTERVIEW_ROUTES.node_status_contract.open.includes(status)) {
         issues.push(stage + '.' + id + ' 节点状态无效：' + status);
       }
+      if (progress.basisVersion === 1) {
+        const basisResult = validateInterviewNodeBasis(progress.nodeBasis?.[id], status);
+        if (!basisResult.ok) issues.push(...basisResult.issues.map(issue => `${stage}.${id} ${issue}`));
+      }
     }
   }
   return { ok: issues.length === 0, issues, stage, expected, route };
@@ -94,6 +129,8 @@ export function validateInterviewRouteCompletion(progress, stage) {
     if (!progress?.visited?.includes(id)) result.issues.push(stage + ' 尚未访问节点：' + id);
     const status = progress?.nodeStatus?.[id];
     if (!CLOSED_NODE_STATUSES.has(status)) result.issues.push(stage + '.' + id + ' 尚未以关闭状态结算：' + (status ?? '未记录'));
+    const basisResult = validateInterviewNodeBasis(progress?.nodeBasis?.[id], status);
+    if (!basisResult.ok) result.issues.push(...basisResult.issues.map(issue => `${stage}.${id} ${issue}`));
   }
   return { ...result, ok: result.issues.length === 0 };
 }

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import { STATE_DIR, validateProjectLayout, resolveProjectPath } from '../project-layout.mjs';
 import path from 'node:path';
 import { STAGES, OPTIONAL, createInterviewRouteProgress, validateInterviewRouteCompletion, validateStageLedger } from './stage-ledger.mjs';
-import { getInterviewRoute, INTERVIEW_ROUTES } from '../production/interview-routes.mjs';
+import { getInterviewRoute, INTERVIEW_ROUTES, validateInterviewNodeBasis } from '../production/interview-routes.mjs';
 import { classifyUserReply, isBareContinue } from './user-intent.mjs';
 import { AUTOMATIC_QA_POLICY, createAutomaticQaPolicy } from './automatic-qa-policy.mjs';
 
@@ -37,7 +37,7 @@ function stageOf(ledger, stage) {
   return row;
 }
 
-export function recordInterviewNode(ledger, { stage, node, status }) {
+export function recordInterviewNode(ledger, { stage, node, status, basis }) {
   const next = clone(ledger), row = stageOf(next, stage), route = getInterviewRoute(stage);
   if (!route || !row.interviewRoute) throw new Error(`阶段没有启用固定访谈路线：${stage}`);
   if (row.progress !== 'in_progress') throw new Error(`只有进行中的阶段可以记录访谈节点：${stage}`);
@@ -48,12 +48,27 @@ export function recordInterviewNode(ledger, { stage, node, status }) {
     ...(INTERVIEW_ROUTES.node_status_contract?.open ?? []),
   ]);
   if (!allowed.has(status) || status === 'not_started') throw new Error(`访谈节点状态无效：${status}`);
+  const basisResult = validateInterviewNodeBasis(basis, status);
+  if (!basisResult.ok) throw new Error(`${stage}.${node} 节点不能结算：${basisResult.issues.join('；')}`);
+  if (basis?.kind === 'user_confirmed' || basis?.kind === 'explicit_skip') {
+    const expectedAction = basis.kind === 'explicit_skip' ? 'skip' : 'confirm';
+    for (const evidenceId of basis.evidence) {
+      const evidence = next.userEvidence?.find(item => item.id === evidenceId);
+      if (!evidence || evidence.stage !== stage || evidence.action !== expectedAction) throw new Error(`${stage}.${node} basis evidence 无效或跨阶段：${evidenceId}`);
+    }
+  }
+  if (basis?.kind === 'delegated') {
+    const authorization = next.authorizations?.find(item => item.id === basis.authorization);
+    if (!authorization || authorization.stage !== stage || authorization.status === 'revoked') throw new Error(`${stage}.${node} basis authorization 无效或跨阶段：${basis.authorization}`);
+  }
   const visited = row.interviewRoute.visited;
+  row.interviewRoute.nodeBasis ??= {};
   const position = route.nodes.findIndex(item => item.id === node);
   const nextPosition = visited.length;
   if (!visited.includes(node) && position !== nextPosition) throw new Error(`访谈节点必须按顺序记录：${stage}.${node}`);
   if (!visited.includes(node)) visited.push(node);
   row.interviewRoute.nodeStatus[node] = status;
+  if (basis !== undefined) row.interviewRoute.nodeBasis[node] = clone(basis);
   row.interviewRoute.lastUpdated = new Date().toISOString();
   if (INTERVIEW_ROUTES.node_status_contract.closed.includes(status)) {
     const nextNode = route.nodes.find(item => !visited.includes(item.id));
@@ -228,7 +243,7 @@ export function applyProjectEvent(projectRoot, event) {
     state.authority = replaceCurrentStage(state.authority, event.stage);
     state.next = replaceNextStage(state.next, event.stage);
   } else if (event.type === 'interview-node') {
-    ledger = recordInterviewNode(ledger, { stage: event.stage, node: event.node, status: event.nodeStatus });
+    ledger = recordInterviewNode(ledger, { stage: event.stage, node: event.node, status: event.nodeStatus, basis: event.nodeBasis });
   } else if (event.type === 'auto-qa') {
     if (event.stage !== 'qa_delivery') throw new Error('auto-qa 只能进入 QA 与交付');
     const sourceStage = event.sourceStage || state.currentStage;

@@ -1,6 +1,6 @@
 import { acceptanceEvidenceIssue, isBareContinue } from './user-intent.mjs';
 import { AUTOMATIC_QA_POLICY, automaticQaIssues } from './automatic-qa-policy.mjs';
-import { getInterviewRoute, validateInterviewRouteCompletion, validateInterviewRouteProgress } from '../production/interview-routes.mjs';
+import { getInterviewRoute, validateInterviewNodeBasis, validateInterviewRouteCompletion, validateInterviewRouteProgress } from '../production/interview-routes.mjs';
 export { validateInterviewRouteCompletion };
 // Portable structural checks. This is not a host hook or an authenticity verifier.
 export const STAGES = ['preflight', 'continuation', 'materials', 'brainstorm', 'positioning', 'worldbuilding', 'character', 'systems', 'scenes', 'mvu', 'ejs', 'runtime_bridge', 'narrative_opening', 'opening_frontend', 'message_frontend', 'qa_delivery'];
@@ -12,7 +12,7 @@ export const FIXED_ROUTE_STAGES = new Set(['brainstorm', 'positioning', 'worldbu
 
 export function createInterviewRouteProgress(stage) {
   if (!FIXED_ROUTE_STAGES.has(stage) || !getInterviewRoute(stage)) return null;
-  return { stage, status: 'not_started', visited: [], currentNode: null, nodeStatus: {}, lastUpdated: null };
+  return { stage, basisVersion: 1, status: 'not_started', visited: [], currentNode: null, nodeStatus: {}, nodeBasis: {}, lastUpdated: null };
 }
 
 export function interviewRouteLabel(row) {
@@ -108,6 +108,23 @@ export function validateStageLedger(ledger, currentStage) {
     if (row.interviewRoute !== null && row.interviewRoute !== undefined) {
       const routeProgress = validateInterviewRouteProgress(row.interviewRoute, row.id);
       if (!routeProgress.ok) issues.push(...routeProgress.issues);
+      for (const node of row.interviewRoute.basisVersion === 1 ? (routeProgress.route?.nodes ?? []) : []) {
+        const status = row.interviewRoute.nodeStatus?.[node.id];
+        const basis = row.interviewRoute.nodeBasis?.[node.id];
+        const basisResult = validateInterviewNodeBasis(basis, status);
+        if (!basisResult.ok) issues.push(...basisResult.issues.map(issue => `${row.id}.${node.id} ${issue}`));
+        if (basis?.kind === 'user_confirmed' || basis?.kind === 'explicit_skip') {
+          for (const evidenceId of basis.evidence ?? []) {
+            const evidence = maps.userEvidence.get(evidenceId);
+            const expectedAction = basis.kind === 'explicit_skip' ? 'skip' : 'confirm';
+            if (!evidence || evidence.stage !== row.id || evidence.action !== expectedAction) issues.push(`${row.id}.${node.id} basis evidence 无效或跨阶段：${evidenceId}`);
+          }
+        }
+        if (basis?.kind === 'delegated') {
+          const authorization = maps.authorizations.get(basis.authorization);
+          if (!authorization || authorization.stage !== row.id || authorization.status === 'revoked') issues.push(`${row.id}.${node.id} basis authorization 无效或跨阶段：${basis.authorization}`);
+        }
+      }
       if (row.interviewRoute.status === 'complete') {
         const complete = validateInterviewRouteCompletion(row.interviewRoute, row.id);
         if (!complete.ok) issues.push(...complete.issues);

@@ -41,7 +41,9 @@ delegated 必须引用真实阶段授权，范围和阶段一致；“本阶段�
 
 单独的“继续”“接着来”“继续改”只表示沿当前路线继续，不代表回答当前问题、接受阶段交接或扩大授权。
 
-阶段启动后，把路线进度写入 authority.md 当前 stage 的 `interviewRoute`：记录已访问节点、当前节点、每个节点状态和路线状态。节点结算优先使用确定性转换器 `node scripts/continuation/continuation.mjs ledger-event --event interview-node --stage <阶段> --node <节点> --node-status <状态>`；该事件只记录路线进度，不制造用户确认或授权。固定路线未结算时不得提交阶段交接。
+阶段启动后，把路线进度写入 authority.md 当前 stage 的 `interviewRoute`：记录已访问节点、当前节点、每个节点状态、`nodeBasis` 和路线状态。节点结算优先使用短命令 `node scripts/continuation/continuation.mjs close-node --stage <阶段> --node <节点> --node-status <状态> --basis-file <依据 JSON>`；`basis` 必须说明材料定位、用户 evidence、授权或不适用理由，该命令只记录路线进度，不制造用户确认或授权。每次续接先使用 `node scripts/continuation/continuation.mjs context --root <项目目录>` 获取当前阶段包，不重新读取全阶段账本；禁止模型手工编辑 authority.md/NEXT.md。固定路线未结算时不得提交阶段交接。
+
+默认采用渐进写入：只更新当前节点已经闭合的真实内容，不提前生成会锚定后续访谈的完整 canonical 大稿；用户明确要求先看粗稿时，才输出带逐项未决标记的可逆草稿。
 
 ## 创作归属模式与主控边界
 

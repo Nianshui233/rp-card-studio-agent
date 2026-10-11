@@ -2,6 +2,7 @@
   "schema_version": 1,
   "purpose": "固定创作阶段的访谈路线。它规定每个阶段必须按顺序访问哪些语义节点，不把每个可选叶子字段都变成问题，也不允许 Agent 以自认为足够为由提前结束。",
   "scope": "brainstorm, positioning, worldbuilding, character, systems, scenes, narrative_opening",
+  "opt_in_stages": ["narrative_opening"],
   "excluded_for_now": ["mvu", "ejs", "runtime_bridge", "opening_frontend", "message_frontend"],
   "route_contract": {
     "source_prefill": "先读取原始材料、既有决定和当前阶段成果；已经有明确来源的节点直接标记 source_resolved，不重复向用户询问。",
@@ -11,11 +12,14 @@
     "completion_pass": "主访谈后固定进行一次补全与冲突检查：缺少最低内容、答案只覆盖一部分、或节点与前面内容冲突时，不得直接推进。",
     "follow_up_limit": "默认每个节点最多追加一轮定向补问；超过后保留 unresolved/tentative，除非用户明确确认、放权、跳过或声明不适用。",
     "no_silent_completion": "模型建议、自动草稿、测试通过、文件存在、用户沉默和单独的“继续”都不能关闭节点。",
+    "node_basis": "任何关闭节点都必须同时记录 basis：source_resolved 引用材料定位，confirmed 引用真实用户 evidence，delegated 引用授权，explicit_skip/not_applicable 记录对应证据或理由；没有 basis 不能结算。",
+    "progressive_artifact": "默认只写入当前节点已经闭合的真实内容；未完成阶段不主动生成会锚定后续访谈的完整 canonical 大稿，只有用户明确要求先看粗稿时才输出可逆草稿。",
+    "opt_in_gate": "opt_in_stages 默认不进入、不提问、不生成、不要求交接；只有用户明确启用该阶段或材料明确要求本次制作该阶段时，才能把 enabled 从 unresolved 提升为 enabled。单独‘继续’、全量制作偏好、已有开场前端或模型建议都不能代替叙事与开场的明确启用。",
     "delegation_scope": "用户说“你来定”只覆盖当前明确节点；只有明确说“本阶段整体由你决定”才扩大到阶段，且仍记录为 delegated，不改写为 user_confirmed。",
     "fast_lane": "原始提示词中的快速通道只允许减少重复提问、完成预填，不允许跳过尚未访问的承重节点。",
     "stage_handoff": "所有 blocking 节点必须处于 source_resolved、confirmed、delegated、explicit_skip 或 not_applicable 之一，才能提交阶段交接；tentative、proposed、unresolved 不是完成。",
     "blocking_default": true,
-    "ledger_progress": "阶段启动后，route progress 写入 authority.md 对应 stage.interviewRoute；每次节点结算记录 visited、currentNode、nodeStatus 和 status。可通过 continuation ledger-event --event interview-node --stage <stage> --node <node> --node-status <status> 走确定性转换器；它不创建用户依据。",
+    "ledger_progress": "阶段启动后，route progress 写入 authority.md 对应 stage.interviewRoute；每次节点结算记录 visited、currentNode、nodeStatus、nodeBasis 和 status。优先使用 continuation close-node --stage <stage> --node <node> --node-status <status> --basis-file <file>；它只推进路线，不创建用户依据。",
     "draft_mode": "用户明确要求先看粗稿时，可以带着未决项输出可逆草稿，但必须逐项列出未决状态和实际影响。",
     "short_reply": "单独的“继续”“接着来”“继续改”只表示沿当前路线继续，不代表回答当前问题、接受交接或扩大授权。"
   },
@@ -397,6 +401,8 @@
     },
     "narrative_opening": {
       "owner_skill": "rp-experience-authoring",
+      "optional": true,
+      "enable_when": "new_narrative_rules_or_openings_requested",
       "route_mode": "fixed_nodes_with_optional_subroutes",
       "scope": "narrative_rules_and_opening_content",
       "nodes": [

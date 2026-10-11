@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { initContinuation, renderProgressBoard, validateContinuation } from './continuation.mjs';
+import { buildStageContext, initContinuation, renderProgressBoard, validateContinuation } from './continuation.mjs';
 import { STAGES, createStageLedger, validateStageLedger } from './stage-ledger.mjs';
 function project(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rp-continuation-'));
@@ -192,4 +192,16 @@ test('init refuses to overwrite existing state', t => {
   const before = fs.readFileSync(file, 'utf8');
   assert.throws(() => initContinuation(root, { projectId: 'other', title: 'other' }), /拒绝覆盖/);
   assert.equal(fs.readFileSync(file, 'utf8'), before);
+});
+
+test('stage context returns a compact current-stage package instead of the full ledger', t => {
+  const root = project(t);
+  const context = buildStageContext(root);
+  assert.equal(context.schema, 'rp-card-studio/stage-context/v1');
+  assert.equal(context.currentStage, 'preflight');
+  assert.equal(context.stage.id, 'preflight');
+  assert.equal(context.route, null);
+  assert.equal('ledger' in context, false);
+  assert.equal('decisions' in context, false);
+  assert.match(context.instruction, /close-node/);
 });

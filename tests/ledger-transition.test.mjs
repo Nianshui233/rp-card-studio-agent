@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createStageLedger } from '../scripts/continuation/stage-ledger.mjs';
-import { acceptHandoff, recordUserEvidence, startStage, submitHandoff } from '../scripts/continuation/ledger-transition.mjs';
+import { acceptHandoff, recordInterviewNode, recordUserEvidence, startStage, submitHandoff } from '../scripts/continuation/ledger-transition.mjs';
 
 function evidence(overrides = {}) {
   return {
@@ -12,6 +12,14 @@ function evidence(overrides = {}) {
 
 test('transition writer rejects bare continue before it can enter the ledger', () => {
   assert.throws(() => recordUserEvidence(createStageLedger(), evidence({ action: 'start', quote: '继续' })), /不能产生阶段/);
+});
+
+test('node transition rejects a closure without source basis', () => {
+  const ledger = createStageLedger();
+  ledger.stages.find(item => item.id === 'preflight').progress = 'not_started';
+  ledger.stages.find(item => item.id === 'worldbuilding').enabled = 'enabled';
+  const started = startStage(ledger, { stage: 'worldbuilding', evidence: evidence({ id: 'USR-WORLD', stage: 'worldbuilding', action: 'start', quote: '开始世界观阶段', targets: ['worldbuilding'] }), trackInterviewRoute: true });
+  assert.throws(() => recordInterviewNode(started, { stage: 'worldbuilding', node: 'metadata', status: 'confirmed' }), /basis/);
 });
 
 test('stage handoff expires scoped authorizations and waits for review', () => {
