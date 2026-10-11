@@ -260,11 +260,17 @@ export function buildStageContext(rootValue, stageOverride) {
       status: nodeStatus[currentNode.id] ?? 'not_started',
       basis: progress?.nodeBasis?.[currentNode.id] ?? null,
     } : null,
+    basisInputs: {
+      evidence: state.ledger.userEvidence.filter(item => item.stage === row.id && ['confirm', 'skip'].includes(item.action))
+        .map(item => ({ id: item.id, action: item.action, targets: item.targets })),
+      authorizations: state.ledger.authorizations.filter(item => item.stage === row.id && item.status === 'active')
+        .map(item => ({ id: item.id, scope: item.scope, exclusions: item.exclusions })),
+    },
     next: { incomplete: nextLines('当前未完成'), gate: nextLines('下一道门'), risks: nextLines('当前风险') },
     allowedActions: row.progress === 'in_progress'
       ? (currentNode ? ['ask_current_node', 'write_current_node', 'close_current_node'] : ['write_current_stage', 'submit_stage_handoff'])
       : row.progress === 'awaiting_handoff' ? ['wait_user_acceptance'] : [],
-    instruction: '只处理当前阶段和当前节点；不要重新读取全阶段账本或手工编辑 authority.md/NEXT.md。节点关闭必须使用 close-node 并附 basis-file。若 legacyBasisMissing 非空，先为这些旧节点补证据，不把旧状态自动升级为新确认。',
+    instruction: '只处理当前阶段和当前节点；不要手工编辑 authority.md/NEXT.md。用 record-answer 登记 confirm/skip 依据，用 delegate 登记放权，用 record-decision 登记决定，再用 close-node 附 basis-file 结算。缺少 CLI 入口或依据时停止相关提升，不用 material/not_applicable 冒充用户回答。旧节点缺依据先补真实来源。',
   };
 }
 
@@ -273,11 +279,27 @@ function option(name) {
   return index >= 0 ? process.argv[index + 1] : undefined;
 }
 
+const CLI_HELP = `用法: node scripts/continuation/continuation.mjs <命令> --root <项目目录> [选项]
+init --project-id <id> --title <标题>
+context | validate | board
+start-stage --stage <阶段> --evidence-file <JSON>
+record-answer --stage <阶段> --evidence-file <JSON> [--decision-file <JSON>]
+delegate --stage <阶段> --evidence-file <JSON> --authorization-file <JSON>
+record-decision --stage <阶段> --decision-file <JSON>
+close-node --stage <阶段> --node <节点> --node-status <状态> --basis-file <JSON>
+handoff-stage --stage <阶段> --handoff-file <JSON>
+accept-handoff --stage <阶段> --handoff-id <ID> --evidence-file <JSON>
+route-lock | route-verify --stage <阶段> [--agent-root <目录>]
+ledger-event --stage <阶段> --event start|reopen|confirm|record-answer|delegate|record-decision|interview-node|handoff|accept|skip|auto-qa|qa-blocked [对应文件选项]
+数据格式见 orchestrator/stage-authorization.md；登记不会自动确认未回答内容或关闭节点。`;
+
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
   const command = process.argv[2];
   const root = option('--root') || process.cwd();
   try {
-    if (command === 'init') {
+    if (command === 'help' || process.argv.includes('--help') || process.argv.includes('-h')) {
+      process.stdout.write(`${CLI_HELP}\n`);
+    } else if (command === 'init') {
       const result = initContinuation(root, { projectId: option('--project-id'), title: option('--title') });
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
       if (!result.ok) process.exitCode = 1;
@@ -301,8 +323,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToP
       const result = validateRouteLock(lock, option('--agent-root') || ROOT, option('--stage') || lock.stage);
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
       if (!result.ok) process.exitCode = 1;
-    } else if (['ledger-event', 'start-stage', 'close-node', 'handoff-stage', 'accept-handoff'].includes(command)) {
-      const type = command === 'start-stage' ? 'start' : command === 'close-node' ? 'interview-node' : command === 'handoff-stage' ? 'handoff' : command === 'accept-handoff' ? 'accept' : option('--event');
+    } else if (['ledger-event', 'start-stage', 'record-answer', 'delegate', 'record-decision', 'close-node', 'handoff-stage', 'accept-handoff'].includes(command)) {
+      const type = ({ 'start-stage': 'start', 'close-node': 'interview-node', 'handoff-stage': 'handoff', 'accept-handoff': 'accept', 'record-answer': 'record-answer', delegate: 'delegate', 'record-decision': 'record-decision' })[command] ?? option('--event');
       const stage = option('--stage');
       if (!type || !stage) throw new Error(`${command} 必须提供 --stage <stage-id>${command === 'ledger-event' ? ' 和 --event <event>' : ''}`);
       const readJson = file => JSON.parse(read(file));
@@ -312,15 +334,24 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToP
         type,
         stage,
         evidence: evidenceFile ? readJson(evidenceFile) : undefined,
+        authorization: option('--authorization-file') ? readJson(option('--authorization-file')) : undefined,
+        decision: option('--decision-file') ? readJson(option('--decision-file')) : undefined,
         handoff: handoffFile ? readJson(handoffFile) : undefined,
         handoffId: option('--handoff-id'),
         node: option('--node'), nodeStatus: option('--node-status'),
         nodeBasis: option('--basis-file') ? readJson(option('--basis-file')) : undefined,
         scope: option('--scope'), sourceStage: option('--source-stage'), reason: option('--reason')
       });
-      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      const output = command === 'ledger-event' ? result : {
+        ok: true, event: result.event, stage: result.stage,
+        evidenceId: evidenceFile ? JSON.parse(read(evidenceFile)).id : null,
+        authorizationId: option('--authorization-file') ? readJson(option('--authorization-file')).id : null,
+        decisionId: option('--decision-file') ? readJson(option('--decision-file')).id : null,
+        context: buildStageContext(root),
+      };
+      process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
     } else {
-      throw new Error('用法: node continuation.mjs init|validate|board|context|route-lock|route-verify|ledger-event|start-stage|close-node|handoff-stage|accept-handoff --root <project-root> [--stage stage-id --agent-root agent-root --event ... --node <node-id> --node-status <status> --basis-file file --evidence-file file --handoff-file file --handoff-id id]');
+      throw new Error(CLI_HELP);
     }
   } catch (error) {
     process.stderr.write(`${error.message}\n`);

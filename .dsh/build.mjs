@@ -248,6 +248,11 @@ ${rows}
 | \`node scripts/continuation/continuation.mjs init --root <项目根> --project-id <id> --title <标题>\` | 初始化 \`制作文件/项目记录/\` 最小续接文件与阶段账本 |
 | \`node scripts/continuation/continuation.mjs validate --root <项目根>\` | 校验 authority/NEXT/账本：front matter、必需区块、project_id 一致性、跨阶段授权与伪关闭 |
 | \`node scripts/continuation/continuation.mjs board --root <项目根>\` | 由 authority + NEXT 渲染当前进度画板 |
+| \`node scripts/continuation/continuation.mjs context --root <项目根>\` | 当前阶段、节点、可引用依据与生效授权；不重复输出全账本 |
+| \`node scripts/continuation/continuation.mjs record-answer --root <项目根> --stage <阶段> --evidence-file <JSON> [--decision-file <JSON>]\` | 登记真实 confirm/节点 skip 回答；不自动关闭节点 |
+| \`node scripts/continuation/continuation.mjs delegate --root <项目根> --stage <阶段> --evidence-file <JSON> --authorization-file <JSON>\` | 登记具体范围的生效授权；不伪装用户逐项确认 |
+| \`node scripts/continuation/continuation.mjs record-decision --root <项目根> --stage <阶段> --decision-file <JSON>\` | 登记决定并核对其确认/代定来源，不覆盖旧记录 |
+| \`node scripts/continuation/continuation.mjs close-node --root <项目根> --stage <阶段> --node <节点> --node-status <状态> --basis-file <JSON>\` | 引用已登记的依据结算节点；禁止手改账本或来源改名绕过失败 |
 | \`node scripts/materials/validate-materials.mjs <项目根>/制作文件/项目记录/materials.json\` | 校验 \`rp-card-studio/materials/v2\` 合同：processing/research 状态、来源、事实、研究问题、冲突与整理结果 |
 | \`node scripts/validate-rolecard-package.mjs\` | 角色卡包级检查；MVU 项目必须传 \`--mvu-mode\`、\`--mvu-init-strategy\`，MVU_ZOD 另传 \`--mvu-contract "制作文件/配置/MVU运行合同.yaml"\` 与 \`--zod-source\` |
 | \`node scripts/mvu/validate-mvu-package.mjs\` | MVU 包级检查 |
@@ -258,6 +263,8 @@ ${rows}
 | \`node scripts/worldbook/split-yaml-lossless.mjs\` | canonical YAML 无损切片成世界书 |
 | \`python -X utf8 scripts/mvu/validate-initvar-yaml.py\` | \`[initvar]\` YAML 结构校验 |
 | \`node scripts/check-examples.mjs\` | 仓库自带示例的静态合同核对（\`npm test\` 即此） |
+
+上述登记命令的 JSON 格式见 \`${repoPosix}/orchestrator/stage-authorization.md\`；\`continuation.mjs --help\` 正常返回用法，不需要读源码猜参数。先登记回答/授权，再关闭节点。\`ledger-event --event confirm|delegate|record-decision\` 也接入同一转换器。
 
 ## DSH 适配层自身（\`.dsh/\`）
 

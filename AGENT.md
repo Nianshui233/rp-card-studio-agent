@@ -32,7 +32,7 @@
 
 必须读取 `orchestrator/stage-authorization.md`。authority.md 的阶段账本完整列出所有阶段，并分开记录启用、制作进度、用户审阅、执行许可和代定授权。用户确认/放权必须有真实原话与定位、适用阶段、范围和到期条件；Agent 提案、文件存在、自动测试或可编辑账本不能作为用户确认。授权范围外内容保持 proposed/unresolved。创作成果提交后转为待交接，本阶段创作授权到期，不自行跨入下一创作阶段；本次范围的 QA 与交付按 `orchestrator/automatic-work.md` 默认收尾，无需单独报备，不制造用户接受。只在真实来源覆盖范围内自主制作，不重复询问已确定技术细节。
 
-为降低执行负担，续接时先运行 `node scripts/continuation/continuation.mjs context --root <项目目录>`，只依据返回的当前阶段包工作；不要每轮重新读取全阶段账本、全套路由或手工编辑 `authority.md`/`NEXT.md`。固定路线节点只能通过 `close-node --basis-file` 结算：`source_resolved` 绑定材料定位，`confirmed` 绑定真实用户 evidence，`delegated` 绑定授权，跳过/不适用绑定明确证据或理由。默认渐进写入当前节点，不提前生成完整大稿；用户明确要求粗稿时必须保留逐项未决标记。
+为降低执行负担，续接时先运行 `node scripts/continuation/continuation.mjs context --root <项目目录>`，只依据返回的当前阶段包工作；不要每轮重新读取全阶段账本、全套路由或手工编辑 `authority.md`/`NEXT.md`。用 `record-answer --evidence-file` 登记确认/节点跳过，用 `delegate --evidence-file --authorization-file` 登记放权，用 `record-decision --decision-file` 登记决定，再通过 `close-node --basis-file` 结算；具体数据格式见 `orchestrator/stage-authorization.md`。`source_resolved` 绑定材料，`confirmed` 绑定该节点用户依据，`delegated` 绑定当前有效且范围匹配的授权；不得为绕过失败改写来源。默认渐进写入当前节点，不提前生成完整大稿；用户明确要求粗稿时保留逐项未决标记。
 
 ## 可选开场、自动收尾与环境发现
 

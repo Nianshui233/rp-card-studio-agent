@@ -16,6 +16,15 @@ test('bare continue is never an acceptance or authorization signal', () => {
   assert.notEqual(classifyUserReply('接受 HANDOFF-MVU-002').kind, 'bare_continue');
 });
 
+test('natural acceptance allows a subject but rejects denials, questions and conditions', () => {
+  for (const text of ['我接受这个交接', '我确认这版成果', '我们同意这次交接', '我已经接受这个交接', '接受 HANDOFF-1', '这版可以']) {
+    assert.equal(classifyUserReply(text).kind, 'explicit_acceptance', text);
+  }
+  for (const text of ['我不接受这个交接', '不可以', '没有通过', '我接受不了', '我接受这个交接吗', '是否可以', '如果通过检查我接受', '继续']) {
+    assert.notEqual(classifyUserReply(text).kind, 'explicit_acceptance', text);
+  }
+});
+
 test('ledger rejects a handoff accepted only by bare continue', () => {
   const ledger = createStageLedger();
   const row = ledger.stages.find(stage => stage.id === 'positioning');

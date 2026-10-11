@@ -21,12 +21,12 @@
 
 - start：进入一个已说明的阶段；targets 包含阶段 id。
 - delegate：在一个阶段内代定；targets 包含阶段 id 和相应 AUTH id。
-- confirm：确认具体决定；targets 包含 DEC/CAP id。
+- confirm：确认具体决定或访谈节点；targets 包含 DEC/CAP id 或 `<阶段>.<节点>`。关闭节点时不得拿别的节点的确认复用。
 - accept：接受已展示的阶段成果；targets 包含交接 id，并以 responseTo 指向该交接。
 - reject：否决内容或撤回授权。同步恢复受影响阶段、决定与验收状态。
 - skip：明确不做某阶段；不能以沉默代替。跳过记录 reasonType=user_choice、skipEvidence 指向该用户依据；明确不适用则 reasonType=not_applicable、enabled=disabled 并给出 reason，未回答能力不能填不适用。
 
-一个“继续”在阶段尚未完时，只推进本阶段已确定范围；阶段报告已清楚展示成果和相邻下一阶段时，新的“继续”可以表示接受该交接并开启那个明确阶段，不接受未展示的新方案，不默许未回答承重问题，不授权更后面的阶段。没有完整交接就不解释为接受。用户明确否决/局部修正时，不把同一句中的“继续”反过来记为全盘接受。
+单独的“继续”只推进本阶段已确定而未完成的范围；即使已经展示交接也不能记录为 accept 或下一阶段 start。接受需要明确接受/确认语义和匹配的交接引用，用户明确否决/局部修正不能记为全盘接受。
 
 ## 放权有范围、有到期，不等于逐项确认
 
@@ -90,6 +90,43 @@ node scripts/continuation/continuation.mjs ledger-event --root <项目目录> --
 ```
 
 不再允许 Agent 用临时脚本直接改写 authority/NEXT 的阶段状态。
+
+## 回答、授权与决定登记
+
+先登记来源，再关闭节点。短命令成功后返回当前阶段包，不重复输出整个账本；`ledger-event` 也支持 `confirm`、`record-answer`、`delegate`、`record-decision` 事件。`--help` 可查看选项且正常退出，无须读取脚本源码猜参数。
+
+```text
+node scripts/continuation/continuation.mjs record-answer --root <项目目录> --stage <阶段> --evidence-file <回答 JSON> [--decision-file <决定 JSON>]
+node scripts/continuation/continuation.mjs delegate --root <项目目录> --stage <阶段> --evidence-file <放权 JSON> --authorization-file <授权 JSON>
+node scripts/continuation/continuation.mjs record-decision --root <项目目录> --stage <阶段> --decision-file <决定 JSON>
+node scripts/continuation/continuation.mjs close-node --root <项目目录> --stage <阶段> --node <节点> --node-status confirmed|delegated|explicit_skip --basis-file <依据 JSON>
+```
+
+回答 JSON 使用前述 userEvidence 字段，`action=confirm` 或节点级 `skip`；必须来自真实用户原话。节点级 skip 只登记回答，不关闭整个阶段，整阶段不做仍用原有 skip 事件。确认例：
+
+```json
+{
+  "id": "UE-001", "role": "user", "origin": "conversation",
+  "stage": "positioning", "action": "confirm",
+  "locator": "当前会话#真实用户消息定位", "quote": "按建议",
+  "targets": ["positioning.player_control"]
+}
+```
+
+该节点的 basis 用 `{"kind":"user_confirmed","evidence":["UE-001"],"coverage":["玩家控制权"]}`。引用 DEC/CAP 时，决定还需 `node` 指向实际节点，才能供节点结算使用。`record-answer --decision-file` 只接受引用本条 confirm 的 user_confirmed 决定；登记本身不关闭节点或接受阶段。
+
+授权 JSON 包含 `id`、同阶段 `stage`、`mode`、具体 `scope` 数组和 `exclusions` 数组；例如：
+
+```json
+{
+  "id": "AUTH-001", "stage": "positioning", "mode": "scoped_delegation",
+  "scope": ["玩家控制权"], "exclusions": []
+}
+```
+
+放权依据 `action=delegate`，targets 必须包含该 AUTH id。脚本绑定 userEvidence 并设置 active/stage_handoff，不猜授权范围；同一依据若已用于进入阶段，只可原样引用，不重复插入或改写原话。节点 basis 使用 `{"kind":"delegated","authorization":"AUTH-001","scope":"玩家控制权","coverage":["玩家控制权"]}`，scope 必须属于该授权且不在排除范围。新代定只能使用当前生效授权，交接时自动到期；合法旧代定仍保留 delegated，不改写成用户确认。
+
+决定 JSON 使用前述 decisions 字段；`record-decision` 登记新记录，不覆盖旧决定，不制造确认或授权来源。相关 ID 必须已登记。任何登记失败都停止相关提升，不能手改账本，也不能为了绕过错误把用户回答降成 material/source_resolved 或 not_applicable。引用校验仍不证明原话真实性和语义覆盖充分。
 
 短回复的确定性边界：
 

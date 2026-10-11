@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import { STATE_DIR, validateProjectLayout, resolveProjectPath } from '../project-layout.mjs';
 import path from 'node:path';
-import { STAGES, OPTIONAL, createInterviewRouteProgress, validateInterviewRouteCompletion, validateStageLedger } from './stage-ledger.mjs';
+import { isDeepStrictEqual } from 'node:util';
+import { STAGES, OPTIONAL, createInterviewRouteProgress, interviewNodeReferenceIssues, validateInterviewRouteCompletion, validateStageLedger } from './stage-ledger.mjs';
 import { getInterviewRoute, INTERVIEW_ROUTES, validateInterviewNodeBasis } from '../production/interview-routes.mjs';
 import { classifyUserReply, isBareContinue } from './user-intent.mjs';
 import { AUTOMATIC_QA_POLICY, createAutomaticQaPolicy } from './automatic-qa-policy.mjs';
@@ -17,6 +18,8 @@ function requireEvidence(evidence, expectedActions = []) {
     throw new Error('用户依据必须来自带定位的真实用户消息');
   }
   if (evidence.origin !== 'conversation') throw new Error('用户依据必须标记 origin=conversation；账本和 Agent 总结不是用户来源');
+  if (!STAGES.includes(evidence.stage) || !['start', 'delegate', 'confirm', 'accept', 'reject', 'skip'].includes(evidence.action)
+    || evidence.targets.length === 0 || evidence.targets.some(target => typeof target !== 'string' || !target.trim())) throw new Error('用户依据的阶段、动作或目标无效');
   if (expectedActions.length && !expectedActions.includes(evidence.action)) throw new Error(`用户依据动作必须是：${expectedActions.join(' / ')}`);
   if (isBareContinue(evidence.quote) && HIGH_IMPACT_ACTIONS.has(evidence.action)) throw new Error('单独的“继续”不能产生阶段/决定/授权依据');
   if (evidence.action === 'accept' && classifyUserReply(evidence.quote).kind !== 'explicit_acceptance') throw new Error('接受交接必须包含明确的接受/确认语义');
@@ -37,6 +40,52 @@ function stageOf(ledger, stage) {
   return row;
 }
 
+function requireActiveStage(ledger, stage) {
+  if (stageOf(ledger, stage).progress !== 'in_progress') throw new Error(`只能在进行中的当前阶段登记回答、授权或决定：${stage}`);
+  if (ledger.stages.some(item => item.id !== stage && ['in_progress', 'awaiting_handoff', 'blocked'].includes(item.progress))) throw new Error('不能跨当前活动阶段登记');
+}
+
+export function recordDecision(ledger, { stage, decision }) {
+  requireActiveStage(ledger, stage);
+  if (!decision?.id || decision.stage !== stage || typeof decision.text !== 'string' || !decision.text.trim()) throw new Error('决定必须包含 id、同阶段 stage 和 text');
+  if (ledger.decisions.some(item => item.id === decision.id)) throw new Error(`决定 id 已存在，不得覆盖原决定：${decision.id}`);
+  if (decision.sourceKind === 'delegated') {
+    const authorization = ledger.authorizations.find(item => item.id === decision.authorization);
+    if (!authorization || authorization.stage !== stage || authorization.status !== 'active'
+      || !authorization.scope.includes(decision.scope) || authorization.exclusions.includes(decision.scope)) throw new Error('新代定决定必须属于当前生效授权范围');
+  }
+  const next = clone(ledger);
+  next.decisions.push(clone(decision));
+  return validateTransitionResult(next, stage);
+}
+
+export function recordAnswer(ledger, { stage, evidence, decision }) {
+  requireActiveStage(ledger, stage);
+  requireEvidence(evidence, ['confirm', 'skip']);
+  if (evidence.stage !== stage) throw new Error('回答依据必须指向同一阶段');
+  const next = recordUserEvidence(ledger, evidence);
+  if (decision) {
+    if (evidence.action !== 'confirm' || decision.sourceKind !== 'user_confirmed' || decision.userEvidence !== evidence.id) throw new Error('回答附带的决定必须引用本条 confirm 依据，不得伪装代定来源');
+    return recordDecision(next, { stage, decision });
+  }
+  return validateTransitionResult(next, stage);
+}
+
+export function recordDelegation(ledger, { stage, evidence, authorization }) {
+  requireActiveStage(ledger, stage);
+  requireEvidence(evidence, ['delegate']);
+  if (evidence.stage !== stage || !authorization?.id || authorization.stage !== stage
+    || !evidence.targets.includes(authorization.id)) throw new Error('放权依据必须指向同阶段和相应 AUTH id');
+  if (ledger.authorizations.some(item => item.id === authorization.id)) throw new Error(`授权 id 已存在，不得覆盖或复活旧授权：${authorization.id}`);
+  if (authorization.userEvidence && authorization.userEvidence !== evidence.id) throw new Error('授权必须引用本条 delegate 依据');
+  if (authorization.status && authorization.status !== 'active' || authorization.expires && authorization.expires !== 'stage_handoff') throw new Error('新授权只能 active 且在 stage_handoff 到期');
+  const existingEvidence = ledger.userEvidence.find(item => item.id === evidence.id);
+  if (existingEvidence && !isDeepStrictEqual(existingEvidence, evidence)) throw new Error('依据 id 已存在且内容不同，不得覆盖原话');
+  const next = existingEvidence ? clone(ledger) : recordUserEvidence(ledger, evidence);
+  next.authorizations.push({ ...clone(authorization), userEvidence: evidence.id, status: 'active', expires: 'stage_handoff' });
+  return validateTransitionResult(next, stage);
+}
+
 export function recordInterviewNode(ledger, { stage, node, status, basis }) {
   const next = clone(ledger), row = stageOf(next, stage), route = getInterviewRoute(stage);
   if (!route || !row.interviewRoute) throw new Error(`阶段没有启用固定访谈路线：${stage}`);
@@ -50,34 +99,21 @@ export function recordInterviewNode(ledger, { stage, node, status, basis }) {
   if (!allowed.has(status) || status === 'not_started') throw new Error(`访谈节点状态无效：${status}`);
   const basisResult = validateInterviewNodeBasis(basis, status);
   if (!basisResult.ok) throw new Error(`${stage}.${node} 节点不能结算：${basisResult.issues.join('；')}`);
-  if (basis?.kind === 'user_confirmed' || basis?.kind === 'explicit_skip') {
-    const expectedAction = basis.kind === 'explicit_skip' ? 'skip' : 'confirm';
-    for (const evidenceId of basis.evidence) {
-      const evidence = next.userEvidence?.find(item => item.id === evidenceId);
-      if (!evidence || evidence.stage !== stage || evidence.action !== expectedAction) throw new Error(`${stage}.${node} basis evidence 无效或跨阶段：${evidenceId}`);
-    }
-  }
-  if (basis?.kind === 'delegated') {
-    const authorization = next.authorizations?.find(item => item.id === basis.authorization);
-    if (!authorization || authorization.stage !== stage || authorization.status === 'revoked') throw new Error(`${stage}.${node} basis authorization 无效或跨阶段：${basis.authorization}`);
-  }
+  const referenceIssues = interviewNodeReferenceIssues(next, stage, node, basis, { forWrite: true });
+  if (referenceIssues.length) throw new Error(referenceIssues.join('；'));
   const visited = row.interviewRoute.visited;
   row.interviewRoute.nodeBasis ??= {};
   const position = route.nodes.findIndex(item => item.id === node);
   const nextPosition = visited.length;
   if (!visited.includes(node) && position !== nextPosition) throw new Error(`访谈节点必须按顺序记录：${stage}.${node}`);
+  if (!visited.includes(node) && route.nodes.slice(0, position).some(item => !INTERVIEW_ROUTES.node_status_contract.closed.includes(row.interviewRoute.nodeStatus[item.id]))) throw new Error('前置访谈节点尚未结算，不能推进下一节点');
   if (!visited.includes(node)) visited.push(node);
   row.interviewRoute.nodeStatus[node] = status;
   if (basis !== undefined) row.interviewRoute.nodeBasis[node] = clone(basis);
   row.interviewRoute.lastUpdated = new Date().toISOString();
-  if (INTERVIEW_ROUTES.node_status_contract.closed.includes(status)) {
-    const nextNode = route.nodes.find(item => !visited.includes(item.id));
-    row.interviewRoute.currentNode = nextNode?.id ?? null;
-    row.interviewRoute.status = nextNode ? 'tracking' : 'complete';
-  } else {
-    row.interviewRoute.currentNode = node;
-    row.interviewRoute.status = 'tracking';
-  }
+  const nextNode = route.nodes.find(item => !INTERVIEW_ROUTES.node_status_contract.closed.includes(row.interviewRoute.nodeStatus[item.id]));
+  row.interviewRoute.currentNode = nextNode?.id ?? null;
+  row.interviewRoute.status = nextNode ? 'tracking' : 'complete';
   return next;
 }
 
@@ -244,6 +280,13 @@ export function applyProjectEvent(projectRoot, event) {
     state.next = replaceNextStage(state.next, event.stage);
   } else if (event.type === 'interview-node') {
     ledger = recordInterviewNode(ledger, { stage: event.stage, node: event.node, status: event.nodeStatus, basis: event.nodeBasis });
+  } else if (event.type === 'confirm' || event.type === 'record-answer') {
+    if (event.type === 'confirm' && event.evidence?.action !== 'confirm') throw new Error('confirm 事件必须使用 action=confirm 的用户依据');
+    ledger = recordAnswer(ledger, { stage: event.stage, evidence: event.evidence, decision: event.decision });
+  } else if (event.type === 'delegate') {
+    ledger = recordDelegation(ledger, { stage: event.stage, evidence: event.evidence, authorization: event.authorization });
+  } else if (event.type === 'record-decision') {
+    ledger = recordDecision(ledger, { stage: event.stage, decision: event.decision });
   } else if (event.type === 'auto-qa') {
     if (event.stage !== 'qa_delivery') throw new Error('auto-qa 只能进入 QA 与交付');
     const sourceStage = event.sourceStage || state.currentStage;

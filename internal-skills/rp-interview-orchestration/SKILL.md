@@ -45,6 +45,8 @@ delegated 必须引用真实阶段授权，范围和阶段一致；“本阶段�
 
 默认采用渐进写入：只更新当前节点已经闭合的真实内容，不提前生成会锚定后续访谈的完整 canonical 大稿；用户明确要求先看粗稿时，才输出带逐项未决标记的可逆草稿。
 
+先用 `record-answer --evidence-file` 登记 confirm/节点 skip 的真实回答；放权用 `delegate --evidence-file --authorization-file`，决定用 `record-decision --decision-file`。数据格式见 `orchestrator/stage-authorization.md`。confirm targets 必须指向 `<阶段>.<节点>` 或带该 node 的决定；delegated basis 的 scope 必须匹配当前生效授权。登记失败不能手工注入账本或改用 material/not_applicable 绕过。
+
 ## 创作归属模式与主控边界
 
 定位阶段必须先关闭一个正式分流，默认推荐第一项：

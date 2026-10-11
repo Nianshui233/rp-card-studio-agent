@@ -106,6 +106,8 @@ npm run dsh:verify    # 结构检查 + 真实加载检查
 
 路线进度会写入当前阶段的 `authority.md`，显示已访问节点、当前节点和关闭依据；阶段交接前由确定性路线检查确认所有节点已结算。续接时优先使用 `node scripts/continuation/continuation.mjs context --root <项目目录>` 获取当前阶段包，节点使用 `close-node --basis-file` 结算，不手工改账本。路线进度不等于用户接受，`delegated` 仍只表示用户放权后的 Agent 代定。
 
+节点依据先通过 `record-answer` 登记；放权通过 `delegate --authorization-file` 登记；具体决定通过 `record-decision` 或 `record-answer --decision-file` 登记。短命令返回当前阶段包；使用 `--help` 可查看参数，JSON 格式集中在 `orchestrator/stage-authorization.md`。没有依据时阻断提升，不以来源改名绕过。接受交接支持“我接受这个交接”等明确表达，仍需匹配交接 ID 和 responseTo，单独“继续”不算接受。
+
 长期项目会在项目目录维护 `制作文件/项目记录/`：
 
 ```text

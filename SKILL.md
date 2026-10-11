@@ -20,7 +20,7 @@ description: "Brainstorm, create, continue, convert, modify, review, QA, or deli
 10. 叙事与开场是 opt-in 可选阶段：默认绕过，不进入、不访谈、不生成、不要求交接；只有用户明确选择新设叙事规则或新写开场后才启用。启用后分别选择叙事规则与开场的新增/沿用/不制作；未回答不等于启用。开场前端与消息前端独立选择，保留既有内容和初始化检查。
 11. 创作阶段提交后待审阅、授权到期，不自行进入下一创作阶段；阶段内 QA 和本次范围的技术收尾、整理交付默认执行，不单独报备。使用 `scripts/production/automatic-qa.mjs`，自动执行依据只继承制作范围，不制造用户接受。单独“继续”不接受交接或授权下一创作阶段。
 12. 新项目启动只读发现酒馆安装和运行实例，续接复核、实机 QA 前刷新，读取并执行 `orchestrator/automatic-work.md` 的宿主发现合同。只保存当前环境，不将扫描结果写入 RP 内容；环境可见不等于运行验收通过。
-13. 续接或换宿主时先调用 `node scripts/continuation/continuation.mjs context --root <项目目录>` 获取当前阶段包；固定路线节点使用 `close-node --basis-file` 结算，禁止手工编辑账本。默认只写当前节点内容，不提前生成完整 canonical 大稿，除非用户明确要求可逆粗稿。
+13. 续接或换宿主时先调用 `node scripts/continuation/continuation.mjs context --root <项目目录>` 获取当前阶段包；先用 `record-answer` 登记真实回答、`delegate` 登记具体放权、`record-decision` 登记决定，再用 `close-node --basis-file` 结算。格式见 `orchestrator/stage-authorization.md`；禁止手工编辑账本或改写来源绕过失败。默认只写当前节点内容，不提前生成完整 canonical 大稿，除非用户明确要求可逆粗稿。
 
 ## 作品保存位置
 

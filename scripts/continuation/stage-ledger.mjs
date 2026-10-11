@@ -33,6 +33,35 @@ export function createStageLedger() {
 }
 function nonempty(value) { return typeof value === 'string' && value.trim().length > 0; }
 function record(value) { return value !== null && typeof value === 'object' && !Array.isArray(value); }
+export function interviewNodeReferenceIssues(ledger, stage, node, basis, { forWrite = false } = {}) {
+  const issues = [];
+  if (!record(basis)) return issues;
+  if (basis.kind === 'user_confirmed' || basis.kind === 'explicit_skip') {
+    const action = basis.kind === 'explicit_skip' ? 'skip' : 'confirm';
+    for (const id of Array.isArray(basis.evidence) ? basis.evidence : []) {
+      const evidence = ledger.userEvidence.find(item => item?.id === id);
+      if (!evidence || evidence.role !== 'user' || evidence.stage !== stage || evidence.action !== action
+        || evidence.origin !== 'conversation' || !Array.isArray(evidence.targets) || isBareContinue(evidence.quote)) {
+        issues.push(`${stage}.${node} basis evidence 无效或跨阶段：${id}`);
+        continue;
+      }
+      const decisionTarget = ledger.decisions.some(item => item?.stage === stage && item.node === node
+        && item.sourceKind === 'user_confirmed' && item.userEvidence === id && evidence.targets?.includes(item.id));
+      if (!evidence.targets?.includes(`${stage}.${node}`) && !decisionTarget) issues.push(`${stage}.${node} 用户依据未指向该节点：${id}`);
+    }
+  }
+  if (basis.kind === 'delegated') {
+    const authorization = ledger.authorizations.find(item => item?.id === basis.authorization);
+    if (!authorization || authorization.stage !== stage || authorization.status === 'revoked'
+      || !Array.isArray(authorization.scope) || !Array.isArray(authorization.exclusions)
+      || (forWrite && authorization.status !== 'active')) issues.push(`${stage}.${node} basis authorization 无效、跨阶段或已到期：${basis.authorization}`);
+    else {
+      const scope = basis.scope ?? `${stage}.${node}`;
+      if (!authorization.scope?.includes(scope) || authorization.exclusions?.includes(scope)) issues.push(`${stage}.${node} 超出授权 scope：${scope}`);
+    }
+  }
+  return issues;
+}
 export function validateStageLedger(ledger, currentStage) {
   const issues = [];
   if (!record(ledger) || ledger.schema !== 'rp-card-studio/stage-ledger/v1') return { ok: false, issues: ['阶段账本 schema 必须是 rp-card-studio/stage-ledger/v1'] };
@@ -113,17 +142,7 @@ export function validateStageLedger(ledger, currentStage) {
         const basis = row.interviewRoute.nodeBasis?.[node.id];
         const basisResult = validateInterviewNodeBasis(basis, status);
         if (!basisResult.ok) issues.push(...basisResult.issues.map(issue => `${row.id}.${node.id} ${issue}`));
-        if (basis?.kind === 'user_confirmed' || basis?.kind === 'explicit_skip') {
-          for (const evidenceId of basis.evidence ?? []) {
-            const evidence = maps.userEvidence.get(evidenceId);
-            const expectedAction = basis.kind === 'explicit_skip' ? 'skip' : 'confirm';
-            if (!evidence || evidence.stage !== row.id || evidence.action !== expectedAction) issues.push(`${row.id}.${node.id} basis evidence 无效或跨阶段：${evidenceId}`);
-          }
-        }
-        if (basis?.kind === 'delegated') {
-          const authorization = maps.authorizations.get(basis.authorization);
-          if (!authorization || authorization.stage !== row.id || authorization.status === 'revoked') issues.push(`${row.id}.${node.id} basis authorization 无效或跨阶段：${basis.authorization}`);
-        }
+        issues.push(...interviewNodeReferenceIssues(ledger, row.id, node.id, basis));
       }
       if (row.interviewRoute.status === 'complete') {
         const complete = validateInterviewRouteCompletion(row.interviewRoute, row.id);
