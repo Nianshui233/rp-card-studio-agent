@@ -34,7 +34,7 @@ const PERSONA_INDENT = ' '.repeat(24);
 const MACRO_ZWSP = '\u200B';
 
 /** 从任意 dsh 安装/profile 处解析 YAML 解析器；找不到时返回 undefined 由调用方给出提示。 */
-function loadYamlModule() {
+export function loadYamlModule() {
   for (const anchor of dshAnchorCandidates()) {
     try {
       return createRequire(anchor)('yaml');
@@ -86,6 +86,8 @@ function readUtf8(file) {
   if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
   return normalizeEol(text);
 }
+
+export { readUtf8 };
 
 /** 按 YAML 块标量规则重新缩进：空行保持空行，不对空白行填充缩进。 */
 export function indentBlock(text, indent) {

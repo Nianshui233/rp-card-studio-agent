@@ -39,17 +39,36 @@ node .dsh/install.mjs --profile web --dry-run   # 只看会改什么，不落盘
 
 ```bash
 node .dsh/build.mjs --check        # 只构建、报告，不写文件
-npm run test:dsh                   # 13 条适配合同用例
-node .dsh/verify.mjs               # 结构检查 + 真实加载检查
+node .dsh/compat.mjs               # 只读兼容性探针：包 / 子路径 / config 键 / 与内置 standard 的差异
+node .dsh/doctor.mjs               # 只读全链路诊断：仓库、构建、profile、dump、运行中实例的 broken
+npm run test:dsh                   # 23 条适配合同用例
+node .dsh/verify.mjs               # 结构检查 + 兼容性 + 真实加载检查
 ```
 
 `verify.mjs` 的结论只有三种，含义严格区分：
 
-- `verified`：结构检查全过，并且 `dsh --profile <profile> --dump-config` 真的展开了本 bundle（dump 里能看到包名、preset 段与两个技能根目录）。
+- `verified`：结构检查全过、`compat` 无 error，并且 `dsh --profile <profile> --dump-config` 真的展开了本 bundle（dump 里能看到包名、preset 段与两个技能根目录）。
 - `structural-only`：结构检查全过，但本机找不到 `dsh` 可执行文件，真实加载未验证。
-- `failed`：任一硬检查失败。
+- `failed`：任一硬检查失败（含 `compat` 报出的包/子路径/配置键错误）。
 
 `--offline` 会跳过真实加载检查。`dsh --dump-config` 不求值 `!!js`，它证明的是"bundle 被收录、结构与顺序正确"，不等于运行时行为已验证——运行时结论以 `verify.mjs` 报告的 `runtime` 字段为准。
+
+### 升级 dsh 之后
+
+dsh 升级可能删包、删子路径、改配置键名，而宿主对这些变化不会报错（未知键静默忽略）。
+固定动作：
+
+```bash
+node .dsh/doctor.mjs --json   # 定位：哪一段是 error
+node .dsh/compat.mjs          # 逐行看：谁引用的包/子路径/键变了
+node .dsh/build.mjs           # 按当前 dsh 版本重建
+node .dsh/verify.mjs          # 真实加载
+node .dsh/doctor.mjs          # 重启 dsh web 后复查 runtime
+```
+
+**预设从选择器里消失**的语义是：注册时挂载失败 → 被标成 `broken` → 前端过滤掉。
+`broken` 是实例启动时的一次性结果，只改文件不重启不会消失。完整的症状→原因→修法见
+[`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)，AI 代理按其中的"操作约定"执行。
 
 ## 可移植性
 

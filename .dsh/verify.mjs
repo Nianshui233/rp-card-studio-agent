@@ -11,6 +11,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { BUNDLE_NAME, PRESET_ID, REPO_ROOT, SKILL_DIR_NAME, dshAnchorCandidates, renderPreset, toPosix } from './build.mjs';
+import { resolveProfileDir, runCompatibility } from './compat.mjs';
 
 function option(name, fallback) {
   const index = process.argv.indexOf(name);
@@ -101,6 +102,20 @@ function main() {
   const profile = option('--profile', process.env.DSH_PROFILE ?? 'web');
   const dshHome = process.env.DSH_HOME ?? path.dirname(path.dirname(process.env.DSH_PROFILE_DIR ?? ''));
   const profileManifest = path.join(dshHome, 'profiles', profile, 'package.json');
+
+  // 与 dsh 的兼容性：引用的包/子路径是否还能解析、config 键是否还在、行是否被内置 standard 改名。
+  // 这一段只读已安装的 dsh，不依赖 profile 存在，也不需要 --dump-config。
+  if (report.dsh.kind === 'node-script') {
+    const compat = runCompatibility({ profile, profileDir: resolveProfileDir(profile) });
+    const errors = compat.findings.filter((finding) => finding.severity === 'error');
+    const warns = compat.findings.filter((finding) => finding.severity === 'warn');
+    const describe = (finding) => `[${finding.rowId ?? '?'}] ${finding.message}`;
+    check('兼容性检查无错误（包 / 子路径 / config 键）', errors.length === 0, errors.map(describe).join(' | '));
+    report.compatCounts = compat.counts;
+    if (warns.length > 0) report.compatWarnings = warns.map(describe);
+  } else {
+    report.remaining.push('未找到 dsh 安装：兼容性检查未执行（runtime: not_run）');
+  }
   if (!hasFlag('--offline') && report.dsh.kind === 'node-script' && fs.existsSync(profileManifest)) {
     const probe = spawnSync(process.execPath, [report.dsh.entry, '--profile', profile, '--dump-config'], {
       encoding: 'utf8',
