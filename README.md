@@ -2,6 +2,7 @@
 
 > [!WARNING]
 > **本项目已弃坑并归档（2026-11-22）。** 已放弃维护，不再更新，也不再接受 Issue / PR。仓库已设为 GitHub archived 只读状态，仅作存档保留，请勿再用于新项目。
+> 后续新项目请看：[rp-factory](https://github.com/Nianshui233/rp-factory)。
 
 > **从一个想法、一张旧卡或一堆零散材料开始，逐步做出可游玩、可导入、可验证的 SillyTavern RP 项目。**
 
